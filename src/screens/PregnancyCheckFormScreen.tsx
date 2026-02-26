@@ -6,7 +6,12 @@ import { FormField, FormTextInput, OptionSelector, formStyles } from '@/componen
 import { Screen } from '@/components/Screen';
 import { BreedingRecord, calculateDaysPostBreeding } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { createPregnancyCheck, listBreedingRecordsByMare } from '@/storage/repositories';
+import {
+  createPregnancyCheck,
+  getPregnancyCheckById,
+  listBreedingRecordsByMare,
+  updatePregnancyCheck,
+} from '@/storage/repositories';
 import { newId } from '@/utils/id';
 import { validateLocalDate, validateRequired } from '@/utils/validation';
 
@@ -32,6 +37,8 @@ const YES_NO_OPTIONS: { label: string; value: YesNo }[] = [
 
 export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Element {
   const mareId = route.params.mareId;
+  const pregnancyCheckId = route.params.pregnancyCheckId;
+  const isEdit = Boolean(pregnancyCheckId);
 
   const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
   const [breedingRecordId, setBreedingRecordId] = useState('');
@@ -44,20 +51,30 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    navigation.setOptions({ title: 'Add Pregnancy Check' });
-  }, [navigation]);
+    navigation.setOptions({ title: isEdit ? 'Edit Pregnancy Check' : 'Add Pregnancy Check' });
+  }, [isEdit, navigation]);
 
   useEffect(() => {
     let mounted = true;
 
-    listBreedingRecordsByMare(mareId)
-      .then((records) => {
+    Promise.all([
+      listBreedingRecordsByMare(mareId),
+      pregnancyCheckId ? getPregnancyCheckById(pregnancyCheckId) : Promise.resolve(null),
+    ])
+      .then(([records, existing]) => {
         if (!mounted) {
           return;
         }
 
         setBreedingRecords(records);
-        if (records.length > 0) {
+
+        if (existing) {
+          setBreedingRecordId(existing.breedingRecordId);
+          setDate(existing.date);
+          setResult(existing.result);
+          setHeartbeat(existing.heartbeatDetected ? 'yes' : 'no');
+          setNotes(existing.notes ?? '');
+        } else if (records.length > 0) {
           setBreedingRecordId(records[0].id);
         }
       })
@@ -66,8 +83,9 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
           return;
         }
 
-        const message = err instanceof Error ? err.message : 'Unable to load breeding records.';
+        const message = err instanceof Error ? err.message : 'Unable to load pregnancy-check form data.';
         Alert.alert('Load error', message);
+        navigation.goBack();
       })
       .finally(() => {
         if (mounted) {
@@ -78,7 +96,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
     return () => {
       mounted = false;
     };
-  }, [mareId]);
+  }, [mareId, navigation, pregnancyCheckId]);
 
   useEffect(() => {
     if (result === 'negative') {
@@ -131,15 +149,19 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
     setIsSaving(true);
 
     try {
-      await createPregnancyCheck({
-        id: newId(),
-        mareId,
+      const payload = {
         breedingRecordId,
         date: date.trim(),
         result,
         heartbeatDetected: result === 'positive' ? heartbeat === 'yes' : false,
         notes: notes.trim() || null,
-      });
+      };
+
+      if (pregnancyCheckId) {
+        await updatePregnancyCheck(pregnancyCheckId, payload);
+      } else {
+        await createPregnancyCheck({ id: newId(), mareId, ...payload });
+      }
 
       navigation.goBack();
     } catch (err) {
@@ -150,22 +172,25 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
     }
   };
 
+  if (isLoading) {
+    return (
+      <Screen>
+        <Text>Loading pregnancy check...</Text>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Breeding Record" required error={errors.breedingRecordId}>
-          {isLoading ? (
-            <Text>Loading breeding records...</Text>
-          ) : breedingRecords.length === 0 ? (
+          {breedingRecords.length === 0 ? (
             <Text>No breeding records found for this mare.</Text>
           ) : (
             <OptionSelector
               value={breedingRecordId}
               onChange={setBreedingRecordId}
-              options={breedingRecords.map((record) => ({
-                value: record.id,
-                label: `${record.date} (${record.method})`,
-              }))}
+              options={breedingRecords.map((record) => ({ value: record.id, label: `${record.date} (${record.method})` }))}
             />
           )}
         </FormField>
@@ -179,19 +204,12 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
         </FormField>
 
         <FormField label="Heartbeat Detected">
-          <OptionSelector
-            value={heartbeat}
-            onChange={setHeartbeat}
-            options={YES_NO_OPTIONS}
-          />
+          <OptionSelector value={heartbeat} onChange={setHeartbeat} options={YES_NO_OPTIONS} />
           {result === 'negative' ? <Text>Heartbeat is forced to No for negative checks.</Text> : null}
         </FormField>
 
         <View>
-          <Text>
-            Days post-breeding:{' '}
-            {daysPostBreeding === null ? '-' : `${daysPostBreeding}`}
-          </Text>
+          <Text>Days post-breeding: {daysPostBreeding === null ? '-' : `${daysPostBreeding}`}</Text>
         </View>
 
         <FormField label="Notes">
@@ -200,13 +218,10 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
 
         <Pressable
           disabled={isSaving || breedingRecords.length === 0}
-          style={[
-            formStyles.saveButton,
-            isSaving || breedingRecords.length === 0 ? formStyles.saveButtonDisabled : null,
-          ]}
+          style={[formStyles.saveButton, isSaving || breedingRecords.length === 0 ? formStyles.saveButtonDisabled : null]}
           onPress={onSave}
         >
-          <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : 'Save Pregnancy Check'}</Text>
+          <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : isEdit ? 'Save Pregnancy Check' : 'Create Pregnancy Check'}</Text>
         </Pressable>
       </ScrollView>
     </Screen>

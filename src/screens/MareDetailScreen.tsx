@@ -108,6 +108,14 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
               <Text>Edema: {log.edema ?? '-'}</Text>
               <Text>Right ovary: {log.rightOvary || '-'}</Text>
               <Text>Left ovary: {log.leftOvary || '-'}</Text>
+              <View style={styles.cardActions}>
+                <Pressable
+                  style={styles.inlineButton}
+                  onPress={() => navigation.navigate('DailyLogForm', { mareId, logId: log.id })}
+                >
+                  <Text style={styles.inlineButtonText}>Edit</Text>
+                </Pressable>
+              </View>
             </View>
           ))}
         </View>
@@ -130,6 +138,16 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
               <Text>Method: {record.method}</Text>
               <Text>Stallion: {stallionNameById[record.stallionId] ?? 'Unknown'}</Text>
               {record.collectionDate ? <Text>Collection: {record.collectionDate}</Text> : null}
+              <View style={styles.cardActions}>
+                <Pressable
+                  style={styles.inlineButton}
+                  onPress={() =>
+                    navigation.navigate('BreedingRecordForm', { mareId, breedingRecordId: record.id })
+                  }
+                >
+                  <Text style={styles.inlineButtonText}>Edit</Text>
+                </Pressable>
+              </View>
             </View>
           ))}
         </View>
@@ -156,6 +174,16 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                 <Text>Result: {check.result}</Text>
                 <Text>Heartbeat: {check.heartbeatDetected ? 'Yes' : 'No'}</Text>
                 <Text>Days post-breeding: {daysPost ?? '-'}</Text>
+                <View style={styles.cardActions}>
+                  <Pressable
+                    style={styles.inlineButton}
+                    onPress={() =>
+                      navigation.navigate('PregnancyCheckForm', { mareId, pregnancyCheckId: check.id })
+                    }
+                  >
+                    <Text style={styles.inlineButtonText}>Edit</Text>
+                  </Pressable>
+                </View>
               </View>
             );
           })}
@@ -178,6 +206,14 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             <Text>Outcome: {record.outcome}</Text>
             <Text>Foal sex: {record.foalSex ?? '-'}</Text>
             {record.complications ? <Text>Complications: {record.complications}</Text> : null}
+            <View style={styles.cardActions}>
+              <Pressable
+                style={styles.inlineButton}
+                onPress={() => navigation.navigate('FoalingRecordForm', { mareId, foalingRecordId: record.id })}
+              >
+                <Text style={styles.inlineButtonText}>Edit</Text>
+              </Pressable>
+            </View>
           </View>
         ))}
       </View>
@@ -286,6 +322,21 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontWeight: '700',
     marginBottom: 3,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 6,
+  },
+  inlineButton: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  inlineButtonText: {
+    color: '#1b1f24',
+    fontWeight: '600',
   },
   primaryButton: {
     alignItems: 'center',

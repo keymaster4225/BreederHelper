@@ -6,7 +6,12 @@ import { FormField, FormTextInput, OptionSelector, formStyles } from '@/componen
 import { Screen } from '@/components/Screen';
 import { BreedingMethod, Stallion } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { createBreedingRecord, listStallions } from '@/storage/repositories';
+import {
+  createBreedingRecord,
+  getBreedingRecordById,
+  listStallions,
+  updateBreedingRecord,
+} from '@/storage/repositories';
 import { newId } from '@/utils/id';
 import {
   normalizeLocalDate,
@@ -38,6 +43,8 @@ const METHOD_OPTIONS: { label: string; value: BreedingMethod }[] = [
 
 export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Element {
   const mareId = route.params.mareId;
+  const breedingRecordId = route.params.breedingRecordId;
+  const isEdit = Boolean(breedingRecordId);
 
   const [date, setDate] = useState('');
   const [stallions, setStallions] = useState<Stallion[]>([]);
@@ -52,11 +59,12 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoadingStallions, setIsLoadingStallions] = useState(true);
+  const [isLoadingRecord, setIsLoadingRecord] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    navigation.setOptions({ title: 'Add Breeding Record' });
-  }, [navigation]);
+    navigation.setOptions({ title: isEdit ? 'Edit Breeding Record' : 'Add Breeding Record' });
+  }, [isEdit, navigation]);
 
   useEffect(() => {
     let mounted = true;
@@ -68,7 +76,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         }
 
         setStallions(rows);
-        if (rows.length > 0) {
+        if (!breedingRecordId && rows.length > 0) {
           setStallionId(rows[0].id);
         }
       })
@@ -89,7 +97,52 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [breedingRecordId]);
+
+  useEffect(() => {
+    if (!breedingRecordId) {
+      return;
+    }
+
+    let mounted = true;
+    getBreedingRecordById(breedingRecordId)
+      .then((record) => {
+        if (!mounted) {
+          return;
+        }
+
+        if (!record) {
+          Alert.alert('Record not found', 'This breeding record no longer exists.');
+          navigation.goBack();
+          return;
+        }
+
+        setDate(record.date);
+        setStallionId(record.stallionId);
+        setMethod(record.method);
+        setVolumeMl(record.volumeMl == null ? '' : String(record.volumeMl));
+        setConcentrationMPerMl(record.concentrationMPerMl == null ? '' : String(record.concentrationMPerMl));
+        setMotilityPercent(record.motilityPercent == null ? '' : String(record.motilityPercent));
+        setNumberOfStraws(record.numberOfStraws == null ? '' : String(record.numberOfStraws));
+        setStrawDetails(record.strawDetails ?? '');
+        setCollectionDate(record.collectionDate ?? '');
+        setNotes(record.notes ?? '');
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Unable to load breeding record.';
+        Alert.alert('Load error', message);
+        navigation.goBack();
+      })
+      .finally(() => {
+        if (mounted) {
+          setIsLoadingRecord(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [breedingRecordId, navigation]);
 
   const selectedMethodLabel = useMemo(
     () => METHOD_OPTIONS.find((option) => option.value === method)?.label ?? method,
@@ -133,7 +186,6 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     };
 
     setErrors(nextErrors);
-
     const valid = Object.values(nextErrors).every((error) => !error);
     return { valid, parsedVolume, parsedConcentration, parsedMotility, parsedStraws };
   };
@@ -147,9 +199,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     setIsSaving(true);
 
     try {
-      await createBreedingRecord({
-        id: newId(),
-        mareId,
+      const payload = {
         stallionId,
         date: date.trim(),
         method,
@@ -159,11 +209,14 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         motilityPercent: method === 'freshAI' || method === 'shippedCooledAI' ? parsedMotility : null,
         numberOfStraws: method === 'frozenAI' ? parsedStraws : null,
         strawDetails: method === 'frozenAI' ? strawDetails.trim() || null : null,
-        collectionDate:
-          method === 'shippedCooledAI' || method === 'frozenAI'
-            ? normalizeLocalDate(collectionDate)
-            : null,
-      });
+        collectionDate: method === 'shippedCooledAI' || method === 'frozenAI' ? normalizeLocalDate(collectionDate) : null,
+      };
+
+      if (breedingRecordId) {
+        await updateBreedingRecord(breedingRecordId, payload);
+      } else {
+        await createBreedingRecord({ id: newId(), mareId, ...payload });
+      }
 
       navigation.goBack();
     } catch (err) {
@@ -173,6 +226,14 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
       setIsSaving(false);
     }
   };
+
+  if (isLoadingRecord) {
+    return (
+      <Screen>
+        <Text>Loading breeding record...</Text>
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -207,11 +268,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
             </FormField>
 
             <FormField label="Concentration (millions/mL)" error={errors.concentrationMPerMl}>
-              <FormTextInput
-                value={concentrationMPerMl}
-                onChangeText={setConcentrationMPerMl}
-                keyboardType="decimal-pad"
-              />
+              <FormTextInput value={concentrationMPerMl} onChangeText={setConcentrationMPerMl} keyboardType="decimal-pad" />
             </FormField>
 
             <FormField label="Motility %" error={errors.motilityPercent}>
@@ -234,12 +291,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
         {(method === 'shippedCooledAI' || method === 'frozenAI') && (
           <FormField label="Collection Date" error={errors.collectionDate}>
-            <FormTextInput
-              value={collectionDate}
-              onChangeText={setCollectionDate}
-              placeholder="YYYY-MM-DD"
-              autoCapitalize="none"
-            />
+            <FormTextInput value={collectionDate} onChangeText={setCollectionDate} placeholder="YYYY-MM-DD" autoCapitalize="none" />
           </FormField>
         )}
 
@@ -252,7 +304,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
           style={[formStyles.saveButton, isSaving || stallions.length === 0 ? formStyles.saveButtonDisabled : null]}
           onPress={onSave}
         >
-          <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : 'Save Breeding Record'}</Text>
+          <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : isEdit ? 'Save Breeding Record' : 'Create Breeding Record'}</Text>
         </Pressable>
       </ScrollView>
     </Screen>

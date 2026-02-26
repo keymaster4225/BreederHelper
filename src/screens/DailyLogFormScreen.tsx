@@ -5,7 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { createDailyLog } from '@/storage/repositories';
+import { createDailyLog, getDailyLogById, updateDailyLog } from '@/storage/repositories';
 import { newId } from '@/utils/id';
 import { validateLocalDate } from '@/utils/validation';
 
@@ -29,6 +29,8 @@ const SCORE_OPTIONS: { label: string; value: ScoreOption }[] = [
 
 export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
   const mareId = route.params.mareId;
+  const logId = route.params.logId;
+  const isEdit = Boolean(logId);
 
   const [date, setDate] = useState('');
   const [teasingScore, setTeasingScore] = useState<ScoreOption>('');
@@ -39,11 +41,55 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
   const [uterineCysts, setUterineCysts] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
+  const [isLoading, setIsLoading] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    navigation.setOptions({ title: 'Add Daily Log' });
-  }, [navigation]);
+    navigation.setOptions({ title: isEdit ? 'Edit Daily Log' : 'Add Daily Log' });
+  }, [isEdit, navigation]);
+
+  useEffect(() => {
+    if (!logId) {
+      return;
+    }
+
+    let mounted = true;
+    getDailyLogById(logId)
+      .then((record) => {
+        if (!mounted) {
+          return;
+        }
+
+        if (!record) {
+          Alert.alert('Log not found', 'This daily log no longer exists.');
+          navigation.goBack();
+          return;
+        }
+
+        setDate(record.date);
+        setTeasingScore(record.teasingScore == null ? '' : String(record.teasingScore) as ScoreOption);
+        setRightOvary(record.rightOvary ?? '');
+        setLeftOvary(record.leftOvary ?? '');
+        setEdema(record.edema == null ? '' : String(record.edema) as ScoreOption);
+        setUterineTone(record.uterineTone ?? '');
+        setUterineCysts(record.uterineCysts ?? '');
+        setNotes(record.notes ?? '');
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : 'Unable to load daily log.';
+        Alert.alert('Load error', message);
+        navigation.goBack();
+      })
+      .finally(() => {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [logId, navigation]);
 
   const validate = (): boolean => {
     const nextErrors: FormErrors = {
@@ -61,9 +107,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
 
     setIsSaving(true);
     try {
-      await createDailyLog({
-        id: newId(),
-        mareId,
+      const payload = {
         date: date.trim(),
         teasingScore: teasingScore === '' ? null : Number(teasingScore),
         rightOvary: rightOvary.trim() || null,
@@ -72,16 +116,34 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
         uterineTone: uterineTone.trim() || null,
         uterineCysts: uterineCysts.trim() || null,
         notes: notes.trim() || null,
-      });
+      };
+
+      if (logId) {
+        await updateDailyLog(logId, payload);
+      } else {
+        await createDailyLog({ id: newId(), mareId, ...payload });
+      }
 
       navigation.goBack();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save daily log.';
-      Alert.alert('Save failed', message);
+      if (message.toLowerCase().includes('unique')) {
+        Alert.alert('Duplicate date', 'A daily log already exists for this mare on that date.');
+      } else {
+        Alert.alert('Save failed', message);
+      }
     } finally {
       setIsSaving(false);
     }
   };
+
+  if (isLoading) {
+    return (
+      <Screen>
+        <Text>Loading daily log...</Text>
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -95,19 +157,11 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
         </FormField>
 
         <FormField label="Right Ovary">
-          <FormTextInput
-            value={rightOvary}
-            onChangeText={setRightOvary}
-            placeholder="35mm, MSF, AHF, CL, no findings"
-          />
+          <FormTextInput value={rightOvary} onChangeText={setRightOvary} placeholder="35mm, MSF, AHF, CL, no findings" />
         </FormField>
 
         <FormField label="Left Ovary">
-          <FormTextInput
-            value={leftOvary}
-            onChangeText={setLeftOvary}
-            placeholder="35mm, MSF, AHF, CL, no findings"
-          />
+          <FormTextInput value={leftOvary} onChangeText={setLeftOvary} placeholder="35mm, MSF, AHF, CL, no findings" />
         </FormField>
 
         <FormField label="Uterine Edema (0-5)">
@@ -131,7 +185,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
           style={[formStyles.saveButton, isSaving ? formStyles.saveButtonDisabled : null]}
           onPress={onSave}
         >
-          <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : 'Save Daily Log'}</Text>
+          <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : isEdit ? 'Save Daily Log' : 'Create Daily Log'}</Text>
         </Pressable>
       </ScrollView>
     </Screen>
