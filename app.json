@@ -1,0 +1,10 @@
+﻿{
+  "expo": {
+    "name": "BreederHelper",
+    "slug": "breeder-helper",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "platforms": ["ios", "android"],
+    "assetBundlePatterns": ["**/*"]
+  }
+}

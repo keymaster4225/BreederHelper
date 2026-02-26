@@ -1,0 +1,214 @@
+﻿import { useEffect, useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+
+import { FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { Screen } from '@/components/Screen';
+import { BreedingRecord, calculateDaysPostBreeding } from '@/models/types';
+import { RootStackParamList } from '@/navigation/AppNavigator';
+import { createPregnancyCheck, listBreedingRecordsByMare } from '@/storage/repositories';
+import { newId } from '@/utils/id';
+import { validateLocalDate, validateRequired } from '@/utils/validation';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'PregnancyCheckForm'>;
+
+type ResultOption = 'positive' | 'negative';
+type YesNo = 'yes' | 'no';
+
+type FormErrors = {
+  breedingRecordId?: string;
+  date?: string;
+};
+
+const RESULT_OPTIONS: { label: string; value: ResultOption }[] = [
+  { label: 'Positive', value: 'positive' },
+  { label: 'Negative', value: 'negative' },
+];
+
+const YES_NO_OPTIONS: { label: string; value: YesNo }[] = [
+  { label: 'Yes', value: 'yes' },
+  { label: 'No', value: 'no' },
+];
+
+export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Element {
+  const mareId = route.params.mareId;
+
+  const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
+  const [breedingRecordId, setBreedingRecordId] = useState('');
+  const [date, setDate] = useState('');
+  const [result, setResult] = useState<ResultOption>('positive');
+  const [heartbeat, setHeartbeat] = useState<YesNo>('no');
+  const [notes, setNotes] = useState('');
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    navigation.setOptions({ title: 'Add Pregnancy Check' });
+  }, [navigation]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    listBreedingRecordsByMare(mareId)
+      .then((records) => {
+        if (!mounted) {
+          return;
+        }
+
+        setBreedingRecords(records);
+        if (records.length > 0) {
+          setBreedingRecordId(records[0].id);
+        }
+      })
+      .catch((err: unknown) => {
+        if (!mounted) {
+          return;
+        }
+
+        const message = err instanceof Error ? err.message : 'Unable to load breeding records.';
+        Alert.alert('Load error', message);
+      })
+      .finally(() => {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [mareId]);
+
+  useEffect(() => {
+    if (result === 'negative') {
+      setHeartbeat('no');
+    }
+  }, [result]);
+
+  const selectedBreedingRecord = useMemo(
+    () => breedingRecords.find((record) => record.id === breedingRecordId) ?? null,
+    [breedingRecordId, breedingRecords]
+  );
+
+  const daysPostBreeding = useMemo(() => {
+    if (!selectedBreedingRecord || !date.trim()) {
+      return null;
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+      return null;
+    }
+
+    return calculateDaysPostBreeding(date.trim(), selectedBreedingRecord.date);
+  }, [date, selectedBreedingRecord]);
+
+  const validate = (): boolean => {
+    const dateError = validateLocalDate(date, 'Date', true);
+
+    let relativeDateError: string | null = null;
+    if (!dateError && selectedBreedingRecord) {
+      const delta = calculateDaysPostBreeding(date.trim(), selectedBreedingRecord.date);
+      if (delta < 0) {
+        relativeDateError = 'Check date cannot be before breeding date.';
+      }
+    }
+
+    const nextErrors: FormErrors = {
+      breedingRecordId: validateRequired(breedingRecordId, 'Breeding record') ?? undefined,
+      date: (dateError ?? relativeDateError) ?? undefined,
+    };
+
+    setErrors(nextErrors);
+    return !nextErrors.breedingRecordId && !nextErrors.date;
+  };
+
+  const onSave = async (): Promise<void> => {
+    if (!validate()) {
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      await createPregnancyCheck({
+        id: newId(),
+        mareId,
+        breedingRecordId,
+        date: date.trim(),
+        result,
+        heartbeatDetected: result === 'positive' ? heartbeat === 'yes' : false,
+        notes: notes.trim() || null,
+      });
+
+      navigation.goBack();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save pregnancy check.';
+      Alert.alert('Save failed', message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Screen>
+      <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
+        <FormField label="Breeding Record" required error={errors.breedingRecordId}>
+          {isLoading ? (
+            <Text>Loading breeding records...</Text>
+          ) : breedingRecords.length === 0 ? (
+            <Text>No breeding records found for this mare.</Text>
+          ) : (
+            <OptionSelector
+              value={breedingRecordId}
+              onChange={setBreedingRecordId}
+              options={breedingRecords.map((record) => ({
+                value: record.id,
+                label: `${record.date} (${record.method})`,
+              }))}
+            />
+          )}
+        </FormField>
+
+        <FormField label="Date" required error={errors.date}>
+          <FormTextInput value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+        </FormField>
+
+        <FormField label="Result" required>
+          <OptionSelector value={result} onChange={setResult} options={RESULT_OPTIONS} />
+        </FormField>
+
+        <FormField label="Heartbeat Detected">
+          <OptionSelector
+            value={heartbeat}
+            onChange={setHeartbeat}
+            options={YES_NO_OPTIONS}
+          />
+          {result === 'negative' ? <Text>Heartbeat is forced to No for negative checks.</Text> : null}
+        </FormField>
+
+        <View>
+          <Text>
+            Days post-breeding:{' '}
+            {daysPostBreeding === null ? '-' : `${daysPostBreeding}`}
+          </Text>
+        </View>
+
+        <FormField label="Notes">
+          <FormTextInput value={notes} onChangeText={setNotes} multiline />
+        </FormField>
+
+        <Pressable
+          disabled={isSaving || breedingRecords.length === 0}
+          style={[
+            formStyles.saveButton,
+            isSaving || breedingRecords.length === 0 ? formStyles.saveButtonDisabled : null,
+          ]}
+          onPress={onSave}
+        >
+          <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : 'Save Pregnancy Check'}</Text>
+        </Pressable>
+      </ScrollView>
+    </Screen>
+  );
+}
