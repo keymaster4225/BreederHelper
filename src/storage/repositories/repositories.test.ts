@@ -8,11 +8,14 @@ import { getDb } from '@/storage/db';
 import {
   createBreedingRecord,
   createDailyLog,
+  createFoalingRecord,
   createPregnancyCheck,
   createStallion,
   deleteBreedingRecord,
   deleteDailyLog,
   getDailyLogById,
+  getFoalingRecordById,
+  getPregnancyCheckById,
   updateDailyLog,
 } from '@/storage/repositories/queries';
 import { createMare, getMareById, listMares, softDeleteMare, updateMare } from '@/storage/repositories/mares';
@@ -87,6 +90,19 @@ type PregnancyCheckRow = {
   updated_at: string;
 };
 
+type FoalingRecordRow = {
+  id: string;
+  mare_id: string;
+  breeding_record_id: string | null;
+  date: string;
+  outcome: string;
+  foal_sex: string | null;
+  complications: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type FakeDb = {
   runAsync: (sql: string, params?: unknown[]) => Promise<void>;
   getFirstAsync: <T>(sql: string, params?: unknown[]) => Promise<T | null>;
@@ -103,6 +119,8 @@ function createFakeDb(): FakeDb {
   const stallions = new Map<string, StallionRow>();
   const breedingRecords = new Map<string, BreedingRecordRow>();
   const pregnancyChecks = new Map<string, PregnancyCheckRow>();
+
+  const foalingRecords = new Map<string, FoalingRecordRow>();
 
   return {
     async runAsync(sql: string, params: unknown[] = []): Promise<void> {
@@ -364,6 +382,24 @@ function createFakeDb(): FakeDb {
         return;
       }
 
+      if (stmt.startsWith('insert into foaling_records')) {
+        const [id, mareId, breedingRecordId, date, outcome, foalSex, complications, notes, createdAt, updatedAt] =
+          params as [string, string, string | null, string, string, string | null, string | null, string | null, string, string];
+        foalingRecords.set(id, {
+          id,
+          mare_id: mareId,
+          breeding_record_id: breedingRecordId,
+          date,
+          outcome,
+          foal_sex: foalSex,
+          complications,
+          notes,
+          created_at: createdAt,
+          updated_at: updatedAt,
+        });
+        return;
+      }
+
       if (stmt.startsWith('delete from breeding_records')) {
         const [id] = params as [string];
         const referenced = Array.from(pregnancyChecks.values()).some((row) => row.breeding_record_id === id);
@@ -386,6 +422,16 @@ function createFakeDb(): FakeDb {
       if (stmt.includes('from daily_logs') && stmt.includes('where id = ?')) {
         const [id] = params as [string];
         return (dailyLogs.get(id) as T | undefined) ?? null;
+      }
+
+      if (stmt.includes('from pregnancy_checks') && stmt.includes('where id = ?')) {
+        const [id] = params as [string];
+        return (pregnancyChecks.get(id) as T | undefined) ?? null;
+      }
+
+      if (stmt.includes('from foaling_records') && stmt.includes('where id = ?')) {
+        const [id] = params as [string];
+        return (foalingRecords.get(id) as T | undefined) ?? null;
       }
 
       return null;
@@ -494,6 +540,45 @@ describe('repository smoke tests', () => {
 
     const deleted = await getDailyLogById('log-1');
     expect(deleted).toBeNull();
+  });
+
+  it('negative pregnancy check stores null heartbeatDetected', async () => {
+    await createMare({ id: 'mare-hb', name: 'Luna', breed: 'Warmblood' });
+    await createStallion({ id: 'stallion-hb', name: 'Storm' });
+    await createBreedingRecord({
+      id: 'breed-hb',
+      mareId: 'mare-hb',
+      stallionId: 'stallion-hb',
+      date: '2026-05-01',
+      method: 'freshAI',
+    });
+    await createPregnancyCheck({
+      id: 'check-hb',
+      mareId: 'mare-hb',
+      breedingRecordId: 'breed-hb',
+      date: '2026-05-15',
+      result: 'negative',
+      heartbeatDetected: null,
+    });
+
+    const check = await getPregnancyCheckById('check-hb');
+    expect(check).not.toBeNull();
+    expect(check?.heartbeatDetected).toBeNull();
+  });
+
+  it('foaling record stores null foalSex when not provided', async () => {
+    await createMare({ id: 'mare-fs', name: 'Rosie', breed: 'Quarter Horse' });
+    await createFoalingRecord({
+      id: 'foal-fs',
+      mareId: 'mare-fs',
+      date: '2026-07-01',
+      outcome: 'liveFoal',
+      foalSex: null,
+    });
+
+    const record = await getFoalingRecordById('foal-fs');
+    expect(record).not.toBeNull();
+    expect(record?.foalSex).toBeNull();
   });
 
   it('blocks breeding record delete when pregnancy checks reference it', async () => {

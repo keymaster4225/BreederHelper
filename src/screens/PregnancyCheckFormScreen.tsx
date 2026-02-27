@@ -154,7 +154,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
         breedingRecordId,
         date: date.trim(),
         result,
-        heartbeatDetected: result === 'positive' ? heartbeat === 'yes' : false,
+        heartbeatDetected: result === 'positive' ? heartbeat === 'yes' : null,
         notes: notes.trim() || null,
       };
 

@@ -65,7 +65,7 @@ CREATE TABLE IF NOT EXISTS breeding_records (
   concentration_m_per_ml REAL,
   motility_percent REAL,
   number_of_straws INTEGER,
-  straw_volume_ml REAL,
+  straw_volume_ml INTEGER,
   straw_details TEXT,
   collection_date TEXT,
   created_at TEXT NOT NULL,
@@ -131,8 +131,11 @@ CREATE INDEX IF NOT EXISTS idx_pregnancy_checks_breeding_record ON pregnancy_che
 CREATE INDEX IF NOT EXISTS idx_foaling_records_mare_date ON foaling_records (mare_id, date DESC);
 `;
 
+// migration002: column is INTEGER here; existing installs that ran the original
+// REAL version retain that affinity (no structural migration is possible without
+// disabling FK enforcement, which cannot be done inside a transaction).
 const migration002 = `
-ALTER TABLE breeding_records ADD COLUMN straw_volume_ml REAL;
+ALTER TABLE breeding_records ADD COLUMN straw_volume_ml INTEGER;
 `;
 
 const migrations: Migration[] = [

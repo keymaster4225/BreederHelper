@@ -44,7 +44,7 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
   const [breedingRecordId, setBreedingRecordId] = useState('');
   const [date, setDate] = useState('');
   const [outcome, setOutcome] = useState<FoalingOutcome>('liveFoal');
-  const [foalSex, setFoalSex] = useState<FoalSex>('unknown');
+  const [foalSex, setFoalSex] = useState<FoalSex | null>(null);
   const [complications, setComplications] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
@@ -77,7 +77,7 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
           setBreedingRecordId(existing.breedingRecordId ?? '');
           setDate(existing.date);
           setOutcome(existing.outcome);
-          setFoalSex(existing.foalSex ?? 'unknown');
+          setFoalSex(existing.foalSex ?? null);
           setComplications(existing.complications ?? '');
           setNotes(existing.notes ?? '');
         }
@@ -187,7 +187,7 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
         </FormField>
 
         <FormField label="Foal Sex">
-          <OptionSelector value={foalSex} onChange={setFoalSex} options={SEX_OPTIONS} />
+          <OptionSelector value={foalSex} onChange={(v) => setFoalSex(v)} options={SEX_OPTIONS} />
         </FormField>
 
         <FormField label="Complications">

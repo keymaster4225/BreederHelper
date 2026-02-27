@@ -127,6 +127,8 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         setConcentrationMPerMl(record.concentrationMPerMl == null ? '' : String(record.concentrationMPerMl));
         setMotilityPercent(record.motilityPercent == null ? '' : String(record.motilityPercent));
         setNumberOfStraws(record.numberOfStraws == null ? '' : String(record.numberOfStraws));
+        // Math.trunc guards against any existing rows stored with REAL affinity
+        // (existing installs ran migration002 with REAL before it was corrected to INTEGER).
         setStrawVolumeMl(record.strawVolumeMl == null ? '' : String(Math.trunc(record.strawVolumeMl)));
         setStrawDetails(record.strawDetails ?? '');
         setCollectionDate(record.collectionDate ?? '');

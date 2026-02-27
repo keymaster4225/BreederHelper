@@ -100,7 +100,7 @@ type Option<T extends string> = {
 };
 
 type OptionSelectorProps<T extends string> = {
-  value: T;
+  value: T | null;
   options: Option<T>[];
   onChange: (value: T) => void;
 };
