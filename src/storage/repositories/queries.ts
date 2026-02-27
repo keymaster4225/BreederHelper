@@ -252,6 +252,11 @@ export async function getBreedingRecordById(id: string): Promise<BreedingRecord 
   return row ? mapBreedingRecordRow(row) : null;
 }
 
+export async function deleteBreedingRecord(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM breeding_records WHERE id = ?;', [id]);
+}
+
 export async function createDailyLog(input: {
   id: string;
   mareId: string;
@@ -360,6 +365,11 @@ export async function getDailyLogById(id: string): Promise<DailyLog | null> {
   return row ? mapDailyLogRow(row) : null;
 }
 
+export async function deleteDailyLog(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM daily_logs WHERE id = ?;', [id]);
+}
+
 export async function createPregnancyCheck(input: {
   id: string;
   mareId: string;
@@ -448,6 +458,11 @@ export async function getPregnancyCheckById(id: string): Promise<PregnancyCheck 
   );
 
   return row ? mapPregnancyCheckRow(row) : null;
+}
+
+export async function deletePregnancyCheck(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM pregnancy_checks WHERE id = ?;', [id]);
 }
 
 export async function createFoalingRecord(input: {
@@ -544,6 +559,11 @@ export async function getFoalingRecordById(id: string): Promise<FoalingRecord | 
   );
 
   return row ? mapFoalingRecordRow(row) : null;
+}
+
+export async function deleteFoalingRecord(id: string): Promise<void> {
+  const db = await getDb();
+  await db.runAsync('DELETE FROM foaling_records WHERE id = ?;', [id]);
 }
 
 export async function listDailyLogsByMare(mareId: string): Promise<DailyLog[]> {
