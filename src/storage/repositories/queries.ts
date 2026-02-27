@@ -141,6 +141,7 @@ export async function createBreedingRecord(input: {
   concentrationMPerMl?: number | null;
   motilityPercent?: number | null;
   numberOfStraws?: number | null;
+  strawVolumeMl?: number | null;
   strawDetails?: string | null;
   collectionDate?: string | null;
 }): Promise<void> {
@@ -160,11 +161,12 @@ export async function createBreedingRecord(input: {
       concentration_m_per_ml,
       motility_percent,
       number_of_straws,
+      straw_volume_ml,
       straw_details,
       collection_date,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       input.id,
@@ -177,6 +179,7 @@ export async function createBreedingRecord(input: {
       input.concentrationMPerMl ?? null,
       input.motilityPercent ?? null,
       input.numberOfStraws ?? null,
+      input.strawVolumeMl ?? null,
       input.strawDetails ?? null,
       input.collectionDate ?? null,
       now,
@@ -196,6 +199,7 @@ export async function updateBreedingRecord(
     concentrationMPerMl?: number | null;
     motilityPercent?: number | null;
     numberOfStraws?: number | null;
+    strawVolumeMl?: number | null;
     strawDetails?: string | null;
     collectionDate?: string | null;
   }
@@ -214,6 +218,7 @@ export async function updateBreedingRecord(
       concentration_m_per_ml = ?,
       motility_percent = ?,
       number_of_straws = ?,
+      straw_volume_ml = ?,
       straw_details = ?,
       collection_date = ?,
       updated_at = ?
@@ -228,6 +233,7 @@ export async function updateBreedingRecord(
       input.concentrationMPerMl ?? null,
       input.motilityPercent ?? null,
       input.numberOfStraws ?? null,
+      input.strawVolumeMl ?? null,
       input.strawDetails ?? null,
       input.collectionDate ?? null,
       new Date().toISOString(),
@@ -242,7 +248,7 @@ export async function getBreedingRecordById(id: string): Promise<BreedingRecord 
     `
     SELECT
       id, mare_id, stallion_id, date, method, notes, volume_ml, concentration_m_per_ml,
-      motility_percent, number_of_straws, straw_details, collection_date, created_at, updated_at
+      motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
     WHERE id = ?;
     `,
@@ -587,7 +593,7 @@ export async function listBreedingRecordsByMare(mareId: string): Promise<Breedin
     `
     SELECT
       id, mare_id, stallion_id, date, method, notes, volume_ml, concentration_m_per_ml,
-      motility_percent, number_of_straws, straw_details, collection_date, created_at, updated_at
+      motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
     WHERE mare_id = ?
     ORDER BY date DESC;
@@ -667,6 +673,7 @@ type BreedingRecordRow = {
   concentration_m_per_ml: number | null;
   motility_percent: number | null;
   number_of_straws: number | null;
+  straw_volume_ml: number | null;
   straw_details: string | null;
   collection_date: string | null;
   created_at: string;
@@ -742,6 +749,7 @@ function mapBreedingRecordRow(row: BreedingRecordRow): BreedingRecord {
     concentrationMPerMl: row.concentration_m_per_ml,
     motilityPercent: row.motility_percent,
     numberOfStraws: row.number_of_straws,
+    strawVolumeMl: row.straw_volume_ml,
     strawDetails: row.straw_details,
     collectionDate: row.collection_date,
     createdAt: row.created_at,

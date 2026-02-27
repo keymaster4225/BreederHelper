@@ -69,6 +69,7 @@ export interface BreedingRecord {
 
   // frozenAI
   numberOfStraws?: number | null;
+  strawVolumeMl?: number | null;
   strawDetails?: string | null;
 
   // shippedCooledAI, frozenAI

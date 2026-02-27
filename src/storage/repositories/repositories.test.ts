@@ -68,6 +68,7 @@ type BreedingRecordRow = {
   concentration_m_per_ml: number | null;
   motility_percent: number | null;
   number_of_straws: number | null;
+  straw_volume_ml: number | null;
   straw_details: string | null;
   collection_date: string | null;
   created_at: string;
@@ -295,6 +296,7 @@ function createFakeDb(): FakeDb {
           concentration,
           motility,
           numberOfStraws,
+          strawVolumeMl,
           strawDetails,
           collectionDate,
           createdAt,
@@ -306,6 +308,7 @@ function createFakeDb(): FakeDb {
           string,
           string,
           string | null,
+          number | null,
           number | null,
           number | null,
           number | null,
@@ -326,6 +329,7 @@ function createFakeDb(): FakeDb {
           concentration_m_per_ml: concentration,
           motility_percent: motility,
           number_of_straws: numberOfStraws,
+          straw_volume_ml: strawVolumeMl,
           straw_details: strawDetails,
           collection_date: collectionDate,
           created_at: createdAt,

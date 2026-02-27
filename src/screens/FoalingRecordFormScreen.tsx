@@ -8,6 +8,7 @@ import { FoalSex, FoalingOutcome } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   createFoalingRecord,
+  deleteFoalingRecord,
   getFoalingRecordById,
   listBreedingRecordsByMare,
   updateFoalingRecord,
@@ -137,6 +138,31 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
     }
   };
 
+  const onDelete = (): void => {
+    if (!foalingRecordId) {
+      return;
+    }
+
+    Alert.alert('Delete Foaling Record', 'Delete this foaling record?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              await deleteFoalingRecord(foalingRecordId);
+              navigation.goBack();
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Failed to delete foaling record.';
+              Alert.alert('Delete failed', message);
+            }
+          })();
+        },
+      },
+    ]);
+  };
+
   if (isLoading) {
     return (
       <Screen>
@@ -179,7 +205,28 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
         >
           <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : isEdit ? 'Save Foaling Record' : 'Create Foaling Record'}</Text>
         </Pressable>
+
+        {isEdit ? (
+          <Pressable style={styles.deleteButton} onPress={onDelete}>
+            <Text style={styles.deleteButtonText}>Delete Foaling Record</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </Screen>
   );
 }
+
+const styles = {
+  deleteButton: {
+    alignItems: 'center' as const,
+    backgroundColor: '#ffe3e0',
+    borderRadius: 8,
+    marginTop: 8,
+    paddingVertical: 12,
+  },
+  deleteButtonText: {
+    color: '#b42318',
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+};

@@ -5,7 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { createDailyLog, getDailyLogById, updateDailyLog } from '@/storage/repositories';
+import { createDailyLog, deleteDailyLog, getDailyLogById, updateDailyLog } from '@/storage/repositories';
 import { newId } from '@/utils/id';
 import { validateLocalDate } from '@/utils/validation';
 
@@ -18,7 +18,7 @@ type FormErrors = {
 };
 
 const SCORE_OPTIONS: { label: string; value: ScoreOption }[] = [
-  { label: 'None', value: '' },
+  { label: 'N/A', value: '' },
   { label: '0', value: '0' },
   { label: '1', value: '1' },
   { label: '2', value: '2' },
@@ -137,6 +137,31 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
     }
   };
 
+  const onDelete = (): void => {
+    if (!logId) {
+      return;
+    }
+
+    Alert.alert('Delete Daily Log', 'Delete this daily log entry?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              await deleteDailyLog(logId);
+              navigation.goBack();
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Failed to delete daily log.';
+              Alert.alert('Delete failed', message);
+            }
+          })();
+        },
+      },
+    ]);
+  };
+
   if (isLoading) {
     return (
       <Screen>
@@ -187,7 +212,28 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
         >
           <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : isEdit ? 'Save Daily Log' : 'Create Daily Log'}</Text>
         </Pressable>
+
+        {isEdit ? (
+          <Pressable style={styles.deleteButton} onPress={onDelete}>
+            <Text style={styles.deleteButtonText}>Delete Daily Log</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </Screen>
   );
 }
+
+const styles = {
+  deleteButton: {
+    alignItems: 'center' as const,
+    backgroundColor: '#ffe3e0',
+    borderRadius: 8,
+    marginTop: 8,
+    paddingVertical: 12,
+  },
+  deleteButtonText: {
+    color: '#b42318',
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+};

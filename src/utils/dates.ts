@@ -24,6 +24,22 @@ export function fromLocalDate(value?: string | null): Date | null {
   return new Date(year, month - 1, day);
 }
 
+export function formatLocalDate(
+  value?: string | null,
+  format: 'YYYY-MM-DD' | 'MM-DD-YYYY' = 'YYYY-MM-DD'
+): string {
+  if (!value || !isLocalDate(value)) {
+    return '';
+  }
+
+  if (format === 'YYYY-MM-DD') {
+    return value;
+  }
+
+  const [year, month, day] = value.split('-');
+  return `${month}-${day}-${year}`;
+}
+
 export function deriveAgeYears(dateOfBirth?: LocalDate | null): number | null {
   if (!dateOfBirth || !isLocalDate(dateOfBirth)) {
     return null;

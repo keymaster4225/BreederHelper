@@ -8,6 +8,7 @@ import { BreedingRecord, calculateDaysPostBreeding } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   createPregnancyCheck,
+  deletePregnancyCheck,
   getPregnancyCheckById,
   listBreedingRecordsByMare,
   updatePregnancyCheck,
@@ -172,6 +173,31 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
     }
   };
 
+  const onDelete = (): void => {
+    if (!pregnancyCheckId) {
+      return;
+    }
+
+    Alert.alert('Delete Pregnancy Check', 'Delete this pregnancy check?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              await deletePregnancyCheck(pregnancyCheckId);
+              navigation.goBack();
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Failed to delete pregnancy check.';
+              Alert.alert('Delete failed', message);
+            }
+          })();
+        },
+      },
+    ]);
+  };
+
   if (isLoading) {
     return (
       <Screen>
@@ -223,7 +249,28 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
         >
           <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : isEdit ? 'Save Pregnancy Check' : 'Create Pregnancy Check'}</Text>
         </Pressable>
+
+        {isEdit ? (
+          <Pressable style={styles.deleteButton} onPress={onDelete}>
+            <Text style={styles.deleteButtonText}>Delete Pregnancy Check</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </Screen>
   );
 }
+
+const styles = {
+  deleteButton: {
+    alignItems: 'center' as const,
+    backgroundColor: '#ffe3e0',
+    borderRadius: 8,
+    marginTop: 8,
+    paddingVertical: 12,
+  },
+  deleteButtonText: {
+    color: '#b42318',
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+};

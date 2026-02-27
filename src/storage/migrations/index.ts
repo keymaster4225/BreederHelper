@@ -4,6 +4,7 @@ type Migration = {
   id: number;
   name: string;
   statements: string[];
+  shouldSkip?: (db: SQLite.SQLiteDatabase) => Promise<boolean>;
 };
 
 const migration001 = `
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS breeding_records (
   concentration_m_per_ml REAL,
   motility_percent REAL,
   number_of_straws INTEGER,
+  straw_volume_ml REAL,
   straw_details TEXT,
   collection_date TEXT,
   created_at TEXT NOT NULL,
@@ -129,11 +131,21 @@ CREATE INDEX IF NOT EXISTS idx_pregnancy_checks_breeding_record ON pregnancy_che
 CREATE INDEX IF NOT EXISTS idx_foaling_records_mare_date ON foaling_records (mare_id, date DESC);
 `;
 
+const migration002 = `
+ALTER TABLE breeding_records ADD COLUMN straw_volume_ml REAL;
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
     name: '001_initial_schema',
     statements: splitStatements(migration001),
+  },
+  {
+    id: 2,
+    name: '002_add_straw_volume_ml',
+    statements: splitStatements(migration002),
+    shouldSkip: async (db) => hasColumn(db, 'breeding_records', 'straw_volume_ml'),
   },
 ];
 
@@ -156,6 +168,14 @@ export async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> 
       continue;
     }
 
+    if (migration.shouldSkip && (await migration.shouldSkip(db))) {
+      await db.runAsync(
+        'INSERT INTO schema_migrations (id, name, applied_at) VALUES (?, ?, ?);',
+        [migration.id, migration.name, new Date().toISOString()]
+      );
+      continue;
+    }
+
     await db.withTransactionAsync(async () => {
       for (const statement of migration.statements) {
         await db.execAsync(statement);
@@ -167,6 +187,15 @@ export async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> 
       );
     });
   }
+}
+
+async function hasColumn(
+  db: SQLite.SQLiteDatabase,
+  tableName: string,
+  columnName: string
+): Promise<boolean> {
+  const rows = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${tableName});`);
+  return rows.some((row) => row.name === columnName);
 }
 
 function splitStatements(sql: string): string[] {

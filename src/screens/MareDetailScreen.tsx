@@ -1,5 +1,5 @@
-﻿import { useCallback, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -7,10 +7,6 @@ import { Screen } from '@/components/Screen';
 import { BreedingRecord, DailyLog, FoalingRecord, Mare, PregnancyCheck, calculateDaysPostBreeding } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
-  deleteBreedingRecord,
-  deleteDailyLog,
-  deleteFoalingRecord,
-  deletePregnancyCheck,
   getMareById,
   listBreedingRecordsByMare,
   listDailyLogsByMare,
@@ -87,101 +83,18 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
     }, [loadData])
   );
 
-  const handleDeleteError = (recordType: string, err: unknown): void => {
-    const message = err instanceof Error ? err.message : `Failed to delete ${recordType}.`;
-    if (message.toLowerCase().includes('foreign key')) {
-      Alert.alert('Delete blocked', `Cannot delete this ${recordType} because other records reference it.`);
-      return;
-    }
-    Alert.alert('Delete failed', message);
-  };
-
-  const confirmDeleteDailyLog = (id: string): void => {
-    Alert.alert('Delete Daily Log', 'Delete this daily log entry?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await deleteDailyLog(id);
-              await loadData();
-            } catch (err) {
-              handleDeleteError('daily log', err);
-            }
-          })();
-        },
-      },
-    ]);
-  };
-
-  const confirmDeleteBreedingRecord = (id: string): void => {
-    Alert.alert('Delete Breeding Record', 'Delete this breeding record?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await deleteBreedingRecord(id);
-              await loadData();
-            } catch (err) {
-              handleDeleteError('breeding record', err);
-            }
-          })();
-        },
-      },
-    ]);
-  };
-
-  const confirmDeletePregnancyCheck = (id: string): void => {
-    Alert.alert('Delete Pregnancy Check', 'Delete this pregnancy check?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await deletePregnancyCheck(id);
-              await loadData();
-            } catch (err) {
-              handleDeleteError('pregnancy check', err);
-            }
-          })();
-        },
-      },
-    ]);
-  };
-
-  const confirmDeleteFoalingRecord = (id: string): void => {
-    Alert.alert('Delete Foaling Record', 'Delete this foaling record?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await deleteFoalingRecord(id);
-              await loadData();
-            } catch (err) {
-              handleDeleteError('foaling record', err);
-            }
-          })();
-        },
-      },
-    ]);
-  };
-
   const breedingById = useMemo(
     () => Object.fromEntries(breedingRecords.map((record) => [record.id, record])),
     [breedingRecords]
   );
 
   const age = deriveAgeYears(mare?.dateOfBirth ?? null);
+
+  const renderEditIconButton = (onPress: () => void): JSX.Element => (
+    <Pressable style={styles.iconButton} onPress={onPress}>
+      <Text style={styles.iconText}>{'\u270E'}</Text>
+    </Pressable>
+  );
 
   const renderTabContent = (): JSX.Element => {
     if (activeTab === 'dailyLogs') {
@@ -193,19 +106,14 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           {dailyLogs.length === 0 ? <Text>No daily logs yet.</Text> : null}
           {dailyLogs.map((log) => (
             <View key={log.id} style={styles.card}>
-              <Text style={styles.cardTitle}>{log.date}</Text>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>{log.date}</Text>
+                {renderEditIconButton(() => navigation.navigate('DailyLogForm', { mareId, logId: log.id }))}
+              </View>
               <Text>Teasing: {log.teasingScore ?? '-'}</Text>
               <Text>Edema: {log.edema ?? '-'}</Text>
               <Text>Right ovary: {log.rightOvary || '-'}</Text>
               <Text>Left ovary: {log.leftOvary || '-'}</Text>
-              <View style={styles.cardActions}>
-                <Pressable style={styles.inlineButton} onPress={() => navigation.navigate('DailyLogForm', { mareId, logId: log.id })}>
-                  <Text style={styles.inlineButtonText}>Edit</Text>
-                </Pressable>
-                <Pressable style={styles.deleteButton} onPress={() => confirmDeleteDailyLog(log.id)}>
-                  <Text style={styles.deleteButtonText}>Delete</Text>
-                </Pressable>
-              </View>
             </View>
           ))}
         </View>
@@ -221,18 +129,15 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           {breedingRecords.length === 0 ? <Text>No breeding records yet.</Text> : null}
           {breedingRecords.map((record) => (
             <View key={record.id} style={styles.card}>
-              <Text style={styles.cardTitle}>{record.date}</Text>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>{record.date}</Text>
+                {renderEditIconButton(() =>
+                  navigation.navigate('BreedingRecordForm', { mareId, breedingRecordId: record.id })
+                )}
+              </View>
               <Text>Method: {record.method}</Text>
               <Text>Stallion: {stallionNameById[record.stallionId] ?? 'Unknown'}</Text>
               {record.collectionDate ? <Text>Collection: {record.collectionDate}</Text> : null}
-              <View style={styles.cardActions}>
-                <Pressable style={styles.inlineButton} onPress={() => navigation.navigate('BreedingRecordForm', { mareId, breedingRecordId: record.id })}>
-                  <Text style={styles.inlineButtonText}>Edit</Text>
-                </Pressable>
-                <Pressable style={styles.deleteButton} onPress={() => confirmDeleteBreedingRecord(record.id)}>
-                  <Text style={styles.deleteButtonText}>Delete</Text>
-                </Pressable>
-              </View>
             </View>
           ))}
         </View>
@@ -252,18 +157,15 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
 
             return (
               <View key={check.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{check.date}</Text>
+                <View style={styles.cardHeader}>
+                  <Text style={styles.cardTitle}>{check.date}</Text>
+                  {renderEditIconButton(() =>
+                    navigation.navigate('PregnancyCheckForm', { mareId, pregnancyCheckId: check.id })
+                  )}
+                </View>
                 <Text>Result: {check.result}</Text>
                 <Text>Heartbeat: {check.heartbeatDetected ? 'Yes' : 'No'}</Text>
                 <Text>Days post-breeding: {daysPost ?? '-'}</Text>
-                <View style={styles.cardActions}>
-                  <Pressable style={styles.inlineButton} onPress={() => navigation.navigate('PregnancyCheckForm', { mareId, pregnancyCheckId: check.id })}>
-                    <Text style={styles.inlineButtonText}>Edit</Text>
-                  </Pressable>
-                  <Pressable style={styles.deleteButton} onPress={() => confirmDeletePregnancyCheck(check.id)}>
-                    <Text style={styles.deleteButtonText}>Delete</Text>
-                  </Pressable>
-                </View>
               </View>
             );
           })}
@@ -279,18 +181,15 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
         {foalingRecords.length === 0 ? <Text>No foaling records yet.</Text> : null}
         {foalingRecords.map((record) => (
           <View key={record.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{record.date}</Text>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>{record.date}</Text>
+              {renderEditIconButton(() =>
+                navigation.navigate('FoalingRecordForm', { mareId, foalingRecordId: record.id })
+              )}
+            </View>
             <Text>Outcome: {record.outcome}</Text>
             <Text>Foal sex: {record.foalSex ?? '-'}</Text>
             {record.complications ? <Text>Complications: {record.complications}</Text> : null}
-            <View style={styles.cardActions}>
-              <Pressable style={styles.inlineButton} onPress={() => navigation.navigate('FoalingRecordForm', { mareId, foalingRecordId: record.id })}>
-                <Text style={styles.inlineButtonText}>Edit</Text>
-              </Pressable>
-              <Pressable style={styles.deleteButton} onPress={() => confirmDeleteFoalingRecord(record.id)}>
-                <Text style={styles.deleteButtonText}>Delete</Text>
-              </Pressable>
-            </View>
           </View>
         ))}
       </View>
@@ -389,34 +288,26 @@ const styles = StyleSheet.create({
     gap: 3,
     padding: 10,
   },
-  cardTitle: {
-    fontWeight: '700',
+  cardHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 3,
   },
-  cardActions: {
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'flex-end',
-    marginTop: 6,
+  cardTitle: {
+    fontWeight: '700',
   },
-  inlineButton: {
+  iconButton: {
+    alignItems: 'center',
     backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    borderRadius: 16,
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
   },
-  inlineButtonText: {
+  iconText: {
     color: '#1b1f24',
-    fontWeight: '600',
-  },
-  deleteButton: {
-    backgroundColor: '#ffe3e0',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  deleteButtonText: {
-    color: '#b42318',
+    fontSize: 14,
     fontWeight: '700',
   },
   primaryButton: {

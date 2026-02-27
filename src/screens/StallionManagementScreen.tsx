@@ -26,7 +26,6 @@ export function StallionManagementScreen(): JSX.Element {
 
   const [name, setName] = useState('');
   const [breed, setBreed] = useState('');
-  const [registrationNumber, setRegistrationNumber] = useState('');
   const [sire, setSire] = useState('');
   const [dam, setDam] = useState('');
   const [notes, setNotes] = useState('');
@@ -55,7 +54,6 @@ export function StallionManagementScreen(): JSX.Element {
     setEditingStallionId(null);
     setName('');
     setBreed('');
-    setRegistrationNumber('');
     setSire('');
     setDam('');
     setNotes('');
@@ -66,7 +64,6 @@ export function StallionManagementScreen(): JSX.Element {
     setEditingStallionId(stallion.id);
     setName(stallion.name);
     setBreed(stallion.breed ?? '');
-    setRegistrationNumber(stallion.registrationNumber ?? '');
     setSire(stallion.sire ?? '');
     setDam(stallion.dam ?? '');
     setNotes(stallion.notes ?? '');
@@ -86,7 +83,6 @@ export function StallionManagementScreen(): JSX.Element {
         await updateStallion(editingStallionId, {
           name: name.trim(),
           breed: breed.trim() || null,
-          registrationNumber: registrationNumber.trim() || null,
           sire: sire.trim() || null,
           dam: dam.trim() || null,
           notes: notes.trim() || null,
@@ -96,7 +92,6 @@ export function StallionManagementScreen(): JSX.Element {
           id: newId(),
           name: name.trim(),
           breed: breed.trim() || null,
-          registrationNumber: registrationNumber.trim() || null,
           sire: sire.trim() || null,
           dam: dam.trim() || null,
           notes: notes.trim() || null,
@@ -154,10 +149,6 @@ export function StallionManagementScreen(): JSX.Element {
           <FormTextInput value={breed} onChangeText={setBreed} placeholder="Optional" />
         </FormField>
 
-        <FormField label="Registration #">
-          <FormTextInput value={registrationNumber} onChangeText={setRegistrationNumber} placeholder="Optional" />
-        </FormField>
-
         <FormField label="Sire">
           <FormTextInput value={sire} onChangeText={setSire} placeholder="Optional" />
         </FormField>
@@ -198,7 +189,6 @@ export function StallionManagementScreen(): JSX.Element {
               <View style={styles.cardMain}>
                 <Text style={styles.cardTitle}>{stallion.name}</Text>
                 <Text style={styles.cardMeta}>Breed: {stallion.breed || '-'}</Text>
-                <Text style={styles.cardMeta}>Reg #: {stallion.registrationNumber || '-'}</Text>
               </View>
               <View style={styles.cardActions}>
                 <Pressable style={styles.inlineButton} onPress={() => startEdit(stallion)}>

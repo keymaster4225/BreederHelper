@@ -2,7 +2,7 @@
 import { Platform, Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
-import { fromLocalDate, toLocalDate } from '@/utils/dates';
+import { formatLocalDate, fromLocalDate, toLocalDate } from '@/utils/dates';
 
 type FormFieldProps = {
   label: string;
@@ -44,11 +44,19 @@ type FormDateInputProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   clearable?: boolean;
+  displayFormat?: 'YYYY-MM-DD' | 'MM-DD-YYYY';
 };
 
-export function FormDateInput({ value, onChange, placeholder = 'Select date', clearable }: FormDateInputProps): JSX.Element {
+export function FormDateInput({
+  value,
+  onChange,
+  placeholder = 'Select date',
+  clearable,
+  displayFormat = 'YYYY-MM-DD',
+}: FormDateInputProps): JSX.Element {
   const [showPicker, setShowPicker] = useState(false);
   const pickerValue = useMemo(() => fromLocalDate(value) ?? new Date(), [value]);
+  const displayValue = useMemo(() => formatLocalDate(value, displayFormat), [displayFormat, value]);
 
   const onPickerChange = (event: DateTimePickerEvent, selectedDate?: Date): void => {
     if (Platform.OS === 'android') {
@@ -65,7 +73,9 @@ export function FormDateInput({ value, onChange, placeholder = 'Select date', cl
   return (
     <View style={styles.dateWrap}>
       <Pressable style={styles.input} onPress={() => setShowPicker(true)}>
-        <Text style={value ? styles.dateValue : styles.datePlaceholder}>{value || placeholder}</Text>
+        <Text style={displayValue ? styles.dateValue : styles.datePlaceholder}>
+          {displayValue || placeholder}
+        </Text>
       </Pressable>
       {clearable && value ? (
         <Pressable style={styles.clearButton} onPress={() => onChange('')}>

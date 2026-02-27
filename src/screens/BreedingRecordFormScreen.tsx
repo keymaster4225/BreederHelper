@@ -8,6 +8,7 @@ import { BreedingMethod, Stallion } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   createBreedingRecord,
+  deleteBreedingRecord,
   getBreedingRecordById,
   listStallions,
   updateBreedingRecord,
@@ -32,6 +33,7 @@ type FormErrors = {
   concentrationMPerMl?: string;
   motilityPercent?: string;
   numberOfStraws?: string;
+  strawVolumeMl?: string;
 };
 
 const METHOD_OPTIONS: { label: string; value: BreedingMethod }[] = [
@@ -54,6 +56,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   const [concentrationMPerMl, setConcentrationMPerMl] = useState('');
   const [motilityPercent, setMotilityPercent] = useState('');
   const [numberOfStraws, setNumberOfStraws] = useState('');
+  const [strawVolumeMl, setStrawVolumeMl] = useState('');
   const [strawDetails, setStrawDetails] = useState('');
   const [collectionDate, setCollectionDate] = useState('');
   const [notes, setNotes] = useState('');
@@ -124,6 +127,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         setConcentrationMPerMl(record.concentrationMPerMl == null ? '' : String(record.concentrationMPerMl));
         setMotilityPercent(record.motilityPercent == null ? '' : String(record.motilityPercent));
         setNumberOfStraws(record.numberOfStraws == null ? '' : String(record.numberOfStraws));
+        setStrawVolumeMl(record.strawVolumeMl == null ? '' : String(Math.trunc(record.strawVolumeMl)));
         setStrawDetails(record.strawDetails ?? '');
         setCollectionDate(record.collectionDate ?? '');
         setNotes(record.notes ?? '');
@@ -155,11 +159,13 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     parsedConcentration: number | null;
     parsedMotility: number | null;
     parsedStraws: number | null;
+    parsedStrawVolume: number | null;
   } => {
     const parsedVolume = parseOptionalNumber(volumeMl);
     const parsedConcentration = parseOptionalNumber(concentrationMPerMl);
     const parsedMotility = parseOptionalNumber(motilityPercent);
     const parsedStraws = parseOptionalInteger(numberOfStraws);
+    const parsedStrawVolume = parseOptionalInteger(strawVolumeMl);
 
     const nextErrors: FormErrors = {
       date: validateLocalDate(date, 'Date', true) ?? undefined,
@@ -183,15 +189,19 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
             ? 'Number of straws is required for Frozen AI.'
             : validateNumberRange(parsedStraws, 'Number of straws', 1, 1000) ?? undefined
           : undefined,
+      strawVolumeMl:
+        method === 'frozenAI'
+          ? validateNumberRange(parsedStrawVolume, 'Straw volume (mL)', 0, 99) ?? undefined
+          : undefined,
     };
 
     setErrors(nextErrors);
     const valid = Object.values(nextErrors).every((error) => !error);
-    return { valid, parsedVolume, parsedConcentration, parsedMotility, parsedStraws };
+    return { valid, parsedVolume, parsedConcentration, parsedMotility, parsedStraws, parsedStrawVolume };
   };
 
   const onSave = async (): Promise<void> => {
-    const { valid, parsedVolume, parsedConcentration, parsedMotility, parsedStraws } = validate();
+    const { valid, parsedVolume, parsedConcentration, parsedMotility, parsedStraws, parsedStrawVolume } = validate();
     if (!valid) {
       return;
     }
@@ -208,6 +218,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         concentrationMPerMl: method === 'freshAI' || method === 'shippedCooledAI' ? parsedConcentration : null,
         motilityPercent: method === 'freshAI' || method === 'shippedCooledAI' ? parsedMotility : null,
         numberOfStraws: method === 'frozenAI' ? parsedStraws : null,
+        strawVolumeMl: method === 'frozenAI' ? parsedStrawVolume : null,
         strawDetails: method === 'frozenAI' ? strawDetails.trim() || null : null,
         collectionDate: method === 'shippedCooledAI' || method === 'frozenAI' ? normalizeLocalDate(collectionDate) : null,
       };
@@ -225,6 +236,39 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const onDelete = (): void => {
+    if (!breedingRecordId) {
+      return;
+    }
+
+    Alert.alert('Delete Breeding Record', 'Delete this breeding record?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              await deleteBreedingRecord(breedingRecordId);
+              navigation.goBack();
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Failed to delete breeding record.';
+              if (message.toLowerCase().includes('foreign key')) {
+                Alert.alert('Delete blocked', 'Cannot delete this breeding record because linked records exist.');
+                return;
+              }
+              Alert.alert('Delete failed', message);
+            }
+          })();
+        },
+      },
+    ]);
+  };
+
+  const onChangeStrawVolumeMl = (value: string): void => {
+    setStrawVolumeMl(value.replace(/\D/g, '').slice(0, 2));
   };
 
   if (isLoadingRecord) {
@@ -283,6 +327,15 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
               <FormTextInput value={numberOfStraws} onChangeText={setNumberOfStraws} keyboardType="number-pad" />
             </FormField>
 
+            <FormField label="Straw Volume (mL)" error={errors.strawVolumeMl}>
+              <FormTextInput
+                value={strawVolumeMl}
+                onChangeText={onChangeStrawVolumeMl}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+            </FormField>
+
             <FormField label="Straw Details">
               <FormTextInput value={strawDetails} onChangeText={setStrawDetails} placeholder="Batch / ID" />
             </FormField>
@@ -306,7 +359,28 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         >
           <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : isEdit ? 'Save Breeding Record' : 'Create Breeding Record'}</Text>
         </Pressable>
+
+        {isEdit ? (
+          <Pressable style={styles.deleteButton} onPress={onDelete}>
+            <Text style={styles.deleteButtonText}>Delete Breeding Record</Text>
+          </Pressable>
+        ) : null}
       </ScrollView>
     </Screen>
   );
 }
+
+const styles = {
+  deleteButton: {
+    alignItems: 'center' as const,
+    backgroundColor: '#ffe3e0',
+    borderRadius: 8,
+    marginTop: 8,
+    paddingVertical: 12,
+  },
+  deleteButtonText: {
+    color: '#b42318',
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+};

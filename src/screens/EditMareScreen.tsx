@@ -149,7 +149,13 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
         </FormField>
 
         <FormField label="Date of Birth" error={errors.dateOfBirth}>
-          <FormDateInput value={dateOfBirth} onChange={setDateOfBirth} placeholder="Select date of birth" clearable />
+          <FormDateInput
+            value={dateOfBirth}
+            onChange={setDateOfBirth}
+            placeholder="Select date of birth"
+            clearable
+            displayFormat="MM-DD-YYYY"
+          />
         </FormField>
 
         <FormField label="Registration #">

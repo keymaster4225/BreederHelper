@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS breeding_records (
   concentration_m_per_ml REAL,
   motility_percent REAL,
   number_of_straws INTEGER,
+  straw_volume_ml REAL,
   straw_details TEXT,
   collection_date TEXT,
   created_at TEXT NOT NULL,
