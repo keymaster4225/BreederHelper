@@ -2,7 +2,7 @@
 import { Alert, Pressable, ScrollView, Text } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { FormField, FormTextInput, formStyles } from '@/components/FormControls';
+import { FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { createMare, getMareById, updateMare } from '@/storage/repositories';
@@ -149,12 +149,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
         </FormField>
 
         <FormField label="Date of Birth" error={errors.dateOfBirth}>
-          <FormTextInput
-            value={dateOfBirth}
-            onChangeText={setDateOfBirth}
-            placeholder="YYYY-MM-DD"
-            autoCapitalize="none"
-          />
+          <FormDateInput value={dateOfBirth} onChange={setDateOfBirth} placeholder="Select date of birth" clearable />
         </FormField>
 
         <FormField label="Registration #">

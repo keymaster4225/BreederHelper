@@ -2,7 +2,7 @@
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { BreedingRecord, calculateDaysPostBreeding } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -196,7 +196,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
         </FormField>
 
         <FormField label="Date" required error={errors.date}>
-          <FormTextInput value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+          <FormDateInput value={date} onChange={setDate} placeholder="Select check date" />
         </FormField>
 
         <FormField label="Result" required>

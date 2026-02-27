@@ -1,5 +1,8 @@
-﻿import { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+﻿import { ReactNode, useMemo, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+
+import { fromLocalDate, toLocalDate } from '@/utils/dates';
 
 type FormFieldProps = {
   label: string;
@@ -33,6 +36,51 @@ export function FormTextInput({ multiline, style, ...rest }: FormTextInputProps)
       style={[styles.input, multiline ? styles.notesInput : null, style]}
       placeholderTextColor="#8c959f"
     />
+  );
+}
+
+type FormDateInputProps = {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  clearable?: boolean;
+};
+
+export function FormDateInput({ value, onChange, placeholder = 'Select date', clearable }: FormDateInputProps): JSX.Element {
+  const [showPicker, setShowPicker] = useState(false);
+  const pickerValue = useMemo(() => fromLocalDate(value) ?? new Date(), [value]);
+
+  const onPickerChange = (event: DateTimePickerEvent, selectedDate?: Date): void => {
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+    }
+
+    if (event.type !== 'set' || !selectedDate) {
+      return;
+    }
+
+    onChange(toLocalDate(selectedDate));
+  };
+
+  return (
+    <View style={styles.dateWrap}>
+      <Pressable style={styles.input} onPress={() => setShowPicker(true)}>
+        <Text style={value ? styles.dateValue : styles.datePlaceholder}>{value || placeholder}</Text>
+      </Pressable>
+      {clearable && value ? (
+        <Pressable style={styles.clearButton} onPress={() => onChange('')}>
+          <Text style={styles.clearButtonText}>Clear</Text>
+        </Pressable>
+      ) : null}
+      {showPicker ? (
+        <DateTimePicker
+          value={pickerValue}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onPickerChange}
+        />
+      ) : null}
+    </View>
   );
 }
 
@@ -108,6 +156,26 @@ const styles = StyleSheet.create({
   notesInput: {
     minHeight: 90,
     textAlignVertical: 'top',
+  },
+  dateWrap: {
+    gap: 8,
+  },
+  dateValue: {
+    color: '#1b1f24',
+  },
+  datePlaceholder: {
+    color: '#8c959f',
+  },
+  clearButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  clearButtonText: {
+    color: '#1b1f24',
+    fontWeight: '600',
   },
   errorText: {
     color: '#b42318',

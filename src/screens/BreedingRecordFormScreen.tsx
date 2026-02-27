@@ -2,7 +2,7 @@
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { BreedingMethod, Stallion } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -239,7 +239,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     <Screen>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Date" required error={errors.date}>
-          <FormTextInput value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+          <FormDateInput value={date} onChange={setDate} placeholder="Select breeding date" />
         </FormField>
 
         <FormField label="Stallion" required error={errors.stallionId}>
@@ -291,7 +291,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
         {(method === 'shippedCooledAI' || method === 'frozenAI') && (
           <FormField label="Collection Date" error={errors.collectionDate}>
-            <FormTextInput value={collectionDate} onChangeText={setCollectionDate} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+            <FormDateInput value={collectionDate} onChange={setCollectionDate} placeholder="Select collection date" clearable />
           </FormField>
         )}
 

@@ -8,6 +8,22 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
+export function toLocalDate(value: Date): LocalDate {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, '0');
+  const day = String(value.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+export function fromLocalDate(value?: string | null): Date | null {
+  if (!value || !isLocalDate(value)) {
+    return null;
+  }
+
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function deriveAgeYears(dateOfBirth?: LocalDate | null): number | null {
   if (!dateOfBirth || !isLocalDate(dateOfBirth)) {
     return null;

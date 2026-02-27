@@ -2,7 +2,7 @@
 import { Alert, Pressable, ScrollView, Text } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { FoalSex, FoalingOutcome } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -149,7 +149,7 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
     <Screen>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Date" required error={errors.date}>
-          <FormTextInput value={date} onChangeText={setDate} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+          <FormDateInput value={date} onChange={setDate} placeholder="Select foaling date" />
         </FormField>
 
         <FormField label="Breeding Record">
