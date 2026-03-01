@@ -127,7 +127,7 @@ export function OptionSelector<T extends string>({ value, options, onChange }: O
 
 export const formStyles = StyleSheet.create({
   form: {
-    gap: 14,
+    gap: spacing.lg,
     paddingBottom: spacing.xl,
   },
   saveButton: {
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     paddingHorizontal: spacing.md,
-    paddingVertical: 10,
+    paddingVertical: spacing.sm,
   },
   notesInput: {
     minHeight: 90,
@@ -179,12 +179,12 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     backgroundColor: colors.surfaceVariant,
     borderRadius: borderRadius.md,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   clearButtonText: {
     color: colors.onSurface,
-    fontWeight: '600',
+    ...typography.labelMedium,
   },
   errorText: {
     color: colors.error,
