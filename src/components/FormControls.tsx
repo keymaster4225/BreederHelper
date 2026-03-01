@@ -3,6 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, TextInputProps, View 
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 import { formatLocalDate, fromLocalDate, toLocalDate } from '@/utils/dates';
+import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type FormFieldProps = {
   label: string;
@@ -34,7 +35,7 @@ export function FormTextInput({ multiline, style, ...rest }: FormTextInputProps)
       {...rest}
       multiline={multiline}
       style={[styles.input, multiline ? styles.notesInput : null, style]}
-      placeholderTextColor="#8c959f"
+      placeholderTextColor={colors.onSurfaceVariant}
     />
   );
 }
@@ -127,22 +128,21 @@ export function OptionSelector<T extends string>({ value, options, onChange }: O
 export const formStyles = StyleSheet.create({
   form: {
     gap: 14,
-    paddingBottom: 20,
+    paddingBottom: spacing.xl,
   },
   saveButton: {
     alignItems: 'center',
-    backgroundColor: '#1f6feb',
-    borderRadius: 8,
-    marginTop: 8,
-    paddingVertical: 12,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.md,
   },
   saveButtonDisabled: {
-    backgroundColor: '#9bbcf3',
+    backgroundColor: colors.primaryContainer,
   },
   saveButtonText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700',
+    color: colors.onPrimary,
+    ...typography.labelLarge,
   },
 });
 
@@ -151,16 +151,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   label: {
-    color: '#1b1f24',
-    fontSize: 14,
-    fontWeight: '600',
+    color: colors.onSurface,
+    ...typography.labelLarge,
   },
   input: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
     paddingVertical: 10,
   },
   notesInput: {
@@ -168,51 +167,51 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
   },
   dateWrap: {
-    gap: 8,
+    gap: spacing.sm,
   },
   dateValue: {
-    color: '#1b1f24',
+    color: colors.onSurface,
   },
   datePlaceholder: {
-    color: '#8c959f',
+    color: colors.onSurfaceVariant,
   },
   clearButton: {
     alignSelf: 'flex-start',
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: borderRadius.md,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
   clearButtonText: {
-    color: '#1b1f24',
+    color: colors.onSurface,
     fontWeight: '600',
   },
   errorText: {
-    color: '#b42318',
-    fontSize: 12,
+    color: colors.error,
+    ...typography.bodySmall,
   },
   optionRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
   },
   option: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.full,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   optionActive: {
-    backgroundColor: '#1f6feb',
-    borderColor: '#1f6feb',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   optionText: {
-    color: '#1b1f24',
-    fontWeight: '600',
+    color: colors.onSurface,
+    ...typography.labelMedium,
   },
   optionTextActive: {
-    color: '#ffffff',
+    color: colors.onPrimary,
   },
 });
