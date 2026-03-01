@@ -37,3 +37,6 @@ logs/
 
 # Coverage
 coverage/
+
+# Git worktrees
+.worktrees/
