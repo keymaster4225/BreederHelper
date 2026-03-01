@@ -5,11 +5,7 @@
  * Material 3 uses HCT color space to generate harmonious palettes.
  *
  * To use in your React Native app:
- *   import { colors, theme } from './theme';
- *
- * Usage with Claude Code:
- *   Drop this file into your project's src/constants/ or src/theme/ directory
- *   and import where needed.
+ *   import { colors, theme } from '@/theme';
  */
 
 // ============================================================
