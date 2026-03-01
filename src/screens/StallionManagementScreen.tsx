@@ -13,6 +13,7 @@ import {
 } from '@/storage/repositories';
 import { newId } from '@/utils/id';
 import { validateRequired } from '@/utils/validation';
+import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type FormErrors = {
   name?: string;
@@ -208,9 +209,8 @@ export function StallionManagementScreen(): JSX.Element {
 
 const styles = StyleSheet.create({
   sectionTitle: {
-    color: '#1b1f24',
-    fontSize: 16,
-    fontWeight: '700',
+    color: colors.onSurface,
+    ...typography.titleMedium,
   },
   listWrap: {
     gap: 10,
@@ -218,9 +218,9 @@ const styles = StyleSheet.create({
   },
   card: {
     alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -232,36 +232,35 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '700',
+    ...typography.titleSmall,
   },
   cardMeta: {
-    color: '#57606a',
-    fontSize: 12,
+    color: colors.onSurfaceVariant,
+    ...typography.bodySmall,
   },
   cardActions: {
     flexDirection: 'row',
-    gap: 8,
+    gap: spacing.sm,
   },
   inlineButton: {
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: borderRadius.md,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
   inlineButtonText: {
-    color: '#1b1f24',
-    fontWeight: '600',
+    color: colors.onSurface,
+    ...typography.labelMedium,
   },
   deleteButton: {
-    backgroundColor: '#ffe3e0',
-    borderRadius: 8,
+    backgroundColor: colors.errorContainer,
+    borderRadius: borderRadius.md,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
   deleteButtonText: {
-    color: '#b42318',
-    fontWeight: '700',
+    color: colors.error,
+    ...typography.labelMedium,
   },
   actionRow: {
     flexDirection: 'row',
@@ -272,14 +271,14 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     alignItems: 'center',
-    borderColor: '#d0d7de',
-    borderRadius: 8,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
   },
   secondaryButtonText: {
-    color: '#1b1f24',
-    fontWeight: '600',
+    color: colors.onSurface,
+    ...typography.labelMedium,
   },
 });
