@@ -8,6 +8,7 @@ import { Mare } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { listMares } from '@/storage/repositories';
 import { deriveAgeYears } from '@/utils/dates';
+import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -86,41 +87,41 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   primaryButton: {
-    backgroundColor: '#1f6feb',
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   primaryButtonText: {
-    color: '#ffffff',
-    fontWeight: '700',
+    color: colors.onPrimary,
+    ...typography.labelLarge,
   },
   secondaryButton: {
-    backgroundColor: '#eceff3',
-    borderRadius: 8,
+    backgroundColor: colors.secondaryContainer,
+    borderRadius: borderRadius.md,
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
   secondaryButtonText: {
-    color: '#1b1f24',
-    fontWeight: '600',
+    color: colors.onSurface,
+    ...typography.labelMedium,
   },
   listContent: {
     gap: 10,
-    paddingBottom: 20,
+    paddingBottom: spacing.xl,
   },
   row: {
     alignItems: 'center',
-    backgroundColor: '#f7f9fb',
-    borderColor: '#d0d7de',
-    borderRadius: 10,
+    backgroundColor: colors.surfaceVariant,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 12,
+    padding: spacing.md,
   },
   rowMain: {
     flex: 1,
@@ -128,31 +129,30 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   rowTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.titleSmall,
   },
   rowSubtitle: {
-    color: '#57606a',
-    fontSize: 14,
+    color: colors.onSurfaceVariant,
+    ...typography.bodyMedium,
   },
   rowMeta: {
-    color: '#57606a',
-    fontSize: 12,
+    color: colors.onSurfaceVariant,
+    ...typography.bodySmall,
   },
   inlineEditButton: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-    borderRadius: 8,
+    backgroundColor: colors.surface,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   inlineEditButtonText: {
-    color: '#1b1f24',
-    fontWeight: '600',
+    color: colors.onSurface,
+    ...typography.labelMedium,
   },
   errorText: {
-    color: '#b42318',
-    marginBottom: 8,
+    color: colors.error,
+    marginBottom: spacing.sm,
   },
 });
