@@ -15,6 +15,7 @@ import {
 } from '@/storage/repositories';
 import { newId } from '@/utils/id';
 import { validateLocalDate } from '@/utils/validation';
+import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FoalingRecordForm'>;
 
@@ -219,14 +220,13 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
 const styles = {
   deleteButton: {
     alignItems: 'center' as const,
-    backgroundColor: '#ffe3e0',
-    borderRadius: 8,
-    marginTop: 8,
-    paddingVertical: 12,
+    backgroundColor: colors.errorContainer,
+    borderRadius: borderRadius.md,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.md,
   },
   deleteButtonText: {
-    color: '#b42318',
-    fontSize: 15,
-    fontWeight: '700' as const,
+    color: colors.error,
+    ...typography.labelLarge,
   },
 };
