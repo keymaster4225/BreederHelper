@@ -15,6 +15,7 @@ import {
   listStallions,
 } from '@/storage/repositories';
 import { deriveAgeYears } from '@/utils/dates';
+import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MareDetail'>;
 type DetailTab = 'dailyLogs' | 'breedingRecords' | 'pregnancyChecks' | 'foalingRecords';
@@ -233,46 +234,46 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
 
 const styles = StyleSheet.create({
   headerCard: {
-    backgroundColor: '#f7f9fb',
-    borderColor: '#d0d7de',
-    borderRadius: 10,
+    backgroundColor: colors.surfaceVariant,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
     gap: 3,
-    marginBottom: 12,
-    padding: 12,
+    marginBottom: spacing.md,
+    padding: spacing.md,
   },
   headerName: {
     fontSize: 18,
     fontWeight: '700',
   },
   headerLine: {
-    color: '#57606a',
+    color: colors.onSurfaceVariant,
     fontSize: 13,
   },
   tabRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 12,
+    gap: spacing.sm,
+    marginBottom: spacing.md,
   },
   tabButton: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-    borderRadius: 999,
+    backgroundColor: colors.surface,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.full,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   tabButtonActive: {
-    backgroundColor: '#1f6feb',
-    borderColor: '#1f6feb',
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   tabButtonText: {
-    color: '#1b1f24',
-    fontWeight: '600',
+    color: colors.onSurface,
+    ...typography.labelMedium,
   },
   tabButtonTextActive: {
-    color: '#ffffff',
+    color: colors.onPrimary,
   },
   scrollContent: {
     paddingBottom: 30,
@@ -281,9 +282,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   card: {
-    backgroundColor: '#ffffff',
-    borderColor: '#d0d7de',
-    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.lg,
     borderWidth: 1,
     gap: 3,
     padding: 10,
@@ -295,45 +296,44 @@ const styles = StyleSheet.create({
     marginBottom: 3,
   },
   cardTitle: {
-    fontWeight: '700',
+    ...typography.titleSmall,
   },
   iconButton: {
     alignItems: 'center',
-    backgroundColor: '#f3f4f6',
-    borderRadius: 16,
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: borderRadius.xl,
     height: 28,
     justifyContent: 'center',
     width: 28,
   },
   iconText: {
-    color: '#1b1f24',
-    fontSize: 14,
-    fontWeight: '700',
+    color: colors.onSurface,
+    ...typography.labelLarge,
   },
   primaryButton: {
     alignItems: 'center',
-    backgroundColor: '#1f6feb',
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.md,
     paddingVertical: 10,
   },
   primaryButtonText: {
-    color: '#ffffff',
-    fontWeight: '700',
+    color: colors.onPrimary,
+    ...typography.labelLarge,
   },
   secondaryButton: {
     alignItems: 'center',
-    borderColor: '#d0d7de',
-    borderRadius: 8,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    marginTop: 8,
+    marginTop: spacing.sm,
     paddingVertical: 10,
   },
   secondaryButtonText: {
-    color: '#1b1f24',
-    fontWeight: '600',
+    color: colors.onSurface,
+    ...typography.labelMedium,
   },
   errorText: {
-    color: '#b42318',
-    marginBottom: 8,
+    color: colors.error,
+    marginBottom: spacing.sm,
   },
 });
