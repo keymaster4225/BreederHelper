@@ -151,7 +151,7 @@ export const formStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   fieldGroup: {
-    gap: 6,
+    gap: spacing.sm,
   },
   label: {
     color: colors.onSurface,
