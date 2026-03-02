@@ -1,7 +1,8 @@
-﻿import { useCallback, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
+import { DeleteButton, PrimaryButton, SecondaryButton } from '@/components/Buttons';
 import { FormField, FormTextInput, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { Stallion } from '@/models/types';
@@ -11,9 +12,9 @@ import {
   softDeleteStallion,
   updateStallion,
 } from '@/storage/repositories';
+import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 import { newId } from '@/utils/id';
 import { validateRequired } from '@/utils/validation';
-import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type FormErrors = {
   name?: string;
@@ -163,26 +164,22 @@ export function StallionManagementScreen(): JSX.Element {
         </FormField>
 
         <View style={styles.actionRow}>
-          <Pressable
-            disabled={isSaving}
-            style={[formStyles.saveButton, styles.flexButton, isSaving ? formStyles.saveButtonDisabled : null]}
+          <PrimaryButton
+            label={editingStallionId ? 'Update Stallion' : 'Add Stallion'}
             onPress={() => {
               void onSave();
             }}
-          >
-            <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : editingStallionId ? 'Save Changes' : 'Add Stallion'}</Text>
-          </Pressable>
+            disabled={isSaving}
+          />
 
           {editingStallionId ? (
-            <Pressable style={[styles.secondaryButton, styles.flexButton]} onPress={clearForm}>
-              <Text style={styles.secondaryButtonText}>Cancel</Text>
-            </Pressable>
+            <SecondaryButton label="Cancel" onPress={clearForm} />
           ) : null}
         </View>
 
         <Text style={styles.sectionTitle}>Stallions</Text>
-        {isLoading ? <Text>Loading stallions...</Text> : null}
-        {!isLoading && stallions.length === 0 ? <Text>No stallions yet.</Text> : null}
+        {isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
+        {!isLoading && stallions.length === 0 ? <Text style={styles.emptyText}>No stallions yet.</Text> : null}
 
         <View style={styles.listWrap}>
           {stallions.map((stallion) => (
@@ -192,12 +189,13 @@ export function StallionManagementScreen(): JSX.Element {
                 <Text style={styles.cardMeta}>Breed: {stallion.breed || '-'}</Text>
               </View>
               <View style={styles.cardActions}>
-                <Pressable style={styles.inlineButton} onPress={() => startEdit(stallion)}>
+                <Pressable
+                  style={({ pressed }) => [styles.inlineButton, pressed && styles.inlineButtonPressed]}
+                  onPress={() => startEdit(stallion)}
+                >
                   <Text style={styles.inlineButtonText}>Edit</Text>
                 </Pressable>
-                <Pressable style={styles.deleteButton} onPress={() => confirmDelete(stallion)}>
-                  <Text style={styles.deleteButtonText}>Delete</Text>
-                </Pressable>
+                <DeleteButton label="Delete" onPress={() => confirmDelete(stallion)} />
               </View>
             </View>
           ))}
@@ -213,8 +211,8 @@ const styles = StyleSheet.create({
     ...typography.titleMedium,
   },
   listWrap: {
-    gap: 10,
-    paddingBottom: 10,
+    gap: spacing.md,
+    paddingBottom: spacing.md,
   },
   card: {
     alignItems: 'center',
@@ -224,12 +222,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 10,
+    padding: spacing.md,
+    ...elevation.level1,
   },
   cardMain: {
     flex: 1,
-    gap: 2,
-    marginRight: 10,
+    gap: spacing.xs,
+    marginRight: spacing.md,
   },
   cardTitle: {
     ...typography.titleSmall,
@@ -245,40 +244,24 @@ const styles = StyleSheet.create({
   inlineButton: {
     backgroundColor: colors.surfaceVariant,
     borderRadius: borderRadius.md,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   inlineButtonText: {
     color: colors.onSurface,
     ...typography.labelMedium,
   },
-  deleteButton: {
-    backgroundColor: colors.errorContainer,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  deleteButtonText: {
-    color: colors.error,
-    ...typography.labelMedium,
-  },
   actionRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.md,
   },
-  flexButton: {
-    flex: 1,
+  emptyText: {
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+    paddingVertical: spacing.xl,
+    ...typography.bodyMedium,
   },
-  secondaryButton: {
-    alignItems: 'center',
-    borderColor: colors.outline,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-  },
-  secondaryButtonText: {
-    color: colors.onSurface,
-    ...typography.labelMedium,
+  inlineButtonPressed: {
+    opacity: 0.7,
   },
 });
