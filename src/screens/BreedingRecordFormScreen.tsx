@@ -19,6 +19,7 @@ import {
   parseOptionalInteger,
   parseOptionalNumber,
   validateLocalDate,
+  validateLocalDateNotInFuture,
   validateNumberRange,
   validateRequired,
 } from '@/utils/validation';
@@ -65,6 +66,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   const [isLoadingStallions, setIsLoadingStallions] = useState(true);
   const [isLoadingRecord, setIsLoadingRecord] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
+  const today = new Date();
 
   useEffect(() => {
     navigation.setOptions({ title: isEdit ? 'Edit Breeding Record' : 'Add Breeding Record' });
@@ -171,9 +173,11 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     const parsedStrawVolume = parseOptionalInteger(strawVolumeMl);
 
     const nextErrors: FormErrors = {
-      date: validateLocalDate(date, 'Date', true) ?? undefined,
+      date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
       stallionId: validateRequired(stallionId, 'Stallion') ?? undefined,
-      collectionDate: validateLocalDate(collectionDate, 'Collection date', false) ?? undefined,
+      collectionDate:
+        (validateLocalDate(collectionDate, 'Collection date', false) ?? validateLocalDateNotInFuture(collectionDate)) ??
+        undefined,
       volumeMl:
         method === 'freshAI' || method === 'shippedCooledAI'
           ? validateNumberRange(parsedVolume, 'Volume (mL)', 0, 1000) ?? undefined
@@ -286,7 +290,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     <Screen>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Date" required error={errors.date}>
-          <FormDateInput value={date} onChange={setDate} placeholder="Select breeding date" />
+          <FormDateInput value={date} onChange={setDate} placeholder="Select breeding date" maximumDate={today} />
         </FormField>
 
         <FormField label="Stallion" required error={errors.stallionId}>
@@ -347,7 +351,13 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
         {(method === 'shippedCooledAI' || method === 'frozenAI') && (
           <FormField label="Collection Date" error={errors.collectionDate}>
-            <FormDateInput value={collectionDate} onChange={setCollectionDate} placeholder="Select collection date" clearable />
+            <FormDateInput
+              value={collectionDate}
+              onChange={setCollectionDate}
+              placeholder="Select collection date"
+              clearable
+              maximumDate={today}
+            />
           </FormField>
         )}
 

@@ -5,6 +5,7 @@ import {
   parseOptionalInteger,
   parseOptionalNumber,
   validateLocalDate,
+  validateLocalDateNotInFuture,
   validateNumberRange,
   validateRequired,
 } from '@/utils/validation';
@@ -34,6 +35,29 @@ describe('validateLocalDate', () => {
 
   it('returns format error for invalid date string', () => {
     expect(validateLocalDate('02/27/2026', 'Date', true)).toBe('Date must be YYYY-MM-DD.');
+  });
+});
+
+describe('validateLocalDateNotInFuture', () => {
+  it('returns null for empty values', () => {
+    expect(validateLocalDateNotInFuture('   ')).toBeNull();
+  });
+
+  it('returns null for today and past dates, and error for future dates', () => {
+    const today = new Date();
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+    const toLocalDate = (value: Date): string => {
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, '0');
+      const day = String(value.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    expect(validateLocalDateNotInFuture(toLocalDate(today))).toBeNull();
+    expect(validateLocalDateNotInFuture(toLocalDate(yesterday))).toBeNull();
+    expect(validateLocalDateNotInFuture(toLocalDate(tomorrow))).toBe('Date cannot be in the future.');
   });
 });
 

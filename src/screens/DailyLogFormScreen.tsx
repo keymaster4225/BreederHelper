@@ -7,7 +7,7 @@ import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { createDailyLog, deleteDailyLog, getDailyLogById, updateDailyLog } from '@/storage/repositories';
 import { newId } from '@/utils/id';
-import { validateLocalDate } from '@/utils/validation';
+import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validation';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DailyLogForm'>;
@@ -44,6 +44,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
+  const today = new Date();
 
   useEffect(() => {
     navigation.setOptions({ title: isEdit ? 'Edit Daily Log' : 'Add Daily Log' });
@@ -94,7 +95,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
 
   const validate = (): boolean => {
     const nextErrors: FormErrors = {
-      date: validateLocalDate(date, 'Date', true) ?? undefined,
+      date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
     };
 
     setErrors(nextErrors);
@@ -175,7 +176,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
     <Screen>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Date" required error={errors.date}>
-          <FormDateInput value={date} onChange={setDate} placeholder="Select date" />
+          <FormDateInput value={date} onChange={setDate} placeholder="Select date" maximumDate={today} />
         </FormField>
 
         <FormField label="Teasing Score (0-5)">

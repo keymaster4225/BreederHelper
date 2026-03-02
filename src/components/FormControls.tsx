@@ -46,6 +46,7 @@ type FormDateInputProps = {
   placeholder?: string;
   clearable?: boolean;
   displayFormat?: 'YYYY-MM-DD' | 'MM-DD-YYYY';
+  maximumDate?: Date;
 };
 
 export function FormDateInput({
@@ -54,6 +55,7 @@ export function FormDateInput({
   placeholder = 'Select date',
   clearable,
   displayFormat = 'YYYY-MM-DD',
+  maximumDate,
 }: FormDateInputProps): JSX.Element {
   const [showPicker, setShowPicker] = useState(false);
   const pickerValue = useMemo(() => fromLocalDate(value) ?? new Date(), [value]);
@@ -88,6 +90,7 @@ export function FormDateInput({
           value={pickerValue}
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          maximumDate={maximumDate}
           onChange={onPickerChange}
         />
       ) : null}

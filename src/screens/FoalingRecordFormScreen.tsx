@@ -14,7 +14,7 @@ import {
   updateFoalingRecord,
 } from '@/storage/repositories';
 import { newId } from '@/utils/id';
-import { validateLocalDate } from '@/utils/validation';
+import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validation';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FoalingRecordForm'>;
@@ -51,6 +51,7 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const today = new Date();
 
   useEffect(() => {
     navigation.setOptions({ title: isEdit ? 'Edit Foaling Record' : 'Add Foaling Record' });
@@ -101,7 +102,7 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
 
   const validate = (): boolean => {
     const nextErrors: FormErrors = {
-      date: validateLocalDate(date, 'Date', true) ?? undefined,
+      date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
     };
 
     setErrors(nextErrors);
@@ -176,7 +177,7 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
     <Screen>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Date" required error={errors.date}>
-          <FormDateInput value={date} onChange={setDate} placeholder="Select foaling date" />
+          <FormDateInput value={date} onChange={setDate} placeholder="Select foaling date" maximumDate={today} />
         </FormField>
 
         <FormField label="Breeding Record">

@@ -1,5 +1,5 @@
 ﻿import { LocalDate } from '@/models/types';
-import { isLocalDate } from '@/utils/dates';
+import { isLocalDate, toLocalDate } from '@/utils/dates';
 
 export function validateRequired(value: string, label: string): string | null {
   return value.trim().length > 0 ? null : `${label} is required.`;
@@ -12,6 +12,15 @@ export function validateLocalDate(value: string, label: string, required = false
   }
 
   return isLocalDate(trimmed) ? null : `${label} must be YYYY-MM-DD.`;
+}
+
+export function validateLocalDateNotInFuture(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed || !isLocalDate(trimmed)) {
+    return null;
+  }
+
+  return trimmed > toLocalDate(new Date()) ? 'Date cannot be in the future.' : null;
 }
 
 export function parseOptionalNumber(value: string): number | null {

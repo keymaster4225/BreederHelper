@@ -14,7 +14,7 @@ import {
   updatePregnancyCheck,
 } from '@/storage/repositories';
 import { newId } from '@/utils/id';
-import { validateLocalDate, validateRequired } from '@/utils/validation';
+import { validateLocalDate, validateLocalDateNotInFuture, validateRequired } from '@/utils/validation';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PregnancyCheckForm'>;
@@ -51,6 +51,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const today = new Date();
 
   useEffect(() => {
     navigation.setOptions({ title: isEdit ? 'Edit Pregnancy Check' : 'Add Pregnancy Check' });
@@ -124,7 +125,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
   }, [date, selectedBreedingRecord]);
 
   const validate = (): boolean => {
-    const dateError = validateLocalDate(date, 'Date', true);
+    const dateError = validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date);
 
     let relativeDateError: string | null = null;
     if (!dateError && selectedBreedingRecord) {
@@ -223,7 +224,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
         </FormField>
 
         <FormField label="Date" required error={errors.date}>
-          <FormDateInput value={date} onChange={setDate} placeholder="Select check date" />
+          <FormDateInput value={date} onChange={setDate} placeholder="Select check date" maximumDate={today} />
         </FormField>
 
         <FormField label="Result" required>
