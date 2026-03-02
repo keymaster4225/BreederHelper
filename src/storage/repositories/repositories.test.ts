@@ -13,6 +13,7 @@ import {
   createStallion,
   deleteBreedingRecord,
   deleteDailyLog,
+  getBreedingRecordById,
   getDailyLogById,
   getFoalingRecordById,
   getPregnancyCheckById,
@@ -63,7 +64,8 @@ type StallionRow = {
 type BreedingRecordRow = {
   id: string;
   mare_id: string;
-  stallion_id: string;
+  stallion_id: string | null;
+  stallion_name: string | null;
   date: string;
   method: string;
   notes: string | null;
@@ -307,6 +309,7 @@ function createFakeDb(): FakeDb {
           id,
           mareId,
           stallionId,
+          stallionName,
           date,
           method,
           notes,
@@ -322,7 +325,8 @@ function createFakeDb(): FakeDb {
         ] = params as [
           string,
           string,
-          string,
+          string | null,
+          string | null,
           string,
           string,
           string | null,
@@ -340,6 +344,7 @@ function createFakeDb(): FakeDb {
           id,
           mare_id: mareId,
           stallion_id: stallionId,
+          stallion_name: stallionName,
           date,
           method,
           notes,
@@ -432,6 +437,11 @@ function createFakeDb(): FakeDb {
       if (stmt.includes('from foaling_records') && stmt.includes('where id = ?')) {
         const [id] = params as [string];
         return (foalingRecords.get(id) as T | undefined) ?? null;
+      }
+
+      if (stmt.includes('from breeding_records') && stmt.includes('where id = ?')) {
+        const [id] = params as [string];
+        return (breedingRecords.get(id) as T | undefined) ?? null;
       }
 
       return null;
@@ -579,6 +589,23 @@ describe('repository smoke tests', () => {
     const record = await getFoalingRecordById('foal-fs');
     expect(record).not.toBeNull();
     expect(record?.foalSex).toBeNull();
+  });
+
+  it('creates breeding record with stallion_name instead of stallionId', async () => {
+    await createMare({ id: 'mare-sn', name: 'Bella', breed: 'Thoroughbred' });
+    await createBreedingRecord({
+      id: 'breed-sn',
+      mareId: 'mare-sn',
+      stallionId: null,
+      stallionName: 'Outside Stallion',
+      date: '2026-06-01',
+      method: 'liveCover',
+    });
+
+    const record = await getBreedingRecordById('breed-sn');
+    expect(record).not.toBeNull();
+    expect(record?.stallionId).toBeNull();
+    expect(record?.stallionName).toBe('Outside Stallion');
   });
 
   it('blocks breeding record delete when pregnancy checks reference it', async () => {
