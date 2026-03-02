@@ -39,6 +39,8 @@ type FormErrors = {
   strawVolumeMl?: string;
 };
 
+const OTHER_STALLION = '__other__';
+
 const METHOD_OPTIONS: { label: string; value: BreedingMethod }[] = [
   { label: 'Live Cover', value: 'liveCover' },
   { label: 'Fresh AI', value: 'freshAI' },
@@ -54,6 +56,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   const [date, setDate] = useState('');
   const [stallions, setStallions] = useState<Stallion[]>([]);
   const [stallionId, setStallionId] = useState('');
+  const [stallionName, setStallionName] = useState('');
   const [method, setMethod] = useState<BreedingMethod>('liveCover');
   const [volumeMl, setVolumeMl] = useState('');
   const [concentrationMPerMl, setConcentrationMPerMl] = useState('');
@@ -125,7 +128,8 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         }
 
         setDate(record.date);
-        setStallionId(record.stallionId);
+        setStallionId(record.stallionId ?? '');
+        setStallionName(record.stallionName ?? '');
         setMethod(record.method);
         setVolumeMl(record.volumeMl == null ? '' : String(record.volumeMl));
         setConcentrationMPerMl(record.concentrationMPerMl == null ? '' : String(record.concentrationMPerMl));
@@ -175,7 +179,9 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
     const nextErrors: FormErrors = {
       date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
-      stallionId: validateRequired(stallionId, 'Stallion') ?? undefined,
+      stallionId: stallionId
+        ? undefined
+        : (validateRequired(stallionName.trim(), 'Stallion name') ?? undefined),
       collectionDate:
         (validateLocalDate(collectionDate, 'Collection date', false) ?? validateLocalDateNotInFuture(collectionDate)) ??
         undefined,
@@ -218,7 +224,8 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
     try {
       const payload = {
-        stallionId,
+        stallionId: stallionId || null,
+        stallionName: stallionId ? null : stallionName.trim() || null,
         date: date.trim(),
         method,
         notes: notes.trim() || null,
@@ -297,14 +304,31 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         <FormField label="Stallion" required error={errors.stallionId}>
           {isLoadingStallions ? (
             <ActivityIndicator color={colors.primary} size="large" />
-          ) : stallions.length === 0 ? (
-            <Text>No stallions found. Add stallions first in Stallion Management.</Text>
           ) : (
-            <OptionSelector
-              value={stallionId}
-              onChange={setStallionId}
-              options={stallions.map((stallion) => ({ label: stallion.name, value: stallion.id }))}
-            />
+            <>
+              <OptionSelector
+                value={stallionId || OTHER_STALLION}
+                onChange={(value) => {
+                  if (value === OTHER_STALLION) {
+                    setStallionId('');
+                  } else {
+                    setStallionId(value);
+                    setStallionName('');
+                  }
+                }}
+                options={[
+                  ...stallions.map((s) => ({ label: s.name, value: s.id })),
+                  { label: 'Other', value: OTHER_STALLION },
+                ]}
+              />
+              {!stallionId ? (
+                <FormTextInput
+                  value={stallionName}
+                  onChangeText={setStallionName}
+                  placeholder="Enter stallion name"
+                />
+              ) : null}
+            </>
           )}
         </FormField>
 
@@ -369,7 +393,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         <PrimaryButton
           label={isSaving ? 'Saving...' : 'Save'}
           onPress={onSave}
-          disabled={isSaving || stallions.length === 0}
+          disabled={isSaving}
         />
 
         {isEdit ? (
