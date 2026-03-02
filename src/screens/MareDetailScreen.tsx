@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import { IconButton, PrimaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { BreedingRecord, DailyLog, FoalingRecord, Mare, PregnancyCheck, calculateDaysPostBreeding } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -15,7 +16,7 @@ import {
   listStallions,
 } from '@/storage/repositories';
 import { deriveAgeYears } from '@/utils/dates';
-import { borderRadius, colors, spacing, typography } from '@/theme';
+import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MareDetail'>;
 type DetailTab = 'dailyLogs' | 'breedingRecords' | 'pregnancyChecks' | 'foalingRecords';
@@ -92,29 +93,32 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   const age = deriveAgeYears(mare?.dateOfBirth ?? null);
 
   const renderEditIconButton = (onPress: () => void): JSX.Element => (
-    <Pressable style={styles.iconButton} onPress={onPress}>
-      <Text style={styles.iconText}>{'\u270E'}</Text>
-    </Pressable>
+    <IconButton icon={'\u270E'} onPress={onPress} />
+  );
+
+  const renderCardRow = (label: string, value: string | number | null | undefined): JSX.Element => (
+    <View style={styles.cardRow}>
+      <Text style={styles.cardLabel}>{label}</Text>
+      <Text style={styles.cardValue}>{value ?? '-'}</Text>
+    </View>
   );
 
   const renderTabContent = (): JSX.Element => {
     if (activeTab === 'dailyLogs') {
       return (
         <View style={styles.listWrap}>
-          <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('DailyLogForm', { mareId })}>
-            <Text style={styles.primaryButtonText}>Add Daily Log</Text>
-          </Pressable>
-          {dailyLogs.length === 0 ? <Text>No daily logs yet.</Text> : null}
+          <PrimaryButton label="Add Daily Log" onPress={() => navigation.navigate('DailyLogForm', { mareId })} />
+          {dailyLogs.length === 0 ? <Text style={styles.emptyText}>No daily logs yet.</Text> : null}
           {dailyLogs.map((log) => (
             <View key={log.id} style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>{log.date}</Text>
                 {renderEditIconButton(() => navigation.navigate('DailyLogForm', { mareId, logId: log.id }))}
               </View>
-              <Text>Teasing: {log.teasingScore ?? '-'}</Text>
-              <Text>Edema: {log.edema ?? '-'}</Text>
-              <Text>Right ovary: {log.rightOvary || '-'}</Text>
-              <Text>Left ovary: {log.leftOvary || '-'}</Text>
+              {renderCardRow('Teasing', log.teasingScore ?? '-')}
+              {renderCardRow('Edema', log.edema ?? '-')}
+              {renderCardRow('Right ovary', log.rightOvary || '-')}
+              {renderCardRow('Left ovary', log.leftOvary || '-')}
             </View>
           ))}
         </View>
@@ -124,10 +128,8 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
     if (activeTab === 'breedingRecords') {
       return (
         <View style={styles.listWrap}>
-          <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('BreedingRecordForm', { mareId })}>
-            <Text style={styles.primaryButtonText}>Add Breeding Record</Text>
-          </Pressable>
-          {breedingRecords.length === 0 ? <Text>No breeding records yet.</Text> : null}
+          <PrimaryButton label="Add Breeding Record" onPress={() => navigation.navigate('BreedingRecordForm', { mareId })} />
+          {breedingRecords.length === 0 ? <Text style={styles.emptyText}>No breeding records yet.</Text> : null}
           {breedingRecords.map((record) => (
             <View key={record.id} style={styles.card}>
               <View style={styles.cardHeader}>
@@ -136,9 +138,9 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                   navigation.navigate('BreedingRecordForm', { mareId, breedingRecordId: record.id })
                 )}
               </View>
-              <Text>Method: {record.method}</Text>
-              <Text>Stallion: {stallionNameById[record.stallionId] ?? 'Unknown'}</Text>
-              {record.collectionDate ? <Text>Collection: {record.collectionDate}</Text> : null}
+              {renderCardRow('Method', record.method)}
+              {renderCardRow('Stallion', stallionNameById[record.stallionId] ?? 'Unknown')}
+              {record.collectionDate ? renderCardRow('Collection', record.collectionDate) : null}
             </View>
           ))}
         </View>
@@ -148,10 +150,8 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
     if (activeTab === 'pregnancyChecks') {
       return (
         <View style={styles.listWrap}>
-          <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('PregnancyCheckForm', { mareId })}>
-            <Text style={styles.primaryButtonText}>Add Pregnancy Check</Text>
-          </Pressable>
-          {pregnancyChecks.length === 0 ? <Text>No pregnancy checks yet.</Text> : null}
+          <PrimaryButton label="Add Pregnancy Check" onPress={() => navigation.navigate('PregnancyCheckForm', { mareId })} />
+          {pregnancyChecks.length === 0 ? <Text style={styles.emptyText}>No pregnancy checks yet.</Text> : null}
           {pregnancyChecks.map((check) => {
             const breeding = breedingById[check.breedingRecordId];
             const daysPost = breeding ? calculateDaysPostBreeding(check.date, breeding.date) : null;
@@ -164,9 +164,9 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                     navigation.navigate('PregnancyCheckForm', { mareId, pregnancyCheckId: check.id })
                   )}
                 </View>
-                <Text>Result: {check.result}</Text>
-                <Text>Heartbeat: {check.heartbeatDetected ? 'Yes' : 'No'}</Text>
-                <Text>Days post-breeding: {daysPost ?? '-'}</Text>
+                {renderCardRow('Result', check.result)}
+                {renderCardRow('Heartbeat', check.heartbeatDetected ? 'Yes' : 'No')}
+                {renderCardRow('Days post-breeding', daysPost ?? '-')}
               </View>
             );
           })}
@@ -176,10 +176,8 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
 
     return (
       <View style={styles.listWrap}>
-        <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('FoalingRecordForm', { mareId })}>
-          <Text style={styles.primaryButtonText}>Add Foaling Record</Text>
-        </Pressable>
-        {foalingRecords.length === 0 ? <Text>No foaling records yet.</Text> : null}
+        <PrimaryButton label="Add Foaling Record" onPress={() => navigation.navigate('FoalingRecordForm', { mareId })} />
+        {foalingRecords.length === 0 ? <Text style={styles.emptyText}>No foaling records yet.</Text> : null}
         {foalingRecords.map((record) => (
           <View key={record.id} style={styles.card}>
             <View style={styles.cardHeader}>
@@ -188,9 +186,9 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                 navigation.navigate('FoalingRecordForm', { mareId, foalingRecordId: record.id })
               )}
             </View>
-            <Text>Outcome: {record.outcome}</Text>
-            <Text>Foal sex: {record.foalSex ?? '-'}</Text>
-            {record.complications ? <Text>Complications: {record.complications}</Text> : null}
+            {renderCardRow('Outcome', record.outcome)}
+            {renderCardRow('Foal sex', record.foalSex ?? '-')}
+            {record.complications ? renderCardRow('Complications', record.complications) : null}
           </View>
         ))}
       </View>
@@ -199,7 +197,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
 
   return (
     <Screen>
-      {isLoading ? <Text>Loading mare details...</Text> : null}
+      {isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       {mare ? (
@@ -218,7 +216,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             {TAB_OPTIONS.map((tab) => {
               const active = tab.value === activeTab;
               return (
-                <Pressable key={tab.value} style={[styles.tabButton, active ? styles.tabButtonActive : null]} onPress={() => setActiveTab(tab.value)}>
+                <Pressable key={tab.value} style={({ pressed }) => [styles.tabButton, active ? styles.tabButtonActive : null, pressed && !active && styles.tabPressed]} onPress={() => setActiveTab(tab.value)}>
                   <Text style={[styles.tabButtonText, active ? styles.tabButtonTextActive : null]}>{tab.label}</Text>
                 </Pressable>
               );
@@ -238,17 +236,18 @@ const styles = StyleSheet.create({
     borderColor: colors.outline,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    gap: 3,
+    gap: spacing.xs,
     marginBottom: spacing.md,
     padding: spacing.md,
+    ...elevation.level2,
   },
   headerName: {
-    fontSize: 18,
+    ...typography.titleMedium,
     fontWeight: '700',
   },
   headerLine: {
     color: colors.onSurfaceVariant,
-    fontSize: 13,
+    ...typography.bodySmall,
   },
   tabRow: {
     flexDirection: 'row',
@@ -276,49 +275,50 @@ const styles = StyleSheet.create({
     color: colors.onPrimary,
   },
   scrollContent: {
-    paddingBottom: 30,
+    paddingBottom: spacing.xxxl,
   },
   listWrap: {
-    gap: 10,
+    gap: spacing.md,
   },
   card: {
     backgroundColor: colors.surface,
     borderColor: colors.outline,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
-    gap: 3,
-    padding: 10,
+    gap: spacing.xs,
+    padding: spacing.md,
+    ...elevation.level1,
   },
   cardHeader: {
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 3,
+    marginBottom: spacing.xs,
   },
   cardTitle: {
     ...typography.titleSmall,
   },
-  iconButton: {
+  cardRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: borderRadius.xl,
-    height: 28,
-    justifyContent: 'center',
-    width: 28,
   },
-  iconText: {
+  cardLabel: {
+    color: colors.onSurfaceVariant,
+    ...typography.bodySmall,
+  },
+  cardValue: {
     color: colors.onSurface,
-    ...typography.labelLarge,
+    ...typography.bodyMedium,
   },
-  primaryButton: {
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    paddingVertical: 10,
+  emptyText: {
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+    paddingVertical: spacing.xl,
+    ...typography.bodyMedium,
   },
-  primaryButtonText: {
-    color: colors.onPrimary,
-    ...typography.labelLarge,
+  tabPressed: {
+    opacity: 0.7,
   },
   secondaryButton: {
     alignItems: 'center',
