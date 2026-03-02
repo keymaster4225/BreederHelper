@@ -133,7 +133,8 @@ export async function softDeleteStallion(id: string): Promise<void> {
 export async function createBreedingRecord(input: {
   id: string;
   mareId: string;
-  stallionId: string;
+  stallionId: string | null;
+  stallionName?: string | null;
   date: string;
   method: BreedingMethod;
   notes?: string | null;
@@ -154,6 +155,7 @@ export async function createBreedingRecord(input: {
       id,
       mare_id,
       stallion_id,
+      stallion_name,
       date,
       method,
       notes,
@@ -166,12 +168,13 @@ export async function createBreedingRecord(input: {
       collection_date,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       input.id,
       input.mareId,
       input.stallionId,
+      input.stallionName ?? null,
       input.date,
       input.method,
       input.notes ?? null,
@@ -191,7 +194,8 @@ export async function createBreedingRecord(input: {
 export async function updateBreedingRecord(
   id: string,
   input: {
-    stallionId: string;
+    stallionId: string | null;
+    stallionName?: string | null;
     date: string;
     method: BreedingMethod;
     notes?: string | null;
@@ -211,6 +215,7 @@ export async function updateBreedingRecord(
     UPDATE breeding_records
     SET
       stallion_id = ?,
+      stallion_name = ?,
       date = ?,
       method = ?,
       notes = ?,
@@ -226,6 +231,7 @@ export async function updateBreedingRecord(
     `,
     [
       input.stallionId,
+      input.stallionName ?? null,
       input.date,
       input.method,
       input.notes ?? null,
@@ -247,7 +253,7 @@ export async function getBreedingRecordById(id: string): Promise<BreedingRecord 
   const row = await db.getFirstAsync<BreedingRecordRow>(
     `
     SELECT
-      id, mare_id, stallion_id, date, method, notes, volume_ml, concentration_m_per_ml,
+      id, mare_id, stallion_id, stallion_name, date, method, notes, volume_ml, concentration_m_per_ml,
       motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
     WHERE id = ?;
@@ -592,7 +598,7 @@ export async function listBreedingRecordsByMare(mareId: string): Promise<Breedin
   const rows = await db.getAllAsync<BreedingRecordRow>(
     `
     SELECT
-      id, mare_id, stallion_id, date, method, notes, volume_ml, concentration_m_per_ml,
+      id, mare_id, stallion_id, stallion_name, date, method, notes, volume_ml, concentration_m_per_ml,
       motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
     WHERE mare_id = ?
@@ -665,7 +671,8 @@ type DailyLogRow = {
 type BreedingRecordRow = {
   id: string;
   mare_id: string;
-  stallion_id: string;
+  stallion_id: string | null;
+  stallion_name: string | null;
   date: string;
   method: BreedingRecord['method'];
   notes: string | null;
@@ -742,6 +749,7 @@ function mapBreedingRecordRow(row: BreedingRecordRow): BreedingRecord {
     id: row.id,
     mareId: row.mare_id,
     stallionId: row.stallion_id,
+    stallionName: row.stallion_name,
     date: row.date,
     method: row.method,
     notes: row.notes,

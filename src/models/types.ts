@@ -57,7 +57,8 @@ export interface DailyLog {
 export interface BreedingRecord {
   id: UUID;
   mareId: UUID;
-  stallionId: UUID;
+  stallionId: UUID | null;
+  stallionName?: string | null;
   date: LocalDate;
   method: BreedingMethod;
   notes?: string | null;
