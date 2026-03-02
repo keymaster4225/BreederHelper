@@ -1,5 +1,5 @@
-﻿import { useCallback, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -8,7 +8,7 @@ import { Mare } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { listMares } from '@/storage/repositories';
 import { deriveAgeYears } from '@/utils/dates';
-import { borderRadius, colors, spacing, typography } from '@/theme';
+import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -40,18 +40,24 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
   return (
     <Screen>
       <View style={styles.headerActions}>
-        <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('EditMare')}>
+        <Pressable
+          style={({ pressed }) => [styles.primaryButton, pressed && styles.pressedOpacity]}
+          onPress={() => navigation.navigate('EditMare')}
+        >
           <Text style={styles.primaryButtonText}>Add Mare</Text>
         </Pressable>
-        <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate('Stallions')}>
+        <Pressable
+          style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressedOpacity]}
+          onPress={() => navigation.navigate('Stallions')}
+        >
           <Text style={styles.secondaryButtonText}>Stallions</Text>
         </Pressable>
       </View>
 
-      {isLoading ? <Text>Loading mares...</Text> : null}
+      {isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      {!isLoading && mares.length === 0 ? <Text>No mares yet. Add your first mare.</Text> : null}
+      {!isLoading && mares.length === 0 ? <Text style={styles.emptyText}>No mares yet. Add your first mare.</Text> : null}
 
       <FlatList
         data={mares}
@@ -61,7 +67,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
           const age = deriveAgeYears(item.dateOfBirth);
           return (
             <Pressable
-              style={styles.row}
+              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               onPress={() => navigation.navigate('MareDetail', { mareId: item.id })}
             >
               <View style={styles.rowMain}>
@@ -70,7 +76,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
                 {age !== null ? <Text style={styles.rowMeta}>Age {age}</Text> : null}
               </View>
               <Pressable
-                style={styles.inlineEditButton}
+                style={({ pressed }) => [styles.inlineEditButton, pressed && styles.inlineEditPressed]}
                 onPress={() => navigation.navigate('EditMare', { mareId: item.id })}
               >
                 <Text style={styles.inlineEditButtonText}>Edit</Text>
@@ -86,14 +92,14 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
 const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
-    gap: 10,
+    gap: spacing.md,
     marginBottom: spacing.lg,
   },
   primaryButton: {
     backgroundColor: colors.primary,
     borderRadius: borderRadius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   primaryButtonText: {
     color: colors.onPrimary,
@@ -102,15 +108,15 @@ const styles = StyleSheet.create({
   secondaryButton: {
     backgroundColor: colors.secondaryContainer,
     borderRadius: borderRadius.md,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   secondaryButtonText: {
     color: colors.onSurface,
     ...typography.labelMedium,
   },
   listContent: {
-    gap: 10,
+    gap: spacing.md,
     paddingBottom: spacing.xl,
   },
   row: {
@@ -122,11 +128,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: spacing.md,
+    ...elevation.level1,
+  },
+  rowPressed: {
+    opacity: 0.92,
   },
   rowMain: {
     flex: 1,
-    gap: 2,
-    marginRight: 10,
+    gap: spacing.xs,
+    marginRight: spacing.md,
   },
   rowTitle: {
     ...typography.titleSmall,
@@ -150,6 +160,21 @@ const styles = StyleSheet.create({
   inlineEditButtonText: {
     color: colors.onSurface,
     ...typography.labelMedium,
+  },
+  inlineEditPressed: {
+    opacity: 0.7,
+  },
+  pressedOpacity: {
+    opacity: 0.85,
+  },
+  pressedOpacityLight: {
+    opacity: 0.7,
+  },
+  emptyText: {
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+    paddingVertical: spacing.xl,
+    ...typography.bodyMedium,
   },
   errorText: {
     color: colors.error,
