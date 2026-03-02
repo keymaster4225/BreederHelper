@@ -133,20 +133,6 @@ export const formStyles = StyleSheet.create({
     gap: spacing.lg,
     paddingBottom: spacing.xl,
   },
-  saveButton: {
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    marginTop: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  saveButtonDisabled: {
-    backgroundColor: colors.primaryContainer,
-  },
-  saveButtonText: {
-    color: colors.onPrimary,
-    ...typography.labelLarge,
-  },
 });
 
 const styles = StyleSheet.create({
