@@ -1,7 +1,8 @@
-﻿import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { FoalSex, FoalingOutcome } from '@/models/types';
@@ -13,9 +14,9 @@ import {
   listBreedingRecordsByMare,
   updateFoalingRecord,
 } from '@/storage/repositories';
+import { colors } from '@/theme';
 import { newId } from '@/utils/id';
 import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validation';
-import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FoalingRecordForm'>;
 
@@ -168,7 +169,7 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
   if (isLoading) {
     return (
       <Screen>
-        <Text>Loading foaling record...</Text>
+        <ActivityIndicator color={colors.primary} size="large" />
       </Screen>
     );
   }
@@ -200,34 +201,16 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
           <FormTextInput value={notes} onChangeText={setNotes} multiline />
         </FormField>
 
-        <Pressable
-          disabled={isSaving}
-          style={[formStyles.saveButton, isSaving ? formStyles.saveButtonDisabled : null]}
+        <PrimaryButton
+          label={isSaving ? 'Saving...' : 'Save'}
           onPress={onSave}
-        >
-          <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : isEdit ? 'Save Foaling Record' : 'Create Foaling Record'}</Text>
-        </Pressable>
+          disabled={isSaving}
+        />
 
         {isEdit ? (
-          <Pressable style={styles.deleteButton} onPress={onDelete}>
-            <Text style={styles.deleteButtonText}>Delete Foaling Record</Text>
-          </Pressable>
+          <DeleteButton label="Delete" onPress={onDelete} />
         ) : null}
       </ScrollView>
     </Screen>
   );
 }
-
-const styles = {
-  deleteButton: {
-    alignItems: 'center' as const,
-    backgroundColor: colors.errorContainer,
-    borderRadius: borderRadius.md,
-    marginTop: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  deleteButtonText: {
-    color: colors.error,
-    ...typography.labelLarge,
-  },
-};

@@ -1,7 +1,8 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { BreedingMethod, Stallion } from '@/models/types';
@@ -13,6 +14,7 @@ import {
   listStallions,
   updateBreedingRecord,
 } from '@/storage/repositories';
+import { colors } from '@/theme';
 import { newId } from '@/utils/id';
 import {
   normalizeLocalDate,
@@ -23,7 +25,6 @@ import {
   validateNumberRange,
   validateRequired,
 } from '@/utils/validation';
-import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'BreedingRecordForm'>;
 
@@ -281,7 +282,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   if (isLoadingRecord) {
     return (
       <Screen>
-        <Text>Loading breeding record...</Text>
+        <ActivityIndicator color={colors.primary} size="large" />
       </Screen>
     );
   }
@@ -295,7 +296,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
         <FormField label="Stallion" required error={errors.stallionId}>
           {isLoadingStallions ? (
-            <Text>Loading stallions...</Text>
+            <ActivityIndicator color={colors.primary} size="large" />
           ) : stallions.length === 0 ? (
             <Text>No stallions found. Add stallions first in Stallion Management.</Text>
           ) : (
@@ -365,34 +366,16 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
           <FormTextInput value={notes} onChangeText={setNotes} multiline />
         </FormField>
 
-        <Pressable
-          disabled={isSaving || stallions.length === 0}
-          style={[formStyles.saveButton, isSaving || stallions.length === 0 ? formStyles.saveButtonDisabled : null]}
+        <PrimaryButton
+          label={isSaving ? 'Saving...' : 'Save'}
           onPress={onSave}
-        >
-          <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : isEdit ? 'Save Breeding Record' : 'Create Breeding Record'}</Text>
-        </Pressable>
+          disabled={isSaving || stallions.length === 0}
+        />
 
         {isEdit ? (
-          <Pressable style={styles.deleteButton} onPress={onDelete}>
-            <Text style={styles.deleteButtonText}>Delete Breeding Record</Text>
-          </Pressable>
+          <DeleteButton label="Delete" onPress={onDelete} />
         ) : null}
       </ScrollView>
     </Screen>
   );
 }
-
-const styles = {
-  deleteButton: {
-    alignItems: 'center' as const,
-    backgroundColor: colors.errorContainer,
-    borderRadius: borderRadius.md,
-    marginTop: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  deleteButtonText: {
-    color: colors.error,
-    ...typography.labelLarge,
-  },
-};

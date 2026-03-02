@@ -1,14 +1,15 @@
-﻿import { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { createDailyLog, deleteDailyLog, getDailyLogById, updateDailyLog } from '@/storage/repositories';
+import { colors } from '@/theme';
 import { newId } from '@/utils/id';
 import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validation';
-import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DailyLogForm'>;
 
@@ -167,7 +168,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
   if (isLoading) {
     return (
       <Screen>
-        <Text>Loading daily log...</Text>
+        <ActivityIndicator color={colors.primary} size="large" />
       </Screen>
     );
   }
@@ -207,34 +208,16 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
           <FormTextInput value={notes} onChangeText={setNotes} multiline />
         </FormField>
 
-        <Pressable
-          disabled={isSaving}
-          style={[formStyles.saveButton, isSaving ? formStyles.saveButtonDisabled : null]}
+        <PrimaryButton
+          label={isSaving ? 'Saving...' : 'Save'}
           onPress={onSave}
-        >
-          <Text style={formStyles.saveButtonText}>{isSaving ? 'Saving...' : isEdit ? 'Save Daily Log' : 'Create Daily Log'}</Text>
-        </Pressable>
+          disabled={isSaving}
+        />
 
         {isEdit ? (
-          <Pressable style={styles.deleteButton} onPress={onDelete}>
-            <Text style={styles.deleteButtonText}>Delete Daily Log</Text>
-          </Pressable>
+          <DeleteButton label="Delete" onPress={onDelete} />
         ) : null}
       </ScrollView>
     </Screen>
   );
 }
-
-const styles = {
-  deleteButton: {
-    alignItems: 'center' as const,
-    backgroundColor: colors.errorContainer,
-    borderRadius: borderRadius.md,
-    marginTop: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  deleteButtonText: {
-    color: colors.error,
-    ...typography.labelLarge,
-  },
-};

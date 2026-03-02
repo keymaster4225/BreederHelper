@@ -1,11 +1,13 @@
-﻿import { useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import { PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { createMare, getMareById, updateMare } from '@/storage/repositories';
+import { colors } from '@/theme';
 import { newId } from '@/utils/id';
 import { normalizeLocalDate, validateLocalDate, validateRequired } from '@/utils/validation';
 
@@ -132,7 +134,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
   if (isLoading) {
     return (
       <Screen>
-        <Text>Loading mare...</Text>
+        <ActivityIndicator color={colors.primary} size="large" />
       </Screen>
     );
   }
@@ -166,15 +168,11 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
           <FormTextInput value={notes} onChangeText={setNotes} placeholder="Optional" multiline />
         </FormField>
 
-        <Pressable
-          disabled={isSaving}
-          style={[formStyles.saveButton, isSaving ? formStyles.saveButtonDisabled : null]}
+        <PrimaryButton
+          label={isSaving ? 'Saving...' : 'Save'}
           onPress={onSave}
-        >
-          <Text style={formStyles.saveButtonText}>
-            {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Create Mare'}
-          </Text>
-        </Pressable>
+          disabled={isSaving}
+        />
       </ScrollView>
     </Screen>
   );
