@@ -139,7 +139,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                 )}
               </View>
               {renderCardRow('Method', record.method)}
-              {renderCardRow('Stallion', stallionNameById[record.stallionId] ?? 'Unknown')}
+              {renderCardRow('Stallion', record.stallionName ?? stallionNameById[record.stallionId ?? ''] ?? 'Unknown')}
               {record.collectionDate ? renderCardRow('Collection', record.collectionDate) : null}
             </View>
           ))}
