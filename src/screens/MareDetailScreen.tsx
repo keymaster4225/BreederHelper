@@ -178,8 +178,22 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                     navigation.navigate('PregnancyCheckForm', { mareId, pregnancyCheckId: check.id })
                   )}
                 </View>
-                {renderCardRow('Result', check.result)}
-                {renderCardRow('Heartbeat', check.heartbeatDetected ? 'Yes' : 'No')}
+                <View style={styles.cardRow}>
+                  <Text style={styles.cardLabel}>Result</Text>
+                  <StatusBadge
+                    label={check.result === 'positive' ? 'Positive' : 'Negative'}
+                    backgroundColor={check.result === 'positive' ? colors.positive : colors.negative}
+                    textColor="#FFFFFF"
+                  />
+                </View>
+                <View style={styles.cardRow}>
+                  <Text style={styles.cardLabel}>Heartbeat</Text>
+                  <StatusBadge
+                    label={check.heartbeatDetected ? 'Yes' : 'No'}
+                    backgroundColor={check.heartbeatDetected ? colors.heartbeat : colors.score0}
+                    textColor={check.heartbeatDetected ? '#FFFFFF' : colors.onSurfaceVariant}
+                  />
+                </View>
                 {renderCardRow('Days post-breeding', daysPost ?? '-')}
               </View>
             );
