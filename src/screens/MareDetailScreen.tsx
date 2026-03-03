@@ -5,6 +5,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { IconButton, PrimaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
+import { StatusBadge } from '@/components/StatusBadge';
+import { getScoreColors } from '@/utils/scoreColors';
 import { BreedingRecord, DailyLog, FoalingRecord, Mare, PregnancyCheck, calculateDaysPostBreeding } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
@@ -103,6 +105,12 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
     </View>
   );
 
+  const renderScoreBadge = (score: number | null | undefined): JSX.Element => {
+    const display = score != null ? String(score) : 'N/A';
+    const badgeColors = getScoreColors(score);
+    return <StatusBadge label={display} backgroundColor={badgeColors.backgroundColor} textColor={badgeColors.textColor} />;
+  };
+
   const renderTabContent = (): JSX.Element => {
     if (activeTab === 'dailyLogs') {
       return (
@@ -115,8 +123,14 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                 <Text style={styles.cardTitle}>{log.date}</Text>
                 {renderEditIconButton(() => navigation.navigate('DailyLogForm', { mareId, logId: log.id }))}
               </View>
-              {renderCardRow('Teasing', log.teasingScore ?? '-')}
-              {renderCardRow('Edema', log.edema ?? '-')}
+              <View style={styles.cardRow}>
+                <Text style={styles.cardLabel}>Teasing</Text>
+                {renderScoreBadge(log.teasingScore)}
+              </View>
+              <View style={styles.cardRow}>
+                <Text style={styles.cardLabel}>Edema</Text>
+                {renderScoreBadge(log.edema)}
+              </View>
               {renderCardRow('Right ovary', log.rightOvary || '-')}
               {renderCardRow('Left ovary', log.leftOvary || '-')}
             </View>
