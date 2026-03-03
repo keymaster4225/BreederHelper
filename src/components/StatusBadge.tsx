@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { borderRadius, spacing, typography } from '../../theme';
+import { borderRadius, spacing, typography } from '@/theme';
 
 type StatusBadgeProps = {
   label: string;
