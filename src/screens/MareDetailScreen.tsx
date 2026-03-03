@@ -6,6 +6,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IconButton, PrimaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
+import { formatOutcome, getOutcomeColor } from '@/utils/outcomeDisplay';
 import { getScoreColors } from '@/utils/scoreColors';
 import { BreedingRecord, DailyLog, FoalingRecord, Mare, PregnancyCheck, calculateDaysPostBreeding } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -104,19 +105,6 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
       <Text style={styles.cardValue}>{value ?? '-'}</Text>
     </View>
   );
-
-  const getOutcomeColor = (outcome: string): string => {
-    if (outcome === 'liveFoal') return colors.pregnant;
-    if (outcome === 'stillbirth' || outcome === 'aborted') return colors.loss;
-    return colors.onSurface;
-  };
-
-  const formatOutcome = (outcome: string): string => {
-    if (outcome === 'liveFoal') return 'Live Foal';
-    if (outcome === 'stillbirth') return 'Stillbirth';
-    if (outcome === 'aborted') return 'Aborted';
-    return 'Unknown';
-  };
 
   const renderScoreBadge = (score: number | null | undefined): JSX.Element => {
     const display = score != null ? String(score) : 'N/A';
