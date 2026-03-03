@@ -105,6 +105,19 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
     </View>
   );
 
+  const getOutcomeColor = (outcome: string): string => {
+    if (outcome === 'liveFoal') return colors.pregnant;
+    if (outcome === 'stillbirth' || outcome === 'aborted') return colors.loss;
+    return colors.onSurface;
+  };
+
+  const formatOutcome = (outcome: string): string => {
+    if (outcome === 'liveFoal') return 'Live Foal';
+    if (outcome === 'stillbirth') return 'Stillbirth';
+    if (outcome === 'aborted') return 'Aborted';
+    return 'Unknown';
+  };
+
   const renderScoreBadge = (score: number | null | undefined): JSX.Element => {
     const display = score != null ? String(score) : 'N/A';
     const badgeColors = getScoreColors(score);
@@ -214,7 +227,12 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                 navigation.navigate('FoalingRecordForm', { mareId, foalingRecordId: record.id })
               )}
             </View>
-            {renderCardRow('Outcome', record.outcome)}
+            <View style={styles.cardRow}>
+              <Text style={styles.cardLabel}>Outcome</Text>
+              <Text style={[styles.cardValue, { color: getOutcomeColor(record.outcome) }]}>
+                {formatOutcome(record.outcome)}
+              </Text>
+            </View>
             {renderCardRow('Foal sex', record.foalSex ?? '-')}
             {record.complications ? renderCardRow('Complications', record.complications) : null}
           </View>
