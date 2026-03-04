@@ -181,15 +181,6 @@ const styles = StyleSheet.create({
   pressedOpacity: {
     opacity: 0.85,
   },
-  pressedOpacityLight: {
-    opacity: 0.7,
-  },
-  emptyText: {
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
-    paddingVertical: spacing.xl,
-    ...typography.bodyMedium,
-  },
   emptyState: {
     alignItems: 'center',
     gap: spacing.md,

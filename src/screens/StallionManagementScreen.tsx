@@ -262,12 +262,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
   },
-  emptyText: {
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
-    paddingVertical: spacing.xl,
-    ...typography.bodyMedium,
-  },
   emptyState: {
     alignItems: 'center',
     gap: spacing.sm,
