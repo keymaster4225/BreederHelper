@@ -8,6 +8,8 @@ import { Mare } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { listMares } from '@/storage/repositories';
 import { deriveAgeYears } from '@/utils/dates';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
@@ -57,7 +59,19 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
       {isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
-      {!isLoading && mares.length === 0 ? <Text style={styles.emptyText}>No mares yet. Add your first mare.</Text> : null}
+      {!isLoading && mares.length === 0 ? (
+        <View style={styles.emptyState}>
+          <MaterialCommunityIcons name="horse" size={72} color={colors.onSurfaceVariant} />
+          <Text style={styles.emptyHeading}>No mares yet</Text>
+          <Text style={styles.emptySubtitle}>Add your first mare to get started.</Text>
+          <Pressable
+            style={({ pressed }) => [styles.emptyButton, pressed && styles.pressedOpacity]}
+            onPress={() => navigation.navigate('EditMare')}
+          >
+            <Text style={styles.emptyButtonText}>Add your first mare</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <FlatList
         data={mares}
@@ -175,6 +189,31 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: spacing.xl,
     ...typography.bodyMedium,
+  },
+  emptyState: {
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.xxxl,
+  },
+  emptyHeading: {
+    ...typography.titleLarge,
+    color: colors.onSurface,
+  },
+  emptySubtitle: {
+    ...typography.bodyMedium,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
+  },
+  emptyButton: {
+    backgroundColor: colors.primaryContainer,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    marginTop: spacing.sm,
+  },
+  emptyButtonText: {
+    ...typography.labelLarge,
+    color: colors.onPrimaryContainer,
   },
   errorText: {
     color: colors.error,
