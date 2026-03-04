@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { DeleteButton, PrimaryButton, SecondaryButton } from '@/components/Buttons';
 import { FormField, FormTextInput, formStyles } from '@/components/FormControls';
@@ -179,7 +180,13 @@ export function StallionManagementScreen(): JSX.Element {
 
         <Text style={styles.sectionTitle}>Stallions</Text>
         {isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
-        {!isLoading && stallions.length === 0 ? <Text style={styles.emptyText}>No stallions yet.</Text> : null}
+        {!isLoading && stallions.length === 0 ? (
+          <View style={styles.emptyState}>
+            <MaterialCommunityIcons name="horse-variant" size={56} color={colors.onSurfaceVariant} />
+            <Text style={styles.emptyHeading}>No stallions yet</Text>
+            <Text style={styles.emptySubtitle}>Add stallions to reference in breeding records.</Text>
+          </View>
+        ) : null}
 
         <View style={styles.listWrap}>
           {stallions.map((stallion) => (
@@ -260,6 +267,20 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: spacing.xl,
     ...typography.bodyMedium,
+  },
+  emptyState: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xxl,
+  },
+  emptyHeading: {
+    ...typography.titleMedium,
+    color: colors.onSurface,
+  },
+  emptySubtitle: {
+    ...typography.bodyMedium,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
   },
   inlineButtonPressed: {
     opacity: 0.7,
