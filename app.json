@@ -12,7 +12,11 @@
       "**/*"
     ],
     "plugins": [
-      "expo-asset"
-    ]
+      "expo-asset",
+      "@react-native-community/datetimepicker"
+    ],
+    "android": {
+      "package": "com.anonymous.breederhelper"
+    }
   }
 }
