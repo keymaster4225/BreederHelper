@@ -2,14 +2,32 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { PrimaryButton } from '@/components/Buttons';
-import { FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
+import { DeleteButton, PrimaryButton } from '@/components/Buttons';
+import { FormDateInput, FormField, FormSelectInput, FormTextInput, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { createMare, getMareById, updateMare } from '@/storage/repositories';
+import { createMare, getMareById, softDeleteMare, updateMare } from '@/storage/repositories';
 import { colors } from '@/theme';
 import { newId } from '@/utils/id';
 import { normalizeLocalDate, validateLocalDate, validateRequired } from '@/utils/validation';
+
+const HORSE_BREEDS = [
+  'Hanoverian',
+  'KWPN',
+  'Oldenburg (GOV)',
+  'Oldenburg (ISR/OLD)',
+  'Westfalen',
+  'Trakehner',
+  'Holsteiner',
+  'Thoroughbred',
+  'Swedish Warmblood',
+  'Belgian Warmblood',
+  'Irish Sport Horse',
+  'American Warmblood',
+  'Quarter Horse',
+  'Paint',
+  'Morgan',
+];
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditMare'>;
 
@@ -31,6 +49,8 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const today = new Date();
 
   const screenTitle = useMemo(() => (isEdit ? 'Edit Mare' : 'Add Mare'), [isEdit]);
 
@@ -131,6 +151,36 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
     }
   };
 
+  const onDelete = (): void => {
+    if (!mareId) {
+      return;
+    }
+
+    Alert.alert(
+      'Delete Mare',
+      'Are you sure you want to delete this mare? This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setIsDeleting(true);
+            try {
+              await softDeleteMare(mareId);
+              navigation.navigate('Home');
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Failed to delete mare.';
+              Alert.alert('Delete failed', message);
+            } finally {
+              setIsDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   if (isLoading) {
     return (
       <Screen>
@@ -147,7 +197,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
         </FormField>
 
         <FormField label="Breed" required error={errors.breed}>
-          <FormTextInput value={breed} onChangeText={setBreed} placeholder="Breed" />
+          <FormSelectInput value={breed} onChange={setBreed} options={HORSE_BREEDS} placeholder="Select breed" />
         </FormField>
 
         <FormField label="Date of Birth" error={errors.dateOfBirth}>
@@ -157,6 +207,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
             placeholder="Select date of birth"
             clearable
             displayFormat="MM-DD-YYYY"
+            maximumDate={today}
           />
         </FormField>
 
@@ -171,8 +222,15 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
         <PrimaryButton
           label={isSaving ? 'Saving...' : 'Save'}
           onPress={onSave}
-          disabled={isSaving}
+          disabled={isSaving || isDeleting}
         />
+
+        {isEdit && (
+          <DeleteButton
+            label={isDeleting ? 'Deleting...' : 'Delete Mare'}
+            onPress={onDelete}
+          />
+        )}
       </ScrollView>
     </Screen>
   );

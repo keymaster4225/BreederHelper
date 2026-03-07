@@ -1,5 +1,5 @@
 ﻿import { ReactNode, useMemo, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 import { formatLocalDate, fromLocalDate, toLocalDate } from '@/utils/dates';
@@ -95,6 +95,55 @@ export function FormDateInput({
         />
       ) : null}
     </View>
+  );
+}
+
+type FormSelectInputProps = {
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder?: string;
+};
+
+export function FormSelectInput({
+  value,
+  onChange,
+  options,
+  placeholder = 'Select…',
+}: FormSelectInputProps): JSX.Element {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Pressable
+        style={styles.input}
+        onPress={() => setOpen(true)}
+      >
+        <Text style={value ? styles.dateValue : styles.datePlaceholder}>
+          {value || placeholder}
+        </Text>
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
+          <View style={styles.modalSheet}>
+            <ScrollView bounces={false}>
+              {options.map((option) => (
+                <Pressable
+                  key={option}
+                  style={({ pressed }) => [styles.modalOption, pressed && styles.modalOptionPressed]}
+                  onPress={() => { onChange(option); setOpen(false); }}
+                >
+                  <Text style={[styles.modalOptionText, option === value && styles.modalOptionTextActive]}>
+                    {option}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+    </>
   );
 }
 
@@ -202,5 +251,32 @@ const styles = StyleSheet.create({
   },
   optionTextActive: {
     color: colors.onPrimary,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    maxHeight: 360,
+    overflow: 'hidden',
+  },
+  modalOption: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  modalOptionPressed: {
+    backgroundColor: colors.surfaceVariant,
+  },
+  modalOptionText: {
+    color: colors.onSurface,
+    ...typography.bodyLarge,
+  },
+  modalOptionTextActive: {
+    color: colors.primary,
+    ...typography.labelLarge,
   },
 });

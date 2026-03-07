@@ -1,12 +1,12 @@
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { Screen } from '@/components/Screen';
 import { Mare } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { listMares } from '@/storage/repositories';
+import { listMares, softDeleteMare } from '@/storage/repositories';
 import { deriveAgeYears } from '@/utils/dates';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -18,6 +18,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
   const [mares, setMares] = useState<Mare[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedMareId, setSelectedMareId] = useState<string | null>(null);
 
   const loadMares = useCallback(async () => {
     try {
@@ -36,27 +37,55 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
   useFocusEffect(
     useCallback(() => {
       void loadMares();
+      setSelectedMareId(null);
     }, [loadMares])
   );
 
+  const onDeleteMare = useCallback((mare: Mare): void => {
+    Alert.alert('Delete Mare', `Delete ${mare.name}? This cannot be undone.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            try {
+              await softDeleteMare(mare.id);
+              await loadMares();
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'Failed to delete mare.';
+              if (message.toLowerCase().includes('foreign key')) {
+                Alert.alert('Delete blocked', 'Cannot delete this mare because linked records exist.');
+                return;
+              }
+              Alert.alert('Delete failed', message);
+            }
+          })();
+        },
+      },
+    ]);
+  }, [loadMares]);
+
+  useEffect(() => {
+    if (!isLoading && mares.length > 0) {
+      navigation.setOptions({
+        headerRight: () => (
+          <Pressable
+            onPress={() => navigation.navigate('EditMare')}
+            style={({ pressed }) => [styles.headerAddButton, pressed && styles.pressedOpacity]}
+          >
+            <MaterialCommunityIcons name="plus" size={26} color={colors.primary} />
+          </Pressable>
+        ),
+      });
+    } else {
+      navigation.setOptions({ headerRight: undefined });
+    }
+  }, [isLoading, mares.length, navigation]);
+
   return (
     <Screen>
-      <View style={styles.headerActions}>
-        <Pressable
-          style={({ pressed }) => [styles.primaryButton, pressed && styles.pressedOpacity]}
-          onPress={() => navigation.navigate('EditMare')}
-        >
-          <Text style={styles.primaryButtonText}>Add Mare</Text>
-        </Pressable>
-        <Pressable
-          style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressedOpacity]}
-          onPress={() => navigation.navigate('Stallions')}
-        >
-          <Text style={styles.secondaryButtonText}>Stallions</Text>
-        </Pressable>
-      </View>
-
-      {isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
+{isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       {!isLoading && mares.length === 0 ? (
@@ -79,22 +108,39 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => {
           const age = deriveAgeYears(item.dateOfBirth);
+          const isSelected = selectedMareId === item.id;
           return (
             <Pressable
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-              onPress={() => navigation.navigate('MareDetail', { mareId: item.id })}
+              onPress={() => {
+                if (isSelected) {
+                  setSelectedMareId(null);
+                } else {
+                  navigation.navigate('MareDetail', { mareId: item.id });
+                }
+              }}
+              onLongPress={() => setSelectedMareId(isSelected ? null : item.id)}
             >
               <View style={styles.rowMain}>
                 <Text style={styles.rowTitle}>{item.name}</Text>
                 <Text style={styles.rowSubtitle}>{item.breed}</Text>
                 {age !== null ? <Text style={styles.rowMeta}>Age {age}</Text> : null}
               </View>
-              <Pressable
-                style={({ pressed }) => [styles.inlineEditButton, pressed && styles.inlineEditPressed]}
-                onPress={() => navigation.navigate('EditMare', { mareId: item.id })}
-              >
-                <Text style={styles.inlineEditButtonText}>Edit</Text>
-              </Pressable>
+              {isSelected ? (
+                <Pressable
+                  style={({ pressed }) => [styles.inlineDeleteButton, pressed && styles.inlineEditPressed]}
+                  onPress={() => onDeleteMare(item)}
+                >
+                  <Text style={styles.inlineDeleteButtonText}>Delete</Text>
+                </Pressable>
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [styles.inlineEditButton, pressed && styles.inlineEditPressed]}
+                  onPress={() => navigation.navigate('EditMare', { mareId: item.id })}
+                >
+                  <Text style={styles.inlineEditButtonText}>Edit</Text>
+                </Pressable>
+              )}
             </Pressable>
           );
         }}
@@ -104,32 +150,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
 }
 
 const styles = StyleSheet.create({
-  headerActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  primaryButton: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  primaryButtonText: {
-    color: colors.onPrimary,
-    ...typography.labelLarge,
-  },
-  secondaryButton: {
-    backgroundColor: colors.secondaryContainer,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  secondaryButtonText: {
-    color: colors.onSurface,
-    ...typography.labelMedium,
-  },
-  listContent: {
+listContent: {
     gap: spacing.md,
     paddingBottom: spacing.xl,
   },
@@ -177,6 +198,22 @@ const styles = StyleSheet.create({
   },
   inlineEditPressed: {
     opacity: 0.7,
+  },
+  inlineDeleteButton: {
+    backgroundColor: colors.errorContainer,
+    borderColor: colors.error,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  inlineDeleteButtonText: {
+    color: colors.onErrorContainer,
+    ...typography.labelMedium,
+  },
+  headerAddButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
   },
   pressedOpacity: {
     opacity: 0.85,

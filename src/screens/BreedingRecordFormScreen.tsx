@@ -5,13 +5,12 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
-import { BreedingMethod, Stallion } from '@/models/types';
+import { BreedingMethod } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   createBreedingRecord,
   deleteBreedingRecord,
   getBreedingRecordById,
-  listStallions,
   updateBreedingRecord,
 } from '@/storage/repositories';
 import { colors } from '@/theme';
@@ -30,7 +29,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BreedingRecordForm'>;
 
 type FormErrors = {
   date?: string;
-  stallionId?: string;
+  stallionName?: string;
   collectionDate?: string;
   volumeMl?: string;
   concentrationMPerMl?: string;
@@ -38,8 +37,6 @@ type FormErrors = {
   numberOfStraws?: string;
   strawVolumeMl?: string;
 };
-
-const OTHER_STALLION = '__other__';
 
 const METHOD_OPTIONS: { label: string; value: BreedingMethod }[] = [
   { label: 'Live Cover', value: 'liveCover' },
@@ -54,8 +51,6 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   const isEdit = Boolean(breedingRecordId);
 
   const [date, setDate] = useState('');
-  const [stallions, setStallions] = useState<Stallion[]>([]);
-  const [stallionId, setStallionId] = useState('');
   const [stallionName, setStallionName] = useState('');
   const [method, setMethod] = useState<BreedingMethod>('liveCover');
   const [volumeMl, setVolumeMl] = useState('');
@@ -67,7 +62,6 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   const [collectionDate, setCollectionDate] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoadingStallions, setIsLoadingStallions] = useState(true);
   const [isLoadingRecord, setIsLoadingRecord] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
   const today = new Date();
@@ -75,39 +69,6 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   useEffect(() => {
     navigation.setOptions({ title: isEdit ? 'Edit Breeding Record' : 'Add Breeding Record' });
   }, [isEdit, navigation]);
-
-  useEffect(() => {
-    let mounted = true;
-
-    listStallions()
-      .then((rows) => {
-        if (!mounted) {
-          return;
-        }
-
-        setStallions(rows);
-        if (!breedingRecordId && rows.length > 0) {
-          setStallionId(rows[0].id);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!mounted) {
-          return;
-        }
-
-        const message = err instanceof Error ? err.message : 'Unable to load stallions.';
-        Alert.alert('Load error', message);
-      })
-      .finally(() => {
-        if (mounted) {
-          setIsLoadingStallions(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [breedingRecordId]);
 
   useEffect(() => {
     if (!breedingRecordId) {
@@ -128,7 +89,6 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         }
 
         setDate(record.date);
-        setStallionId(record.stallionId ?? '');
         setStallionName(record.stallionName ?? '');
         setMethod(record.method);
         setVolumeMl(record.volumeMl == null ? '' : String(record.volumeMl));
@@ -179,9 +139,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
     const nextErrors: FormErrors = {
       date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
-      stallionId: stallionId
-        ? undefined
-        : (validateRequired(stallionName.trim(), 'Stallion name') ?? undefined),
+      stallionName: validateRequired(stallionName.trim(), 'Stallion name') ?? undefined,
       collectionDate:
         (validateLocalDate(collectionDate, 'Collection date', false) ?? validateLocalDateNotInFuture(collectionDate)) ??
         undefined,
@@ -224,8 +182,8 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
     try {
       const payload = {
-        stallionId: stallionId || null,
-        stallionName: stallionId ? null : stallionName.trim() || null,
+        stallionId: null,
+        stallionName: stallionName.trim() || null,
         date: date.trim(),
         method,
         notes: notes.trim() || null,
@@ -301,35 +259,12 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
           <FormDateInput value={date} onChange={setDate} placeholder="Select breeding date" maximumDate={today} />
         </FormField>
 
-        <FormField label="Stallion" required error={errors.stallionId}>
-          {isLoadingStallions ? (
-            <ActivityIndicator color={colors.primary} size="large" />
-          ) : (
-            <>
-              <OptionSelector
-                value={stallionId || OTHER_STALLION}
-                onChange={(value) => {
-                  if (value === OTHER_STALLION) {
-                    setStallionId('');
-                  } else {
-                    setStallionId(value);
-                    setStallionName('');
-                  }
-                }}
-                options={[
-                  ...stallions.map((s) => ({ label: s.name, value: s.id })),
-                  { label: 'Other', value: OTHER_STALLION },
-                ]}
-              />
-              {!stallionId ? (
-                <FormTextInput
-                  value={stallionName}
-                  onChangeText={setStallionName}
-                  placeholder="Enter stallion name"
-                />
-              ) : null}
-            </>
-          )}
+        <FormField label="Stallion" required error={errors.stallionName}>
+          <FormTextInput
+            value={stallionName}
+            onChangeText={setStallionName}
+            placeholder="Enter stallion name"
+          />
         </FormField>
 
         <FormField label="Breeding Method" required>

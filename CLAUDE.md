@@ -31,9 +31,9 @@ Recent UX/domain decisions reflected in code:
 
 ## Tech Stack
 
-- Expo SDK 53
-- React 19
-- React Native 0.79
+- Expo SDK 55
+- React 19.2
+- React Native 0.83
 - TypeScript
 - React Navigation (native stack)
 - `@react-native-community/datetimepicker`
@@ -75,7 +75,7 @@ Quality checks:
 ## Emulator / Expo Notes
 
 If bundling/native module errors appear:
-- Ensure dependencies are installed and aligned with Expo SDK 53.
+- Ensure dependencies are installed and aligned with Expo SDK 55.
 - Run `npm install`.
 - Prefer running Android via `npm run android` (native run) when native-module issues appear.
 

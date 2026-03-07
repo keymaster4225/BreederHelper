@@ -21,7 +21,7 @@ export function WelcomeScreen({ onComplete }: Props): JSX.Element {
         <MaterialCommunityIcons name="horse" size={80} color={colors.primary} />
         <Text style={styles.title}>BreederHelper</Text>
         <Text style={styles.subtitle}>
-          Track your mares, breeding records, and foaling results — all offline.
+          Track your mares, breeding records, and foaling results — all in one place.
         </Text>
       </View>
       <Pressable

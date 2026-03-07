@@ -34,8 +34,7 @@ const OUTCOME_OPTIONS: { label: string; value: FoalingOutcome }[] = [
 const SEX_OPTIONS: { label: string; value: FoalSex }[] = [
   { label: 'Colt', value: 'colt' },
   { label: 'Filly', value: 'filly' },
-  { label: 'Unknown', value: 'unknown' },
-];
+  ];
 
 export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Element {
   const mareId = route.params.mareId;

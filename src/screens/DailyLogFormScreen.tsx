@@ -185,11 +185,11 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
         </FormField>
 
         <FormField label="Right Ovary">
-          <FormTextInput value={rightOvary} onChangeText={setRightOvary} placeholder="35mm, MSF, AHF, CL, no findings" />
+          <FormTextInput value={rightOvary} onChangeText={setRightOvary} placeholder="(ie:35mm, MSF, AHF, CL, no findings)" />
         </FormField>
 
         <FormField label="Left Ovary">
-          <FormTextInput value={leftOvary} onChangeText={setLeftOvary} placeholder="35mm, MSF, AHF, CL, no findings" />
+          <FormTextInput value={leftOvary} onChangeText={setLeftOvary} placeholder="(ie: 35mm, MSF, AHF, CL, no findings)" />
         </FormField>
 
         <FormField label="Uterine Edema (0-5)">
@@ -201,7 +201,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
         </FormField>
 
         <FormField label="Uterine Cysts">
-          <FormTextInput value={uterineCysts} onChangeText={setUterineCysts} placeholder="2cm cyst at left horn base" />
+          <FormTextInput value={uterineCysts} onChangeText={setUterineCysts} placeholder="(ie: 2cm cyst at left horn base)" />
         </FormField>
 
         <FormField label="Notes">
