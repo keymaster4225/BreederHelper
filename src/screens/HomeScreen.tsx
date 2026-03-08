@@ -90,7 +90,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
 
       {!isLoading && mares.length === 0 ? (
         <View style={styles.emptyState}>
-          <MaterialCommunityIcons name="horse" size={72} color={colors.onSurfaceVariant} />
+          <MaterialCommunityIcons name="horse" size={72} color={colors.primary} />
           <Text style={styles.emptyHeading}>No mares yet</Text>
           <Text style={styles.emptySubtitle}>Add your first mare to get started.</Text>
           <Pressable
@@ -102,7 +102,9 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
         </View>
       ) : null}
 
-      <FlatList
+      {mares.length > 0 ? <Text style={styles.listHint}>Tap a mare to view or add records</Text> : null}
+
+      {mares.length > 0 ? <FlatList
         data={mares}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
@@ -144,7 +146,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
             </Pressable>
           );
         }}
-      />
+      /> : null}
     </Screen>
   );
 }
@@ -220,8 +222,9 @@ listContent: {
   },
   emptyState: {
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.xxxl,
+    flex: 1,
+    gap: spacing.lg,
+    justifyContent: 'center',
   },
   emptyHeading: {
     ...typography.titleLarge,
@@ -242,6 +245,12 @@ listContent: {
   emptyButtonText: {
     ...typography.labelLarge,
     color: colors.onPrimaryContainer,
+  },
+  listHint: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   errorText: {
     color: colors.error,

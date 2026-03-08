@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
@@ -38,11 +38,19 @@ type FormErrors = {
   strawVolumeMl?: string;
 };
 
-const METHOD_OPTIONS: { label: string; value: BreedingMethod }[] = [
+type CoverageType = 'liveCover' | 'ai';
+
+const COVERAGE_OPTIONS: { label: string; value: CoverageType }[] = [
   { label: 'Live Cover', value: 'liveCover' },
-  { label: 'Fresh AI', value: 'freshAI' },
-  { label: 'Shipped Cooled AI', value: 'shippedCooledAI' },
-  { label: 'Frozen AI', value: 'frozenAI' },
+  { label: 'AI', value: 'ai' },
+];
+
+type AIMethod = 'freshAI' | 'shippedCooledAI' | 'frozenAI';
+
+const AI_METHOD_OPTIONS: { label: string; value: AIMethod }[] = [
+  { label: 'Fresh', value: 'freshAI' },
+  { label: 'Shipped Cooled', value: 'shippedCooledAI' },
+  { label: 'Frozen', value: 'frozenAI' },
 ];
 
 export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Element {
@@ -118,10 +126,15 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     };
   }, [breedingRecordId, navigation]);
 
-  const selectedMethodLabel = useMemo(
-    () => METHOD_OPTIONS.find((option) => option.value === method)?.label ?? method,
-    [method]
-  );
+  const coverageType: CoverageType = method === 'liveCover' ? 'liveCover' : 'ai';
+
+  const onCoverageChange = (coverage: CoverageType): void => {
+    if (coverage === 'liveCover') {
+      setMethod('liveCover');
+    } else if (method === 'liveCover') {
+      setMethod('freshAI');
+    }
+  };
 
   const validate = (): {
     valid: boolean;
@@ -253,7 +266,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   }
 
   return (
-    <Screen>
+    <Screen style={{ paddingTop: 0 }}>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Date" required error={errors.date}>
           <FormDateInput value={date} onChange={setDate} placeholder="Select breeding date" maximumDate={today} />
@@ -268,8 +281,10 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         </FormField>
 
         <FormField label="Breeding Method" required>
-          <OptionSelector value={method} onChange={setMethod} options={METHOD_OPTIONS} />
-          <Text>Selected: {selectedMethodLabel}</Text>
+          <OptionSelector value={coverageType} onChange={onCoverageChange} options={COVERAGE_OPTIONS} />
+          {method !== 'liveCover' ? (
+            <OptionSelector value={method as AIMethod} onChange={setMethod} options={AI_METHOD_OPTIONS} />
+          ) : null}
         </FormField>
 
         {(method === 'freshAI' || method === 'shippedCooledAI') && (

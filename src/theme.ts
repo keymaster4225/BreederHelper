@@ -13,23 +13,23 @@
 // ============================================================
 
 export const colors = {
-  // Primary - warm brown tones (main app identity)
-  primary: '#7B5733',          // Primary buttons, app bar, FABs
-  onPrimary: '#FFFFFF',        // Text/icons on primary surfaces
-  primaryContainer: '#FFDDB8', // Lighter brown for cards, chips
-  onPrimaryContainer: '#2C1600', // Text on primary container
+  // Primary - slate indigo
+  primary: '#3D52A0',
+  onPrimary: '#FFFFFF',
+  primaryContainer: '#DEE0FF',
+  onPrimaryContainer: '#00105C',
 
-  // Secondary - muted warm tones
-  secondary: '#6E5C3F',        // Secondary buttons, less emphasis
+  // Secondary - muted blue-gray
+  secondary: '#5A5F89',
   onSecondary: '#FFFFFF',
-  secondaryContainer: '#F8DFBB', // Tags, badges, subtle highlights
-  onSecondaryContainer: '#261904',
+  secondaryContainer: '#E0E3FF',
+  onSecondaryContainer: '#171B52',
 
-  // Tertiary - olive/sage accent (complementary)
-  tertiary: '#51643B',         // Accent elements, positive indicators
+  // Tertiary - warm teal accent
+  tertiary: '#3B7EA1',
   onTertiary: '#FFFFFF',
-  tertiaryContainer: '#D4EAB5',
-  onTertiaryContainer: '#0F2000',
+  tertiaryContainer: '#C5E8FF',
+  onTertiaryContainer: '#001E2E',
 
   // Error - for validation, negative results
   error: '#BA1A1A',
@@ -37,25 +37,25 @@ export const colors = {
   errorContainer: '#FFDAD6',
   onErrorContainer: '#410002',
 
-  // Surface - backgrounds and cards
-  surface: '#FFF8F4',          // Main background
-  onSurface: '#201B13',        // Primary text color
-  surfaceVariant: '#F0E0CF',   // Card backgrounds, input fields
-  onSurfaceVariant: '#504539',  // Secondary text, labels, hints
+  // Surface - near-white with subtle blue-gray tint
+  surface: '#F9F9FB',
+  onSurface: '#1A1C2E',
+  surfaceVariant: '#E4E5F4',
+  onSurfaceVariant: '#464775',
 
   // Outline - borders and dividers
-  outline: '#827568',          // Borders, dividers
-  outlineVariant: '#D4C4B3',   // Subtle dividers
+  outline: '#767AA3',
+  outlineVariant: '#C5C6E8',
 
   // Inverse - for snackbars, tooltips
-  inverseSurface: '#362F27',
-  inverseOnSurface: '#FAEEE3',
-  inversePrimary: '#EFBD80',
+  inverseSurface: '#2E2F4F',
+  inverseOnSurface: '#F1F0FF',
+  inversePrimary: '#BAC3FF',
 
   // Misc
   shadow: '#000000',
   scrim: '#000000',
-  surfaceTint: '#7B5733',
+  surfaceTint: '#3D52A0',
 
   // ============================================================
   // Semantic Colors (app-specific meanings)

@@ -1,5 +1,5 @@
 ﻿import { ReactNode, useMemo, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import { Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 import { formatLocalDate, fromLocalDate, toLocalDate } from '@/utils/dates';
@@ -75,7 +75,7 @@ export function FormDateInput({
 
   return (
     <View style={styles.dateWrap}>
-      <Pressable style={styles.input} onPress={() => setShowPicker(true)}>
+      <Pressable style={styles.input} onPress={() => { Keyboard.dismiss(); setShowPicker(true); }}>
         <Text style={displayValue ? styles.dateValue : styles.datePlaceholder}>
           {displayValue || placeholder}
         </Text>
