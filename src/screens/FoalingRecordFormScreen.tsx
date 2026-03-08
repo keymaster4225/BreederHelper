@@ -69,6 +69,12 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
           return;
         }
 
+        if (foalingRecordId && !existing) {
+          Alert.alert('Record not found', 'This foaling record no longer exists.');
+          navigation.goBack();
+          return;
+        }
+
         const options = [
           { label: 'None', value: '' },
           ...records.map((record) => ({ label: `${record.date} (${record.method})`, value: record.id })),

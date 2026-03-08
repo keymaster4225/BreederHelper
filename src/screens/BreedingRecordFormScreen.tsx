@@ -154,8 +154,10 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
       date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
       stallionName: validateRequired(stallionName.trim(), 'Stallion name') ?? undefined,
       collectionDate:
-        (validateLocalDate(collectionDate, 'Collection date', false) ?? validateLocalDateNotInFuture(collectionDate)) ??
-        undefined,
+        method === 'shippedCooledAI' || method === 'frozenAI'
+          ? (validateLocalDate(collectionDate, 'Collection date', false) ?? validateLocalDateNotInFuture(collectionDate)) ??
+            undefined
+          : undefined,
       volumeMl:
         method === 'freshAI' || method === 'shippedCooledAI'
           ? validateNumberRange(parsedVolume, 'Volume (mL)', 0, 1000) ?? undefined

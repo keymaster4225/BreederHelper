@@ -70,6 +70,12 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
           return;
         }
 
+        if (pregnancyCheckId && !existing) {
+          Alert.alert('Record not found', 'This pregnancy check no longer exists.');
+          navigation.goBack();
+          return;
+        }
+
         setBreedingRecords(records);
 
         if (existing) {
