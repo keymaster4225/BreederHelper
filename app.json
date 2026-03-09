@@ -17,6 +17,11 @@
     ],
     "android": {
       "package": "com.anonymous.breedwise"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "d023798e-e6ff-4ae7-b9b8-820a9e66a5b7"
+      }
     }
   }
 }
