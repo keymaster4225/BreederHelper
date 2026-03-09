@@ -1,75 +1,20 @@
-X
-
-Line 20
-
-1
-
 {
-
-2
-
-"cli": {
-
-"version": ">= 16.0.0"
-
-4
-
-},
-
-5
-
-"build": {
-
-6
-
-7
-
-8
-
-"development": {
-
-"developmentClient": true,
-
-"distribution": "internal"
-
-9
-
-},
-
-10
-
-11
-
-"preview": {
-
-"distribution": "internal"
-
-12
-
-13
-
-"production": {
-
-14
-
-"autoIncrement": true
-
-15
-
-}
-
-16
-
-17
-
-'submit":
-
-{
-
-18
-
-"production": {}
-
-19
-
+  "cli": {
+    "version": ">= 16.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal"
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
 }
