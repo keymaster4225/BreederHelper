@@ -1,4 +1,4 @@
-﻿# BreederHelper
+﻿# BreedWise
 
 Mobile app for horse breeders to track mare reproductive cycles, breeding events, pregnancy checks, and foaling outcomes.
 

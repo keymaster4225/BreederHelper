@@ -2,7 +2,7 @@
 
 ## Project
 
-BreederHelper is an Expo + React Native + TypeScript mobile app for horse breeding recordkeeping.
+BreedWise is an Expo + React Native + TypeScript mobile app for horse breeding recordkeeping.
 It is offline-first and uses SQLite (`expo-sqlite`) for all core data.
 
 Primary spec reference:
@@ -90,5 +90,5 @@ If bundling/native module errors appear:
 ## Git
 
 - Default branch: `main`
-- Remote: `origin` -> `https://github.com/keymaster4225/BreederHelper`
+- Remote: `origin` -> `https://github.com/keymaster4225/BreedWise`
 

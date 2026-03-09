@@ -19,7 +19,7 @@ export function WelcomeScreen({ onComplete }: Props): JSX.Element {
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
         <MaterialCommunityIcons name="horse" size={80} color={colors.primary} />
-        <Text style={styles.title}>BreederHelper</Text>
+        <Text style={styles.title}>BreedWise</Text>
         <Text style={styles.subtitle}>
           Track your mares, breeding records, and foaling results — all in one place!
         </Text>

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "BreederHelper",
+    "name": "BreedWise",
     "slug": "breeder-helper",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -16,7 +16,7 @@
       "@react-native-community/datetimepicker"
     ],
     "android": {
-      "package": "com.anonymous.breederhelper"
+      "package": "com.anonymous.breedwise"
     }
   }
 }

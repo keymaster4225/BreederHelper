@@ -1,5 +1,5 @@
 /**
- * Mare Tracker / BreederHelper Theme
+ * Mare Tracker / BreedWise Theme
  *
  * Based on Flutter Material 3 color scheme generated from Colors.brown seed.
  * Material 3 uses HCT color space to generate harmonious palettes.
