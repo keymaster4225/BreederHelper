@@ -17,7 +17,11 @@
       "@react-native-community/datetimepicker"
     ],
     "android": {
-      "package": "com.anonymous.breedwise"
+      "package": "com.anonymous.breedwise",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/foreground.png",
+        "backgroundImage": "./assets/background.png"
+      }
     },
     "extra": {
       "eas": {
