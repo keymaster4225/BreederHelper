@@ -9,19 +9,20 @@ Add an "Approx. due date" line to the info box on PregnancyCheckFormScreen, dire
 
 ## Display Conditions
 
-The due date line appears only when all three conditions are met:
+The due date line appears only when both conditions are met:
 
 1. A breeding record is selected
 2. Result is "Positive"
-3. Heartbeat detected is "Yes"
 
-When any condition is not met, the line is hidden entirely (not shown with a dash or placeholder).
+When either condition is not met, the line is hidden entirely (not shown with a dash or placeholder).
+
+Heartbeat status does not affect visibility — early pregnancy checks (14-16 days) may not yet have a detectable heartbeat, but the due date is still useful.
 
 ## Calculation
 
 Breeding date + 340 days (standard equine gestation average).
 
-A utility function `calculateApproxDueDate(breedingDate: LocalDate): LocalDate` computes this. It takes the breeding date, adds 340 days, and returns the result as a `YYYY-MM-DD` LocalDate string.
+Reuses the existing `estimateFoalingDate(breedingDate: LocalDate): LocalDate` function in `src/models/types.ts`, which already adds 340 days to the breeding date.
 
 ## Display Format
 
@@ -33,17 +34,14 @@ Uses the app's existing `MM-DD-YYYY` display format convention (via `formatLocal
 
 ## Code Changes
 
-### `src/models/types.ts`
-- Add `calculateApproxDueDate(breedingDate: LocalDate): LocalDate` function
-- Uses `fromLocalDate` to parse, adds 340 days, returns `toLocalDate` result
-
 ### `src/screens/PregnancyCheckFormScreen.tsx`
-- Add a `useMemo` that calls `calculateApproxDueDate` when a breeding record is selected
-- Conditionally render the info row only when result is positive AND heartbeat is "Yes"
-- Place the row directly below the "Days post breeding" row in the info box
+- Import `estimateFoalingDate` from `@/models/types` and `formatLocalDate` from `@/utils/dates`
+- Add a `useMemo` that calls `estimateFoalingDate` when a breeding record is selected
+- Conditionally render the info row only when result is "Positive"
+- Place the row directly below the "Days post breeding" row in the existing info view
 
 ### Tests
-- Unit test for `calculateApproxDueDate` verifying correct 340-day addition
+- Unit test for `estimateFoalingDate` (if not already covered) verifying correct 340-day addition
 - Test edge cases: leap year crossing, year boundary crossing
 
 ## What This Does NOT Include
