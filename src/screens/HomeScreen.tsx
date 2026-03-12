@@ -73,6 +73,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
           <Pressable
             onPress={() => navigation.navigate('EditMare')}
             style={({ pressed }) => [styles.headerAddButton, pressed && styles.pressedOpacity]}
+            hitSlop={4}
           >
             <MaterialCommunityIcons name="plus" size={26} color={colors.primary} />
           </Pressable>
@@ -214,8 +215,12 @@ listContent: {
     ...typography.labelMedium,
   },
   headerAddButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 44,
+    minHeight: 44,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
   },
   pressedOpacity: {
     opacity: 0.85,
