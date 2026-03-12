@@ -50,6 +50,7 @@ export function IconButton({ icon, onPress }: IconButtonProps): JSX.Element {
     <Pressable
       style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
       onPress={onPress}
+      hitSlop={8}
     >
       <Text style={styles.iconText}>{icon}</Text>
     </Pressable>
