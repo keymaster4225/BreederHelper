@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
@@ -191,6 +191,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
 
   return (
     <Screen>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Name" required error={errors.name}>
           <FormTextInput value={name} onChangeText={setName} placeholder="Mare name" />
@@ -229,9 +230,11 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
           <DeleteButton
             label={isDeleting ? 'Deleting...' : 'Delete Mare'}
             onPress={onDelete}
+            disabled={isSaving || isDeleting}
           />
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }

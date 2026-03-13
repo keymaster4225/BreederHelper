@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
@@ -217,15 +218,20 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
 
   return (
     <Screen>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Breeding Record" required error={errors.breedingRecordId}>
           {breedingRecords.length === 0 ? (
-            <Text>No breeding records found for this mare.</Text>
+            <View style={localStyles.emptyState}>
+              <MaterialCommunityIcons name="clipboard-text-outline" size={40} color={colors.onSurfaceVariant} />
+              <Text style={localStyles.emptyHeading}>No breeding records</Text>
+              <Text style={localStyles.emptySubtitle}>Add a breeding record for this mare first.</Text>
+            </View>
           ) : (
             <OptionSelector
               value={breedingRecordId}
               onChange={setBreedingRecordId}
-              options={breedingRecords.map((record) => ({ value: record.id, label: `${record.date} (${record.method})` }))}
+              options={breedingRecords.map((record) => ({ value: record.id, label: `${record.date} - ${record.stallionName ?? 'Unknown'} (${record.method})` }))}
             />
           )}
         </FormField>
@@ -258,9 +264,10 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
         />
 
         {isEdit ? (
-          <DeleteButton label="Delete" onPress={onDelete} />
+          <DeleteButton label="Delete" onPress={onDelete} disabled={isSaving} />
         ) : null}
       </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
@@ -274,5 +281,19 @@ const localStyles = StyleSheet.create({
   infoLabel: {
     color: colors.onSurfaceVariant,
     ...typography.bodyMedium,
+  },
+  emptyState: {
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+  },
+  emptyHeading: {
+    ...typography.titleSmall,
+    color: colors.onSurface,
+  },
+  emptySubtitle: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+    textAlign: 'center',
   },
 });

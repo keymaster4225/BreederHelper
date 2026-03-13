@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -141,6 +141,7 @@ export function StallionManagementScreen(): JSX.Element {
 
   return (
     <Screen>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <Text style={styles.sectionTitle}>{editingStallionId ? 'Edit Stallion' : 'Add Stallion'}</Text>
 
@@ -174,7 +175,7 @@ export function StallionManagementScreen(): JSX.Element {
           />
 
           {editingStallionId ? (
-            <SecondaryButton label="Cancel" onPress={clearForm} />
+            <SecondaryButton label="Cancel" onPress={clearForm} disabled={isSaving} />
           ) : null}
         </View>
 
@@ -202,12 +203,13 @@ export function StallionManagementScreen(): JSX.Element {
                 >
                   <Text style={styles.inlineButtonText}>Edit</Text>
                 </Pressable>
-                <DeleteButton label="Delete" onPress={() => confirmDelete(stallion)} />
+                <DeleteButton label="Delete" onPress={() => confirmDelete(stallion)} disabled={isSaving} />
               </View>
             </View>
           ))}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
@@ -251,6 +253,8 @@ const styles = StyleSheet.create({
   inlineButton: {
     backgroundColor: colors.surfaceVariant,
     borderRadius: borderRadius.md,
+    justifyContent: 'center',
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },

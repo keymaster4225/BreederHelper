@@ -74,6 +74,8 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
             onPress={() => navigation.navigate('EditMare')}
             style={({ pressed }) => [styles.headerAddButton, pressed && styles.pressedOpacity]}
             hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel="Add mare"
           >
             <MaterialCommunityIcons name="plus" size={26} color={colors.primary} />
           </Pressable>
@@ -103,7 +105,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
         </View>
       ) : null}
 
-      {mares.length > 0 ? <Text style={styles.listHint}>Tap a mare to view or add records</Text> : null}
+      {mares.length > 0 ? <Text style={styles.listHint}>Tap a mare to view details. Long press to delete.</Text> : null}
 
       {mares.length > 0 ? <FlatList
         data={mares}
@@ -115,6 +117,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
           return (
             <Pressable
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+              accessibilityRole="button"
               onPress={() => {
                 if (isSelected) {
                   setSelectedMareId(null);
@@ -192,6 +195,8 @@ listContent: {
     borderColor: colors.outline,
     borderRadius: borderRadius.md,
     borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
@@ -207,6 +212,8 @@ listContent: {
     borderColor: colors.error,
     borderRadius: borderRadius.md,
     borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },

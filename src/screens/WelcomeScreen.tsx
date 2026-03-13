@@ -16,7 +16,7 @@ export function WelcomeScreen({ onComplete }: Props): JSX.Element {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
       <View style={styles.content}>
         <MaterialCommunityIcons name="horse" size={80} color={colors.primary} />
         <Text style={styles.title}>BreedWise</Text>

@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { IconButton, PrimaryButton } from '@/components/Buttons';
+import { IconButton, PrimaryButton, SecondaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatOutcome, getOutcomeColor } from '@/utils/outcomeDisplay';
@@ -96,7 +96,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   const age = deriveAgeYears(mare?.dateOfBirth ?? null);
 
   const renderEditIconButton = (onPress: () => void): JSX.Element => (
-    <IconButton icon={'\u270E'} onPress={onPress} />
+    <IconButton icon={'\u270E'} onPress={onPress} accessibilityLabel="Edit" />
   );
 
   const renderCardRow = (label: string, value: string | number | null | undefined): JSX.Element => (
@@ -117,7 +117,12 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
       return (
         <View style={styles.listWrap}>
           <PrimaryButton label="Add Daily Log" onPress={() => navigation.navigate('DailyLogForm', { mareId })} />
-          {dailyLogs.length === 0 ? <Text style={styles.emptyText}>No daily logs yet.</Text> : null}
+          {dailyLogs.length === 0 ? (
+            <View style={styles.emptyTabState}>
+              <Text style={styles.emptyText}>No daily logs yet.</Text>
+              <SecondaryButton label="+ Add Daily Log" onPress={() => navigation.navigate('DailyLogForm', { mareId })} />
+            </View>
+          ) : null}
           {dailyLogs.map((log) => (
             <View key={log.id} style={styles.card}>
               <View style={styles.cardHeader}>
@@ -144,7 +149,12 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
       return (
         <View style={styles.listWrap}>
           <PrimaryButton label="Add Breeding Record" onPress={() => navigation.navigate('BreedingRecordForm', { mareId })} />
-          {breedingRecords.length === 0 ? <Text style={styles.emptyText}>No breeding records yet.</Text> : null}
+          {breedingRecords.length === 0 ? (
+            <View style={styles.emptyTabState}>
+              <Text style={styles.emptyText}>No breeding records yet.</Text>
+              <SecondaryButton label="+ Add Breeding Record" onPress={() => navigation.navigate('BreedingRecordForm', { mareId })} />
+            </View>
+          ) : null}
           {breedingRecords.map((record) => (
             <View key={record.id} style={styles.card}>
               <View style={styles.cardHeader}>
@@ -166,7 +176,12 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
       return (
         <View style={styles.listWrap}>
           <PrimaryButton label="Add Pregnancy Check" onPress={() => navigation.navigate('PregnancyCheckForm', { mareId })} />
-          {pregnancyChecks.length === 0 ? <Text style={styles.emptyText}>No pregnancy checks yet.</Text> : null}
+          {pregnancyChecks.length === 0 ? (
+            <View style={styles.emptyTabState}>
+              <Text style={styles.emptyText}>No pregnancy checks yet.</Text>
+              <SecondaryButton label="+ Add Pregnancy Check" onPress={() => navigation.navigate('PregnancyCheckForm', { mareId })} />
+            </View>
+          ) : null}
           {pregnancyChecks.map((check) => {
             const breeding = breedingById[check.breedingRecordId];
             const daysPost = breeding ? calculateDaysPostBreeding(check.date, breeding.date) : null;
@@ -206,7 +221,12 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
     return (
       <View style={styles.listWrap}>
         <PrimaryButton label="Add Foaling Record" onPress={() => navigation.navigate('FoalingRecordForm', { mareId })} />
-        {foalingRecords.length === 0 ? <Text style={styles.emptyText}>No foaling records yet.</Text> : null}
+        {foalingRecords.length === 0 ? (
+            <View style={styles.emptyTabState}>
+              <Text style={styles.emptyText}>No foaling records yet.</Text>
+              <SecondaryButton label="+ Add Foaling Record" onPress={() => navigation.navigate('FoalingRecordForm', { mareId })} />
+            </View>
+          ) : null}
         {foalingRecords.map((record) => (
           <View key={record.id} style={styles.card}>
             <View style={styles.cardHeader}>
@@ -250,7 +270,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             {TAB_OPTIONS.map((tab) => {
               const active = tab.value === activeTab;
               return (
-                <Pressable key={tab.value} style={({ pressed }) => [styles.tabButton, active ? styles.tabButtonActive : null, pressed && !active && styles.tabPressed]} onPress={() => setActiveTab(tab.value)}>
+                <Pressable key={tab.value} style={({ pressed }) => [styles.tabButton, active ? styles.tabButtonActive : null, pressed && !active && styles.tabPressed]} onPress={() => setActiveTab(tab.value)} accessibilityRole="tab" accessibilityState={{ selected: active }}>
                   <Text style={[styles.tabButtonText, active ? styles.tabButtonTextActive : null]}>{tab.label}</Text>
                 </Pressable>
               );
@@ -294,6 +314,8 @@ const styles = StyleSheet.create({
     borderColor: colors.outline,
     borderRadius: borderRadius.full,
     borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
@@ -345,10 +367,14 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     ...typography.bodyMedium,
   },
+  emptyTabState: {
+    alignItems: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.xl,
+  },
   emptyText: {
     color: colors.onSurfaceVariant,
     textAlign: 'center',
-    paddingVertical: spacing.xl,
     ...typography.bodyMedium,
   },
   tabPressed: {
@@ -360,7 +386,7 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     borderWidth: 1,
     marginTop: spacing.sm,
-    paddingVertical: 10,
+    paddingVertical: spacing.md,
   },
   secondaryButtonText: {
     color: colors.onSurface,

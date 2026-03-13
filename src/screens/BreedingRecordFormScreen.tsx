@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
@@ -269,6 +269,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
   return (
     <Screen style={{ paddingTop: 0 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Date" required error={errors.date}>
           <FormDateInput value={date} onChange={setDate} placeholder="Select breeding date" maximumDate={today} />
@@ -349,9 +350,10 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         />
 
         {isEdit ? (
-          <DeleteButton label="Delete" onPress={onDelete} />
+          <DeleteButton label="Delete" onPress={onDelete} disabled={isSaving} />
         ) : null}
       </ScrollView>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }

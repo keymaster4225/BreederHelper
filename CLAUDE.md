@@ -38,6 +38,8 @@ Recent UX/domain decisions reflected in code:
 - React Navigation (native stack)
 - `@react-native-community/datetimepicker`
 - `expo-sqlite`
+- `@expo/vector-icons`
+- `@react-native-async-storage/async-storage`
 - Vitest
 
 ## Key Paths
@@ -46,10 +48,17 @@ Recent UX/domain decisions reflected in code:
 - Navigation: `src/navigation/AppNavigator.tsx`
 - Screens: `src/screens/*`
 - Shared form controls: `src/components/FormControls.tsx`
+- Screen wrapper: `src/components/Screen.tsx`
+- Button components: `src/components/Buttons.tsx`
+- Status badges: `src/components/StatusBadge.tsx`
 - Domain types: `src/models/types.ts`
 - Repositories: `src/storage/repositories/*`
 - Migrations: `src/storage/migrations/*`
 - Validation/date helpers: `src/utils/validation.ts`, `src/utils/dates.ts`
+- Theme: `src/theme.ts`
+- Score colors: `src/utils/scoreColors.ts`
+- Onboarding: `src/utils/onboarding.ts`
+- ID generation: `src/utils/id.ts`
 
 ## Data + Storage Notes
 
@@ -57,7 +66,6 @@ Recent UX/domain decisions reflected in code:
 - UI can display alternate formats via `FormDateInput` `displayFormat`.
 - FK behavior is restrictive (`ON DELETE RESTRICT`) for relational integrity.
 - Migration runner records applied migrations in `schema_migrations`.
-- `straw_volume_ml` exists in `breeding_records` schema and repositories.
 
 ## Runbook
 
@@ -86,9 +94,10 @@ If bundling/native module errors appear:
 - Add migration + repository + type updates together for schema changes.
 - For behavior changes, update tests where practical (`validation.test.ts`, repository tests).
 - Run `npm run typecheck` and `npm test` before commit.
+- Import alias: `@/*` maps to `src/*` (configured in `tsconfig.json` + babel).
 
 ## Git
 
 - Default branch: `main`
-- Remote: `origin` -> `https://github.com/keymaster4225/BreedWise`
+- Remote: `origin` -> `https://github.com/keymaster4225/BreederHelper`
 

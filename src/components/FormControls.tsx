@@ -75,7 +75,7 @@ export function FormDateInput({
 
   return (
     <View style={styles.dateWrap}>
-      <Pressable style={styles.input} onPress={() => { Keyboard.dismiss(); setShowPicker(true); }}>
+      <Pressable style={styles.input} onPress={() => { Keyboard.dismiss(); setShowPicker(true); }} accessibilityRole="button">
         <Text style={displayValue ? styles.dateValue : styles.datePlaceholder}>
           {displayValue || placeholder}
         </Text>
@@ -118,6 +118,7 @@ export function FormSelectInput({
       <Pressable
         style={styles.input}
         onPress={() => setOpen(true)}
+        accessibilityRole="button"
       >
         <Text style={value ? styles.dateValue : styles.datePlaceholder}>
           {value || placeholder}
@@ -168,6 +169,8 @@ export function OptionSelector<T extends string>({ value, options, onChange }: O
             key={option.value}
             onPress={() => onChange(option.value)}
             style={[styles.option, active ? styles.optionActive : null]}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: active }}
           >
             <Text style={[styles.optionText, active ? styles.optionTextActive : null]}>{option.label}</Text>
           </Pressable>
@@ -197,6 +200,8 @@ const styles = StyleSheet.create({
     borderColor: colors.outline,
     borderRadius: borderRadius.md,
     borderWidth: 1,
+    justifyContent: 'center' as const,
+    minHeight: 48,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },

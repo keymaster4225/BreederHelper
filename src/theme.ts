@@ -67,7 +67,7 @@ export const colors = {
   heartbeat: '#EC407A',         // Heartbeat indicator (pink)
 
   // Teasing / edema score scale (0-5)
-  score0: '#E0E0E0',           // No interest / no edema
+  score0: '#9E9E9E',           // No interest / no edema
   score1: '#FFCC80',           // Minimal
   score2: '#FFB74D',           // Mild
   score3: '#FFA726',           // Moderate

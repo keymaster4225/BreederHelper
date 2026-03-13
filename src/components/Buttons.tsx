@@ -27,15 +27,21 @@ export function PrimaryButton({ label, onPress, disabled }: PrimaryButtonProps):
 type SecondaryButtonProps = {
   label: string;
   onPress: () => void;
+  disabled?: boolean;
 };
 
-export function SecondaryButton({ label, onPress }: SecondaryButtonProps): JSX.Element {
+export function SecondaryButton({ label, onPress, disabled }: SecondaryButtonProps): JSX.Element {
   return (
     <Pressable
-      style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressedOpacityLight]}
+      style={({ pressed }) => [
+        styles.secondaryButton,
+        disabled && styles.secondaryButtonDisabled,
+        pressed && !disabled && styles.pressedOpacityLight,
+      ]}
       onPress={onPress}
+      disabled={disabled}
     >
-      <Text style={styles.secondaryButtonText}>{label}</Text>
+      <Text style={[styles.secondaryButtonText, disabled && styles.disabledText]}>{label}</Text>
     </Pressable>
   );
 }
@@ -43,14 +49,17 @@ export function SecondaryButton({ label, onPress }: SecondaryButtonProps): JSX.E
 type IconButtonProps = {
   icon: string;
   onPress: () => void;
+  accessibilityLabel?: string;
 };
 
-export function IconButton({ icon, onPress }: IconButtonProps): JSX.Element {
+export function IconButton({ icon, onPress, accessibilityLabel }: IconButtonProps): JSX.Element {
   return (
     <Pressable
       style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
       onPress={onPress}
       hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
     >
       <Text style={styles.iconText}>{icon}</Text>
     </Pressable>
@@ -60,15 +69,21 @@ export function IconButton({ icon, onPress }: IconButtonProps): JSX.Element {
 type DeleteButtonProps = {
   label: string;
   onPress: () => void;
+  disabled?: boolean;
 };
 
-export function DeleteButton({ label, onPress }: DeleteButtonProps): JSX.Element {
+export function DeleteButton({ label, onPress, disabled }: DeleteButtonProps): JSX.Element {
   return (
     <Pressable
-      style={({ pressed }) => [styles.deleteButton, pressed && styles.pressedOpacity]}
+      style={({ pressed }) => [
+        styles.deleteButton,
+        disabled && styles.deleteButtonDisabled,
+        pressed && !disabled && styles.pressedOpacity,
+      ]}
       onPress={onPress}
+      disabled={disabled}
     >
-      <Text style={styles.deleteButtonText}>{label}</Text>
+      <Text style={[styles.deleteButtonText, disabled && styles.disabledText]}>{label}</Text>
     </Pressable>
   );
 }
@@ -115,6 +130,9 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     ...typography.labelLarge,
   },
+  secondaryButtonDisabled: {
+    opacity: 0.5,
+  },
   deleteButton: {
     alignItems: 'center',
     backgroundColor: colors.errorContainer,
@@ -122,9 +140,15 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingVertical: spacing.md,
   },
+  deleteButtonDisabled: {
+    opacity: 0.5,
+  },
   deleteButtonText: {
     color: colors.error,
     ...typography.labelLarge,
+  },
+  disabledText: {
+    opacity: 0.7,
   },
   pressedOpacity: {
     opacity: 0.85,
