@@ -155,7 +155,11 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
       stallionName: validateRequired(stallionName.trim(), 'Stallion name') ?? undefined,
       collectionDate:
         method === 'shippedCooledAI' || method === 'frozenAI'
-          ? (validateLocalDate(collectionDate, 'Collection date', false) ?? validateLocalDateNotInFuture(collectionDate)) ??
+          ? (validateLocalDate(collectionDate, 'Collection date', false)
+            ?? validateLocalDateNotInFuture(collectionDate)
+            ?? (method === 'shippedCooledAI' && collectionDate.trim() && date.trim() && collectionDate.trim() > date.trim()
+              ? 'Collection date cannot be after breeding date.'
+              : null)) ??
             undefined
           : undefined,
       volumeMl:
