@@ -28,7 +28,6 @@ const OUTCOME_OPTIONS: { label: string; value: FoalingOutcome }[] = [
   { label: 'Live Foal', value: 'liveFoal' },
   { label: 'Stillbirth', value: 'stillbirth' },
   { label: 'Aborted', value: 'aborted' },
-  { label: 'Unknown', value: 'unknown' },
 ];
 
 const SEX_OPTIONS: { label: string; value: FoalSex }[] = [

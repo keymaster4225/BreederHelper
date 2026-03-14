@@ -3,10 +3,12 @@ import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View }
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import { IconButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
+import { StatusBadge } from '@/components/StatusBadge';
 import { Mare } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { listMares, softDeleteMare } from '@/storage/repositories';
+import { listMares, listPregnancyChecksByMare, listFoalingRecordsByMare, softDeleteMare } from '@/storage/repositories';
 import { deriveAgeYears } from '@/utils/dates';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -19,6 +21,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMareId, setSelectedMareId] = useState<string | null>(null);
+  const [pregnantMareIds, setPregnantMareIds] = useState<Set<string>>(new Set());
 
   const loadMares = useCallback(async () => {
     try {
@@ -26,6 +29,21 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
       setError(null);
       const result = await listMares();
       setMares(result);
+
+      const pregnant = new Set<string>();
+      await Promise.all(
+        result.map(async (mare) => {
+          const checks = await listPregnancyChecksByMare(mare.id);
+          if (checks.length > 0 && checks[0].result === 'positive') {
+            const foalings = await listFoalingRecordsByMare(mare.id);
+            const foaledAfterCheck = foalings.some((f) => f.date >= checks[0].date);
+            if (!foaledAfterCheck) {
+              pregnant.add(mare.id);
+            }
+          }
+        })
+      );
+      setPregnantMareIds(pregnant);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load mares.';
       setError(message);
@@ -131,6 +149,9 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
                 <Text style={styles.rowTitle}>{item.name}</Text>
                 <Text style={styles.rowSubtitle}>{item.breed}</Text>
                 {age !== null ? <Text style={styles.rowMeta}>Age {age}</Text> : null}
+                {pregnantMareIds.has(item.id) ? (
+                  <StatusBadge label="Pregnant" backgroundColor={colors.pregnant} textColor="#fff" />
+                ) : null}
               </View>
               {isSelected ? (
                 <Pressable
@@ -140,12 +161,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
                   <Text style={styles.inlineDeleteButtonText}>Delete</Text>
                 </Pressable>
               ) : (
-                <Pressable
-                  style={({ pressed }) => [styles.inlineEditButton, pressed && styles.inlineEditPressed]}
-                  onPress={() => navigation.navigate('EditMare', { mareId: item.id })}
-                >
-                  <Text style={styles.inlineEditButtonText}>Edit</Text>
-                </Pressable>
+                <IconButton icon="✎" onPress={() => navigation.navigate('EditMare', { mareId: item.id })} accessibilityLabel="Edit Mare" />
               )}
             </Pressable>
           );
@@ -189,20 +205,6 @@ listContent: {
   rowMeta: {
     color: colors.onSurfaceVariant,
     ...typography.bodySmall,
-  },
-  inlineEditButton: {
-    backgroundColor: colors.surface,
-    borderColor: colors.outline,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  inlineEditButtonText: {
-    color: colors.onSurface,
-    ...typography.labelMedium,
   },
   inlineEditPressed: {
     opacity: 0.7,

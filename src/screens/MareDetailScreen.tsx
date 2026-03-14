@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { IconButton, PrimaryButton, SecondaryButton } from '@/components/Buttons';
+import { IconButton, PrimaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatOutcome, getOutcomeColor } from '@/utils/outcomeDisplay';
@@ -120,7 +120,6 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           {dailyLogs.length === 0 ? (
             <View style={styles.emptyTabState}>
               <Text style={styles.emptyText}>No daily logs yet.</Text>
-              <SecondaryButton label="+ Add Daily Log" onPress={() => navigation.navigate('DailyLogForm', { mareId })} />
             </View>
           ) : null}
           {dailyLogs.map((log) => (
@@ -152,7 +151,6 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           {breedingRecords.length === 0 ? (
             <View style={styles.emptyTabState}>
               <Text style={styles.emptyText}>No breeding records yet.</Text>
-              <SecondaryButton label="+ Add Breeding Record" onPress={() => navigation.navigate('BreedingRecordForm', { mareId })} />
             </View>
           ) : null}
           {breedingRecords.map((record) => (
@@ -179,7 +177,6 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           {pregnancyChecks.length === 0 ? (
             <View style={styles.emptyTabState}>
               <Text style={styles.emptyText}>No pregnancy checks yet.</Text>
-              <SecondaryButton label="+ Add Pregnancy Check" onPress={() => navigation.navigate('PregnancyCheckForm', { mareId })} />
             </View>
           ) : null}
           {pregnancyChecks.map((check) => {
@@ -224,7 +221,6 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
         {foalingRecords.length === 0 ? (
             <View style={styles.emptyTabState}>
               <Text style={styles.emptyText}>No foaling records yet.</Text>
-              <SecondaryButton label="+ Add Foaling Record" onPress={() => navigation.navigate('FoalingRecordForm', { mareId })} />
             </View>
           ) : null}
         {foalingRecords.map((record) => (
@@ -257,13 +253,13 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
       {mare ? (
         <>
           <View style={styles.headerCard}>
-            <Text style={styles.headerName}>{mare.name}</Text>
+            <View style={styles.cardHeader}>
+              <Text style={styles.headerName}>{mare.name}</Text>
+              <IconButton icon="✎" onPress={() => navigation.navigate('EditMare', { mareId })} accessibilityLabel="Edit Mare" />
+            </View>
             <Text style={styles.headerLine}>{mare.breed}</Text>
             {age !== null ? <Text style={styles.headerLine}>Age {age}</Text> : null}
             {mare.registrationNumber ? <Text style={styles.headerLine}>Reg #: {mare.registrationNumber}</Text> : null}
-            <Pressable style={styles.secondaryButton} onPress={() => navigation.navigate('EditMare', { mareId })}>
-              <Text style={styles.secondaryButtonText}>Edit Mare</Text>
-            </Pressable>
           </View>
 
           <View style={styles.tabRow}>
@@ -379,18 +375,6 @@ const styles = StyleSheet.create({
   },
   tabPressed: {
     opacity: 0.7,
-  },
-  secondaryButton: {
-    alignItems: 'center',
-    borderColor: colors.outline,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    marginTop: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  secondaryButtonText: {
-    color: colors.onSurface,
-    ...typography.labelMedium,
   },
   errorText: {
     color: colors.error,

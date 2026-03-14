@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   iconText: {
     color: colors.onSurface,
-    ...typography.labelLarge,
+    fontSize: 20,
   },
   secondaryButtonDisabled: {
     opacity: 0.5,

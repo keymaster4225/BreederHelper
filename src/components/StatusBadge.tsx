@@ -17,6 +17,7 @@ export function StatusBadge({ label, backgroundColor, textColor }: StatusBadgePr
 
 const styles = StyleSheet.create({
   badge: {
+    alignSelf: 'flex-start',
     borderRadius: borderRadius.full,
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
