@@ -6,7 +6,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
-import { BreedingRecord, calculateDaysPostBreeding } from '@/models/types';
+import { BreedingRecord, calculateDaysPostBreeding, estimateFoalingDate } from '@/models/types';
+import { formatLocalDate } from '@/utils/dates';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   createPregnancyCheck,
@@ -132,6 +133,13 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
     return calculateDaysPostBreeding(date.trim(), selectedBreedingRecord.date);
   }, [date, selectedBreedingRecord]);
 
+  const approxDueDate = useMemo(() => {
+    if (!selectedBreedingRecord) {
+      return null;
+    }
+    return estimateFoalingDate(selectedBreedingRecord.date);
+  }, [selectedBreedingRecord]);
+
   const validate = (): boolean => {
     const dateError = validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date);
 
@@ -251,6 +259,9 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
 
         <View style={localStyles.infoRow}>
           <Text style={localStyles.infoLabel}>Days post-breeding: {daysPostBreeding === null ? '-' : `${daysPostBreeding}`}</Text>
+          {result === 'positive' && approxDueDate ? (
+            <Text style={localStyles.infoLabel}>Approx. due date: {formatLocalDate(approxDueDate, 'MM-DD-YYYY')}</Text>
+          ) : null}
         </View>
 
         <FormField label="Notes">
