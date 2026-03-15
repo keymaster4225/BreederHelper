@@ -276,6 +276,7 @@ export async function createDailyLog(input: {
   teasingScore?: number | null;
   rightOvary?: string | null;
   leftOvary?: string | null;
+  ovulationDetected?: boolean | null;
   edema?: number | null;
   uterineTone?: string | null;
   uterineCysts?: string | null;
@@ -293,13 +294,14 @@ export async function createDailyLog(input: {
       teasing_score,
       right_ovary,
       left_ovary,
+      ovulation_detected,
       edema,
       uterine_tone,
       uterine_cysts,
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       input.id,
@@ -308,6 +310,7 @@ export async function createDailyLog(input: {
       input.teasingScore ?? null,
       input.rightOvary ?? null,
       input.leftOvary ?? null,
+      input.ovulationDetected == null ? null : input.ovulationDetected ? 1 : 0,
       input.edema ?? null,
       input.uterineTone ?? null,
       input.uterineCysts ?? null,
@@ -325,6 +328,7 @@ export async function updateDailyLog(
     teasingScore?: number | null;
     rightOvary?: string | null;
     leftOvary?: string | null;
+    ovulationDetected?: boolean | null;
     edema?: number | null;
     uterineTone?: string | null;
     uterineCysts?: string | null;
@@ -341,6 +345,7 @@ export async function updateDailyLog(
       teasing_score = ?,
       right_ovary = ?,
       left_ovary = ?,
+      ovulation_detected = ?,
       edema = ?,
       uterine_tone = ?,
       uterine_cysts = ?,
@@ -353,6 +358,7 @@ export async function updateDailyLog(
       input.teasingScore ?? null,
       input.rightOvary ?? null,
       input.leftOvary ?? null,
+      input.ovulationDetected == null ? null : input.ovulationDetected ? 1 : 0,
       input.edema ?? null,
       input.uterineTone ?? null,
       input.uterineCysts ?? null,
@@ -367,7 +373,7 @@ export async function getDailyLogById(id: string): Promise<DailyLog | null> {
   const db = await getDb();
   const row = await db.getFirstAsync<DailyLogRow>(
     `
-    SELECT id, mare_id, date, teasing_score, right_ovary, left_ovary, edema, uterine_tone, uterine_cysts, notes, created_at, updated_at
+    SELECT id, mare_id, date, teasing_score, right_ovary, left_ovary, ovulation_detected, edema, uterine_tone, uterine_cysts, notes, created_at, updated_at
     FROM daily_logs
     WHERE id = ?;
     `,
@@ -582,7 +588,7 @@ export async function listDailyLogsByMare(mareId: string): Promise<DailyLog[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<DailyLogRow>(
     `
-    SELECT id, mare_id, date, teasing_score, right_ovary, left_ovary, edema, uterine_tone, uterine_cysts, notes, created_at, updated_at
+    SELECT id, mare_id, date, teasing_score, right_ovary, left_ovary, ovulation_detected, edema, uterine_tone, uterine_cysts, notes, created_at, updated_at
     FROM daily_logs
     WHERE mare_id = ?
     ORDER BY date DESC;
@@ -660,6 +666,7 @@ type DailyLogRow = {
   teasing_score: number | null;
   right_ovary: string | null;
   left_ovary: string | null;
+  ovulation_detected: number | null;
   edema: number | null;
   uterine_tone: string | null;
   uterine_cysts: string | null;
@@ -735,6 +742,7 @@ function mapDailyLogRow(row: DailyLogRow): DailyLog {
     teasingScore: row.teasing_score,
     rightOvary: row.right_ovary,
     leftOvary: row.left_ovary,
+    ovulationDetected: row.ovulation_detected === null ? null : Boolean(row.ovulation_detected),
     edema: row.edema,
     uterineTone: row.uterine_tone,
     uterineCysts: row.uterine_cysts,

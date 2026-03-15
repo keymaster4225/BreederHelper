@@ -180,6 +180,59 @@ export function OptionSelector<T extends string>({ value, options, onChange }: O
   );
 }
 
+type FormCheckboxProps = {
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+};
+
+export function FormCheckbox({ label, value, onChange }: FormCheckboxProps): JSX.Element {
+  return (
+    <Pressable
+      style={checkboxStyles.row}
+      onPress={() => onChange(!value)}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: value }}
+    >
+      <View style={[checkboxStyles.box, value ? checkboxStyles.boxChecked : null]}>
+        {value ? <Text style={checkboxStyles.checkmark}>✓</Text> : null}
+      </View>
+      <Text style={checkboxStyles.label}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const checkboxStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 44,
+    gap: spacing.sm,
+  },
+  box: {
+    width: 24,
+    height: 24,
+    borderRadius: borderRadius.sm,
+    borderWidth: 2,
+    borderColor: colors.outline,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  boxChecked: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  checkmark: {
+    color: colors.onPrimary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  label: {
+    color: colors.onSurface,
+    ...typography.labelLarge,
+  },
+});
+
 export const formStyles = StyleSheet.create({
   form: {
     gap: spacing.lg,

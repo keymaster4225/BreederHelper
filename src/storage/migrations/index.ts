@@ -184,6 +184,10 @@ CREATE INDEX IF NOT EXISTS idx_breeding_records_mare_date ON breeding_records (m
 CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date ON breeding_records (stallion_id, date DESC);
 `;
 
+const migration004 = `
+ALTER TABLE daily_logs ADD COLUMN ovulation_detected INTEGER;
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -200,6 +204,12 @@ const migrations: Migration[] = [
     id: 3,
     name: '003_breeding_stallion_name',
     statements: splitStatements(migration003),
+  },
+  {
+    id: 4,
+    name: '004_add_ovulation_detected',
+    statements: splitStatements(migration004),
+    shouldSkip: async (db) => hasColumn(db, 'daily_logs', 'ovulation_detected'),
   },
 ];
 

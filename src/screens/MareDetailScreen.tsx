@@ -136,6 +136,12 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                 <Text style={styles.cardLabel}>Edema</Text>
                 {renderScoreBadge(log.edema)}
               </View>
+              {log.ovulationDetected ? (
+                <View style={styles.cardRow}>
+                  <Text style={styles.cardLabel}>Ovulation</Text>
+                  <StatusBadge label="Detected" backgroundColor={colors.positive} textColor="#FFFFFF" />
+                </View>
+              ) : null}
               {renderCardRow('Right ovary', log.rightOvary || '-')}
               {renderCardRow('Left ovary', log.leftOvary || '-')}
             </View>

@@ -46,6 +46,7 @@ export interface DailyLog {
   teasingScore?: number | null; // 0-5
   rightOvary?: string | null;
   leftOvary?: string | null;
+  ovulationDetected?: boolean | null;
   edema?: number | null; // 0-5
   uterineTone?: string | null;
   uterineCysts?: string | null;

@@ -40,6 +40,7 @@ type DailyLogRow = {
   teasing_score: number | null;
   right_ovary: string | null;
   left_ovary: string | null;
+  ovulation_detected: number | null;
   edema: number | null;
   uterine_tone: string | null;
   uterine_cysts: string | null;
@@ -193,6 +194,7 @@ function createFakeDb(): FakeDb {
           teasingScore,
           rightOvary,
           leftOvary,
+          ovulationDetected,
           edema,
           uterineTone,
           uterineCysts,
@@ -207,6 +209,7 @@ function createFakeDb(): FakeDb {
           string | null,
           string | null,
           number | null,
+          number | null,
           string | null,
           string | null,
           string | null,
@@ -220,6 +223,7 @@ function createFakeDb(): FakeDb {
           teasing_score: teasingScore,
           right_ovary: rightOvary,
           left_ovary: leftOvary,
+          ovulation_detected: ovulationDetected,
           edema,
           uterine_tone: uterineTone,
           uterine_cysts: uterineCysts,
@@ -236,6 +240,7 @@ function createFakeDb(): FakeDb {
           teasingScore,
           rightOvary,
           leftOvary,
+          ovulationDetected,
           edema,
           uterineTone,
           uterineCysts,
@@ -247,6 +252,7 @@ function createFakeDb(): FakeDb {
           number | null,
           string | null,
           string | null,
+          number | null,
           number | null,
           string | null,
           string | null,
@@ -262,6 +268,7 @@ function createFakeDb(): FakeDb {
           teasing_score: teasingScore,
           right_ovary: rightOvary,
           left_ovary: leftOvary,
+          ovulation_detected: ovulationDetected,
           edema,
           uterine_tone: uterineTone,
           uterine_cysts: uterineCysts,
@@ -606,6 +613,65 @@ describe('repository smoke tests', () => {
     expect(record).not.toBeNull();
     expect(record?.stallionId).toBeNull();
     expect(record?.stallionName).toBe('Outside Stallion');
+  });
+
+  it('daily log with ovulationDetected true reads back as true', async () => {
+    await createMare({ id: 'mare-ov1', name: 'Sunny', breed: 'Thoroughbred' });
+    await createDailyLog({
+      id: 'log-ov1',
+      mareId: 'mare-ov1',
+      date: '2026-03-14',
+      ovulationDetected: true,
+    });
+
+    const log = await getDailyLogById('log-ov1');
+    expect(log).not.toBeNull();
+    expect(log?.ovulationDetected).toBe(true);
+  });
+
+  it('daily log with ovulationDetected false reads back as false', async () => {
+    await createMare({ id: 'mare-ov2', name: 'Daisy', breed: 'Quarter Horse' });
+    await createDailyLog({
+      id: 'log-ov2',
+      mareId: 'mare-ov2',
+      date: '2026-03-14',
+      ovulationDetected: false,
+    });
+
+    const log = await getDailyLogById('log-ov2');
+    expect(log).not.toBeNull();
+    expect(log?.ovulationDetected).toBe(false);
+  });
+
+  it('daily log with ovulationDetected omitted reads back as null', async () => {
+    await createMare({ id: 'mare-ov3', name: 'Willow', breed: 'Warmblood' });
+    await createDailyLog({
+      id: 'log-ov3',
+      mareId: 'mare-ov3',
+      date: '2026-03-14',
+    });
+
+    const log = await getDailyLogById('log-ov3');
+    expect(log).not.toBeNull();
+    expect(log?.ovulationDetected).toBeNull();
+  });
+
+  it('daily log update from null to ovulationDetected true', async () => {
+    await createMare({ id: 'mare-ov4', name: 'Pepper', breed: 'Arabian' });
+    await createDailyLog({
+      id: 'log-ov4',
+      mareId: 'mare-ov4',
+      date: '2026-03-14',
+    });
+
+    await updateDailyLog('log-ov4', {
+      date: '2026-03-14',
+      ovulationDetected: true,
+    });
+
+    const log = await getDailyLogById('log-ov4');
+    expect(log).not.toBeNull();
+    expect(log?.ovulationDetected).toBe(true);
   });
 
   it('blocks breeding record delete when pregnancy checks reference it', async () => {

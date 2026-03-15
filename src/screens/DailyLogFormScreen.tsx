@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
-import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { FormCheckbox, FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { createDailyLog, deleteDailyLog, getDailyLogById, updateDailyLog } from '@/storage/repositories';
@@ -38,6 +38,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
   const [teasingScore, setTeasingScore] = useState<ScoreOption>('');
   const [rightOvary, setRightOvary] = useState('');
   const [leftOvary, setLeftOvary] = useState('');
+  const [ovulationDetected, setOvulationDetected] = useState(false);
   const [edema, setEdema] = useState<ScoreOption>('');
   const [uterineTone, setUterineTone] = useState('');
   const [uterineCysts, setUterineCysts] = useState('');
@@ -73,6 +74,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
         setTeasingScore(record.teasingScore == null ? '' : String(record.teasingScore) as ScoreOption);
         setRightOvary(record.rightOvary ?? '');
         setLeftOvary(record.leftOvary ?? '');
+        setOvulationDetected(record.ovulationDetected ?? false);
         setEdema(record.edema == null ? '' : String(record.edema) as ScoreOption);
         setUterineTone(record.uterineTone ?? '');
         setUterineCysts(record.uterineCysts ?? '');
@@ -115,6 +117,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
         teasingScore: teasingScore === '' ? null : Number(teasingScore),
         rightOvary: rightOvary.trim() || null,
         leftOvary: leftOvary.trim() || null,
+        ovulationDetected: ovulationDetected || null,
         edema: edema === '' ? null : Number(edema),
         uterineTone: uterineTone.trim() || null,
         uterineCysts: uterineCysts.trim() || null,
@@ -192,6 +195,12 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
         <FormField label="Left Ovary">
           <FormTextInput value={leftOvary} onChangeText={setLeftOvary} placeholder="(ie: 35mm, MSF, AHF, CL, no findings)" />
         </FormField>
+
+        <FormCheckbox
+          label="Ovulated"
+          value={ovulationDetected}
+          onChange={setOvulationDetected}
+        />
 
         <FormField label="Uterine Edema (0-5)">
           <OptionSelector value={edema} onChange={setEdema} options={SCORE_OPTIONS} />
