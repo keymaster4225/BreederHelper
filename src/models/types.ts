@@ -114,14 +114,29 @@ export function calculateDaysPostBreeding(
   checkDate: LocalDate,
   breedingDate: LocalDate
 ): number {
-  const check = new Date(`${checkDate}T00:00:00`);
-  const breeding = new Date(`${breedingDate}T00:00:00`);
+  const check = new Date(`${checkDate}T00:00:00Z`);
+  const breeding = new Date(`${breedingDate}T00:00:00Z`);
   const msPerDay = 24 * 60 * 60 * 1000;
   return Math.floor((check.getTime() - breeding.getTime()) / msPerDay);
 }
 
 export function estimateFoalingDate(breedingDate: LocalDate): LocalDate {
-  const base = new Date(`${breedingDate}T00:00:00`);
-  base.setDate(base.getDate() + 340);
+  const base = new Date(`${breedingDate}T00:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + 340);
   return base.toISOString().slice(0, 10);
+}
+
+export function findMostRecentOvulationDate(
+  dailyLogs: DailyLog[],
+  onOrBeforeDate: LocalDate
+): LocalDate | null {
+  let result: LocalDate | null = null;
+  for (const log of dailyLogs) {
+    if (log.ovulationDetected && log.date <= onOrBeforeDate) {
+      if (result === null || log.date > result) {
+        result = log.date;
+      }
+    }
+  }
+  return result;
 }

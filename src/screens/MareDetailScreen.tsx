@@ -8,7 +8,7 @@ import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import { formatOutcome, getOutcomeColor } from '@/utils/outcomeDisplay';
 import { getScoreColors } from '@/utils/scoreColors';
-import { BreedingRecord, DailyLog, FoalingRecord, Mare, PregnancyCheck, calculateDaysPostBreeding } from '@/models/types';
+import { BreedingRecord, DailyLog, FoalingRecord, Mare, PregnancyCheck, calculateDaysPostBreeding, estimateFoalingDate, findMostRecentOvulationDate } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   getMareById,
@@ -18,7 +18,7 @@ import {
   listPregnancyChecksByMare,
   listStallions,
 } from '@/storage/repositories';
-import { deriveAgeYears } from '@/utils/dates';
+import { deriveAgeYears, formatLocalDate } from '@/utils/dates';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MareDetail'>;
@@ -188,6 +188,13 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           {pregnancyChecks.map((check) => {
             const breeding = breedingById[check.breedingRecordId];
             const daysPost = breeding ? calculateDaysPostBreeding(check.date, breeding.date) : null;
+            const ovulationDate = findMostRecentOvulationDate(dailyLogs, check.date);
+            const daysPostOvulation = ovulationDate
+              ? calculateDaysPostBreeding(check.date, ovulationDate)
+              : null;
+            const dueDate = breeding && check.result === 'positive'
+              ? estimateFoalingDate(breeding.date)
+              : null;
 
             return (
               <View key={check.id} style={styles.card}>
@@ -214,6 +221,8 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                   />
                 </View>
                 {renderCardRow('Days post-breeding', daysPost ?? '-')}
+                {daysPostOvulation !== null && renderCardRow('Days post-ovulation', daysPostOvulation)}
+                {dueDate && renderCardRow('Est. due date', formatLocalDate(dueDate, 'MM-DD-YYYY'))}
               </View>
             );
           })}
