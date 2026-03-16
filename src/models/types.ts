@@ -140,3 +140,46 @@ export function findMostRecentOvulationDate(
   }
   return result;
 }
+
+export interface PregnancyInfo {
+  daysPostOvulation: number | null;
+  estimatedDueDate: LocalDate | null;
+}
+
+function comparePregnancyChecksDesc(a: PregnancyCheck, b: PregnancyCheck): number {
+  return (
+    b.date.localeCompare(a.date) ||
+    b.updatedAt.localeCompare(a.updatedAt) ||
+    b.createdAt.localeCompare(a.createdAt) ||
+    b.id.localeCompare(a.id)
+  );
+}
+
+export function findCurrentPregnancyCheck(
+  pregnancyChecks: PregnancyCheck[],
+  foalingRecords: FoalingRecord[]
+): PregnancyCheck | null {
+  const sorted = [...pregnancyChecks].sort(comparePregnancyChecksDesc);
+  const latestCheck = sorted[0];
+
+  if (!latestCheck || latestCheck.result !== 'positive') {
+    return null;
+  }
+
+  const foaledAfterCheck = foalingRecords.some((record) => record.date >= latestCheck.date);
+  return foaledAfterCheck ? null : latestCheck;
+}
+
+export function buildPregnancyInfoForCheck(
+  check: PregnancyCheck,
+  dailyLogs: DailyLog[],
+  breedingRecord: BreedingRecord | null,
+  today: LocalDate
+): PregnancyInfo {
+  const ovulationDate = findMostRecentOvulationDate(dailyLogs, check.date);
+
+  return {
+    daysPostOvulation: ovulationDate ? calculateDaysPostBreeding(today, ovulationDate) : null,
+    estimatedDueDate: breedingRecord ? estimateFoalingDate(breedingRecord.date) : null,
+  };
+}

@@ -6,10 +6,22 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IconButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Mare } from '@/models/types';
+import {
+  Mare,
+  PregnancyInfo,
+  buildPregnancyInfoForCheck,
+  findCurrentPregnancyCheck,
+} from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { listMares, listPregnancyChecksByMare, listFoalingRecordsByMare, softDeleteMare } from '@/storage/repositories';
-import { deriveAgeYears } from '@/utils/dates';
+import {
+  getBreedingRecordById,
+  listDailyLogsByMare,
+  listFoalingRecordsByMare,
+  listMares,
+  listPregnancyChecksByMare,
+  softDeleteMare,
+} from '@/storage/repositories';
+import { deriveAgeYears, formatLocalDate, toLocalDate } from '@/utils/dates';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
@@ -21,7 +33,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMareId, setSelectedMareId] = useState<string | null>(null);
-  const [pregnantMareIds, setPregnantMareIds] = useState<Set<string>>(new Set());
+  const [pregnantInfo, setPregnantInfo] = useState<Map<string, PregnancyInfo>>(new Map());
 
   const loadMares = useCallback(async () => {
     try {
@@ -30,20 +42,32 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
       const result = await listMares();
       setMares(result);
 
-      const pregnant = new Set<string>();
+      const today = toLocalDate(new Date());
+      const nextPregnantInfo = new Map<string, PregnancyInfo>();
       await Promise.all(
         result.map(async (mare) => {
-          const checks = await listPregnancyChecksByMare(mare.id);
-          if (checks.length > 0 && checks[0].result === 'positive') {
-            const foalings = await listFoalingRecordsByMare(mare.id);
-            const foaledAfterCheck = foalings.some((f) => f.date >= checks[0].date);
-            if (!foaledAfterCheck) {
-              pregnant.add(mare.id);
-            }
+          const [checks, foalings] = await Promise.all([
+            listPregnancyChecksByMare(mare.id),
+            listFoalingRecordsByMare(mare.id),
+          ]);
+
+          const currentCheck = findCurrentPregnancyCheck(checks, foalings);
+          if (!currentCheck) {
+            return;
           }
+
+          const [breedingRecord, dailyLogs] = await Promise.all([
+            getBreedingRecordById(currentCheck.breedingRecordId),
+            listDailyLogsByMare(mare.id),
+          ]);
+
+          nextPregnantInfo.set(
+            mare.id,
+            buildPregnancyInfoForCheck(currentCheck, dailyLogs, breedingRecord, today)
+          );
         })
       );
-      setPregnantMareIds(pregnant);
+      setPregnantInfo(nextPregnantInfo);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load mares.';
       setError(message);
@@ -149,8 +173,23 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
                 <Text style={styles.rowTitle}>{item.name}</Text>
                 <Text style={styles.rowSubtitle}>{item.breed}</Text>
                 {age !== null ? <Text style={styles.rowMeta}>Age {age}</Text> : null}
-                {pregnantMareIds.has(item.id) ? (
-                  <StatusBadge label="Pregnant" backgroundColor={colors.pregnant} textColor="#fff" />
+                {pregnantInfo.has(item.id) ? (
+                  <>
+                    <StatusBadge label="Pregnant" backgroundColor={colors.pregnant} textColor="#fff" />
+                    {(() => {
+                      const pregnancy = pregnantInfo.get(item.id)!;
+                      const parts: string[] = [];
+                      if (pregnancy.daysPostOvulation !== null) {
+                        parts.push(`DPO ${pregnancy.daysPostOvulation}`);
+                      }
+                      if (pregnancy.estimatedDueDate) {
+                        parts.push(`Due ${formatLocalDate(pregnancy.estimatedDueDate, 'MM-DD-YYYY')}`);
+                      }
+                      return parts.length > 0 ? (
+                        <Text style={styles.rowMeta}>{parts.join(' | ')}</Text>
+                      ) : null;
+                    })()}
+                  </>
                 ) : null}
               </View>
               {isSelected ? (

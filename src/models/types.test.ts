@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { calculateDaysPostBreeding, estimateFoalingDate, findMostRecentOvulationDate } from './types';
-import type { DailyLog } from './types';
+import {
+  calculateDaysPostBreeding,
+  estimateFoalingDate,
+  findCurrentPregnancyCheck,
+  findMostRecentOvulationDate,
+  buildPregnancyInfoForCheck,
+} from './types';
+import type { BreedingRecord, DailyLog, FoalingRecord, PregnancyCheck } from './types';
 
 describe('estimateFoalingDate', () => {
   it('adds 340 days to the breeding date', () => {
@@ -104,5 +110,141 @@ describe('findMostRecentOvulationDate', () => {
       makeDailyLog({ date: '2026-03-20', ovulationDetected: true }),
     ];
     expect(findMostRecentOvulationDate(logs, '2026-03-15')).toBe('2026-03-12');
+  });
+});
+
+function makePregnancyCheck(
+  overrides: Partial<PregnancyCheck> & { date: string }
+): PregnancyCheck {
+  return {
+    id: overrides.id ?? `check-${overrides.date}`,
+    mareId: overrides.mareId ?? 'mare-1',
+    breedingRecordId: overrides.breedingRecordId ?? 'br-1',
+    date: overrides.date,
+    result: overrides.result ?? 'positive',
+    heartbeatDetected: overrides.heartbeatDetected ?? null,
+    notes: overrides.notes ?? null,
+    createdAt: overrides.createdAt ?? '2026-01-01T00:00:00Z',
+    updatedAt: overrides.updatedAt ?? '2026-01-01T00:00:00Z',
+  };
+}
+
+function makeFoalingRecord(
+  overrides: Partial<FoalingRecord> & { date: string }
+): FoalingRecord {
+  return {
+    id: overrides.id ?? `foal-${overrides.date}`,
+    mareId: overrides.mareId ?? 'mare-1',
+    breedingRecordId: overrides.breedingRecordId ?? null,
+    date: overrides.date,
+    outcome: overrides.outcome ?? 'liveFoal',
+    foalSex: overrides.foalSex ?? null,
+    complications: overrides.complications ?? null,
+    notes: overrides.notes ?? null,
+    createdAt: overrides.createdAt ?? '2026-01-01T00:00:00Z',
+    updatedAt: overrides.updatedAt ?? '2026-01-01T00:00:00Z',
+  };
+}
+
+function makeBreedingRecord(
+  overrides: Partial<BreedingRecord> & { date: string }
+): BreedingRecord {
+  return {
+    id: overrides.id ?? `br-${overrides.date}`,
+    mareId: overrides.mareId ?? 'mare-1',
+    stallionId: overrides.stallionId ?? 'stallion-1',
+    stallionName: overrides.stallionName ?? null,
+    date: overrides.date,
+    method: overrides.method ?? 'liveCover',
+    notes: overrides.notes ?? null,
+    volumeMl: overrides.volumeMl ?? null,
+    concentrationMPerMl: overrides.concentrationMPerMl ?? null,
+    motilityPercent: overrides.motilityPercent ?? null,
+    numberOfStraws: overrides.numberOfStraws ?? null,
+    strawVolumeMl: overrides.strawVolumeMl ?? null,
+    strawDetails: overrides.strawDetails ?? null,
+    collectionDate: overrides.collectionDate ?? null,
+    createdAt: overrides.createdAt ?? '2026-01-01T00:00:00Z',
+    updatedAt: overrides.updatedAt ?? '2026-01-01T00:00:00Z',
+  };
+}
+
+describe('findCurrentPregnancyCheck', () => {
+  it('returns null when there are no checks', () => {
+    expect(findCurrentPregnancyCheck([], [])).toBeNull();
+  });
+
+  it('returns null when the latest check is negative', () => {
+    const checks = [
+      makePregnancyCheck({ id: 'older-positive', date: '2026-05-10', result: 'positive' }),
+      makePregnancyCheck({ id: 'latest-negative', date: '2026-05-20', result: 'negative' }),
+    ];
+
+    expect(findCurrentPregnancyCheck(checks, [])).toBeNull();
+  });
+
+  it('breaks same-day ties by updatedAt so latest is deterministic', () => {
+    const checks = [
+      makePregnancyCheck({
+        id: 'positive-earlier',
+        date: '2026-05-20',
+        result: 'positive',
+        updatedAt: '2026-05-20T09:00:00Z',
+      }),
+      makePregnancyCheck({
+        id: 'negative-later',
+        date: '2026-05-20',
+        result: 'negative',
+        updatedAt: '2026-05-20T10:00:00Z',
+      }),
+    ];
+
+    expect(findCurrentPregnancyCheck(checks, [])).toBeNull();
+  });
+
+  it('returns null when a foaling record exists on or after the positive check date', () => {
+    const checks = [makePregnancyCheck({ date: '2026-05-20', result: 'positive' })];
+    const foalings = [makeFoalingRecord({ date: '2026-05-20' })];
+
+    expect(findCurrentPregnancyCheck(checks, foalings)).toBeNull();
+  });
+
+  it('returns the latest positive check when no foaling supersedes it', () => {
+    const checks = [
+      makePregnancyCheck({ id: 'older', date: '2026-05-10', result: 'positive' }),
+      makePregnancyCheck({ id: 'latest', date: '2026-05-20', result: 'positive' }),
+    ];
+
+    expect(findCurrentPregnancyCheck(checks, [])?.id).toBe('latest');
+  });
+});
+
+describe('buildPregnancyInfoForCheck', () => {
+  it('uses the most recent ovulation on or before the check date, not a later ovulation', () => {
+    const check = makePregnancyCheck({ date: '2026-05-20', result: 'positive' });
+    const dailyLogs = [
+      makeDailyLog({ date: '2026-05-18', ovulationDetected: true }),
+      makeDailyLog({ date: '2026-05-25', ovulationDetected: true }),
+    ];
+    const breedingRecord = makeBreedingRecord({ date: '2026-05-10' });
+
+    expect(
+      buildPregnancyInfoForCheck(check, dailyLogs, breedingRecord, '2026-06-01')
+    ).toEqual({
+      daysPostOvulation: 14,
+      estimatedDueDate: '2027-04-15',
+    });
+  });
+
+  it('returns a null due date when the breeding record is missing', () => {
+    const check = makePregnancyCheck({ date: '2026-05-20', result: 'positive' });
+    const dailyLogs = [makeDailyLog({ date: '2026-05-18', ovulationDetected: true })];
+
+    expect(
+      buildPregnancyInfoForCheck(check, dailyLogs, null, '2026-06-01')
+    ).toEqual({
+      daysPostOvulation: 14,
+      estimatedDueDate: null,
+    });
   });
 });
