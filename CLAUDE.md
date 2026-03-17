@@ -34,6 +34,7 @@ Recent UX/domain decisions reflected in code:
 - Pregnancy check cards show days post-ovulation (when ovulation logs exist on or before check date) and estimated due date (positive results only).
 - Date arithmetic (`calculateDaysPostBreeding`, `estimateFoalingDate`) uses UTC to avoid DST off-by-one bugs.
 - `findMostRecentOvulationDate` scans daily logs for the latest ovulation on or before a given date.
+- Breeding method enum values are formatted for display via `formatBreedingMethod` in `src/utils/outcomeDisplay.ts` (e.g. `frozenAI` → `Frozen AI`).
 
 ## Tech Stack
 
@@ -63,6 +64,7 @@ Recent UX/domain decisions reflected in code:
 - Validation/date helpers: `src/utils/validation.ts`, `src/utils/dates.ts`
 - Theme: `src/theme.ts`
 - Score colors: `src/utils/scoreColors.ts`
+- Display formatters: `src/utils/outcomeDisplay.ts` (foaling outcomes, breeding methods)
 - Onboarding: `src/utils/onboarding.ts`
 - ID generation: `src/utils/id.ts`
 
