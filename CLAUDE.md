@@ -25,9 +25,15 @@ Recent UX/domain decisions reflected in code:
 - Stallion form no longer shows `registration #` field in UI.
 - Mare DOB is displayed in forms as `MM-DD-YYYY` (stored as `YYYY-MM-DD`).
 - Daily log "None" choice for teasing/edema is labeled `N/A`.
-- Mare detail rows use a pencil edit button; delete actions are on edit screens.
+- Edit actions use pencil icon (`✎`) via `IconButton` throughout (mare detail header, record cards, home screen mare list).
 - Frozen AI includes optional `Straw Volume (mL)`.
 - `Straw Volume (mL)` is constrained to optional 2-digit integer (`0-99`).
+- Foaling outcome options: Live Foal, Stillbirth, Aborted (no "Unknown").
+- Home screen shows "Pregnant" `StatusBadge` on mares with positive latest pregnancy check (derived at load time, not stored).
+- Mare detail tab empty states show only text message; the `PrimaryButton` at top of each tab serves as the add action.
+- Pregnancy check cards show days post-ovulation (when ovulation logs exist on or before check date) and estimated due date (positive results only).
+- Date arithmetic (`calculateDaysPostBreeding`, `estimateFoalingDate`) uses UTC to avoid DST off-by-one bugs.
+- `findMostRecentOvulationDate` scans daily logs for the latest ovulation on or before a given date.
 
 ## Tech Stack
 

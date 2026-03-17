@@ -6,7 +6,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IconButton, PrimaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { formatOutcome, getOutcomeColor } from '@/utils/outcomeDisplay';
+import { formatBreedingMethod, formatOutcome, getOutcomeColor } from '@/utils/outcomeDisplay';
 import { getScoreColors } from '@/utils/scoreColors';
 import { BreedingRecord, DailyLog, FoalingRecord, Mare, PregnancyCheck, calculateDaysPostBreeding, estimateFoalingDate, findMostRecentOvulationDate } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -167,7 +167,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                   navigation.navigate('BreedingRecordForm', { mareId, breedingRecordId: record.id })
                 )}
               </View>
-              {renderCardRow('Method', record.method)}
+              {renderCardRow('Method', formatBreedingMethod(record.method))}
               {renderCardRow('Stallion', record.stallionName ?? stallionNameById[record.stallionId ?? ''] ?? 'Unknown')}
               {record.collectionDate ? renderCardRow('Collection', record.collectionDate) : null}
             </View>
