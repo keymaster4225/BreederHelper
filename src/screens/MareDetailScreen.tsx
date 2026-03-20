@@ -248,9 +248,11 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             </View>
             <View style={styles.cardRow}>
               <Text style={styles.cardLabel}>Outcome</Text>
-              <Text style={[styles.cardValue, { color: getOutcomeColor(record.outcome) }]}>
-                {formatOutcome(record.outcome)}
-              </Text>
+              <StatusBadge
+                label={formatOutcome(record.outcome)}
+                backgroundColor={getOutcomeColor(record.outcome)}
+                textColor="#FFFFFF"
+              />
             </View>
             {renderCardRow('Foal sex', record.foalSex ?? '-')}
             {record.complications ? renderCardRow('Complications', record.complications) : null}
