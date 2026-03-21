@@ -10,6 +10,7 @@ import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   createFoalingRecord,
   deleteFoalingRecord,
+  getFoalByFoalingRecordId,
   getFoalingRecordById,
   listBreedingRecordsByMare,
   updateFoalingRecord,
@@ -47,6 +48,8 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
   const [foalSex, setFoalSex] = useState<FoalSex | null>(null);
   const [complications, setComplications] = useState('');
   const [notes, setNotes] = useState('');
+  const [hasFoal, setHasFoal] = useState(false);
+  const [originalOutcome, setOriginalOutcome] = useState<FoalingOutcome | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -62,8 +65,9 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
     Promise.all([
       listBreedingRecordsByMare(mareId),
       foalingRecordId ? getFoalingRecordById(foalingRecordId) : Promise.resolve(null),
+      foalingRecordId ? getFoalByFoalingRecordId(foalingRecordId) : Promise.resolve(null),
     ])
-      .then(([records, existing]) => {
+      .then(([records, existing, existingFoal]) => {
         if (!mounted) {
           return;
         }
@@ -79,11 +83,13 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
           ...records.map((record) => ({ label: `${record.date} (${record.method})`, value: record.id })),
         ];
         setBreedingOptions(options);
+        setHasFoal(Boolean(existingFoal));
 
         if (existing) {
           setBreedingRecordId(existing.breedingRecordId ?? '');
           setDate(existing.date);
           setOutcome(existing.outcome);
+          setOriginalOutcome(existing.outcome);
           setFoalSex(existing.foalSex ?? null);
           setComplications(existing.complications ?? '');
           setNotes(existing.notes ?? '');
@@ -119,6 +125,14 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
       return;
     }
 
+    if (hasFoal && originalOutcome === 'liveFoal' && outcome !== 'liveFoal') {
+      Alert.alert(
+        'Cannot change outcome',
+        'This foaling record already has a foal record. Delete the foal record before changing the outcome.'
+      );
+      return;
+    }
+
     setIsSaving(true);
     try {
       const payload = {
@@ -147,6 +161,14 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
 
   const onDelete = (): void => {
     if (!foalingRecordId) {
+      return;
+    }
+
+    if (hasFoal) {
+      Alert.alert(
+        'Cannot delete',
+        'This foaling record has a foal record. Delete the foal record first.'
+      );
       return;
     }
 

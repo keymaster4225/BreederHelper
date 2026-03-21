@@ -188,6 +188,31 @@ const migration004 = `
 ALTER TABLE daily_logs ADD COLUMN ovulation_detected INTEGER;
 `;
 
+const migration005 = `
+CREATE TABLE IF NOT EXISTS foals (
+  id TEXT PRIMARY KEY,
+  foaling_record_id TEXT NOT NULL UNIQUE,
+  name TEXT,
+  sex TEXT CHECK (sex IS NULL OR sex IN ('colt', 'filly', 'unknown')),
+  color TEXT CHECK (color IS NULL OR color IN (
+    'bay', 'chestnut', 'black', 'gray', 'palomino', 'buckskin',
+    'roan', 'pintoPaint', 'sorrel', 'dun', 'cremello', 'other'
+  )),
+  markings TEXT,
+  birth_weight_lbs REAL CHECK (birth_weight_lbs IS NULL OR birth_weight_lbs > 0),
+  milestones TEXT NOT NULL DEFAULT '{}',
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (foaling_record_id) REFERENCES foaling_records(id)
+    ON UPDATE CASCADE
+    ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_foals_foaling_record_id
+  ON foals (foaling_record_id);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -210,6 +235,11 @@ const migrations: Migration[] = [
     name: '004_add_ovulation_detected',
     statements: splitStatements(migration004),
     shouldSkip: async (db) => hasColumn(db, 'daily_logs', 'ovulation_detected'),
+  },
+  {
+    id: 5,
+    name: '005_create_foals',
+    statements: splitStatements(migration005),
   },
 ];
 

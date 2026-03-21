@@ -14,6 +14,50 @@ export type FoalingOutcome = 'liveFoal' | 'stillbirth' | 'aborted' | 'unknown';
 
 export type FoalSex = 'colt' | 'filly' | 'unknown';
 
+export type FoalColor =
+  | 'bay'
+  | 'chestnut'
+  | 'black'
+  | 'gray'
+  | 'palomino'
+  | 'buckskin'
+  | 'roan'
+  | 'pintoPaint'
+  | 'sorrel'
+  | 'dun'
+  | 'cremello'
+  | 'other';
+
+export type FoalMilestoneKey =
+  | 'stood'
+  | 'nursed'
+  | 'passedMeconium'
+  | 'iggTested'
+  | 'enemaGiven'
+  | 'umbilicalTreated'
+  | 'firstVetCheck';
+
+export interface FoalMilestoneEntry {
+  done: boolean;
+  recordedAt?: ISODateTime | null;
+}
+
+export type FoalMilestones = Partial<Record<FoalMilestoneKey, FoalMilestoneEntry>>;
+
+export interface Foal {
+  id: UUID;
+  foalingRecordId: UUID;
+  name?: string | null;
+  sex?: FoalSex | null;
+  color?: FoalColor | null;
+  markings?: string | null;
+  birthWeightLbs?: number | null;
+  milestones: FoalMilestones;
+  notes?: string | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
 export interface Mare {
   id: UUID;
   name: string;

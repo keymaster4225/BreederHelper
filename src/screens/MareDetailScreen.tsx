@@ -6,15 +6,16 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IconButton, PrimaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { formatBreedingMethod, formatOutcome, getOutcomeColor } from '@/utils/outcomeDisplay';
+import { formatBreedingMethod, formatFoalSex, formatFoalColor, formatOutcome, getOutcomeColor } from '@/utils/outcomeDisplay';
 import { getScoreColors } from '@/utils/scoreColors';
-import { BreedingRecord, DailyLog, FoalingRecord, Mare, PregnancyCheck, calculateDaysPostBreeding, estimateFoalingDate, findMostRecentOvulationDate } from '@/models/types';
+import { BreedingRecord, DailyLog, Foal, FoalingRecord, Mare, PregnancyCheck, calculateDaysPostBreeding, estimateFoalingDate, findMostRecentOvulationDate } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   getMareById,
   listBreedingRecordsByMare,
   listDailyLogsByMare,
   listFoalingRecordsByMare,
+  listFoalsByMare,
   listPregnancyChecksByMare,
   listStallions,
 } from '@/storage/repositories';
@@ -39,6 +40,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
   const [pregnancyChecks, setPregnancyChecks] = useState<PregnancyCheck[]>([]);
   const [foalingRecords, setFoalingRecords] = useState<FoalingRecord[]>([]);
+  const [foalByFoalingRecordId, setFoalByFoalingRecordId] = useState<Record<string, Foal>>({});
   const [stallionNameById, setStallionNameById] = useState<Record<string, string>>({});
   const [activeTab, setActiveTab] = useState<DetailTab>('dailyLogs');
   const [isLoading, setIsLoading] = useState(true);
@@ -49,12 +51,13 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
       setIsLoading(true);
       setError(null);
 
-      const [mareRecord, logs, breeding, checks, foaling, stallions] = await Promise.all([
+      const [mareRecord, logs, breeding, checks, foaling, foals, stallions] = await Promise.all([
         getMareById(mareId),
         listDailyLogsByMare(mareId),
         listBreedingRecordsByMare(mareId),
         listPregnancyChecksByMare(mareId),
         listFoalingRecordsByMare(mareId),
+        listFoalsByMare(mareId),
         listStallions(),
       ]);
 
@@ -65,12 +68,14 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
       }
 
       const stallionMap = Object.fromEntries(stallions.map((stallion) => [stallion.id, stallion.name]));
+      const foalMap = Object.fromEntries(foals.map((foal) => [foal.foalingRecordId, foal]));
 
       setMare(mareRecord);
       setDailyLogs(logs);
       setBreedingRecords(breeding);
       setPregnancyChecks(checks);
       setFoalingRecords(foaling);
+      setFoalByFoalingRecordId(foalMap);
       setStallionNameById(stallionMap);
 
       navigation.setOptions({ title: mareRecord.name });
@@ -238,26 +243,67 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
               <Text style={styles.emptyText}>No foaling records yet.</Text>
             </View>
           ) : null}
-        {foalingRecords.map((record) => (
-          <View key={record.id} style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>{record.date}</Text>
-              {renderEditIconButton(() =>
-                navigation.navigate('FoalingRecordForm', { mareId, foalingRecordId: record.id })
+        {foalingRecords.map((record) => {
+          const isLiveFoal = record.outcome === 'liveFoal';
+          const foal = foalByFoalingRecordId[record.id];
+
+          const cardBody = (
+            <>
+              <View style={styles.cardRow}>
+                <Text style={styles.cardLabel}>Outcome</Text>
+                <StatusBadge
+                  label={formatOutcome(record.outcome)}
+                  backgroundColor={getOutcomeColor(record.outcome)}
+                  textColor="#FFFFFF"
+                />
+              </View>
+              {renderCardRow('Foal sex', record.foalSex ?? '-')}
+              {record.complications ? renderCardRow('Complications', record.complications) : null}
+              {isLiveFoal ? (
+                foal ? (
+                  <View style={styles.foalSummary}>
+                    <Text style={styles.foalName}>{foal.name || 'Unnamed foal'}</Text>
+                    {(foal.sex || foal.color) ? (
+                      <Text style={styles.foalDetail}>
+                        {[foal.sex ? formatFoalSex(foal.sex) : null, foal.color ? formatFoalColor(foal.color) : null].filter(Boolean).join(' - ')}
+                      </Text>
+                    ) : null}
+                  </View>
+                ) : (
+                  <Text style={styles.foalHint}>Tap to add foal record</Text>
+                )
+              ) : null}
+            </>
+          );
+
+          return (
+            <View key={record.id} style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>{record.date}</Text>
+                {renderEditIconButton(() =>
+                  navigation.navigate('FoalingRecordForm', { mareId, foalingRecordId: record.id })
+                )}
+              </View>
+              {isLiveFoal ? (
+                <Pressable
+                  onPress={() =>
+                    navigation.navigate('FoalForm', {
+                      mareId,
+                      foalingRecordId: record.id,
+                      foalId: foal?.id,
+                      defaultSex: record.foalSex,
+                    })
+                  }
+                  style={({ pressed }) => pressed ? { opacity: 0.85 } : undefined}
+                >
+                  {cardBody}
+                </Pressable>
+              ) : (
+                cardBody
               )}
             </View>
-            <View style={styles.cardRow}>
-              <Text style={styles.cardLabel}>Outcome</Text>
-              <StatusBadge
-                label={formatOutcome(record.outcome)}
-                backgroundColor={getOutcomeColor(record.outcome)}
-                textColor="#FFFFFF"
-              />
-            </View>
-            {renderCardRow('Foal sex', record.foalSex ?? '-')}
-            {record.complications ? renderCardRow('Complications', record.complications) : null}
-          </View>
-        ))}
+          );
+        })}
       </View>
     );
   };
@@ -396,5 +442,23 @@ const styles = StyleSheet.create({
   errorText: {
     color: colors.error,
     marginBottom: spacing.sm,
+  },
+  foalSummary: {
+    marginTop: spacing.xs,
+    gap: 2,
+  },
+  foalName: {
+    color: colors.onSurface,
+    ...typography.bodyMedium,
+    fontWeight: '600',
+  },
+  foalDetail: {
+    color: colors.onSurfaceVariant,
+    ...typography.bodySmall,
+  },
+  foalHint: {
+    color: colors.primary,
+    marginTop: spacing.xs,
+    ...typography.bodySmall,
   },
 });

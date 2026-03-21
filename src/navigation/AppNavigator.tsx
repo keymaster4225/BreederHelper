@@ -9,6 +9,9 @@ import { StallionManagementScreen } from '@/screens/StallionManagementScreen';
 import { BreedingRecordFormScreen } from '@/screens/BreedingRecordFormScreen';
 import { PregnancyCheckFormScreen } from '@/screens/PregnancyCheckFormScreen';
 import { FoalingRecordFormScreen } from '@/screens/FoalingRecordFormScreen';
+import { FoalFormScreen } from '@/screens/FoalFormScreen';
+
+import { FoalSex } from '@/models/types';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -19,6 +22,7 @@ export type RootStackParamList = {
   BreedingRecordForm: { mareId: string; breedingRecordId?: string };
   PregnancyCheckForm: { mareId: string; pregnancyCheckId?: string };
   FoalingRecordForm: { mareId: string; foalingRecordId?: string };
+  FoalForm: { mareId: string; foalingRecordId: string; foalId?: string; defaultSex?: FoalSex | null };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -35,6 +39,7 @@ export function AppNavigator(): JSX.Element {
         <Stack.Screen name="BreedingRecordForm" component={BreedingRecordFormScreen} options={{ title: 'Breeding Record' }} />
         <Stack.Screen name="PregnancyCheckForm" component={PregnancyCheckFormScreen} options={{ title: 'Pregnancy Check' }} />
         <Stack.Screen name="FoalingRecordForm" component={FoalingRecordFormScreen} options={{ title: 'Foaling Record' }} />
+        <Stack.Screen name="FoalForm" component={FoalFormScreen} options={{ title: 'Foal Record' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

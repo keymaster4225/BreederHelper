@@ -20,3 +20,28 @@ export function formatOutcome(outcome: string): string {
   if (outcome === 'aborted') return 'Aborted';
   return 'Unknown';
 }
+
+export function formatFoalColor(color: string): string {
+  const map: Record<string, string> = {
+    bay: 'Bay',
+    chestnut: 'Chestnut',
+    black: 'Black',
+    gray: 'Gray',
+    palomino: 'Palomino',
+    buckskin: 'Buckskin',
+    roan: 'Roan',
+    pintoPaint: 'Pinto/Paint',
+    sorrel: 'Sorrel',
+    dun: 'Dun',
+    cremello: 'Cremello',
+    other: 'Other',
+  };
+  return map[color] ?? color;
+}
+
+export function formatFoalSex(sex: string): string {
+  if (sex === 'colt') return 'Colt';
+  if (sex === 'filly') return 'Filly';
+  if (sex === 'unknown') return 'Unknown';
+  return sex;
+}

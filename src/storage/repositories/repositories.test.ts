@@ -8,16 +8,23 @@ import { getDb } from '@/storage/db';
 import {
   createBreedingRecord,
   createDailyLog,
+  createFoal,
   createFoalingRecord,
   createPregnancyCheck,
   createStallion,
   deleteBreedingRecord,
   deleteDailyLog,
+  deleteFoal,
   getBreedingRecordById,
   getDailyLogById,
+  getFoalByFoalingRecordId,
+  getFoalById,
   getFoalingRecordById,
   getPregnancyCheckById,
+  listFoalsByMare,
+  parseFoalMilestones,
   updateDailyLog,
+  updateFoal,
 } from '@/storage/repositories/queries';
 import { createMare, getMareById, listMares, softDeleteMare, updateMare } from '@/storage/repositories/mares';
 
@@ -106,6 +113,20 @@ type FoalingRecordRow = {
   updated_at: string;
 };
 
+type FoalRow = {
+  id: string;
+  foaling_record_id: string;
+  name: string | null;
+  sex: string | null;
+  color: string | null;
+  markings: string | null;
+  birth_weight_lbs: number | null;
+  milestones: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type FakeDb = {
   runAsync: (sql: string, params?: unknown[]) => Promise<void>;
   getFirstAsync: <T>(sql: string, params?: unknown[]) => Promise<T | null>;
@@ -124,6 +145,7 @@ function createFakeDb(): FakeDb {
   const pregnancyChecks = new Map<string, PregnancyCheckRow>();
 
   const foalingRecords = new Map<string, FoalingRecordRow>();
+  const foals = new Map<string, FoalRow>();
 
   return {
     async runAsync(sql: string, params: unknown[] = []): Promise<void> {
@@ -412,6 +434,54 @@ function createFakeDb(): FakeDb {
         return;
       }
 
+      if (stmt.startsWith('insert into foals')) {
+        const [id, foalingRecordId, name, sex, color, markings, birthWeightLbs, milestones, notes, createdAt, updatedAt] =
+          params as [string, string, string | null, string | null, string | null, string | null, number | null, string, string | null, string, string];
+        const duplicate = Array.from(foals.values()).some((f) => f.foaling_record_id === foalingRecordId);
+        if (duplicate) {
+          throw new Error('UNIQUE constraint failed: foals.foaling_record_id');
+        }
+        foals.set(id, {
+          id,
+          foaling_record_id: foalingRecordId,
+          name,
+          sex,
+          color,
+          markings,
+          birth_weight_lbs: birthWeightLbs,
+          milestones,
+          notes,
+          created_at: createdAt,
+          updated_at: updatedAt,
+        });
+        return;
+      }
+
+      if (stmt.startsWith('update foals set')) {
+        const [name, sex, color, markings, birthWeightLbs, milestones, notes, updatedAt, id] =
+          params as [string | null, string | null, string | null, string | null, number | null, string, string | null, string, string];
+        const existing = foals.get(id);
+        if (!existing) return;
+        foals.set(id, {
+          ...existing,
+          name,
+          sex,
+          color,
+          markings,
+          birth_weight_lbs: birthWeightLbs,
+          milestones,
+          notes,
+          updated_at: updatedAt,
+        });
+        return;
+      }
+
+      if (stmt.startsWith('delete from foals')) {
+        const [id] = params as [string];
+        foals.delete(id);
+        return;
+      }
+
       if (stmt.startsWith('delete from breeding_records')) {
         const [id] = params as [string];
         const referenced = Array.from(pregnancyChecks.values()).some((row) => row.breeding_record_id === id);
@@ -451,6 +521,17 @@ function createFakeDb(): FakeDb {
         return (breedingRecords.get(id) as T | undefined) ?? null;
       }
 
+      if (stmt.includes('from foals') && stmt.includes('where id = ?')) {
+        const [id] = params as [string];
+        return (foals.get(id) as T | undefined) ?? null;
+      }
+
+      if (stmt.includes('from foals') && stmt.includes('where foaling_record_id = ?')) {
+        const [foalingRecordId] = params as [string];
+        const match = Array.from(foals.values()).find((f) => f.foaling_record_id === foalingRecordId);
+        return (match as T | undefined) ?? null;
+      }
+
       return null;
     },
 
@@ -471,6 +552,18 @@ function createFakeDb(): FakeDb {
         const values = Array.from(dailyLogs.values())
           .filter((row) => row.mare_id === mareId)
           .sort((a, b) => b.date.localeCompare(a.date));
+        return values as T[];
+      }
+
+      if (stmt.includes('from foals') && stmt.includes('mare_id = ?')) {
+        const [mareId] = params as [string];
+        const foalingRecordIds = new Set(
+          Array.from(foalingRecords.values())
+            .filter((fr) => fr.mare_id === mareId)
+            .map((fr) => fr.id)
+        );
+        const values = Array.from(foals.values())
+          .filter((f) => foalingRecordIds.has(f.foaling_record_id));
         return values as T[];
       }
 
@@ -672,6 +765,149 @@ describe('repository smoke tests', () => {
     const log = await getDailyLogById('log-ov4');
     expect(log).not.toBeNull();
     expect(log?.ovulationDetected).toBe(true);
+  });
+
+  it('supports foal create/get/update/delete flow', async () => {
+    await createMare({ id: 'mare-foal1', name: 'Stella', breed: 'Thoroughbred' });
+    await createFoalingRecord({
+      id: 'fr-foal1',
+      mareId: 'mare-foal1',
+      date: '2026-04-01',
+      outcome: 'liveFoal',
+      foalSex: 'colt',
+    });
+
+    await createFoal({
+      id: 'foal-1',
+      foalingRecordId: 'fr-foal1',
+      name: 'Starlight',
+      sex: 'colt',
+      color: 'bay',
+      birthWeightLbs: 85,
+      milestones: { stood: { done: true, recordedAt: '2026-04-01T02:00:00Z' } },
+    });
+
+    const created = await getFoalById('foal-1');
+    expect(created).not.toBeNull();
+    expect(created?.name).toBe('Starlight');
+    expect(created?.sex).toBe('colt');
+    expect(created?.color).toBe('bay');
+    expect(created?.birthWeightLbs).toBe(85);
+    expect(created?.milestones.stood?.done).toBe(true);
+
+    await updateFoal('foal-1', {
+      name: 'Starlight Jr',
+      sex: 'colt',
+      color: 'chestnut',
+      birthWeightLbs: 90,
+      milestones: { stood: { done: true, recordedAt: '2026-04-01T02:00:00Z' }, nursed: { done: true, recordedAt: '2026-04-01T03:00:00Z' } },
+    });
+
+    const updated = await getFoalById('foal-1');
+    expect(updated?.name).toBe('Starlight Jr');
+    expect(updated?.color).toBe('chestnut');
+    expect(updated?.milestones.nursed?.done).toBe(true);
+
+    await deleteFoal('foal-1');
+    const deleted = await getFoalById('foal-1');
+    expect(deleted).toBeNull();
+  });
+
+  it('gets foal by foaling record id', async () => {
+    await createMare({ id: 'mare-foal2', name: 'Luna', breed: 'Arabian' });
+    await createFoalingRecord({
+      id: 'fr-foal2',
+      mareId: 'mare-foal2',
+      date: '2026-05-01',
+      outcome: 'liveFoal',
+    });
+
+    await createFoal({
+      id: 'foal-2',
+      foalingRecordId: 'fr-foal2',
+      milestones: {},
+    });
+
+    const foal = await getFoalByFoalingRecordId('fr-foal2');
+    expect(foal).not.toBeNull();
+    expect(foal?.id).toBe('foal-2');
+
+    const noFoal = await getFoalByFoalingRecordId('nonexistent');
+    expect(noFoal).toBeNull();
+  });
+
+  it('lists foals by mare', async () => {
+    await createMare({ id: 'mare-foal3', name: 'Misty', breed: 'Warmblood' });
+    await createFoalingRecord({
+      id: 'fr-foal3a',
+      mareId: 'mare-foal3',
+      date: '2025-04-01',
+      outcome: 'liveFoal',
+      foalSex: 'filly',
+    });
+    await createFoalingRecord({
+      id: 'fr-foal3b',
+      mareId: 'mare-foal3',
+      date: '2026-04-01',
+      outcome: 'liveFoal',
+      foalSex: 'colt',
+    });
+    await createFoal({ id: 'foal-3a', foalingRecordId: 'fr-foal3a', name: 'First', milestones: {} });
+    await createFoal({ id: 'foal-3b', foalingRecordId: 'fr-foal3b', name: 'Second', milestones: {} });
+
+    const foals = await listFoalsByMare('mare-foal3');
+    expect(foals).toHaveLength(2);
+  });
+
+  it('duplicate foal for same foaling record fails', async () => {
+    await createMare({ id: 'mare-foal4', name: 'Daisy', breed: 'Thoroughbred' });
+    await createFoalingRecord({
+      id: 'fr-foal4',
+      mareId: 'mare-foal4',
+      date: '2026-06-01',
+      outcome: 'liveFoal',
+    });
+
+    await createFoal({ id: 'foal-4a', foalingRecordId: 'fr-foal4', milestones: {} });
+    await expect(
+      createFoal({ id: 'foal-4b', foalingRecordId: 'fr-foal4', milestones: {} })
+    ).rejects.toThrow('UNIQUE constraint failed');
+  });
+
+  it('parseFoalMilestones returns {} for invalid JSON', () => {
+    expect(parseFoalMilestones('not json')).toEqual({});
+    expect(parseFoalMilestones('null')).toEqual({});
+    expect(parseFoalMilestones('[]')).toEqual({});
+  });
+
+  it('parseFoalMilestones ignores unknown keys and malformed entries', () => {
+    const input = JSON.stringify({
+      stood: { done: true, recordedAt: '2026-04-01T02:00:00Z' },
+      unknownKey: { done: true },
+      nursed: { done: 'yes' },
+      iggTested: { done: false },
+    });
+    const result = parseFoalMilestones(input);
+    expect(result.stood?.done).toBe(true);
+    expect(result.stood?.recordedAt).toBe('2026-04-01T02:00:00Z');
+    expect(result).not.toHaveProperty('unknownKey');
+    expect(result).not.toHaveProperty('nursed');
+    expect(result.iggTested?.done).toBe(false);
+  });
+
+  it('foal with null name reads back as null', async () => {
+    await createMare({ id: 'mare-foal5', name: 'Penny', breed: 'Quarter Horse' });
+    await createFoalingRecord({
+      id: 'fr-foal5',
+      mareId: 'mare-foal5',
+      date: '2026-07-01',
+      outcome: 'liveFoal',
+    });
+    await createFoal({ id: 'foal-5', foalingRecordId: 'fr-foal5', milestones: {} });
+
+    const foal = await getFoalById('foal-5');
+    expect(foal).not.toBeNull();
+    expect(foal?.name).toBeNull();
   });
 
   it('blocks breeding record delete when pregnancy checks reference it', async () => {

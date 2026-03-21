@@ -17,6 +17,7 @@ Implemented and working:
 - Breeding records: create/edit/delete
 - Pregnancy checks: create/edit/delete
 - Foaling records: create/edit/delete
+- Foal records: create/edit/delete (linked 1:1 to foaling records)
 - Mare detail tabs for Daily Logs, Breeding, Pregnancy, Foaling
 - SQLite migrations + repository layer
 - Typecheck/test CI and local Vitest coverage
@@ -35,6 +36,17 @@ Recent UX/domain decisions reflected in code:
 - Date arithmetic (`calculateDaysPostBreeding`, `estimateFoalingDate`) uses UTC to avoid DST off-by-one bugs.
 - `findMostRecentOvulationDate` scans daily logs for the latest ovulation on or before a given date.
 - Breeding method enum values are formatted for display via `formatBreedingMethod` in `src/utils/outcomeDisplay.ts` (e.g. `frozenAI` → `Frozen AI`).
+- Foal records are linked 1:1 to foaling records via `foaling_record_id` UNIQUE constraint (migration 005).
+- Foal name is optional; unnamed foals display as "Unnamed foal" on mare detail cards.
+- Live foal cards on mare detail are tappable (navigate to FoalFormScreen); non-live-foal cards are not.
+- Pencil icon on foaling cards still edits the foaling record, not the foal.
+- Foal milestones (7 keys: stood, nursed, passedMeconium, iggTested, enemaGiven, umbilicalTreated, firstVetCheck) stored as JSON TEXT in `milestones` column; parsed/validated by `parseFoalMilestones`.
+- `placentaPassed` is excluded from foal milestones (it is a mare event).
+- Foal sex initializes from `FoalingRecord.foalSex` on create but does not back-sync on edit (documented temporary duplication).
+- Milestone `recordedAt` timestamps auto-set on first check, preserved on subsequent edits.
+- Deleting a foaling record is proactively blocked when a foal exists (checked before delete attempt, not relying on FK error).
+- Changing foaling outcome away from `liveFoal` is blocked when a foal record exists.
+- Display formatters: `formatFoalColor`, `formatFoalSex` in `src/utils/outcomeDisplay.ts`; milestone labels in `src/utils/foalMilestones.ts`.
 
 ## Tech Stack
 
