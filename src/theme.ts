@@ -1,35 +1,35 @@
 /**
  * Mare Tracker / BreedWise Theme
  *
- * Based on Flutter Material 3 color scheme generated from Colors.brown seed.
- * Material 3 uses HCT color space to generate harmonious palettes.
+ * Warm, organic, equestrian-inspired palette.
+ * Sage green primary, cream backgrounds, dark cocoa text, serif headers.
  *
  * To use in your React Native app:
  *   import { colors, theme } from '@/theme';
  */
 
 // ============================================================
-// Core Color Palette (Material 3 generated from brown seed)
+// Core Color Palette (Warm Equestrian)
 // ============================================================
 
 export const colors = {
-  // Primary - slate indigo
-  primary: '#3D52A0',
+  // Primary - sage green
+  primary: '#97B498',
   onPrimary: '#FFFFFF',
-  primaryContainer: '#DEE0FF',
-  onPrimaryContainer: '#00105C',
+  primaryContainer: '#D5E5D6',
+  onPrimaryContainer: '#2E5A30',
 
-  // Secondary - muted blue-gray
-  secondary: '#5A5F89',
+  // Secondary - tan/gold
+  secondary: '#C19A6B',
   onSecondary: '#FFFFFF',
-  secondaryContainer: '#E0E3FF',
-  onSecondaryContainer: '#171B52',
+  secondaryContainer: '#F0E2CE',
+  onSecondaryContainer: '#5C3D1F',
 
-  // Tertiary - warm teal accent
-  tertiary: '#3B7EA1',
+  // Tertiary - warm brown
+  tertiary: '#8B7355',
   onTertiary: '#FFFFFF',
-  tertiaryContainer: '#C5E8FF',
-  onTertiaryContainer: '#001E2E',
+  tertiaryContainer: '#E8DCCC',
+  onTertiaryContainer: '#3E2F1C',
 
   // Error - for validation, negative results
   error: '#BA1A1A',
@@ -37,25 +37,25 @@ export const colors = {
   errorContainer: '#FFDAD6',
   onErrorContainer: '#410002',
 
-  // Surface - near-white with subtle blue-gray tint
-  surface: '#F9F9FB',
-  onSurface: '#1A1C2E',
-  surfaceVariant: '#E4E5F4',
-  onSurfaceVariant: '#464775',
+  // Surface - cream
+  surface: '#FDFBF7',
+  onSurface: '#4A3728',
+  surfaceVariant: '#F4EFE0',
+  onSurfaceVariant: '#706259',
 
-  // Outline - borders and dividers
-  outline: '#767AA3',
-  outlineVariant: '#C5C6E8',
+  // Outline - warm tan borders
+  outline: '#C4B5A4',
+  outlineVariant: '#DDD4C5',
 
   // Inverse - for snackbars, tooltips
-  inverseSurface: '#2E2F4F',
-  inverseOnSurface: '#F1F0FF',
-  inversePrimary: '#BAC3FF',
+  inverseSurface: '#4A3728',
+  inverseOnSurface: '#FDF8F0',
+  inversePrimary: '#B8D4B9',
 
   // Misc
   shadow: '#000000',
   scrim: '#000000',
-  surfaceTint: '#3D52A0',
+  surfaceTint: '#97B498',
 
   // ============================================================
   // Semantic Colors (app-specific meanings)
@@ -89,72 +89,84 @@ export const typography = {
   headlineLarge: {
     fontSize: 32,
     fontWeight: '400' as const,
+    fontFamily: 'Lora_400Regular',
     lineHeight: 40,
     letterSpacing: 0,
   },
   headlineMedium: {
     fontSize: 28,
     fontWeight: '400' as const,
+    fontFamily: 'Lora_400Regular',
     lineHeight: 36,
     letterSpacing: 0,
   },
   headlineSmall: {
     fontSize: 24,
     fontWeight: '400' as const,
+    fontFamily: 'Lora_400Regular',
     lineHeight: 32,
     letterSpacing: 0,
   },
   titleLarge: {
     fontSize: 22,
     fontWeight: '400' as const,
+    fontFamily: 'Lora_400Regular',
     lineHeight: 28,
     letterSpacing: 0,
   },
   titleMedium: {
     fontSize: 16,
     fontWeight: '500' as const,
+    fontFamily: 'Inter_500Medium',
     lineHeight: 24,
     letterSpacing: 0.15,
   },
   titleSmall: {
     fontSize: 14,
     fontWeight: '500' as const,
+    fontFamily: 'Inter_500Medium',
     lineHeight: 20,
     letterSpacing: 0.1,
   },
   bodyLarge: {
     fontSize: 16,
     fontWeight: '400' as const,
+    fontFamily: 'Inter_400Regular',
     lineHeight: 24,
     letterSpacing: 0.15,
   },
   bodyMedium: {
     fontSize: 14,
     fontWeight: '400' as const,
+    fontFamily: 'Inter_400Regular',
     lineHeight: 20,
     letterSpacing: 0.25,
   },
   bodySmall: {
     fontSize: 12,
     fontWeight: '400' as const,
+    fontFamily: 'Inter_400Regular',
     lineHeight: 16,
     letterSpacing: 0.4,
   },
   labelLarge: {
     fontSize: 14,
     fontWeight: '500' as const,
+    fontFamily: 'Inter_500Medium',
     lineHeight: 20,
     letterSpacing: 0.1,
   },
   labelMedium: {
     fontSize: 12,
     fontWeight: '500' as const,
+    fontFamily: 'Inter_500Medium',
     lineHeight: 16,
     letterSpacing: 0.5,
   },
   labelSmall: {
     fontSize: 11,
     fontWeight: '500' as const,
+    fontFamily: 'Inter_500Medium',
     lineHeight: 16,
     letterSpacing: 0.5,
   },
@@ -179,10 +191,10 @@ export const spacing = {
 // ============================================================
 
 export const borderRadius = {
-  sm: 4,
-  md: 8,
-  lg: 12,
-  xl: 16,
+  sm: 8,
+  md: 12,
+  lg: 24,
+  xl: 32,
   full: 9999,
 };
 
@@ -201,21 +213,21 @@ export const elevation = {
   level1: {
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 1,
   },
   level2: {
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 3,
   },
   level3: {
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.1,
     shadowRadius: 8,
     elevation: 6,
   },

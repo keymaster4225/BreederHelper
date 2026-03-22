@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     alignItems: 'center',
     backgroundColor: colors.primary,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.xl,
     paddingVertical: spacing.md,
     ...elevation.level1,
   },
@@ -106,8 +106,8 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     alignItems: 'center',
-    borderColor: colors.outline,
-    borderRadius: borderRadius.md,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.xl,
     borderWidth: 1,
     paddingVertical: spacing.md,
   },
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
   deleteButton: {
     alignItems: 'center',
     backgroundColor: colors.errorContainer,
-    borderRadius: borderRadius.md,
+    borderRadius: borderRadius.xl,
     marginTop: spacing.sm,
     paddingVertical: spacing.md,
   },

@@ -14,7 +14,8 @@
     ],
     "plugins": [
       "expo-asset",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      "expo-font"
     ],
     "android": {
       "package": "com.anonymous.breedwise",
@@ -28,6 +29,5 @@
         "projectId": "d023798e-e6ff-4ae7-b9b8-820a9e66a5b7"
       }
     }
-    
   }
 }

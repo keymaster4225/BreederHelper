@@ -12,6 +12,7 @@ import { FoalingRecordFormScreen } from '@/screens/FoalingRecordFormScreen';
 import { FoalFormScreen } from '@/screens/FoalFormScreen';
 
 import { FoalSex } from '@/models/types';
+import { colors } from '@/theme';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -30,7 +31,16 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export function AppNavigator(): JSX.Element {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
+      <Stack.Navigator
+        initialRouteName="Home"
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.surface },
+          headerTintColor: colors.onSurface,
+          headerTitleStyle: { fontFamily: 'Lora_700Bold' },
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: colors.surface },
+        }}
+      >
         <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Mares' }} />
         <Stack.Screen name="MareDetail" component={MareDetailScreen} options={{ title: 'Mare Detail' }} />
         <Stack.Screen name="EditMare" component={EditMareScreen} options={{ title: 'Add / Edit Mare' }} />

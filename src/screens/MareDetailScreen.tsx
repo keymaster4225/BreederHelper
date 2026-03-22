@@ -346,9 +346,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
 const styles = StyleSheet.create({
   headerCard: {
     backgroundColor: colors.surfaceVariant,
-    borderColor: colors.outline,
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
     gap: spacing.xs,
     marginBottom: spacing.md,
     padding: spacing.md,
@@ -356,6 +354,7 @@ const styles = StyleSheet.create({
   },
   headerName: {
     ...typography.titleMedium,
+    fontFamily: 'Lora_700Bold',
     fontWeight: '700',
   },
   headerLine: {
@@ -397,7 +396,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.surface,
-    borderColor: colors.outline,
+    borderColor: colors.outlineVariant,
     borderRadius: borderRadius.lg,
     borderWidth: 1,
     gap: spacing.xs,

@@ -212,15 +212,13 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
 
 const styles = StyleSheet.create({
 listContent: {
-    gap: spacing.md,
+    gap: spacing.lg,
     paddingBottom: spacing.xl,
   },
   row: {
     alignItems: 'center',
     backgroundColor: colors.surfaceVariant,
-    borderColor: colors.outline,
     borderRadius: borderRadius.lg,
-    borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     padding: spacing.md,
@@ -235,7 +233,7 @@ listContent: {
     marginRight: spacing.md,
   },
   rowTitle: {
-    ...typography.titleSmall,
+    ...typography.titleMedium,
   },
   rowSubtitle: {
     color: colors.onSurfaceVariant,

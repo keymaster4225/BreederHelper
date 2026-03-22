@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: colors.surface,
-    borderColor: colors.outline,
+    borderColor: colors.outlineVariant,
     borderRadius: borderRadius.md,
     borderWidth: 1,
     justifyContent: 'center' as const,
