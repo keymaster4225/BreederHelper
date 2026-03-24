@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -22,6 +22,7 @@ import {
   softDeleteMare,
 } from '@/storage/repositories';
 import { deriveAgeYears, formatLocalDate, toLocalDate } from '@/utils/dates';
+import { filterMares, StatusFilter } from '@/utils/filterMares';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
@@ -34,6 +35,13 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [selectedMareId, setSelectedMareId] = useState<string | null>(null);
   const [pregnantInfo, setPregnantInfo] = useState<Map<string, PregnancyInfo>>(new Map());
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+  const filteredMares = useMemo(
+    () => filterMares(mares, searchText, statusFilter, pregnantInfo),
+    [mares, searchText, statusFilter, pregnantInfo],
+  );
 
   const loadMares = useCallback(async () => {
     try {
@@ -149,8 +157,69 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
 
       {mares.length > 0 ? <Text style={styles.listHint}>Tap a mare to view details. Long press to delete.</Text> : null}
 
-      {mares.length > 0 ? <FlatList
-        data={mares}
+      {mares.length > 0 ? (
+        <>
+          <View style={styles.searchBar}>
+            <MaterialCommunityIcons
+              name="magnify"
+              size={20}
+              color={colors.onSurfaceVariant}
+            />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search mares..."
+              placeholderTextColor={colors.onSurfaceVariant}
+              value={searchText}
+              onChangeText={setSearchText}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {searchText !== '' ? (
+              <Pressable
+                onPress={() => setSearchText('')}
+                hitSlop={8}
+                accessibilityLabel="Clear search"
+              >
+                <MaterialCommunityIcons
+                  name="close-circle"
+                  size={20}
+                  color={colors.onSurfaceVariant}
+                />
+              </Pressable>
+            ) : null}
+          </View>
+
+          <View style={styles.filterRow}>
+            {(['all', 'pregnant', 'open'] as const).map((value) => {
+              const isActive = statusFilter === value;
+              const label = value === 'all' ? 'All' : value === 'pregnant' ? 'Pregnant' : 'Open';
+              return (
+                <Pressable
+                  key={value}
+                  style={[styles.filterChip, isActive ? styles.filterChipActive : styles.filterChipInactive]}
+                  onPress={() => setStatusFilter(value)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: isActive }}
+                >
+                  <Text style={isActive ? styles.filterChipTextActive : styles.filterChipTextInactive}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
+
+      {mares.length > 0 && filteredMares.length === 0 ? (
+        <View style={styles.filteredEmptyState}>
+          <Text style={styles.filteredEmptyText}>No mares match your search.</Text>
+        </View>
+      ) : null}
+
+      {filteredMares.length > 0 ? <FlatList
+        data={filteredMares}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => {
@@ -306,5 +375,58 @@ listContent: {
   errorText: {
     color: colors.error,
     marginBottom: spacing.sm,
+  },
+  searchBar: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.outline,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    height: 44,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+  },
+  searchInput: {
+    color: colors.onSurface,
+    flex: 1,
+    marginHorizontal: spacing.sm,
+    ...typography.bodyMedium,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  filterChip: {
+    borderRadius: borderRadius.full,
+    minHeight: 36,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+  },
+  filterChipInactive: {
+    backgroundColor: colors.surface,
+    borderColor: colors.outline,
+    borderWidth: 1,
+  },
+  filterChipTextActive: {
+    color: '#FFFFFF',
+    ...typography.labelMedium,
+  },
+  filterChipTextInactive: {
+    color: colors.onSurface,
+    ...typography.labelMedium,
+  },
+  filteredEmptyState: {
+    alignItems: 'center',
+    paddingVertical: spacing.xl,
+  },
+  filteredEmptyText: {
+    color: colors.onSurfaceVariant,
+    ...typography.bodyMedium,
   },
 });
