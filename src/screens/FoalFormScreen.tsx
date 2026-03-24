@@ -28,7 +28,6 @@ type FormErrors = {
 const SEX_OPTIONS: { label: string; value: FoalSex }[] = [
   { label: 'Colt', value: 'colt' },
   { label: 'Filly', value: 'filly' },
-  { label: 'Unknown', value: 'unknown' },
 ];
 
 const COLOR_OPTIONS: { label: string; value: FoalColor }[] = [
