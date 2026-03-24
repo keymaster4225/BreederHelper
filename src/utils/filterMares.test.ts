@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filterMares, type StatusFilter } from './filterMares';
+import { filterMares } from './filterMares';
 import { Mare, PregnancyInfo } from '@/models/types';
 
 function makeMare(overrides: Partial<Mare> & { id: string; name: string }): Mare {
