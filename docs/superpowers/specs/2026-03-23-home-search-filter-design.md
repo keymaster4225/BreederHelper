@@ -60,8 +60,8 @@ The `FlatList` data source changes from `mares` to `filteredMares`.
 
 All values from the existing `theme.ts`:
 
-- **Search bar:** `colors.surface` background, `borderRadius.medium`, 44px height, `colors.onSurface` text, `colors.onSurfaceVariant` placeholder. `MaterialCommunityIcons` `magnify` icon (left) and `close-circle` clear button (right, conditional).
-- **Filter chips:** `spacing.sm` gap. Active: `colors.primary` bg, `#FFFFFF` text. Inactive: `colors.surface` bg, `colors.onSurface` text, 1px `colors.outline` border. Pill shape via `borderRadius` value of 20.
+- **Search bar:** `colors.surface` background, `borderRadius.md`, 44px height, `colors.onSurface` text, `colors.onSurfaceVariant` placeholder. `MaterialCommunityIcons` `magnify` icon (left) and `close-circle` clear button (right, conditional).
+- **Filter chips:** `spacing.sm` gap. Active: `colors.primary` bg, `#FFFFFF` text. Inactive: `colors.surface` bg, `colors.onSurface` text, 1px `colors.outline` border. Pill shape via `borderRadius.full`.
 - **Spacing:** `spacing.md` between search bar, filter chips, and mare list.
 
 ## Scope
@@ -72,6 +72,7 @@ All values from the existing `theme.ts`:
 
 ### What changes
 
+- Add `useMemo` to React imports, `TextInput` to react-native imports.
 - Two new state variables (`searchText`, `statusFilter`).
 - One `useMemo` for `filteredMares`.
 - Search `TextInput` rendered above the list.
