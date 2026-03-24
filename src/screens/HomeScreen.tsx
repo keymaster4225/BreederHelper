@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -116,26 +116,6 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
     ]);
   }, [loadMares]);
 
-  useEffect(() => {
-    if (!isLoading && mares.length > 0) {
-      navigation.setOptions({
-        headerRight: () => (
-          <Pressable
-            onPress={() => navigation.navigate('EditMare')}
-            style={({ pressed }) => [styles.headerAddButton, pressed && styles.pressedOpacity]}
-            hitSlop={4}
-            accessibilityRole="button"
-            accessibilityLabel="Add mare"
-          >
-            <MaterialCommunityIcons name="plus" size={26} color={colors.primary} />
-          </Pressable>
-        ),
-      });
-    } else {
-      navigation.setOptions({ headerRight: undefined });
-    }
-  }, [isLoading, mares.length, navigation]);
-
   return (
     <Screen>
 {isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
@@ -216,6 +196,17 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
         <View style={styles.filteredEmptyState}>
           <Text style={styles.filteredEmptyText}>No mares match your search.</Text>
         </View>
+      ) : null}
+
+      {!isLoading && mares.length > 0 ? (
+        <Pressable
+          style={({ pressed }) => [styles.fab, pressed && styles.pressedOpacity]}
+          onPress={() => navigation.navigate('EditMare')}
+          accessibilityRole="button"
+          accessibilityLabel="Add mare"
+        >
+          <MaterialCommunityIcons name="plus" size={28} color="#fff" />
+        </Pressable>
       ) : null}
 
       {filteredMares.length > 0 ? <FlatList
@@ -329,13 +320,22 @@ const styles = StyleSheet.create({
     color: colors.onErrorContainer,
     ...typography.labelMedium,
   },
-  headerAddButton: {
+  fab: {
     alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 28,
+    bottom: spacing.xl,
+    elevation: 6,
+    height: 56,
     justifyContent: 'center',
-    minWidth: 44,
-    minHeight: 44,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.sm,
+    position: 'absolute',
+    right: spacing.xl,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    width: 56,
+    zIndex: 10,
   },
   pressedOpacity: {
     opacity: 0.85,
