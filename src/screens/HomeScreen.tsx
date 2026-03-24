@@ -280,7 +280,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
 }
 
 const styles = StyleSheet.create({
-listContent: {
+  listContent: {
     gap: spacing.lg,
     paddingBottom: spacing.xl,
   },
@@ -414,7 +414,7 @@ listContent: {
     borderWidth: 1,
   },
   filterChipTextActive: {
-    color: '#FFFFFF',
+    color: colors.onPrimary,
     ...typography.labelMedium,
   },
   filterChipTextInactive: {
