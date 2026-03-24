@@ -79,6 +79,10 @@ export const colors = {
   pregnant: '#66BB6A',         // Confirmed pregnant
   foaled: '#42A5F5',           // Successfully foaled
   loss: '#EF5350',             // Embryonic loss / abortion
+
+  // Foal sex
+  colt: '#5B9BD5',             // Colt (blue)
+  filly: '#E48BA5',            // Filly (pink)
 };
 
 // ============================================================

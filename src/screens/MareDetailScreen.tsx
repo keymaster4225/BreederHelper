@@ -6,7 +6,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { IconButton, PrimaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { formatBreedingMethod, formatFoalSex, formatFoalColor, formatOutcome, getOutcomeColor } from '@/utils/outcomeDisplay';
+import { formatBreedingMethod, formatFoalSex, formatFoalColor, formatOutcome, getOutcomeColor, getFoalSexColor } from '@/utils/outcomeDisplay';
 import { getScoreColors } from '@/utils/scoreColors';
 import { BreedingRecord, DailyLog, Foal, FoalingRecord, Mare, PregnancyCheck, calculateDaysPostBreeding, estimateFoalingDate, findMostRecentOvulationDate } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -264,9 +264,20 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                   <View style={styles.foalSummary}>
                     <Text style={styles.foalName}>{foal.name || 'Unnamed foal'}</Text>
                     {(foal.sex || foal.color) ? (
-                      <Text style={styles.foalDetail}>
-                        {[foal.sex ? formatFoalSex(foal.sex) : null, foal.color ? formatFoalColor(foal.color) : null].filter(Boolean).join(' - ')}
-                      </Text>
+                      <View style={styles.foalDetailRow}>
+                        {foal.sex && getFoalSexColor(foal.sex) ? (
+                          <StatusBadge
+                            label={formatFoalSex(foal.sex)}
+                            backgroundColor={getFoalSexColor(foal.sex)!}
+                            textColor="#FFFFFF"
+                          />
+                        ) : foal.sex ? (
+                          <Text style={styles.foalDetail}>{formatFoalSex(foal.sex)}</Text>
+                        ) : null}
+                        {foal.color ? (
+                          <Text style={styles.foalDetail}>{formatFoalColor(foal.color)}</Text>
+                        ) : null}
+                      </View>
                     ) : null}
                   </View>
                 ) : (
@@ -450,6 +461,11 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
     ...typography.bodyMedium,
     fontWeight: '600',
+  },
+  foalDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   foalDetail: {
     color: colors.onSurfaceVariant,

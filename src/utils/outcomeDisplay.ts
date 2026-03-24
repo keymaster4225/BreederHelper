@@ -45,3 +45,9 @@ export function formatFoalSex(sex: string): string {
   if (sex === 'unknown') return 'Unknown';
   return sex;
 }
+
+export function getFoalSexColor(sex: string): string | null {
+  if (sex === 'colt') return colors.colt;
+  if (sex === 'filly') return colors.filly;
+  return null;
+}
