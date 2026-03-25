@@ -40,7 +40,18 @@ export function FoalingTab({ mareId, foalingRecords, foalByFoalingRecordId, navi
                   textColor="#FFFFFF"
                 />
               </View>
-              <CardRow label="Foal sex" value={record.foalSex ?? '-'} />
+              {record.foalSex && getFoalSexColor(record.foalSex) ? (
+                <View style={cardStyles.cardRow}>
+                  <Text style={cardStyles.cardLabel}>Foal sex</Text>
+                  <StatusBadge
+                    label={formatFoalSex(record.foalSex)}
+                    backgroundColor={getFoalSexColor(record.foalSex)!}
+                    textColor="#FFFFFF"
+                  />
+                </View>
+              ) : (
+                <CardRow label="Foal sex" value={record.foalSex ? formatFoalSex(record.foalSex) : '-'} />
+              )}
               {record.complications ? <CardRow label="Complications" value={record.complications} /> : null}
               {isLiveFoal ? (
                 foal ? (
