@@ -18,7 +18,7 @@ Implemented and working:
 - Pregnancy checks: create/edit/delete
 - Foaling records: create/edit/delete
 - Foal records: create/edit/delete (linked 1:1 to foaling records)
-- Mare detail tabs for Daily Logs, Breeding, Pregnancy, Foaling
+- Mare detail swipeable tabs (Daily Logs, Breeding, Pregnancy, Foaling) via `react-native-pager-view`
 - SQLite migrations + repository layer
 - Typecheck/test CI and local Vitest coverage
 
@@ -59,6 +59,7 @@ Recent UX/domain decisions reflected in code:
 - `expo-sqlite`
 - `@expo/vector-icons`
 - `@react-native-async-storage/async-storage`
+- `react-native-pager-view`
 - Vitest
 
 ## Key Paths
@@ -66,6 +67,8 @@ Recent UX/domain decisions reflected in code:
 - App entry: `App.tsx`
 - Navigation: `src/navigation/AppNavigator.tsx`
 - Screens: `src/screens/*`
+- Mare detail tab content: `src/screens/mare-detail/*`
+- Shared card parts (CardRow, ScoreBadge, EditIconButton): `src/components/RecordCardParts.tsx`
 - Shared form controls: `src/components/FormControls.tsx`
 - Screen wrapper: `src/components/Screen.tsx`
 - Button components: `src/components/Buttons.tsx`

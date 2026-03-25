@@ -1,14 +1,13 @@
-import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import PagerView from 'react-native-pager-view';
+import type { PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 
-import { IconButton, PrimaryButton } from '@/components/Buttons';
+import { IconButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
-import { StatusBadge } from '@/components/StatusBadge';
-import { formatBreedingMethod, formatFoalSex, formatFoalColor, formatOutcome, getOutcomeColor, getFoalSexColor } from '@/utils/outcomeDisplay';
-import { getScoreColors } from '@/utils/scoreColors';
-import { BreedingRecord, DailyLog, Foal, FoalingRecord, Mare, PregnancyCheck, calculateDaysPostBreeding, estimateFoalingDate, findMostRecentOvulationDate } from '@/models/types';
+import { BreedingRecord, DailyLog, Foal, FoalingRecord, Mare, PregnancyCheck } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   getMareById,
@@ -19,18 +18,18 @@ import {
   listPregnancyChecksByMare,
   listStallions,
 } from '@/storage/repositories';
-import { deriveAgeYears, formatLocalDate } from '@/utils/dates';
+import { deriveAgeYears } from '@/utils/dates';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
+import { DailyLogsTab, BreedingTab, PregnancyTab, FoalingTab } from '@/screens/mare-detail';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MareDetail'>;
-type DetailTab = 'dailyLogs' | 'breedingRecords' | 'pregnancyChecks' | 'foalingRecords';
 
-const TAB_OPTIONS: { label: string; value: DetailTab }[] = [
-  { label: 'Daily Logs', value: 'dailyLogs' },
-  { label: 'Breeding', value: 'breedingRecords' },
-  { label: 'Pregnancy', value: 'pregnancyChecks' },
-  { label: 'Foaling', value: 'foalingRecords' },
-];
+const TAB_OPTIONS = [
+  { label: 'Daily Logs' },
+  { label: 'Breeding' },
+  { label: 'Pregnancy' },
+  { label: 'Foaling' },
+] as const;
 
 export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   const mareId = route.params.mareId;
@@ -42,9 +41,11 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   const [foalingRecords, setFoalingRecords] = useState<FoalingRecord[]>([]);
   const [foalByFoalingRecordId, setFoalByFoalingRecordId] = useState<Record<string, Foal>>({});
   const [stallionNameById, setStallionNameById] = useState<Record<string, string>>({});
-  const [activeTab, setActiveTab] = useState<DetailTab>('dailyLogs');
+  const [activeTabIndex, setActiveTabIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const pagerRef = useRef<PagerView>(null);
 
   const loadData = useCallback(async (): Promise<void> => {
     try {
@@ -100,224 +101,14 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
 
   const age = deriveAgeYears(mare?.dateOfBirth ?? null);
 
-  const renderEditIconButton = (onPress: () => void): JSX.Element => (
-    <IconButton icon={'\u270E'} onPress={onPress} accessibilityLabel="Edit" />
-  );
+  const handlePageSelected = useCallback((e: PagerViewOnPageSelectedEvent) => {
+    setActiveTabIndex(e.nativeEvent.position);
+  }, []);
 
-  const renderCardRow = (label: string, value: string | number | null | undefined): JSX.Element => (
-    <View style={styles.cardRow}>
-      <Text style={styles.cardLabel}>{label}</Text>
-      <Text style={styles.cardValue}>{value ?? '-'}</Text>
-    </View>
-  );
-
-  const renderScoreBadge = (score: number | null | undefined): JSX.Element => {
-    const display = score != null ? String(score) : 'N/A';
-    const badgeColors = getScoreColors(score);
-    return <StatusBadge label={display} backgroundColor={badgeColors.backgroundColor} textColor={badgeColors.textColor} />;
-  };
-
-  const renderTabContent = (): JSX.Element => {
-    if (activeTab === 'dailyLogs') {
-      return (
-        <View style={styles.listWrap}>
-          <PrimaryButton label="Add Daily Log" onPress={() => navigation.navigate('DailyLogForm', { mareId })} />
-          {dailyLogs.length === 0 ? (
-            <View style={styles.emptyTabState}>
-              <Text style={styles.emptyText}>No daily logs yet.</Text>
-            </View>
-          ) : null}
-          {dailyLogs.map((log) => (
-            <View key={log.id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{log.date}</Text>
-                {renderEditIconButton(() => navigation.navigate('DailyLogForm', { mareId, logId: log.id }))}
-              </View>
-              <View style={styles.cardRow}>
-                <Text style={styles.cardLabel}>Teasing</Text>
-                {renderScoreBadge(log.teasingScore)}
-              </View>
-              <View style={styles.cardRow}>
-                <Text style={styles.cardLabel}>Edema</Text>
-                {renderScoreBadge(log.edema)}
-              </View>
-              {log.ovulationDetected ? (
-                <View style={styles.cardRow}>
-                  <Text style={styles.cardLabel}>Ovulation</Text>
-                  <StatusBadge label="Detected" backgroundColor={colors.positive} textColor="#FFFFFF" />
-                </View>
-              ) : null}
-              {renderCardRow('Right ovary', log.rightOvary || '-')}
-              {renderCardRow('Left ovary', log.leftOvary || '-')}
-            </View>
-          ))}
-        </View>
-      );
-    }
-
-    if (activeTab === 'breedingRecords') {
-      return (
-        <View style={styles.listWrap}>
-          <PrimaryButton label="Add Breeding Record" onPress={() => navigation.navigate('BreedingRecordForm', { mareId })} />
-          {breedingRecords.length === 0 ? (
-            <View style={styles.emptyTabState}>
-              <Text style={styles.emptyText}>No breeding records yet.</Text>
-            </View>
-          ) : null}
-          {breedingRecords.map((record) => (
-            <View key={record.id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{record.date}</Text>
-                {renderEditIconButton(() =>
-                  navigation.navigate('BreedingRecordForm', { mareId, breedingRecordId: record.id })
-                )}
-              </View>
-              {renderCardRow('Method', formatBreedingMethod(record.method))}
-              {renderCardRow('Stallion', record.stallionName ?? stallionNameById[record.stallionId ?? ''] ?? 'Unknown')}
-              {record.collectionDate ? renderCardRow('Collection', record.collectionDate) : null}
-            </View>
-          ))}
-        </View>
-      );
-    }
-
-    if (activeTab === 'pregnancyChecks') {
-      return (
-        <View style={styles.listWrap}>
-          <PrimaryButton label="Add Pregnancy Check" onPress={() => navigation.navigate('PregnancyCheckForm', { mareId })} />
-          {pregnancyChecks.length === 0 ? (
-            <View style={styles.emptyTabState}>
-              <Text style={styles.emptyText}>No pregnancy checks yet.</Text>
-            </View>
-          ) : null}
-          {pregnancyChecks.map((check) => {
-            const breeding = breedingById[check.breedingRecordId];
-            const daysPost = breeding ? calculateDaysPostBreeding(check.date, breeding.date) : null;
-            const ovulationDate = findMostRecentOvulationDate(dailyLogs, check.date);
-            const daysPostOvulation = ovulationDate
-              ? calculateDaysPostBreeding(check.date, ovulationDate)
-              : null;
-            const dueDate = breeding && check.result === 'positive'
-              ? estimateFoalingDate(breeding.date)
-              : null;
-
-            return (
-              <View key={check.id} style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>{check.date}</Text>
-                  {renderEditIconButton(() =>
-                    navigation.navigate('PregnancyCheckForm', { mareId, pregnancyCheckId: check.id })
-                  )}
-                </View>
-                <View style={styles.cardRow}>
-                  <Text style={styles.cardLabel}>Result</Text>
-                  <StatusBadge
-                    label={check.result === 'positive' ? 'Positive' : 'Negative'}
-                    backgroundColor={check.result === 'positive' ? colors.positive : colors.negative}
-                    textColor="#FFFFFF"
-                  />
-                </View>
-                <View style={styles.cardRow}>
-                  <Text style={styles.cardLabel}>Heartbeat</Text>
-                  <StatusBadge
-                    label={check.heartbeatDetected ? 'Yes' : 'No'}
-                    backgroundColor={check.heartbeatDetected ? colors.heartbeat : colors.score0}
-                    textColor={check.heartbeatDetected ? '#FFFFFF' : colors.onSurfaceVariant}
-                  />
-                </View>
-                {renderCardRow('Days post-breeding', daysPost ?? '-')}
-                {daysPostOvulation !== null && renderCardRow('Days post-ovulation', daysPostOvulation)}
-                {dueDate && renderCardRow('Est. due date', formatLocalDate(dueDate, 'MM-DD-YYYY'))}
-              </View>
-            );
-          })}
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.listWrap}>
-        <PrimaryButton label="Add Foaling Record" onPress={() => navigation.navigate('FoalingRecordForm', { mareId })} />
-        {foalingRecords.length === 0 ? (
-            <View style={styles.emptyTabState}>
-              <Text style={styles.emptyText}>No foaling records yet.</Text>
-            </View>
-          ) : null}
-        {foalingRecords.map((record) => {
-          const isLiveFoal = record.outcome === 'liveFoal';
-          const foal = foalByFoalingRecordId[record.id];
-
-          const cardBody = (
-            <>
-              <View style={styles.cardRow}>
-                <Text style={styles.cardLabel}>Outcome</Text>
-                <StatusBadge
-                  label={formatOutcome(record.outcome)}
-                  backgroundColor={getOutcomeColor(record.outcome)}
-                  textColor="#FFFFFF"
-                />
-              </View>
-              {renderCardRow('Foal sex', record.foalSex ?? '-')}
-              {record.complications ? renderCardRow('Complications', record.complications) : null}
-              {isLiveFoal ? (
-                foal ? (
-                  <View style={styles.foalSummary}>
-                    <Text style={styles.foalName}>{foal.name || 'Unnamed foal'}</Text>
-                    {(foal.sex || foal.color) ? (
-                      <View style={styles.foalDetailRow}>
-                        {foal.sex && getFoalSexColor(foal.sex) ? (
-                          <StatusBadge
-                            label={formatFoalSex(foal.sex)}
-                            backgroundColor={getFoalSexColor(foal.sex)!}
-                            textColor="#FFFFFF"
-                          />
-                        ) : foal.sex ? (
-                          <Text style={styles.foalDetail}>{formatFoalSex(foal.sex)}</Text>
-                        ) : null}
-                        {foal.color ? (
-                          <Text style={styles.foalDetail}>{formatFoalColor(foal.color)}</Text>
-                        ) : null}
-                      </View>
-                    ) : null}
-                  </View>
-                ) : (
-                  <Text style={styles.foalHint}>Tap to add foal record</Text>
-                )
-              ) : null}
-            </>
-          );
-
-          return (
-            <View key={record.id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle}>{record.date}</Text>
-                {renderEditIconButton(() =>
-                  navigation.navigate('FoalingRecordForm', { mareId, foalingRecordId: record.id })
-                )}
-              </View>
-              {isLiveFoal ? (
-                <Pressable
-                  onPress={() =>
-                    navigation.navigate('FoalForm', {
-                      mareId,
-                      foalingRecordId: record.id,
-                      foalId: foal?.id,
-                      defaultSex: record.foalSex,
-                    })
-                  }
-                  style={({ pressed }) => pressed ? { opacity: 0.85 } : undefined}
-                >
-                  {cardBody}
-                </Pressable>
-              ) : (
-                cardBody
-              )}
-            </View>
-          );
-        })}
-      </View>
-    );
-  };
+  const handleTabPress = useCallback((index: number) => {
+    setActiveTabIndex(index);
+    pagerRef.current?.setPage(index);
+  }, []);
 
   return (
     <Screen>
@@ -329,7 +120,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           <View style={styles.headerCard}>
             <View style={styles.cardHeader}>
               <Text style={styles.headerName}>{mare.name}</Text>
-              <IconButton icon="✎" onPress={() => navigation.navigate('EditMare', { mareId })} accessibilityLabel="Edit Mare" />
+              <IconButton icon={'\u270E'} onPress={() => navigation.navigate('EditMare', { mareId })} accessibilityLabel="Edit Mare" />
             </View>
             <Text style={styles.headerLine}>{mare.breed}</Text>
             {age !== null ? <Text style={styles.headerLine}>Age {age}</Text> : null}
@@ -337,17 +128,33 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           </View>
 
           <View style={styles.tabRow}>
-            {TAB_OPTIONS.map((tab) => {
-              const active = tab.value === activeTab;
+            {TAB_OPTIONS.map((tab, index) => {
+              const active = index === activeTabIndex;
               return (
-                <Pressable key={tab.value} style={({ pressed }) => [styles.tabButton, active ? styles.tabButtonActive : null, pressed && !active && styles.tabPressed]} onPress={() => setActiveTab(tab.value)} accessibilityRole="tab" accessibilityState={{ selected: active }}>
+                <Pressable
+                  key={tab.label}
+                  style={({ pressed }) => [styles.tabButton, active ? styles.tabButtonActive : null, pressed && !active && styles.tabPressed]}
+                  onPress={() => handleTabPress(index)}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: active }}
+                >
                   <Text style={[styles.tabButtonText, active ? styles.tabButtonTextActive : null]}>{tab.label}</Text>
                 </Pressable>
               );
             })}
           </View>
 
-          <ScrollView contentContainerStyle={styles.scrollContent}>{renderTabContent()}</ScrollView>
+          <PagerView
+            ref={pagerRef}
+            style={styles.pager}
+            initialPage={0}
+            onPageSelected={handlePageSelected}
+          >
+            <DailyLogsTab key="0" mareId={mareId} dailyLogs={dailyLogs} navigation={navigation} />
+            <BreedingTab key="1" mareId={mareId} breedingRecords={breedingRecords} stallionNameById={stallionNameById} navigation={navigation} />
+            <PregnancyTab key="2" mareId={mareId} pregnancyChecks={pregnancyChecks} breedingById={breedingById} dailyLogs={dailyLogs} navigation={navigation} />
+            <FoalingTab key="3" mareId={mareId} foalingRecords={foalingRecords} foalByFoalingRecordId={foalByFoalingRecordId} navigation={navigation} />
+          </PagerView>
         </>
       ) : null}
     </Screen>
@@ -362,6 +169,12 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     padding: spacing.md,
     ...elevation.level2,
+  },
+  cardHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.xs,
   },
   headerName: {
     ...typography.titleMedium,
@@ -399,81 +212,14 @@ const styles = StyleSheet.create({
   tabButtonTextActive: {
     color: colors.onPrimary,
   },
-  scrollContent: {
-    paddingBottom: spacing.xxxl,
-  },
-  listWrap: {
-    gap: spacing.md,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderColor: colors.outlineVariant,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    gap: spacing.xs,
-    padding: spacing.md,
-    ...elevation.level1,
-  },
-  cardHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: spacing.xs,
-  },
-  cardTitle: {
-    ...typography.titleSmall,
-  },
-  cardRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardLabel: {
-    color: colors.onSurfaceVariant,
-    ...typography.bodySmall,
-  },
-  cardValue: {
-    color: colors.onSurface,
-    ...typography.bodyMedium,
-  },
-  emptyTabState: {
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: spacing.xl,
-  },
-  emptyText: {
-    color: colors.onSurfaceVariant,
-    textAlign: 'center',
-    ...typography.bodyMedium,
-  },
   tabPressed: {
     opacity: 0.7,
+  },
+  pager: {
+    flex: 1,
   },
   errorText: {
     color: colors.error,
     marginBottom: spacing.sm,
-  },
-  foalSummary: {
-    marginTop: spacing.xs,
-    gap: 2,
-  },
-  foalName: {
-    color: colors.onSurface,
-    ...typography.bodyMedium,
-    fontWeight: '600',
-  },
-  foalDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  foalDetail: {
-    color: colors.onSurfaceVariant,
-    ...typography.bodySmall,
-  },
-  foalHint: {
-    color: colors.primary,
-    marginTop: spacing.xs,
-    ...typography.bodySmall,
   },
 });
