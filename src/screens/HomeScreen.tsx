@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { IconButton } from '@/components/Buttons';
+import { DashboardSection } from '@/components/DashboardSection';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import {
@@ -14,14 +15,15 @@ import {
 } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
-  getBreedingRecordById,
-  listDailyLogsByMare,
-  listFoalingRecordsByMare,
+  listAllBreedingRecords,
+  listAllDailyLogs,
+  listAllFoalingRecords,
+  listAllPregnancyChecks,
   listMares,
-  listPregnancyChecksByMare,
   softDeleteMare,
 } from '@/storage/repositories';
 import { deriveAgeYears, formatLocalDate, toLocalDate } from '@/utils/dates';
+import { DashboardAlert, generateDashboardAlerts } from '@/utils/dashboardAlerts';
 import { filterMares, StatusFilter } from '@/utils/filterMares';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -29,12 +31,27 @@ import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
+function groupBy<T>(items: readonly T[], keyFn: (item: T) => string): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const key = keyFn(item);
+    const existing = map.get(key);
+    if (existing) {
+      existing.push(item);
+    } else {
+      map.set(key, [item]);
+    }
+  }
+  return map;
+}
+
 export function HomeScreen({ navigation }: Props): JSX.Element {
   const [mares, setMares] = useState<Mare[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedMareId, setSelectedMareId] = useState<string | null>(null);
   const [pregnantInfo, setPregnantInfo] = useState<Map<string, PregnancyInfo>>(new Map());
+  const [dashboardAlerts, setDashboardAlerts] = useState<readonly DashboardAlert[]>([]);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
@@ -47,35 +64,50 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
     try {
       setIsLoading(true);
       setError(null);
-      const result = await listMares();
+
+      const [result, allDailyLogs, allBreedings, allChecks, allFoalings] = await Promise.all([
+        listMares(),
+        listAllDailyLogs(),
+        listAllBreedingRecords(),
+        listAllPregnancyChecks(),
+        listAllFoalingRecords(),
+      ]);
       setMares(result);
 
       const today = toLocalDate(new Date());
+
+      // Build pregnancy info from bulk data
+      const checksByMare = groupBy(allChecks, (c) => c.mareId);
+      const foalingsByMare = groupBy(allFoalings, (f) => f.mareId);
+      const logsByMare = groupBy(allDailyLogs, (l) => l.mareId);
+      const breedingById = new Map(allBreedings.map((b) => [b.id, b]));
+
       const nextPregnantInfo = new Map<string, PregnancyInfo>();
-      await Promise.all(
-        result.map(async (mare) => {
-          const [checks, foalings] = await Promise.all([
-            listPregnancyChecksByMare(mare.id),
-            listFoalingRecordsByMare(mare.id),
-          ]);
+      for (const mare of result) {
+        const checks = checksByMare.get(mare.id) ?? [];
+        const foalings = foalingsByMare.get(mare.id) ?? [];
+        const currentCheck = findCurrentPregnancyCheck(checks, foalings);
+        if (!currentCheck) continue;
 
-          const currentCheck = findCurrentPregnancyCheck(checks, foalings);
-          if (!currentCheck) {
-            return;
-          }
-
-          const [breedingRecord, dailyLogs] = await Promise.all([
-            getBreedingRecordById(currentCheck.breedingRecordId),
-            listDailyLogsByMare(mare.id),
-          ]);
-
-          nextPregnantInfo.set(
-            mare.id,
-            buildPregnancyInfoForCheck(currentCheck, dailyLogs, breedingRecord, today)
-          );
-        })
-      );
+        const breedingRecord = breedingById.get(currentCheck.breedingRecordId) ?? null;
+        const dailyLogs = logsByMare.get(mare.id) ?? [];
+        nextPregnantInfo.set(
+          mare.id,
+          buildPregnancyInfoForCheck(currentCheck, dailyLogs, breedingRecord, today)
+        );
+      }
       setPregnantInfo(nextPregnantInfo);
+
+      // Generate dashboard alerts
+      const alerts = generateDashboardAlerts({
+        mares: result,
+        dailyLogs: allDailyLogs,
+        breedingRecords: allBreedings,
+        pregnancyChecks: allChecks,
+        foalingRecords: allFoalings,
+        today,
+      });
+      setDashboardAlerts(alerts);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load mares.';
       setError(message);
@@ -116,6 +148,25 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
     ]);
   }, [loadMares]);
 
+  const onAlertPress = useCallback(
+    (alert: DashboardAlert) => {
+      switch (alert.kind) {
+        case 'approachingDueDate':
+          navigation.navigate('MareDetail', { mareId: alert.mareId });
+          break;
+        case 'pregnancyCheckNeeded':
+          navigation.navigate('PregnancyCheckForm', { mareId: alert.mareId });
+          break;
+        case 'recentOvulation':
+        case 'heatActivity':
+        case 'noRecentLog':
+          navigation.navigate('DailyLogForm', { mareId: alert.mareId });
+          break;
+      }
+    },
+    [navigation]
+  );
+
   return (
     <Screen>
 {isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
@@ -133,6 +184,10 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
             <Text style={styles.emptyButtonText}>Add your first mare</Text>
           </Pressable>
         </View>
+      ) : null}
+
+      {!isLoading && mares.length > 0 ? (
+        <DashboardSection alerts={dashboardAlerts} onAlertPress={onAlertPress} />
       ) : null}
 
       {mares.length > 0 ? <Text style={styles.listHint}>Tap a mare to view details. Long press to delete.</Text> : null}

@@ -590,6 +590,60 @@ export async function deleteFoalingRecord(id: string): Promise<void> {
   await db.runAsync('DELETE FROM foaling_records WHERE id = ?;', [id]);
 }
 
+export async function listAllDailyLogs(): Promise<DailyLog[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<DailyLogRow>(
+    `
+    SELECT id, mare_id, date, teasing_score, right_ovary, left_ovary, ovulation_detected, edema, uterine_tone, uterine_cysts, notes, created_at, updated_at
+    FROM daily_logs
+    ORDER BY date DESC;
+    `
+  );
+
+  return rows.map(mapDailyLogRow);
+}
+
+export async function listAllBreedingRecords(): Promise<BreedingRecord[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<BreedingRecordRow>(
+    `
+    SELECT
+      id, mare_id, stallion_id, stallion_name, date, method, notes, volume_ml, concentration_m_per_ml,
+      motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
+    FROM breeding_records
+    ORDER BY date DESC;
+    `
+  );
+
+  return rows.map(mapBreedingRecordRow);
+}
+
+export async function listAllPregnancyChecks(): Promise<PregnancyCheck[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<PregnancyCheckRow>(
+    `
+    SELECT id, mare_id, breeding_record_id, date, result, heartbeat_detected, notes, created_at, updated_at
+    FROM pregnancy_checks
+    ORDER BY date DESC;
+    `
+  );
+
+  return rows.map(mapPregnancyCheckRow);
+}
+
+export async function listAllFoalingRecords(): Promise<FoalingRecord[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<FoalingRecordRow>(
+    `
+    SELECT id, mare_id, breeding_record_id, date, outcome, foal_sex, complications, notes, created_at, updated_at
+    FROM foaling_records
+    ORDER BY date DESC;
+    `
+  );
+
+  return rows.map(mapFoalingRecordRow);
+}
+
 export async function listDailyLogsByMare(mareId: string): Promise<DailyLog[]> {
   const db = await getDb();
   const rows = await db.getAllAsync<DailyLogRow>(

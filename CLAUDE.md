@@ -47,6 +47,12 @@ Recent UX/domain decisions reflected in code:
 - Deleting a foaling record is proactively blocked when a foal exists (checked before delete attempt, not relying on FK error).
 - Changing foaling outcome away from `liveFoal` is blocked when a foal record exists.
 - Display formatters: `formatFoalColor`, `formatFoalSex` in `src/utils/outcomeDisplay.ts`; milestone labels in `src/utils/foalMilestones.ts`.
+- Home screen dashboard section ("Today's Tasks") renders above mare list when actionable alerts exist; hides when empty.
+- Dashboard alerts are derived from existing data (no schema changes): approaching due dates, pregnancy checks needed, recent ovulations, heat activity, stale logs.
+- Alert generation is a pure function in `src/utils/dashboardAlerts.ts` with named constant thresholds (30-day due window, 14-day preg check min, 2-day ovulation window, 3-day heat window, 7-day stale log threshold, 60-DPO maintenance cutoff).
+- HomeScreen uses bulk queries (`listAllDailyLogs`, `listAllBreedingRecords`, `listAllPregnancyChecks`, `listAllFoalingRecords`) instead of per-mare N+1 queries.
+- Dashboard section is collapsible via header tap; collapse state resets on each app open.
+- Alert cards navigate: approaching due → MareDetail, preg check needed → PregnancyCheckForm, ovulation/heat/stale log → DailyLogForm.
 
 ## Tech Stack
 
@@ -80,6 +86,8 @@ Recent UX/domain decisions reflected in code:
 - Theme: `src/theme.ts`
 - Score colors: `src/utils/scoreColors.ts`
 - Display formatters: `src/utils/outcomeDisplay.ts` (foaling outcomes, breeding methods)
+- Dashboard alerts: `src/utils/dashboardAlerts.ts` (pure alert generation logic)
+- Dashboard UI: `src/components/DashboardSection.tsx`, `src/components/AlertCard.tsx`
 - Onboarding: `src/utils/onboarding.ts`
 - ID generation: `src/utils/id.ts`
 
