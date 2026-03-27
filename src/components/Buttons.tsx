@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native';
+import type { ReactNode } from 'react';
 
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
@@ -47,7 +48,7 @@ export function SecondaryButton({ label, onPress, disabled }: SecondaryButtonPro
 }
 
 type IconButtonProps = {
-  icon: string;
+  icon: ReactNode;
   onPress: () => void;
   accessibilityLabel?: string;
 };
@@ -61,7 +62,7 @@ export function IconButton({ icon, onPress, accessibilityLabel }: IconButtonProp
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
-      <Text style={styles.iconText}>{icon}</Text>
+      {typeof icon === 'string' ? <Text style={styles.iconText}>{icon}</Text> : icon}
     </Pressable>
   );
 }

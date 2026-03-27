@@ -5,6 +5,8 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import PagerView from 'react-native-pager-view';
 import type { PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 
+import { MaterialIcons } from '@expo/vector-icons';
+
 import { IconButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { BreedingRecord, DailyLog, Foal, FoalingRecord, Mare, PregnancyCheck } from '@/models/types';
@@ -121,7 +123,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             <View style={styles.cardHeader}>
               <Text style={styles.headerName}>{mare.name}</Text>
               <View style={styles.headerActions}>
-                <IconButton icon={'\uD83D\uDD53'} onPress={() => navigation.navigate('MareTimeline', { mareId })} accessibilityLabel="View History" />
+                <IconButton icon={<MaterialIcons name="history" size={20} color={colors.onSurface} />} onPress={() => navigation.navigate('MareTimeline', { mareId })} accessibilityLabel="View History" />
               </View>
             </View>
             <Text style={styles.headerLine}>{mare.breed}</Text>
