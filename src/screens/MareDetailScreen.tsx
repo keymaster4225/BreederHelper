@@ -20,12 +20,11 @@ import {
 } from '@/storage/repositories';
 import { deriveAgeYears } from '@/utils/dates';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
-import { TimelineTab, DailyLogsTab, BreedingTab, PregnancyTab, FoalingTab } from '@/screens/mare-detail';
+import { DailyLogsTab, BreedingTab, PregnancyTab, FoalingTab } from '@/screens/mare-detail';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MareDetail'>;
 
 const TAB_OPTIONS = [
-  { label: 'Timeline' },
   { label: 'Daily Logs' },
   { label: 'Breeding' },
   { label: 'Pregnancy' },
@@ -121,7 +120,9 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           <View style={styles.headerCard}>
             <View style={styles.cardHeader}>
               <Text style={styles.headerName}>{mare.name}</Text>
-              <IconButton icon={'\u270E'} onPress={() => navigation.navigate('EditMare', { mareId })} accessibilityLabel="Edit Mare" />
+              <View style={styles.headerActions}>
+                <IconButton icon={'\uD83D\uDD53'} onPress={() => navigation.navigate('MareTimeline', { mareId })} accessibilityLabel="View History" />
+              </View>
             </View>
             <Text style={styles.headerLine}>{mare.breed}</Text>
             {age !== null ? <Text style={styles.headerLine}>Age {age}</Text> : null}
@@ -151,22 +152,10 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             initialPage={0}
             onPageSelected={handlePageSelected}
           >
-            <TimelineTab
-              key="0"
-              mareId={mareId}
-              dailyLogs={dailyLogs}
-              breedingRecords={breedingRecords}
-              pregnancyChecks={pregnancyChecks}
-              foalingRecords={foalingRecords}
-              foalByFoalingRecordId={foalByFoalingRecordId}
-              stallionNameById={stallionNameById}
-              breedingById={breedingById}
-              navigation={navigation}
-            />
-            <DailyLogsTab key="1" mareId={mareId} dailyLogs={dailyLogs} navigation={navigation} />
-            <BreedingTab key="2" mareId={mareId} breedingRecords={breedingRecords} stallionNameById={stallionNameById} navigation={navigation} />
-            <PregnancyTab key="3" mareId={mareId} pregnancyChecks={pregnancyChecks} breedingById={breedingById} dailyLogs={dailyLogs} navigation={navigation} />
-            <FoalingTab key="4" mareId={mareId} foalingRecords={foalingRecords} foalByFoalingRecordId={foalByFoalingRecordId} navigation={navigation} />
+            <DailyLogsTab key="0" mareId={mareId} dailyLogs={dailyLogs} navigation={navigation} />
+            <BreedingTab key="1" mareId={mareId} breedingRecords={breedingRecords} stallionNameById={stallionNameById} navigation={navigation} />
+            <PregnancyTab key="2" mareId={mareId} pregnancyChecks={pregnancyChecks} breedingById={breedingById} dailyLogs={dailyLogs} navigation={navigation} />
+            <FoalingTab key="3" mareId={mareId} foalingRecords={foalingRecords} foalByFoalingRecordId={foalByFoalingRecordId} navigation={navigation} />
           </PagerView>
         </>
       ) : null}
@@ -193,6 +182,11 @@ const styles = StyleSheet.create({
     ...typography.titleMedium,
     fontFamily: 'Lora_700Bold',
     fontWeight: '700',
+  },
+  headerActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   headerLine: {
     color: colors.onSurfaceVariant,
