@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { seedSampleData } from '@/utils/devSeed';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -183,6 +184,24 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
           >
             <Text style={styles.emptyButtonText}>Add your first mare</Text>
           </Pressable>
+          {__DEV__ ? (
+            <Pressable
+              style={({ pressed }) => [styles.devSeedButton, pressed && styles.pressedOpacity]}
+              onPress={() => {
+                void (async () => {
+                  try {
+                    await seedSampleData();
+                    await loadMares();
+                  } catch (err) {
+                    const msg = err instanceof Error ? err.message : 'Seed failed';
+                    Alert.alert('Seed Error', msg);
+                  }
+                })();
+              }}
+            >
+              <Text style={styles.devSeedButtonText}>Seed Sample Data</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
@@ -420,6 +439,16 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     ...typography.labelLarge,
     color: colors.onPrimaryContainer,
+  },
+  devSeedButton: {
+    backgroundColor: colors.tertiaryContainer,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+  },
+  devSeedButtonText: {
+    ...typography.labelLarge,
+    color: colors.onTertiaryContainer,
   },
   listHint: {
     ...typography.bodySmall,
