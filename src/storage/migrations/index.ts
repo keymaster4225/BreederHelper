@@ -213,6 +213,26 @@ CREATE INDEX IF NOT EXISTS idx_foals_foaling_record_id
   ON foals (foaling_record_id);
 `;
 
+const migration006 = `
+CREATE TABLE IF NOT EXISTS medication_logs (
+  id TEXT PRIMARY KEY,
+  mare_id TEXT NOT NULL,
+  date TEXT NOT NULL,
+  medication_name TEXT NOT NULL,
+  dose TEXT,
+  route TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (mare_id) REFERENCES mares(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (date GLOB '????-??-??'),
+  CHECK (route IS NULL OR route IN ('oral', 'IM', 'IV', 'intrauterine', 'SQ'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_medication_logs_mare_date
+  ON medication_logs (mare_id, date DESC);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -240,6 +260,11 @@ const migrations: Migration[] = [
     id: 5,
     name: '005_create_foals',
     statements: splitStatements(migration005),
+  },
+  {
+    id: 6,
+    name: '006_create_medication_logs',
+    statements: splitStatements(migration006),
   },
 ];
 

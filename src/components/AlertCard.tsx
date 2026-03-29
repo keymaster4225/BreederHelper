@@ -20,6 +20,7 @@ const ALERT_CONFIG: Record<
   recentOvulation: { icon: 'eye-check-outline', accentColor: colors.positive },
   heatActivity: { icon: 'thermometer-high', accentColor: colors.score5 },
   noRecentLog: { icon: 'alert-circle-outline', accentColor: colors.onSurfaceVariant },
+  medicationGap: { icon: 'pill', accentColor: '#009688' },
 };
 
 const PRIORITY_BORDER: Record<AlertPriority, string> = {

@@ -5,11 +5,11 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import PagerView from 'react-native-pager-view';
 import type { PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 
-import { MaterialIcons } from '@expo/vector-icons';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { IconButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
-import { BreedingRecord, DailyLog, Foal, FoalingRecord, Mare, PregnancyCheck } from '@/models/types';
+import { BreedingRecord, DailyLog, Foal, FoalingRecord, Mare, MedicationLog, PregnancyCheck } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   getMareById,
@@ -18,11 +18,12 @@ import {
   listFoalingRecordsByMare,
   listFoalsByMare,
   listPregnancyChecksByMare,
+  listMedicationLogsByMare,
   listStallions,
 } from '@/storage/repositories';
 import { deriveAgeYears } from '@/utils/dates';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
-import { DailyLogsTab, BreedingTab, PregnancyTab, FoalingTab } from '@/screens/mare-detail';
+import { DailyLogsTab, BreedingTab, PregnancyTab, FoalingTab, MedicationsTab } from '@/screens/mare-detail';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'MareDetail'>;
 
@@ -31,7 +32,16 @@ const TAB_OPTIONS = [
   { label: 'Breeding' },
   { label: 'Pregnancy' },
   { label: 'Foaling' },
+  { label: 'Meds' },
 ] as const;
+
+const TAB_KEY_TO_INDEX: Record<string, number> = {
+  dailyLogs: 0,
+  breeding: 1,
+  pregnancy: 2,
+  foaling: 3,
+  meds: 4,
+};
 
 export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   const mareId = route.params.mareId;
@@ -41,9 +51,11 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
   const [pregnancyChecks, setPregnancyChecks] = useState<PregnancyCheck[]>([]);
   const [foalingRecords, setFoalingRecords] = useState<FoalingRecord[]>([]);
+  const [medicationLogs, setMedicationLogs] = useState<MedicationLog[]>([]);
   const [foalByFoalingRecordId, setFoalByFoalingRecordId] = useState<Record<string, Foal>>({});
   const [stallionNameById, setStallionNameById] = useState<Record<string, string>>({});
-  const [activeTabIndex, setActiveTabIndex] = useState(0);
+  const initialTabIndex = TAB_KEY_TO_INDEX[route.params.initialTab ?? ''] ?? 0;
+  const [activeTabIndex, setActiveTabIndex] = useState(initialTabIndex);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,7 +66,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
       setIsLoading(true);
       setError(null);
 
-      const [mareRecord, logs, breeding, checks, foaling, foals, stallions] = await Promise.all([
+      const [mareRecord, logs, breeding, checks, foaling, foals, stallions, meds] = await Promise.all([
         getMareById(mareId),
         listDailyLogsByMare(mareId),
         listBreedingRecordsByMare(mareId),
@@ -62,6 +74,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
         listFoalingRecordsByMare(mareId),
         listFoalsByMare(mareId),
         listStallions(),
+        listMedicationLogsByMare(mareId),
       ]);
 
       if (!mareRecord) {
@@ -78,6 +91,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
       setBreedingRecords(breeding);
       setPregnancyChecks(checks);
       setFoalingRecords(foaling);
+      setMedicationLogs(meds);
       setFoalByFoalingRecordId(foalMap);
       setStallionNameById(stallionMap);
 
@@ -123,7 +137,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             <View style={styles.cardHeader}>
               <Text style={styles.headerName}>{mare.name}</Text>
               <View style={styles.headerActions}>
-                <IconButton icon={<MaterialIcons name="history" size={20} color={colors.onSurface} />} onPress={() => navigation.navigate('MareTimeline', { mareId })} accessibilityLabel="View History" />
+                <IconButton icon={<MaterialCommunityIcons name="calendar-month" size={20} color={colors.onSurface} />} onPress={() => navigation.navigate('MareCalendar', { mareId })} accessibilityLabel="View Calendar" />
               </View>
             </View>
             <Text style={styles.headerLine}>{mare.breed}</Text>
@@ -151,13 +165,14 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           <PagerView
             ref={pagerRef}
             style={styles.pager}
-            initialPage={0}
+            initialPage={initialTabIndex}
             onPageSelected={handlePageSelected}
           >
             <DailyLogsTab key="0" mareId={mareId} dailyLogs={dailyLogs} navigation={navigation} />
             <BreedingTab key="1" mareId={mareId} breedingRecords={breedingRecords} stallionNameById={stallionNameById} navigation={navigation} />
             <PregnancyTab key="2" mareId={mareId} pregnancyChecks={pregnancyChecks} breedingById={breedingById} dailyLogs={dailyLogs} navigation={navigation} />
             <FoalingTab key="3" mareId={mareId} foalingRecords={foalingRecords} foalByFoalingRecordId={foalByFoalingRecordId} navigation={navigation} />
+            <MedicationsTab key="4" mareId={mareId} medicationLogs={medicationLogs} navigation={navigation} />
           </PagerView>
         </>
       ) : null}

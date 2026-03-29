@@ -19,6 +19,7 @@ import {
   listAllBreedingRecords,
   listAllDailyLogs,
   listAllFoalingRecords,
+  listAllMedicationLogs,
   listAllPregnancyChecks,
   listMares,
   softDeleteMare,
@@ -66,12 +67,13 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
       setIsLoading(true);
       setError(null);
 
-      const [result, allDailyLogs, allBreedings, allChecks, allFoalings] = await Promise.all([
+      const [result, allDailyLogs, allBreedings, allChecks, allFoalings, allMedLogs] = await Promise.all([
         listMares(),
         listAllDailyLogs(),
         listAllBreedingRecords(),
         listAllPregnancyChecks(),
         listAllFoalingRecords(),
+        listAllMedicationLogs(),
       ]);
       setMares(result);
 
@@ -106,6 +108,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
         breedingRecords: allBreedings,
         pregnancyChecks: allChecks,
         foalingRecords: allFoalings,
+        medicationLogs: allMedLogs,
         today,
       });
       setDashboardAlerts(alerts);
@@ -162,6 +165,9 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
         case 'heatActivity':
         case 'noRecentLog':
           navigation.navigate('DailyLogForm', { mareId: alert.mareId });
+          break;
+        case 'medicationGap':
+          navigation.navigate('MareDetail', { mareId: alert.mareId, initialTab: 'meds' });
           break;
       }
     },

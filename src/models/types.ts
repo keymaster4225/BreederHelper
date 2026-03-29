@@ -14,6 +14,20 @@ export type FoalingOutcome = 'liveFoal' | 'stillbirth' | 'aborted' | 'unknown';
 
 export type FoalSex = 'colt' | 'filly' | 'unknown';
 
+export type MedicationRoute = 'oral' | 'IM' | 'IV' | 'intrauterine' | 'SQ';
+
+export interface MedicationLog {
+  id: UUID;
+  mareId: UUID;
+  date: LocalDate;
+  medicationName: string;
+  dose: string | null;
+  route: MedicationRoute | null;
+  notes: string | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
 export type FoalColor =
   | 'bay'
   | 'chestnut'

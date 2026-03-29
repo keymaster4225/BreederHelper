@@ -4,6 +4,7 @@ import {
   FoalingRecord,
   LocalDate,
   Mare,
+  MedicationLog,
   PregnancyCheck,
   calculateDaysPostBreeding,
   estimateFoalingDate,
@@ -21,6 +22,8 @@ export const RECENT_OVULATION_WINDOW_DAYS = 2;
 export const HEAT_ACTIVITY_WINDOW_DAYS = 3;
 export const STALE_LOG_THRESHOLD_DAYS = 7;
 export const PREGNANT_MAINTENANCE_DPO = 60;
+export const MEDICATION_GAP_MIN_STREAK_DAYS = 2;
+export const MEDICATION_GAP_ACTIVE_WINDOW_DAYS = 3;
 
 // --- Types ---
 
@@ -31,7 +34,8 @@ export type AlertKind =
   | 'pregnancyCheckNeeded'
   | 'recentOvulation'
   | 'heatActivity'
-  | 'noRecentLog';
+  | 'noRecentLog'
+  | 'medicationGap';
 
 export interface DashboardAlert {
   readonly kind: AlertKind;
@@ -49,6 +53,7 @@ export interface DashboardInput {
   readonly breedingRecords: readonly BreedingRecord[];
   readonly pregnancyChecks: readonly PregnancyCheck[];
   readonly foalingRecords: readonly FoalingRecord[];
+  readonly medicationLogs?: readonly MedicationLog[];
   readonly today: LocalDate;
 }
 
@@ -327,6 +332,64 @@ function checkNoRecentLog(
   };
 }
 
+function checkMedicationGap(
+  mare: Mare,
+  medicationLogs: readonly MedicationLog[],
+  today: LocalDate
+): DashboardAlert | null {
+  if (medicationLogs.length === 0) return null;
+
+  const byName = new Map<string, string[]>();
+  for (const log of medicationLogs) {
+    const existing = byName.get(log.medicationName);
+    if (existing) {
+      existing.push(log.date);
+    } else {
+      byName.set(log.medicationName, [log.date]);
+    }
+  }
+
+  let bestAlert: DashboardAlert | null = null;
+  let bestDaysAgo = Infinity;
+
+  for (const [medName, dates] of byName) {
+    const uniqueDates = [...new Set(dates)].sort();
+
+    let streakLength = 1;
+    for (let i = uniqueDates.length - 1; i > 0; i--) {
+      const curr = daysBetween(uniqueDates[i], uniqueDates[i - 1]);
+      if (curr === 1) {
+        streakLength++;
+      } else {
+        break;
+      }
+    }
+
+    if (streakLength < MEDICATION_GAP_MIN_STREAK_DAYS) continue;
+
+    const lastDoseDate = uniqueDates[uniqueDates.length - 1];
+    const daysAgo = daysBetween(today, lastDoseDate);
+
+    if (daysAgo > MEDICATION_GAP_ACTIVE_WINDOW_DAYS) continue;
+    if (daysAgo < 1) continue;
+
+    if (daysAgo < bestDaysAgo) {
+      bestDaysAgo = daysAgo;
+      bestAlert = {
+        kind: 'medicationGap',
+        priority: 'medium',
+        mareId: mare.id,
+        mareName: mare.name,
+        title: `${medName} gap`,
+        subtitle: daysAgo === 1 ? 'Last dose: yesterday' : `Last dose: ${daysAgo} days ago`,
+        sortKey: daysAgo,
+      };
+    }
+  }
+
+  return bestAlert;
+}
+
 // --- Main ---
 
 export function generateDashboardAlerts(
@@ -340,6 +403,7 @@ export function generateDashboardAlerts(
   const breedingsByMare = groupByMareId(input.breedingRecords);
   const checksByMare = groupByMareId(input.pregnancyChecks);
   const foalingsByMare = groupByMareId(input.foalingRecords);
+  const medsByMare = groupByMareId(input.medicationLogs ?? []);
 
   const alerts: DashboardAlert[] = [];
 
@@ -382,6 +446,10 @@ export function generateDashboardAlerts(
       today
     );
     if (staleLogAlert) alerts.push(staleLogAlert);
+
+    const mareMeds = medsByMare.get(mare.id) ?? [];
+    const medGapAlert = checkMedicationGap(mare, mareMeds, today);
+    if (medGapAlert) alerts.push(medGapAlert);
   }
 
   return [...alerts].sort((a, b) => {

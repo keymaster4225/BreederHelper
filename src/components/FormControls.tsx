@@ -153,13 +153,18 @@ type Option<T extends string> = {
   value: T;
 };
 
-type OptionSelectorProps<T extends string> = {
+type OptionSelectorBaseProps<T extends string> = {
   value: T | null;
   options: Option<T>[];
-  onChange: (value: T) => void;
 };
 
-export function OptionSelector<T extends string>({ value, options, onChange }: OptionSelectorProps<T>): JSX.Element {
+type OptionSelectorProps<T extends string> = OptionSelectorBaseProps<T> & (
+  | { allowDeselect?: false; onChange: (value: T) => void }
+  | { allowDeselect: true; onChange: (value: T | null) => void }
+);
+
+export function OptionSelector<T extends string>(props: OptionSelectorProps<T>): JSX.Element {
+  const { value, options } = props;
   return (
     <View style={styles.optionRow}>
       {options.map((option) => {
@@ -167,7 +172,13 @@ export function OptionSelector<T extends string>({ value, options, onChange }: O
         return (
           <Pressable
             key={option.value}
-            onPress={() => onChange(option.value)}
+            onPress={() => {
+              if (props.allowDeselect && active) {
+                (props.onChange as (value: T | null) => void)(null);
+              } else {
+                props.onChange(option.value);
+              }
+            }}
             style={[styles.option, active ? styles.optionActive : null]}
             accessibilityRole="radio"
             accessibilityState={{ checked: active }}

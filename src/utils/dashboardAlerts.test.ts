@@ -5,6 +5,7 @@ import {
   DailyLog,
   FoalingRecord,
   Mare,
+  MedicationLog,
   PregnancyCheck,
 } from '@/models/types';
 
@@ -13,6 +14,8 @@ import {
   DUE_DATE_ALERT_WINDOW_DAYS,
   generateDashboardAlerts,
   HEAT_ACTIVITY_WINDOW_DAYS,
+  MEDICATION_GAP_ACTIVE_WINDOW_DAYS,
+  MEDICATION_GAP_MIN_STREAK_DAYS,
   PREG_CHECK_WINDOW_MIN_DAYS,
   RECENT_OVULATION_WINDOW_DAYS,
   STALE_LOG_THRESHOLD_DAYS,
@@ -77,6 +80,21 @@ function makeFoaling(overrides: Partial<FoalingRecord> = {}): FoalingRecord {
     outcome: 'liveFoal',
     createdAt: '2027-02-04T00:00:00Z',
     updatedAt: '2027-02-04T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function makeMedLog(overrides: Partial<MedicationLog> = {}): MedicationLog {
+  return {
+    id: 'med-1',
+    mareId: 'mare-1',
+    date: '2026-03-20',
+    medicationName: 'Regumate',
+    dose: null,
+    route: null,
+    notes: null,
+    createdAt: '2026-03-20T00:00:00Z',
+    updatedAt: '2026-03-20T00:00:00Z',
     ...overrides,
   };
 }
@@ -777,6 +795,123 @@ describe('generateDashboardAlerts', () => {
     });
   });
 
+  // --- Medication gap alerts ---
+
+  describe('medicationGap', () => {
+    it('returns alert for recent consecutive-day gap', () => {
+      const alerts = generateDashboardAlerts(
+        makeInput({
+          mares: [makeMare()],
+          medicationLogs: [
+            makeMedLog({ id: 'med-1', date: '2026-03-23' }),
+            makeMedLog({ id: 'med-2', date: '2026-03-24' }),
+            makeMedLog({ id: 'med-3', date: '2026-03-25' }),
+          ],
+          today: '2026-03-26',
+        })
+      );
+
+      const medAlerts = alerts.filter((a) => a.kind === 'medicationGap');
+      expect(medAlerts).toHaveLength(1);
+      expect(medAlerts[0].title).toBe('Regumate gap');
+      expect(medAlerts[0].subtitle).toBe('Last dose: yesterday');
+    });
+
+    it('returns no alert for a single isolated dose (no streak)', () => {
+      const alerts = generateDashboardAlerts(
+        makeInput({
+          mares: [makeMare()],
+          medicationLogs: [
+            makeMedLog({ id: 'med-1', date: '2026-03-25' }),
+          ],
+          today: '2026-03-26',
+        })
+      );
+
+      expect(alerts.filter((a) => a.kind === 'medicationGap')).toHaveLength(0);
+    });
+
+    it('returns no alert when streak ends today (no gap)', () => {
+      const alerts = generateDashboardAlerts(
+        makeInput({
+          mares: [makeMare()],
+          medicationLogs: [
+            makeMedLog({ id: 'med-1', date: '2026-03-25' }),
+            makeMedLog({ id: 'med-2', date: '2026-03-26' }),
+          ],
+          today: '2026-03-26',
+        })
+      );
+
+      expect(alerts.filter((a) => a.kind === 'medicationGap')).toHaveLength(0);
+    });
+
+    it('suppresses stale historical streaks', () => {
+      const alerts = generateDashboardAlerts(
+        makeInput({
+          mares: [makeMare()],
+          medicationLogs: [
+            makeMedLog({ id: 'med-1', date: '2026-03-10' }),
+            makeMedLog({ id: 'med-2', date: '2026-03-11' }),
+            makeMedLog({ id: 'med-3', date: '2026-03-12' }),
+          ],
+          today: '2026-03-26',
+        })
+      );
+
+      expect(alerts.filter((a) => a.kind === 'medicationGap')).toHaveLength(0);
+    });
+
+    it('treats duplicate same-day logs as one day in streak', () => {
+      const alerts = generateDashboardAlerts(
+        makeInput({
+          mares: [makeMare()],
+          medicationLogs: [
+            makeMedLog({ id: 'med-1', date: '2026-03-24' }),
+            makeMedLog({ id: 'med-2', date: '2026-03-24' }),
+            makeMedLog({ id: 'med-3', date: '2026-03-25' }),
+          ],
+          today: '2026-03-26',
+        })
+      );
+
+      const medAlerts = alerts.filter((a) => a.kind === 'medicationGap');
+      expect(medAlerts).toHaveLength(1);
+      expect(medAlerts[0].title).toBe('Regumate gap');
+    });
+
+    it('returns no alert when no medication logs exist', () => {
+      const alerts = generateDashboardAlerts(
+        makeInput({
+          mares: [makeMare()],
+          medicationLogs: [],
+          today: '2026-03-26',
+        })
+      );
+
+      expect(alerts.filter((a) => a.kind === 'medicationGap')).toHaveLength(0);
+    });
+
+    it('picks the most recent gap when multiple meds have gaps', () => {
+      const alerts = generateDashboardAlerts(
+        makeInput({
+          mares: [makeMare()],
+          medicationLogs: [
+            makeMedLog({ id: 'med-1', date: '2026-03-24', medicationName: 'Regumate' }),
+            makeMedLog({ id: 'med-2', date: '2026-03-25', medicationName: 'Regumate' }),
+            makeMedLog({ id: 'med-3', date: '2026-03-23', medicationName: 'Oxytocin' }),
+            makeMedLog({ id: 'med-4', date: '2026-03-24', medicationName: 'Oxytocin' }),
+          ],
+          today: '2026-03-26',
+        })
+      );
+
+      const medAlerts = alerts.filter((a) => a.kind === 'medicationGap');
+      expect(medAlerts).toHaveLength(1);
+      expect(medAlerts[0].title).toBe('Regumate gap');
+    });
+  });
+
   // --- Constants are exported ---
 
   describe('exported constants', () => {
@@ -786,6 +921,8 @@ describe('generateDashboardAlerts', () => {
       expect(RECENT_OVULATION_WINDOW_DAYS).toBe(2);
       expect(HEAT_ACTIVITY_WINDOW_DAYS).toBe(3);
       expect(STALE_LOG_THRESHOLD_DAYS).toBe(7);
+      expect(MEDICATION_GAP_MIN_STREAK_DAYS).toBe(2);
+      expect(MEDICATION_GAP_ACTIVE_WINDOW_DAYS).toBe(3);
     });
   });
 });

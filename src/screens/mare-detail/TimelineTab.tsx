@@ -8,12 +8,14 @@ import {
   DailyLog,
   Foal,
   FoalingRecord,
+  MedicationLog,
   PregnancyCheck,
   calculateDaysPostBreeding,
   estimateFoalingDate,
 } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { formatLocalDate } from '@/utils/dates';
+import { formatRoute } from '@/utils/medications';
 import { formatBreedingMethod, formatFoalSex, formatOutcome, getFoalSexColor, getOutcomeColor } from '@/utils/outcomeDisplay';
 import { buildTimelineEvents, TimelineEvent } from '@/utils/timelineEvents';
 import { colors, spacing, typography } from '@/theme';
@@ -24,18 +26,20 @@ type Props = {
   readonly breedingRecords: readonly BreedingRecord[];
   readonly pregnancyChecks: readonly PregnancyCheck[];
   readonly foalingRecords: readonly FoalingRecord[];
+  readonly medicationLogs?: readonly MedicationLog[];
   readonly foalByFoalingRecordId: Readonly<Record<string, Foal>>;
   readonly stallionNameById: Readonly<Record<string, string>>;
   readonly breedingById: Readonly<Record<string, BreedingRecord>>;
-  readonly navigation: NativeStackNavigationProp<RootStackParamList, 'MareDetail'>;
+  readonly navigation: NativeStackNavigationProp<RootStackParamList, 'MareDetail' | 'MareCalendar'>;
 };
 
 const EVENT_COLORS = {
   heat: '#FF9800',
-  ovulation: '#EF6C00',
-  breeding: colors.secondary,
-  pregnancyCheck: colors.positive,
-  foaling: colors.positive,
+  ovulation: '#9C27B0',
+  breeding: '#2196F3',
+  pregnancyCheck: '#4CAF50',
+  foaling: '#E91E63',
+  medication: '#009688',
 } as const;
 
 function EventTypeBadge({ type, result }: { type: TimelineEvent['type']; result?: string }): JSX.Element {
@@ -45,9 +49,10 @@ function EventTypeBadge({ type, result }: { type: TimelineEvent['type']; result?
     breeding: 'Breeding',
     pregnancyCheck: 'Preg Check',
     foaling: 'Foaling',
+    medication: 'Medication',
   };
 
-  let bgColor = EVENT_COLORS[type];
+  let bgColor: string = EVENT_COLORS[type];
   if (type === 'pregnancyCheck' && result === 'negative') {
     bgColor = colors.negative;
   }
@@ -193,6 +198,28 @@ function FoalingCard({
   );
 }
 
+function MedicationCard({ event, navigation, mareId }: {
+  event: TimelineEvent;
+  navigation: Props['navigation'];
+  mareId: string;
+}): JSX.Element {
+  const log = event.data as MedicationLog;
+  return (
+    <View style={cardStyles.card}>
+      <View style={cardStyles.cardHeader}>
+        <Text style={cardStyles.cardTitle}>{event.date}</Text>
+        <EditIconButton onPress={() => navigation.navigate('MedicationForm', { mareId, medicationLogId: log.id })} />
+      </View>
+      <View style={cardStyles.cardRow}>
+        <EventTypeBadge type="medication" />
+        <Text style={styles.cardDetail}>{log.medicationName}</Text>
+      </View>
+      {log.dose ? <CardRow label="Dose" value={log.dose} /> : null}
+      {log.route ? <CardRow label="Route" value={formatRoute(log.route)} /> : null}
+    </View>
+  );
+}
+
 function TimelineCard({
   event,
   navigation,
@@ -219,6 +246,8 @@ function TimelineCard({
       return <PregCheckCard event={event} navigation={navigation} mareId={mareId} breedingById={breedingById} />;
     case 'foaling':
       return <FoalingCard event={event} navigation={navigation} mareId={mareId} foalByFoalingRecordId={foalByFoalingRecordId} />;
+    case 'medication':
+      return <MedicationCard event={event} navigation={navigation} mareId={mareId} />;
   }
 }
 
@@ -228,12 +257,13 @@ export function TimelineTab({
   breedingRecords,
   pregnancyChecks,
   foalingRecords,
+  medicationLogs = [],
   foalByFoalingRecordId,
   stallionNameById,
   breedingById,
   navigation,
 }: Props): JSX.Element {
-  const events = buildTimelineEvents(dailyLogs, breedingRecords, pregnancyChecks, foalingRecords);
+  const events = buildTimelineEvents(dailyLogs, breedingRecords, pregnancyChecks, foalingRecords, medicationLogs);
 
   return (
     <View style={styles.page}>

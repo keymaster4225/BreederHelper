@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildTimelineEvents } from '@/utils/timelineEvents';
-import { BreedingRecord, DailyLog, FoalingRecord, PregnancyCheck } from '@/models/types';
+import { BreedingRecord, DailyLog, FoalingRecord, MedicationLog, PregnancyCheck } from '@/models/types';
 
 function makeDailyLog(overrides: Partial<DailyLog> & { id: string; date: string; mareId: string }): DailyLog {
   return {
@@ -190,6 +190,41 @@ describe('buildTimelineEvents', () => {
       const breeding = makeBreedingRecord({ id: 'br-1', date: '2026-03-02', mareId: MARE_ID, method: 'frozenAI' });
       const result = buildTimelineEvents([], [breeding], [], []);
       expect(result[0].data).toBe(breeding);
+    });
+  });
+
+  describe('medication events', () => {
+    function makeMedLog(overrides: Partial<MedicationLog> & { id: string; date: string; mareId: string }): MedicationLog {
+      return {
+        medicationName: 'Regumate',
+        dose: null,
+        route: null,
+        notes: null,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+        ...overrides,
+      };
+    }
+
+    it('includes medication logs in timeline events', () => {
+      const medLog = makeMedLog({ id: 'med-1', date: '2026-03-15', mareId: MARE_ID });
+      const result = buildTimelineEvents([], [], [], [], [medLog]);
+      expect(result).toHaveLength(1);
+      expect(result[0].type).toBe('medication');
+      expect(result[0].data).toBe(medLog);
+    });
+
+    it('sorts medication events after other event types on same date', () => {
+      const breeding = makeBreedingRecord({ id: 'br-1', date: '2026-03-15', mareId: MARE_ID });
+      const medLog = makeMedLog({ id: 'med-1', date: '2026-03-15', mareId: MARE_ID });
+      const result = buildTimelineEvents([], [breeding], [], [], [medLog]);
+      expect(result[0].type).toBe('breeding');
+      expect(result[1].type).toBe('medication');
+    });
+
+    it('defaults to empty medication array when omitted', () => {
+      const result = buildTimelineEvents([], [], [], []);
+      expect(result).toHaveLength(0);
     });
   });
 });

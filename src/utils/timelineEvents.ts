@@ -1,12 +1,12 @@
-import type { BreedingRecord, DailyLog, FoalingRecord, LocalDate, PregnancyCheck } from '@/models/types';
+import type { BreedingRecord, DailyLog, FoalingRecord, LocalDate, MedicationLog, PregnancyCheck } from '@/models/types';
 
-export type TimelineEventType = 'foaling' | 'pregnancyCheck' | 'breeding' | 'ovulation' | 'heat';
+export type TimelineEventType = 'foaling' | 'pregnancyCheck' | 'breeding' | 'ovulation' | 'heat' | 'medication';
 
 export interface TimelineEvent {
   readonly id: string;
   readonly type: TimelineEventType;
   readonly date: LocalDate;
-  readonly data: DailyLog | BreedingRecord | PregnancyCheck | FoalingRecord;
+  readonly data: DailyLog | BreedingRecord | PregnancyCheck | FoalingRecord | MedicationLog;
 }
 
 const TYPE_PRIORITY: Record<TimelineEventType, number> = {
@@ -15,6 +15,7 @@ const TYPE_PRIORITY: Record<TimelineEventType, number> = {
   breeding: 2,
   ovulation: 3,
   heat: 4,
+  medication: 5,
 };
 
 function filterDailyLogs(dailyLogs: readonly DailyLog[]): readonly TimelineEvent[] {
@@ -22,7 +23,7 @@ function filterDailyLogs(dailyLogs: readonly DailyLog[]): readonly TimelineEvent
   for (const log of dailyLogs) {
     if (log.ovulationDetected) {
       events.push({ id: log.id, type: 'ovulation', date: log.date, data: log });
-    } else if (log.teasingScore != null && log.teasingScore >= 4) {
+    } else if ((log.teasingScore != null && log.teasingScore >= 4) || (log.edema != null && log.edema >= 4)) {
       events.push({ id: log.id, type: 'heat', date: log.date, data: log });
     }
   }
@@ -34,6 +35,7 @@ export function buildTimelineEvents(
   breedingRecords: readonly BreedingRecord[],
   pregnancyChecks: readonly PregnancyCheck[],
   foalingRecords: readonly FoalingRecord[],
+  medicationLogs: readonly MedicationLog[] = [],
 ): readonly TimelineEvent[] {
   const logEvents = filterDailyLogs(dailyLogs);
 
@@ -58,7 +60,14 @@ export function buildTimelineEvents(
     data: r,
   }));
 
-  const all = [...logEvents, ...breedingEvents, ...checkEvents, ...foalingEvents];
+  const medicationEvents: readonly TimelineEvent[] = medicationLogs.map((r) => ({
+    id: r.id,
+    type: 'medication' as const,
+    date: r.date,
+    data: r,
+  }));
+
+  const all = [...logEvents, ...breedingEvents, ...checkEvents, ...foalingEvents, ...medicationEvents];
 
   return all.sort((a, b) => {
     const dateCompare = b.date.localeCompare(a.date);
