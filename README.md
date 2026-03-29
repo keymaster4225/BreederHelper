@@ -1,121 +1,87 @@
-﻿# BreedWise
+# BreedWise
 
-Mobile app for horse breeders to track mare reproductive cycles, breeding events, pregnancy checks, and foaling outcomes.
+BreedWise is an offline-first Expo / React Native app for tracking mare reproductive management on a single device. It is built around fast daily use for breeders: record mare observations, breeding activity, pregnancy checks, foaling outcomes, and review each mare's history without needing a backend.
 
-## Current Status
+## What the app does
 
-This repository currently includes:
-- Expo + React Native + TypeScript app scaffolding
-- Local SQLite storage with migration runner
-- CRUD flows for:
-  - Mares
-  - Stallions
-  - Daily logs
-  - Breeding records
-  - Pregnancy checks
-  - Foaling records
-- Mare detail view with tabbed sections and record-level edit/delete actions
-- Shared form components and date picker inputs
-- Unit/smoke tests (Vitest)
-- GitHub Actions CI for typecheck + tests
+- Manages mares and stallions with local SQLite persistence
+- Records daily logs, breeding records, pregnancy checks, foaling records, and foal details
+- Shows a home dashboard with actionable breeding alerts
+- Supports mare search plus pregnant/open filtering on the home screen
+- Provides per-mare detail tabs for daily logs, breeding, pregnancy, and foaling
+- Provides a per-mare calendar view with event dots and day-level history cards
+- Includes onboarding state and a dev-only sample data seeder
 
-## Tech Stack
+## Stack
 
-- React Native (Expo)
+- Expo 55
+- React Native 0.83
+- React 19
 - TypeScript
-- expo-sqlite
+- `expo-sqlite` for on-device storage
 - React Navigation
-- @react-native-community/datetimepicker
-- Vitest (tests)
+- Vitest for unit tests
 
-## Project Structure
+## Project layout
 
 ```text
 src/
-  components/        # Shared UI components and form controls
-  models/            # Domain types
-  navigation/        # App navigation
-  screens/           # App screens
-  storage/           # DB bootstrap, migrations, repositories
-  utils/             # Date/id/validation helpers
+  components/   reusable UI primitives and cards
+  models/       domain types and derived reproductive logic
+  navigation/   stack navigation
+  screens/      app screens and mare detail tabs
+  storage/      SQLite bootstrap, migrations, repositories
+  utils/        filters, validation, alerts, timeline/calendar helpers
+docs/
+  plans/        implementation plans and design notes
+  superpowers/  older plan/spec artifacts
 ```
 
-## Prerequisites
+## Getting started
+
+Prerequisites:
 
 - Node.js 20+
 - npm
-- Android Studio (for Android emulator)
-- Android SDK + Emulator image
+- Expo-compatible Android or iOS simulator/device
 
-## Setup
+Install dependencies:
 
 ```bash
 npm install
 ```
 
-## Run
-
-### Start Metro
+Start the Expo dev server:
 
 ```bash
 npm start
 ```
 
-### Run on Android emulator
-
-1. Start an emulator from Android Studio Device Manager.
-2. From project root:
+Common commands:
 
 ```bash
 npm run android
-```
-
-## Quality Checks
-
-### Typecheck
-
-```bash
+npm run ios
+npm run web
 npm run typecheck
-```
-
-### Tests
-
-```bash
 npm test
 ```
 
-Current automated tests cover:
-- Validation utility functions (`src/utils/validation.ts`)
-- Repository smoke tests for key CRUD flows
-- Constrained delete behavior (FK-style protection)
+## Storage and quality
 
-## CI
-
-GitHub Actions workflow:
-- `.github/workflows/ci.yml`
-- Runs on push to `main` and on pull requests
-- Executes:
-  - `npm ci`
-  - `npm run typecheck`
-  - `npm test`
-
-## Database
-
-- Initial schema: `src/storage/migrations/001_initial_schema.sql`
-- Migration runner: `src/storage/migrations/index.ts`
+- Database file: `breeder-helper.db`
+- Migration entrypoint: `src/storage/migrations/index.ts`
 - DB bootstrap: `src/storage/db.ts`
+- CI: `.github/workflows/ci.yml` runs `npm ci`, `npm run typecheck`, and `npm test`
 
-## Useful Scripts
+## Product and planning docs
 
-- `npm start` - Start Expo dev server
-- `npm run android` - Build/run Android app
-- `npm run ios` - Build/run iOS app (macOS only)
-- `npm run web` - Run web target
-- `npm run typecheck` - Run TypeScript checks
-- `npm test` - Run Vitest test suites
+- Core product spec: `mare-tracker-spec.md`
+- Current/recent design work: `docs/plans/`
+- Earlier plan/spec artifacts: `docs/superpowers/plans/` and `docs/superpowers/specs/`
+- Timeline/history design notes: `TIMELINE.md`
 
 ## Notes
 
-- Local-first/offline-first storage is implemented with SQLite.
-- Some tests use a mocked DB adapter for deterministic repository smoke coverage.
-- The product spec source is `mare-tracker-spec.md`.
+- The app is local-first and intended to work fully offline.
+- The repository currently contains both shipped code and in-progress planning/design documents for recent UI changes.
