@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import PagerView from 'react-native-pager-view';
@@ -28,7 +28,7 @@ import { DailyLogsTab, BreedingTab, PregnancyTab, FoalingTab, MedicationsTab } f
 type Props = NativeStackScreenProps<RootStackParamList, 'MareDetail'>;
 
 const TAB_OPTIONS = [
-  { label: 'Daily Logs' },
+  { label: 'Logs' },
   { label: 'Breeding' },
   { label: 'Pregnancy' },
   { label: 'Foaling' },
@@ -145,7 +145,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             {mare.registrationNumber ? <Text style={styles.headerLine}>Reg #: {mare.registrationNumber}</Text> : null}
           </View>
 
-          <View style={styles.tabRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow}>
             {TAB_OPTIONS.map((tab, index) => {
               const active = index === activeTabIndex;
               return (
@@ -160,7 +160,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
 
           <PagerView
             ref={pagerRef}
@@ -211,9 +211,8 @@ const styles = StyleSheet.create({
   },
   tabRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
-    marginBottom: spacing.md,
+    paddingBottom: spacing.md,
   },
   tabButton: {
     backgroundColor: colors.surface,
