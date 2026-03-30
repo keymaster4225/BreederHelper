@@ -145,7 +145,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             {mare.registrationNumber ? <Text style={styles.headerLine}>Reg #: {mare.registrationNumber}</Text> : null}
           </View>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={styles.tabRow}>
             {TAB_OPTIONS.map((tab, index) => {
               const active = index === activeTabIndex;
               return (
@@ -209,10 +209,13 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
     ...typography.bodySmall,
   },
+  tabScroll: {
+    flexGrow: 0,
+    marginBottom: spacing.md,
+  },
   tabRow: {
     flexDirection: 'row',
     gap: spacing.sm,
-    paddingBottom: spacing.md,
   },
   tabButton: {
     backgroundColor: colors.surface,
