@@ -58,6 +58,14 @@ export interface FoalMilestoneEntry {
 
 export type FoalMilestones = Partial<Record<FoalMilestoneKey, FoalMilestoneEntry>>;
 
+export type IggInterpretation = 'adequate' | 'partialFailure' | 'completeFailure';
+
+export interface IggTest {
+  readonly date: LocalDate;
+  readonly valueMgDl: number;
+  readonly recordedAt: ISODateTime;
+}
+
 export interface Foal {
   id: UUID;
   foalingRecordId: UUID;
@@ -67,6 +75,7 @@ export interface Foal {
   markings?: string | null;
   birthWeightLbs?: number | null;
   milestones: FoalMilestones;
+  iggTests: readonly IggTest[];
   notes?: string | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;

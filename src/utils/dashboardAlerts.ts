@@ -1,6 +1,7 @@
 import {
   BreedingRecord,
   DailyLog,
+  Foal,
   FoalingRecord,
   LocalDate,
   Mare,
@@ -24,6 +25,7 @@ export const STALE_LOG_THRESHOLD_DAYS = 7;
 export const PREGNANT_MAINTENANCE_DPO = 60;
 export const MEDICATION_GAP_MIN_STREAK_DAYS = 2;
 export const MEDICATION_GAP_ACTIVE_WINDOW_DAYS = 3;
+export const FOAL_IGG_ALERT_WINDOW_DAYS = 2;
 
 // --- Types ---
 
@@ -35,7 +37,8 @@ export type AlertKind =
   | 'recentOvulation'
   | 'heatActivity'
   | 'noRecentLog'
-  | 'medicationGap';
+  | 'medicationGap'
+  | 'foalNeedsIgg';
 
 export interface DashboardAlert {
   readonly kind: AlertKind;
@@ -45,6 +48,8 @@ export interface DashboardAlert {
   readonly title: string;
   readonly subtitle: string;
   readonly sortKey: number;
+  readonly foalingRecordId?: string;
+  readonly foalId?: string;
 }
 
 export interface DashboardInput {
@@ -54,6 +59,7 @@ export interface DashboardInput {
   readonly pregnancyChecks: readonly PregnancyCheck[];
   readonly foalingRecords: readonly FoalingRecord[];
   readonly medicationLogs?: readonly MedicationLog[];
+  readonly foals?: readonly Foal[];
   readonly today: LocalDate;
 }
 
@@ -390,6 +396,40 @@ function checkMedicationGap(
   return bestAlert;
 }
 
+function checkFoalNeedsIgg(
+  mare: Mare,
+  foalingRecords: readonly FoalingRecord[],
+  foalByFoalingRecordId: ReadonlyMap<string, Foal>,
+  today: LocalDate
+): DashboardAlert | null {
+  const liveFoalings = foalingRecords.filter((fr) => fr.outcome === 'liveFoal');
+
+  for (const foaling of liveFoalings) {
+    const daysAgo = daysBetween(today, foaling.date);
+    if (daysAgo > FOAL_IGG_ALERT_WINDOW_DAYS) continue;
+
+    const foal = foalByFoalingRecordId.get(foaling.id);
+    if (!foal) continue;
+    if (foal.iggTests.length > 0) continue;
+
+    const foalLabel = foal.name || 'Foal';
+
+    return {
+      kind: 'foalNeedsIgg',
+      priority: 'high',
+      mareId: mare.id,
+      mareName: mare.name,
+      title: `${foalLabel} needs IgG test`,
+      subtitle: `Born ${foaling.date}`,
+      sortKey: daysAgo,
+      foalingRecordId: foaling.id,
+      foalId: foal.id,
+    };
+  }
+
+  return null;
+}
+
 // --- Main ---
 
 export function generateDashboardAlerts(
@@ -404,6 +444,11 @@ export function generateDashboardAlerts(
   const checksByMare = groupByMareId(input.pregnancyChecks);
   const foalingsByMare = groupByMareId(input.foalingRecords);
   const medsByMare = groupByMareId(input.medicationLogs ?? []);
+
+  const foalByFoalingRecordId = new Map<string, Foal>();
+  for (const foal of input.foals ?? []) {
+    foalByFoalingRecordId.set(foal.foalingRecordId, foal);
+  }
 
   const alerts: DashboardAlert[] = [];
 
@@ -450,6 +495,9 @@ export function generateDashboardAlerts(
     const mareMeds = medsByMare.get(mare.id) ?? [];
     const medGapAlert = checkMedicationGap(mare, mareMeds, today);
     if (medGapAlert) alerts.push(medGapAlert);
+
+    const iggAlert = checkFoalNeedsIgg(mare, mareFoalings, foalByFoalingRecordId, today);
+    if (iggAlert) alerts.push(iggAlert);
   }
 
   return [...alerts].sort((a, b) => {

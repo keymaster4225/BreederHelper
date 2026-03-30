@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
-import { FormCheckbox, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { FormCheckbox, FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
-import { FoalColor, FoalMilestoneKey, FoalMilestones, FoalSex } from '@/models/types';
+import { StatusBadge } from '@/components/StatusBadge';
+import { FoalColor, FoalMilestoneKey, FoalMilestones, FoalSex, IggTest } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   createFoal,
@@ -16,7 +17,9 @@ import {
   updateFoal,
 } from '@/storage/repositories';
 import { borderRadius, colors, spacing, typography } from '@/theme';
+import { toLocalDate } from '@/utils/dates';
 import { FOAL_MILESTONE_KEYS, FOAL_MILESTONE_LABELS } from '@/utils/foalMilestones';
+import { interpretIgg, formatIggInterpretation, getIggColor } from '@/utils/igg';
 import { newId } from '@/utils/id';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FoalForm'>;
@@ -58,6 +61,7 @@ export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
   const [birthWeightLbs, setBirthWeightLbs] = useState('');
   const [milestones, setMilestones] = useState<FoalMilestones>({});
   const [notes, setNotes] = useState('');
+  const [iggTests, setIggTests] = useState<IggTest[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -100,6 +104,7 @@ export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
           setMarkings(existing.markings ?? '');
           setBirthWeightLbs(existing.birthWeightLbs != null ? String(existing.birthWeightLbs) : '');
           setMilestones(existing.milestones);
+          setIggTests([...existing.iggTests]);
           setNotes(existing.notes ?? '');
         }
       } catch (err) {
@@ -133,6 +138,27 @@ export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
     });
   };
 
+  const addIggTest = (): void => {
+    const newTest: IggTest = {
+      date: toLocalDate(new Date()),
+      valueMgDl: 0,
+      recordedAt: new Date().toISOString(),
+    };
+    setIggTests((prev) => [newTest, ...prev]);
+  };
+
+  const updateIggTest = (index: number, updates: Partial<Pick<IggTest, 'date' | 'valueMgDl'>>): void => {
+    setIggTests((prev) =>
+      prev.map((test, i) =>
+        i === index ? { ...test, ...updates } : test
+      )
+    );
+  };
+
+  const removeIggTest = (index: number): void => {
+    setIggTests((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const validate = (): boolean => {
     const nextErrors: FormErrors = {};
     const trimmedWeight = birthWeightLbs.trim();
@@ -152,6 +178,7 @@ export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
     setIsSaving(true);
     try {
       const trimmedWeight = birthWeightLbs.trim();
+      const validIggTests = iggTests.filter((t) => t.valueMgDl > 0);
       const payload = {
         name: name.trim() || null,
         sex,
@@ -159,6 +186,7 @@ export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
         markings: markings.trim() || null,
         birthWeightLbs: trimmedWeight ? Number(trimmedWeight) : null,
         milestones,
+        iggTests: validIggTests,
         notes: notes.trim() || null,
       };
 
@@ -258,13 +286,64 @@ export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
               const isDone = entry?.done ?? false;
               const timeLabel = isDone ? formatRecordedAt(entry?.recordedAt) : '';
               return (
-                <View key={key} style={milestoneStyles.row}>
-                  <FormCheckbox
-                    label={FOAL_MILESTONE_LABELS[key]}
-                    value={isDone}
-                    onChange={() => toggleMilestone(key)}
-                  />
-                  {timeLabel ? <Text style={milestoneStyles.time}>{timeLabel}</Text> : null}
+                <View key={key}>
+                  <View style={milestoneStyles.row}>
+                    <FormCheckbox
+                      label={FOAL_MILESTONE_LABELS[key]}
+                      value={isDone}
+                      onChange={() => toggleMilestone(key)}
+                    />
+                    {timeLabel ? <Text style={milestoneStyles.time}>{timeLabel}</Text> : null}
+                  </View>
+                  {key === 'iggTested' && isDone ? (
+                    <View style={iggStyles.section}>
+                      {iggTests.map((test, index) => {
+                        const hasValue = test.valueMgDl > 0;
+                        const interpretation = hasValue ? interpretIgg(test.valueMgDl) : null;
+                        return (
+                          <View key={index} style={iggStyles.testRow}>
+                            <View style={iggStyles.testFields}>
+                              <View style={iggStyles.dateField}>
+                                <FormDateInput
+                                  value={test.date}
+                                  onChange={(date) => updateIggTest(index, { date })}
+                                  displayFormat="MM-DD-YYYY"
+                                />
+                              </View>
+                              <View style={iggStyles.valueField}>
+                                <FormTextInput
+                                  value={hasValue ? String(test.valueMgDl) : ''}
+                                  onChangeText={(text) => {
+                                    const parsed = parseInt(text, 10);
+                                    updateIggTest(index, { valueMgDl: isNaN(parsed) ? 0 : parsed });
+                                  }}
+                                  placeholder="mg/dL"
+                                  keyboardType="numeric"
+                                />
+                              </View>
+                              {interpretation ? (
+                                <StatusBadge
+                                  label={formatIggInterpretation(interpretation)}
+                                  backgroundColor={getIggColor(interpretation)}
+                                  textColor="#FFFFFF"
+                                />
+                              ) : null}
+                            </View>
+                            <Pressable
+                              onPress={() => removeIggTest(index)}
+                              hitSlop={8}
+                              accessibilityLabel="Remove test"
+                            >
+                              <Text style={iggStyles.deleteIcon}>✕</Text>
+                            </Pressable>
+                          </View>
+                        );
+                      })}
+                      <Pressable onPress={addIggTest} style={iggStyles.addButton}>
+                        <Text style={iggStyles.addButtonText}>+ Add Test</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </View>
               );
             })}
@@ -313,5 +392,47 @@ const milestoneStyles = StyleSheet.create({
   time: {
     color: colors.onSurfaceVariant,
     ...typography.bodySmall,
+  },
+});
+
+const iggStyles = StyleSheet.create({
+  section: {
+    marginLeft: spacing.md,
+    marginTop: spacing.xs,
+    marginBottom: spacing.sm,
+    gap: spacing.sm,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.outline,
+    paddingLeft: spacing.md,
+  },
+  testRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  testFields: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flexWrap: 'wrap',
+  },
+  dateField: {
+    minWidth: 120,
+  },
+  valueField: {
+    width: 80,
+  },
+  deleteIcon: {
+    color: colors.error,
+    fontSize: 18,
+    padding: spacing.xs,
+  },
+  addButton: {
+    paddingVertical: spacing.sm,
+  },
+  addButtonText: {
+    color: colors.primary,
+    ...typography.labelMedium,
   },
 });

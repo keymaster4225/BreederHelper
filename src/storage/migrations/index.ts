@@ -233,6 +233,10 @@ CREATE INDEX IF NOT EXISTS idx_medication_logs_mare_date
   ON medication_logs (mare_id, date DESC);
 `;
 
+const migration007 = `
+ALTER TABLE foals ADD COLUMN igg_tests TEXT NOT NULL DEFAULT '[]';
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -265,6 +269,12 @@ const migrations: Migration[] = [
     id: 6,
     name: '006_create_medication_logs',
     statements: splitStatements(migration006),
+  },
+  {
+    id: 7,
+    name: '007_add_foal_igg_tests',
+    statements: splitStatements(migration007),
+    shouldSkip: async (db) => hasColumn(db, 'foals', 'igg_tests'),
   },
 ];
 

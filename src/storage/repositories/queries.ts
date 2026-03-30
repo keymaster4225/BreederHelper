@@ -9,6 +9,7 @@
   FoalMilestones,
   FoalSex,
   FoalingRecord,
+  IggTest,
   LocalDate,
   MedicationLog,
   MedicationRoute,
@@ -876,6 +877,7 @@ type FoalRow = {
   markings: string | null;
   birth_weight_lbs: number | null;
   milestones: string;
+  igg_tests: string;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -916,6 +918,28 @@ export function parseFoalMilestones(value: string): FoalMilestones {
   return result;
 }
 
+export function parseIggTests(value: string): IggTest[] {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(value);
+  } catch {
+    return [];
+  }
+
+  if (!Array.isArray(raw)) return [];
+
+  const result: IggTest[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null) continue;
+    const e = entry as Record<string, unknown>;
+    if (typeof e.date !== 'string') continue;
+    if (typeof e.valueMgDl !== 'number' || e.valueMgDl <= 0) continue;
+    const recordedAt = typeof e.recordedAt === 'string' ? e.recordedAt : '';
+    result.push({ date: e.date, valueMgDl: e.valueMgDl, recordedAt });
+  }
+  return result;
+}
+
 function mapFoalRow(row: FoalRow): Foal {
   return {
     id: row.id,
@@ -926,6 +950,7 @@ function mapFoalRow(row: FoalRow): Foal {
     markings: row.markings,
     birthWeightLbs: row.birth_weight_lbs,
     milestones: parseFoalMilestones(row.milestones),
+    iggTests: parseIggTests(row.igg_tests),
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -941,6 +966,7 @@ export async function createFoal(input: {
   markings?: string | null;
   birthWeightLbs?: number | null;
   milestones: FoalMilestones;
+  iggTests?: readonly IggTest[];
   notes?: string | null;
 }): Promise<void> {
   const db = await getDb();
@@ -957,10 +983,11 @@ export async function createFoal(input: {
       markings,
       birth_weight_lbs,
       milestones,
+      igg_tests,
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       input.id,
@@ -971,6 +998,7 @@ export async function createFoal(input: {
       input.markings ?? null,
       input.birthWeightLbs ?? null,
       JSON.stringify(input.milestones),
+      JSON.stringify(input.iggTests ?? []),
       input.notes ?? null,
       now,
       now,
@@ -987,6 +1015,7 @@ export async function updateFoal(
     markings?: string | null;
     birthWeightLbs?: number | null;
     milestones: FoalMilestones;
+    iggTests?: readonly IggTest[];
     notes?: string | null;
   }
 ): Promise<void> {
@@ -1002,6 +1031,7 @@ export async function updateFoal(
       markings = ?,
       birth_weight_lbs = ?,
       milestones = ?,
+      igg_tests = ?,
       notes = ?,
       updated_at = ?
     WHERE id = ?;
@@ -1013,6 +1043,7 @@ export async function updateFoal(
       input.markings ?? null,
       input.birthWeightLbs ?? null,
       JSON.stringify(input.milestones),
+      JSON.stringify(input.iggTests ?? []),
       input.notes ?? null,
       new Date().toISOString(),
       id,
@@ -1025,7 +1056,7 @@ export async function getFoalById(id: string): Promise<Foal | null> {
   const row = await db.getFirstAsync<FoalRow>(
     `
     SELECT id, foaling_record_id, name, sex, color, markings, birth_weight_lbs,
-           milestones, notes, created_at, updated_at
+           milestones, igg_tests, notes, created_at, updated_at
     FROM foals
     WHERE id = ?;
     `,
@@ -1040,7 +1071,7 @@ export async function getFoalByFoalingRecordId(foalingRecordId: string): Promise
   const row = await db.getFirstAsync<FoalRow>(
     `
     SELECT id, foaling_record_id, name, sex, color, markings, birth_weight_lbs,
-           milestones, notes, created_at, updated_at
+           milestones, igg_tests, notes, created_at, updated_at
     FROM foals
     WHERE foaling_record_id = ?;
     `,
@@ -1055,7 +1086,7 @@ export async function listFoalsByMare(mareId: string): Promise<Foal[]> {
   const rows = await db.getAllAsync<FoalRow>(
     `
     SELECT f.id, f.foaling_record_id, f.name, f.sex, f.color, f.markings,
-           f.birth_weight_lbs, f.milestones, f.notes, f.created_at, f.updated_at
+           f.birth_weight_lbs, f.milestones, f.igg_tests, f.notes, f.created_at, f.updated_at
     FROM foals f
     JOIN foaling_records fr ON fr.id = f.foaling_record_id
     WHERE fr.mare_id = ?
@@ -1070,6 +1101,18 @@ export async function listFoalsByMare(mareId: string): Promise<Foal[]> {
 export async function deleteFoal(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM foals WHERE id = ?;', [id]);
+}
+
+export async function listAllFoals(): Promise<Foal[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<FoalRow>(
+    `
+    SELECT id, foaling_record_id, name, sex, color, markings,
+           birth_weight_lbs, milestones, igg_tests, notes, created_at, updated_at
+    FROM foals;
+    `
+  );
+  return rows.map(mapFoalRow);
 }
 
 // --- Medication Log ---

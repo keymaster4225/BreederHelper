@@ -122,6 +122,7 @@ type FoalRow = {
   markings: string | null;
   birth_weight_lbs: number | null;
   milestones: string;
+  igg_tests: string;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -435,8 +436,8 @@ function createFakeDb(): FakeDb {
       }
 
       if (stmt.startsWith('insert into foals')) {
-        const [id, foalingRecordId, name, sex, color, markings, birthWeightLbs, milestones, notes, createdAt, updatedAt] =
-          params as [string, string, string | null, string | null, string | null, string | null, number | null, string, string | null, string, string];
+        const [id, foalingRecordId, name, sex, color, markings, birthWeightLbs, milestones, iggTests, notes, createdAt, updatedAt] =
+          params as [string, string, string | null, string | null, string | null, string | null, number | null, string, string, string | null, string, string];
         const duplicate = Array.from(foals.values()).some((f) => f.foaling_record_id === foalingRecordId);
         if (duplicate) {
           throw new Error('UNIQUE constraint failed: foals.foaling_record_id');
@@ -450,6 +451,7 @@ function createFakeDb(): FakeDb {
           markings,
           birth_weight_lbs: birthWeightLbs,
           milestones,
+          igg_tests: iggTests,
           notes,
           created_at: createdAt,
           updated_at: updatedAt,
@@ -458,8 +460,8 @@ function createFakeDb(): FakeDb {
       }
 
       if (stmt.startsWith('update foals set')) {
-        const [name, sex, color, markings, birthWeightLbs, milestones, notes, updatedAt, id] =
-          params as [string | null, string | null, string | null, string | null, number | null, string, string | null, string, string];
+        const [name, sex, color, markings, birthWeightLbs, milestones, iggTests, notes, updatedAt, id] =
+          params as [string | null, string | null, string | null, string | null, number | null, string, string, string | null, string, string];
         const existing = foals.get(id);
         if (!existing) return;
         foals.set(id, {
@@ -470,6 +472,7 @@ function createFakeDb(): FakeDb {
           markings,
           birth_weight_lbs: birthWeightLbs,
           milestones,
+          igg_tests: iggTests,
           notes,
           updated_at: updatedAt,
         });

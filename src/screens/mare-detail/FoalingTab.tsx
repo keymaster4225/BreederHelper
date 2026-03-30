@@ -6,6 +6,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { CardRow, EditIconButton, cardStyles } from '@/components/RecordCardParts';
 import { Foal, FoalingRecord } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
+import { interpretIgg, formatIggInterpretation, getIggColor } from '@/utils/igg';
 import { formatOutcome, getOutcomeColor, formatFoalSex, formatFoalColor, getFoalSexColor } from '@/utils/outcomeDisplay';
 import { colors, spacing, typography } from '@/theme';
 
@@ -73,6 +74,21 @@ export function FoalingTab({ mareId, foalingRecords, foalByFoalingRecordId, navi
                         ) : null}
                       </View>
                     ) : null}
+                    {foal.iggTests.length > 0 ? (() => {
+                      const latest = foal.iggTests.reduce((a, b) =>
+                        a.date >= b.date ? a : b
+                      );
+                      const interpretation = interpretIgg(latest.valueMgDl);
+                      return (
+                        <View style={styles.foalDetailRow}>
+                          <StatusBadge
+                            label={`IgG: ${latest.valueMgDl} ${formatIggInterpretation(interpretation)}`}
+                            backgroundColor={getIggColor(interpretation)}
+                            textColor="#FFFFFF"
+                          />
+                        </View>
+                      );
+                    })() : null}
                   </View>
                 ) : (
                   <Text style={styles.foalHint}>Tap to add foal record</Text>

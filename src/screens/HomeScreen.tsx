@@ -18,6 +18,7 @@ import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   listAllBreedingRecords,
   listAllDailyLogs,
+  listAllFoals,
   listAllFoalingRecords,
   listAllMedicationLogs,
   listAllPregnancyChecks,
@@ -67,13 +68,14 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
       setIsLoading(true);
       setError(null);
 
-      const [result, allDailyLogs, allBreedings, allChecks, allFoalings, allMedLogs] = await Promise.all([
+      const [result, allDailyLogs, allBreedings, allChecks, allFoalings, allMedLogs, allFoals] = await Promise.all([
         listMares(),
         listAllDailyLogs(),
         listAllBreedingRecords(),
         listAllPregnancyChecks(),
         listAllFoalingRecords(),
         listAllMedicationLogs(),
+        listAllFoals(),
       ]);
       setMares(result);
 
@@ -109,6 +111,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
         pregnancyChecks: allChecks,
         foalingRecords: allFoalings,
         medicationLogs: allMedLogs,
+        foals: allFoals,
         today,
       });
       setDashboardAlerts(alerts);
@@ -168,6 +171,15 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
           break;
         case 'medicationGap':
           navigation.navigate('MareDetail', { mareId: alert.mareId, initialTab: 'meds' });
+          break;
+        case 'foalNeedsIgg':
+          if (alert.foalingRecordId) {
+            navigation.navigate('FoalForm', {
+              mareId: alert.mareId,
+              foalingRecordId: alert.foalingRecordId,
+              foalId: alert.foalId,
+            });
+          }
           break;
       }
     },

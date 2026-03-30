@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   BreedingRecord,
   DailyLog,
+  Foal,
   FoalingRecord,
   Mare,
   MedicationLog,
@@ -18,6 +19,7 @@ import {
   MEDICATION_GAP_MIN_STREAK_DAYS,
   PREG_CHECK_WINDOW_MIN_DAYS,
   RECENT_OVULATION_WINDOW_DAYS,
+  FOAL_IGG_ALERT_WINDOW_DAYS,
   STALE_LOG_THRESHOLD_DAYS,
 } from '@/utils/dashboardAlerts';
 
@@ -95,6 +97,18 @@ function makeMedLog(overrides: Partial<MedicationLog> = {}): MedicationLog {
     notes: null,
     createdAt: '2026-03-20T00:00:00Z',
     updatedAt: '2026-03-20T00:00:00Z',
+    ...overrides,
+  };
+}
+
+function makeFoal(overrides: Partial<Foal> = {}): Foal {
+  return {
+    id: 'foal-1',
+    foalingRecordId: 'fr-1',
+    milestones: {},
+    iggTests: [],
+    createdAt: '2026-03-26T00:00:00Z',
+    updatedAt: '2026-03-26T00:00:00Z',
     ...overrides,
   };
 }
@@ -923,6 +937,80 @@ describe('generateDashboardAlerts', () => {
       expect(STALE_LOG_THRESHOLD_DAYS).toBe(7);
       expect(MEDICATION_GAP_MIN_STREAK_DAYS).toBe(2);
       expect(MEDICATION_GAP_ACTIVE_WINDOW_DAYS).toBe(3);
+      expect(FOAL_IGG_ALERT_WINDOW_DAYS).toBe(2);
+    });
+  });
+
+  // --- Foal Needs IgG ---
+
+  describe('foalNeedsIgg', () => {
+    it('generates alert for foal born within 48h with no IgG tests', () => {
+      const mare = makeMare();
+      const foaling = makeFoaling({ id: 'fr-1', date: '2026-03-25', outcome: 'liveFoal' });
+      const foal = makeFoal({ foalingRecordId: 'fr-1', iggTests: [] });
+      const result = generateDashboardAlerts(
+        makeInput({
+          mares: [mare],
+          foalingRecords: [foaling],
+          foals: [foal],
+          today: '2026-03-26',
+        })
+      );
+      const iggAlerts = result.filter((a) => a.kind === 'foalNeedsIgg');
+      expect(iggAlerts).toHaveLength(1);
+      expect(iggAlerts[0].priority).toBe('high');
+      expect(iggAlerts[0].mareName).toBe('Star');
+    });
+
+    it('does not generate alert when foal has IgG tests', () => {
+      const mare = makeMare();
+      const foaling = makeFoaling({ id: 'fr-1', date: '2026-03-25', outcome: 'liveFoal' });
+      const foal = makeFoal({
+        foalingRecordId: 'fr-1',
+        iggTests: [{ date: '2026-03-25', valueMgDl: 800, recordedAt: '2026-03-25T12:00:00Z' }],
+      });
+      const result = generateDashboardAlerts(
+        makeInput({
+          mares: [mare],
+          foalingRecords: [foaling],
+          foals: [foal],
+          today: '2026-03-26',
+        })
+      );
+      const iggAlerts = result.filter((a) => a.kind === 'foalNeedsIgg');
+      expect(iggAlerts).toHaveLength(0);
+    });
+
+    it('does not generate alert for foal born more than 48h ago', () => {
+      const mare = makeMare();
+      const foaling = makeFoaling({ id: 'fr-1', date: '2026-03-20', outcome: 'liveFoal' });
+      const foal = makeFoal({ foalingRecordId: 'fr-1', iggTests: [] });
+      const result = generateDashboardAlerts(
+        makeInput({
+          mares: [mare],
+          foalingRecords: [foaling],
+          foals: [foal],
+          today: '2026-03-26',
+        })
+      );
+      const iggAlerts = result.filter((a) => a.kind === 'foalNeedsIgg');
+      expect(iggAlerts).toHaveLength(0);
+    });
+
+    it('does not generate alert for non-liveFoal outcomes', () => {
+      const mare = makeMare();
+      const foaling = makeFoaling({ id: 'fr-1', date: '2026-03-25', outcome: 'stillbirth' });
+      const foal = makeFoal({ foalingRecordId: 'fr-1', iggTests: [] });
+      const result = generateDashboardAlerts(
+        makeInput({
+          mares: [mare],
+          foalingRecords: [foaling],
+          foals: [foal],
+          today: '2026-03-26',
+        })
+      );
+      const iggAlerts = result.filter((a) => a.kind === 'foalNeedsIgg');
+      expect(iggAlerts).toHaveLength(0);
     });
   });
 });

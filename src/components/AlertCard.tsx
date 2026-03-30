@@ -21,6 +21,7 @@ const ALERT_CONFIG: Record<
   heatActivity: { icon: 'thermometer-high', accentColor: colors.score5 },
   noRecentLog: { icon: 'alert-circle-outline', accentColor: colors.onSurfaceVariant },
   medicationGap: { icon: 'pill', accentColor: '#009688' },
+  foalNeedsIgg: { icon: 'needle', accentColor: colors.secondary },
 };
 
 const PRIORITY_BORDER: Record<AlertPriority, string> = {
