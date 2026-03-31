@@ -8,9 +8,9 @@ workflows:
     environment:
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.anonymous.breedwise
+        bundle_identifier: com.tompkins.breedwise
       vars:
-        BUNDLE_ID: "com.anonymous.breedwise"
+        BUNDLE_ID: "com.tompkins.breedwise"
         XCODE_WORKSPACE: "BreedWise.xcworkspace"
         XCODE_SCHEME: "BreedWise"
     scripts:

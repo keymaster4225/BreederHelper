@@ -3,7 +3,7 @@
 ## Files
 
 - `codemagic.yaml` — CI/CD workflow config (project root)
-- `app.json` — updated with `ios.bundleIdentifier: com.anonymous.breedwise`
+- `app.json` — updated with `ios.bundleIdentifier: com.tompkins.breedwise`
 
 ## Setup Steps
 
@@ -23,7 +23,7 @@ Replace `YOUR_EMAIL_HERE` with your email address.
 
 ### 4. Register your bundle ID in Apple Developer portal
 - Go to **developer.apple.com → Certificates, IDs & Profiles → Identifiers**
-- Register `com.anonymous.breedwise` as an App ID
+- Register `com.tompkins.breedwise` as an App ID
 
 ### 5. Connect repo and trigger build
 - In Codemagic dashboard, add your GitHub repo
