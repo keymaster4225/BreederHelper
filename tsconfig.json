@@ -10,7 +10,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "skipLibCheck": true,
-    "types": ["react", "react-native"],
+    "types": ["react", "react-native", "jest"],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"]

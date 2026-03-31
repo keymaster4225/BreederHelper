@@ -1,159 +1,48 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { seedSampleData } from '@/utils/devSeed';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
+import { useHomeScreenData } from '@/hooks/useHomeScreenData';
 import { IconButton } from '@/components/Buttons';
 import { DashboardSection } from '@/components/DashboardSection';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import {
-  Mare,
-  PregnancyInfo,
-  buildPregnancyInfoForCheck,
-  findCurrentPregnancyCheck,
-} from '@/models/types';
+import { Mare } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import {
-  listAllBreedingRecords,
-  listAllDailyLogs,
-  listAllFoals,
-  listAllFoalingRecords,
-  listAllMedicationLogs,
-  listAllPregnancyChecks,
-  listMares,
-  softDeleteMare,
-} from '@/storage/repositories';
-import { deriveAgeYears, formatLocalDate, toLocalDate } from '@/utils/dates';
-import { DashboardAlert, generateDashboardAlerts } from '@/utils/dashboardAlerts';
-import { filterMares, StatusFilter } from '@/utils/filterMares';
+import { deriveAgeYears, formatLocalDate } from '@/utils/dates';
+import { DashboardAlert } from '@/utils/dashboardAlerts';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
-function groupBy<T>(items: readonly T[], keyFn: (item: T) => string): Map<string, T[]> {
-  const map = new Map<string, T[]>();
-  for (const item of items) {
-    const key = keyFn(item);
-    const existing = map.get(key);
-    if (existing) {
-      existing.push(item);
-    } else {
-      map.set(key, [item]);
-    }
-  }
-  return map;
-}
-
 export function HomeScreen({ navigation }: Props): JSX.Element {
-  const [mares, setMares] = useState<Mare[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedMareId, setSelectedMareId] = useState<string | null>(null);
-  const [pregnantInfo, setPregnantInfo] = useState<Map<string, PregnancyInfo>>(new Map());
-  const [dashboardAlerts, setDashboardAlerts] = useState<readonly DashboardAlert[]>([]);
-  const [searchText, setSearchText] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-
-  const filteredMares = useMemo(
-    () => filterMares(mares, searchText, statusFilter, pregnantInfo),
-    [mares, searchText, statusFilter, pregnantInfo],
-  );
-
-  const loadMares = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const [result, allDailyLogs, allBreedings, allChecks, allFoalings, allMedLogs, allFoals] = await Promise.all([
-        listMares(),
-        listAllDailyLogs(),
-        listAllBreedingRecords(),
-        listAllPregnancyChecks(),
-        listAllFoalingRecords(),
-        listAllMedicationLogs(),
-        listAllFoals(),
-      ]);
-      setMares(result);
-
-      const today = toLocalDate(new Date());
-
-      // Build pregnancy info from bulk data
-      const checksByMare = groupBy(allChecks, (c) => c.mareId);
-      const foalingsByMare = groupBy(allFoalings, (f) => f.mareId);
-      const logsByMare = groupBy(allDailyLogs, (l) => l.mareId);
-      const breedingById = new Map(allBreedings.map((b) => [b.id, b]));
-
-      const nextPregnantInfo = new Map<string, PregnancyInfo>();
-      for (const mare of result) {
-        const checks = checksByMare.get(mare.id) ?? [];
-        const foalings = foalingsByMare.get(mare.id) ?? [];
-        const currentCheck = findCurrentPregnancyCheck(checks, foalings);
-        if (!currentCheck) continue;
-
-        const breedingRecord = breedingById.get(currentCheck.breedingRecordId) ?? null;
-        const dailyLogs = logsByMare.get(mare.id) ?? [];
-        nextPregnantInfo.set(
-          mare.id,
-          buildPregnancyInfoForCheck(currentCheck, dailyLogs, breedingRecord, today)
-        );
-      }
-      setPregnantInfo(nextPregnantInfo);
-
-      // Generate dashboard alerts
-      const alerts = generateDashboardAlerts({
-        mares: result,
-        dailyLogs: allDailyLogs,
-        breedingRecords: allBreedings,
-        pregnancyChecks: allChecks,
-        foalingRecords: allFoalings,
-        medicationLogs: allMedLogs,
-        foals: allFoals,
-        today,
-      });
-      setDashboardAlerts(alerts);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load mares.';
-      setError(message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const {
+    mares,
+    isLoading,
+    error,
+    selectedMareId,
+    pregnantInfo,
+    dashboardAlerts,
+    searchText,
+    statusFilter,
+    filteredMares,
+    loadMares,
+    onDeleteMare,
+    setSelectedMareId,
+    setSearchText,
+    setStatusFilter,
+  } = useHomeScreenData();
 
   useFocusEffect(
     useCallback(() => {
       void loadMares();
       setSelectedMareId(null);
-    }, [loadMares])
+    }, [loadMares, setSelectedMareId])
   );
-
-  const onDeleteMare = useCallback((mare: Mare): void => {
-    Alert.alert('Delete Mare', `Delete ${mare.name}? This cannot be undone.`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await softDeleteMare(mare.id);
-              await loadMares();
-            } catch (err) {
-              const message = err instanceof Error ? err.message : 'Failed to delete mare.';
-              if (message.toLowerCase().includes('foreign key')) {
-                Alert.alert('Delete blocked', 'Cannot delete this mare because linked records exist.');
-                return;
-              }
-              Alert.alert('Delete failed', message);
-            }
-          })();
-        },
-      },
-    ]);
-  }, [loadMares]);
 
   const onAlertPress = useCallback(
     (alert: DashboardAlert) => {
@@ -186,6 +75,29 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
     [navigation]
   );
 
+  const handleSeedSampleData = useCallback(() => {
+    void (async () => {
+      try {
+        await seedSampleData();
+        await loadMares();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Seed failed';
+        Alert.alert('Seed Error', msg);
+      }
+    })();
+  }, [loadMares]);
+
+  const handleMarePress = useCallback(
+    (mare: Mare, isSelected: boolean) => {
+      if (isSelected) {
+        setSelectedMareId(null);
+      } else {
+        navigation.navigate('MareDetail', { mareId: mare.id });
+      }
+    },
+    [navigation, setSelectedMareId]
+  );
+
   return (
     <Screen>
 {isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
@@ -205,17 +117,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
           {__DEV__ ? (
             <Pressable
               style={({ pressed }) => [styles.devSeedButton, pressed && styles.pressedOpacity]}
-              onPress={() => {
-                void (async () => {
-                  try {
-                    await seedSampleData();
-                    await loadMares();
-                  } catch (err) {
-                    const msg = err instanceof Error ? err.message : 'Seed failed';
-                    Alert.alert('Seed Error', msg);
-                  }
-                })();
-              }}
+              onPress={handleSeedSampleData}
             >
               <Text style={styles.devSeedButtonText}>Seed Sample Data</Text>
             </Pressable>
@@ -312,13 +214,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
             <Pressable
               style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
               accessibilityRole="button"
-              onPress={() => {
-                if (isSelected) {
-                  setSelectedMareId(null);
-                } else {
-                  navigation.navigate('MareDetail', { mareId: item.id });
-                }
-              }}
+              onPress={() => handleMarePress(item, isSelected)}
               onLongPress={() => setSelectedMareId(isSelected ? null : item.id)}
             >
               <View style={styles.rowMain}>

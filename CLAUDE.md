@@ -18,9 +18,9 @@ Implemented and working:
 - Pregnancy checks: create/edit/delete
 - Foaling records: create/edit/delete
 - Foal records: create/edit/delete (linked 1:1 to foaling records)
-- Mare detail swipeable tabs (Daily Logs, Breeding, Pregnancy, Foaling) via `react-native-pager-view`
+- Mare detail swipeable tabs (Daily Logs, Breeding, Pregnancy, Foaling, Meds) via `react-native-pager-view`
 - SQLite migrations + repository layer
-- Typecheck/test CI and local Vitest coverage
+- Typecheck/test CI plus local Vitest and Jest screen coverage
 
 Recent UX/domain decisions reflected in code:
 - Stallion form no longer shows `registration #` field in UI.
@@ -31,6 +31,7 @@ Recent UX/domain decisions reflected in code:
 - `Straw Volume (mL)` is constrained to optional 2-digit integer (`0-99`).
 - Foaling outcome options: Live Foal, Stillbirth, Aborted (no "Unknown").
 - Home screen shows "Pregnant" `StatusBadge` on mares with positive latest pregnancy check (derived at load time, not stored).
+- Mare detail has 5 swipeable tabs (Daily Logs, Breeding, Pregnancy, Foaling, Meds) and a calendar button in the header card that navigates to `MareCalendarScreen`.
 - Mare detail tab empty states show only text message; the `PrimaryButton` at top of each tab serves as the add action.
 - Pregnancy check cards show days post-ovulation (when ovulation logs exist on or before check date) and estimated due date (positive results only).
 - Date arithmetic (`calculateDaysPostBreeding`, `estimateFoalingDate`) uses UTC to avoid DST off-by-one bugs.
@@ -51,7 +52,7 @@ Recent UX/domain decisions reflected in code:
 - Dashboard alerts are derived from existing data (no schema changes): approaching due dates, pregnancy checks needed, recent ovulations, heat activity, stale logs.
 - Alert generation is a pure function in `src/utils/dashboardAlerts.ts` with named constant thresholds (30-day due window, 14-day preg check min, 2-day ovulation window, 3-day heat window, 7-day stale log threshold, 60-DPO maintenance cutoff).
 - HomeScreen uses bulk queries (`listAllDailyLogs`, `listAllBreedingRecords`, `listAllPregnancyChecks`, `listAllFoalingRecords`) instead of per-mare N+1 queries.
-- Dashboard section is collapsible via header tap; collapse state resets on each app open.
+- Dashboard section is collapsible via header tap; defaults to collapsed on each app open.
 - Alert cards navigate: approaching due → MareDetail, preg check needed → PregnancyCheckForm, ovulation/heat/stale log → DailyLogForm.
 
 ## Tech Stack
@@ -67,6 +68,9 @@ Recent UX/domain decisions reflected in code:
 - `@react-native-async-storage/async-storage`
 - `react-native-pager-view`
 - Vitest
+- Jest
+- React Native Testing Library
+- ESLint
 
 ## Key Paths
 
@@ -122,13 +126,13 @@ If bundling/native module errors appear:
 
 - Keep local date storage normalized as `YYYY-MM-DD`.
 - Keep business logic in repositories/utils, not directly in UI components.
+- Home, foal form, medication form, and mare detail screens now delegate load/save/delete orchestration to hooks in `src/hooks/`, with reusable pure derivation in selectors/utils.
 - Add migration + repository + type updates together for schema changes.
 - For behavior changes, update tests where practical (`validation.test.ts`, repository tests).
-- Run `npm run typecheck` and `npm test` before commit.
+- Run `npm run typecheck`, `npm test`, `npm run test:screen`, and `npm run lint` before commit.
 - Import alias: `@/*` maps to `src/*` (configured in `tsconfig.json` + babel).
 
 ## Git
 
 - Default branch: `main`
 - Remote: `origin` -> `https://github.com/keymaster4225/BreederHelper`
-

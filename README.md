@@ -8,7 +8,7 @@ BreedWise is an offline-first Expo / React Native app for tracking mare reproduc
 - Records daily logs, breeding records, pregnancy checks, foaling records, and foal details
 - Shows a home dashboard with actionable breeding alerts
 - Supports mare search plus pregnant/open filtering on the home screen
-- Provides per-mare detail tabs for daily logs, breeding, pregnancy, and foaling
+- Provides per-mare detail tabs for daily logs, breeding, pregnancy, foaling, and medications
 - Provides a per-mare calendar view with event dots and day-level history cards
 - Includes onboarding state and a dev-only sample data seeder
 
@@ -20,7 +20,9 @@ BreedWise is an offline-first Expo / React Native app for tracking mare reproduc
 - TypeScript
 - `expo-sqlite` for on-device storage
 - React Navigation
-- Vitest for unit tests
+- Vitest for unit and repository tests
+- Jest + React Native Testing Library for screen and navigation tests
+- ESLint for source linting
 
 ## Project layout
 
@@ -65,6 +67,8 @@ npm run ios
 npm run web
 npm run typecheck
 npm test
+npm run test:screen
+npm run lint
 ```
 
 ## Storage and quality
@@ -72,7 +76,7 @@ npm test
 - Database file: `breeder-helper.db`
 - Migration entrypoint: `src/storage/migrations/index.ts`
 - DB bootstrap: `src/storage/db.ts`
-- CI: `.github/workflows/ci.yml` runs `npm ci`, `npm run typecheck`, and `npm test`
+- CI: `.github/workflows/ci.yml` runs `npm ci`, `npm run typecheck`, `npm test`, `npm run test:screen`, and `npm run lint`
 
 ## Product and planning docs
 
