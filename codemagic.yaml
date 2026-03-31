@@ -1,0 +1,45 @@
+workflows:
+  react-native-ios:
+    name: React Native iOS
+    max_build_duration: 120
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: codemagic
+    environment:
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.anonymous.breedwise
+      vars:
+        BUNDLE_ID: "com.anonymous.breedwise"
+        XCODE_WORKSPACE: "BreedWise.xcworkspace"
+        XCODE_SCHEME: "BreedWise"
+    scripts:
+      - name: Install npm dependencies
+        script: npm install
+      - name: Run Expo Prebuild
+        script: npx expo prebuild --clean
+      - name: Set Info.plist values
+        script: |
+          PLIST=$CM_BUILD_DIR/ios/$XCODE_SCHEME/Info.plist
+          PLIST_BUDDY=/usr/libexec/PlistBuddy
+          $PLIST_BUDDY -c "Add :ITSAppUsesNonExemptEncryption bool false" $PLIST
+      - name: Install CocoaPods dependencies
+        script: cd ios && pod install
+      - name: Set up provisioning profiles
+        script: xcode-project use-profiles
+      - name: Build IPA for distribution
+        script: |
+          xcode-project build-ipa \
+            --workspace "$CM_BUILD_DIR/ios/$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
+    publishing:
+      email:
+        recipients:
+          - YOUR_EMAIL_HERE
+        notify:
+          success: true
+          failure: true

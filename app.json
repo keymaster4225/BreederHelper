@@ -17,6 +17,10 @@
       "@react-native-community/datetimepicker",
       "expo-font"
     ],
+    "ios": {
+      "bundleIdentifier": "com.anonymous.breedwise",
+      "buildNumber": "1"
+    },
     "android": {
       "package": "com.anonymous.breedwise",
       "adaptiveIcon": {
