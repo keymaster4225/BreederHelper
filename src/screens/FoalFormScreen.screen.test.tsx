@@ -1,7 +1,5 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
-import { FoalFormScreen } from '@/screens/FoalFormScreen';
-
 jest.mock('@/storage/repositories', () => ({
   getFoalingRecordById: jest.fn(),
   getFoalById: jest.fn(),
@@ -12,6 +10,7 @@ jest.mock('@/storage/repositories', () => ({
 }));
 
 const repositories = jest.requireMock('@/storage/repositories') as Record<string, jest.Mock>;
+const { FoalFormScreen } = require('@/screens/FoalFormScreen') as typeof import('@/screens/FoalFormScreen');
 
 beforeEach(() => {
   jest.clearAllMocks();
