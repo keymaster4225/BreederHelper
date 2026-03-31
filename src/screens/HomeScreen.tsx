@@ -100,7 +100,11 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
 
   return (
     <Screen>
-{isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
+      {isLoading ? (
+        <View pointerEvents="none" style={styles.loadingOverlay}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      ) : null}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       {!isLoading && mares.length === 0 ? (
@@ -262,6 +266,16 @@ const styles = StyleSheet.create({
   listContent: {
     gap: spacing.lg,
     paddingBottom: spacing.xl,
+  },
+  loadingOverlay: {
+    alignItems: 'center',
+    bottom: 0,
+    justifyContent: 'center',
+    left: 0,
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    zIndex: 20,
   },
   row: {
     alignItems: 'center',

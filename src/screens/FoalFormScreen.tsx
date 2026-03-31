@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
@@ -36,6 +37,12 @@ const COLOR_OPTIONS: { label: string; value: FoalColor }[] = [
 
 export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
   const { foalingRecordId, foalId, defaultSex } = route.params;
+  const handleGoBack = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+  const handleSetTitle = useCallback((title: string) => {
+    navigation.setOptions({ title });
+  }, [navigation]);
   const {
     isEdit,
     name,
@@ -66,8 +73,8 @@ export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
     foalingRecordId,
     foalId,
     defaultSex,
-    onGoBack: () => navigation.goBack(),
-    setTitle: (title) => navigation.setOptions({ title }),
+    onGoBack: handleGoBack,
+    setTitle: handleSetTitle,
   });
 
   if (isLoading) {

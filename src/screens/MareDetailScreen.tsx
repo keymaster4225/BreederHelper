@@ -42,6 +42,9 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   const initialTabIndex = TAB_KEY_TO_INDEX[route.params.initialTab ?? ''] ?? 0;
   const [activeTabIndex, setActiveTabIndex] = useState(initialTabIndex);
   const pagerRef = useRef<PagerView>(null);
+  const handleSetTitle = useCallback((title: string) => {
+    navigation.setOptions({ title });
+  }, [navigation]);
   const {
     mare,
     dailyLogs,
@@ -58,7 +61,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
     loadData,
   } = useMareDetailData({
     mareId,
-    setTitle: (title) => navigation.setOptions({ title }),
+    setTitle: handleSetTitle,
   });
 
   useFocusEffect(
@@ -78,7 +81,6 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
 
   return (
     <Screen>
-      {isLoading ? <ActivityIndicator color={colors.primary} size="large" /> : null}
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       {mare ? (
@@ -106,11 +108,21 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           </PagerView>
         </>
       ) : null}
+
+      {isLoading ? (
+        <ActivityIndicator color={colors.primary} size="large" style={styles.loadingOverlay} />
+      ) : null}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  loadingOverlay: {
+    alignSelf: 'center',
+    position: 'absolute',
+    top: spacing.xl,
+    zIndex: 20,
+  },
   pager: {
     flex: 1,
   },
