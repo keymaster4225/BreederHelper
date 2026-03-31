@@ -1,8 +1,6 @@
 import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
-import { HomeScreen } from '@/screens/HomeScreen';
-
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
   const mockReact = require('react');
@@ -28,6 +26,7 @@ jest.mock('@/storage/repositories', () => ({
 }));
 
 const repositories = jest.requireMock('@/storage/repositories') as Record<string, jest.Mock>;
+const { HomeScreen } = require('@/screens/HomeScreen') as typeof import('@/screens/HomeScreen');
 
 function createNavigation() {
   return {
