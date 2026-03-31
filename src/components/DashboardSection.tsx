@@ -17,7 +17,7 @@ export function DashboardSection({
   alerts,
   onAlertPress,
 }: DashboardSectionProps): JSX.Element | null {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   if (alerts.length === 0) return null;
 
