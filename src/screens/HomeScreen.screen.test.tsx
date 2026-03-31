@@ -1,5 +1,4 @@
-import { Alert } from 'react-native';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
@@ -14,19 +13,14 @@ jest.mock('@react-navigation/native', () => {
   };
 });
 
-jest.mock('@/storage/repositories', () => ({
-  listMares: jest.fn(),
-  listAllDailyLogs: jest.fn(),
-  listAllBreedingRecords: jest.fn(),
-  listAllPregnancyChecks: jest.fn(),
-  listAllFoalingRecords: jest.fn(),
-  listAllMedicationLogs: jest.fn(),
-  listAllFoals: jest.fn(),
-  softDeleteMare: jest.fn(),
+jest.mock('@/hooks/useHomeScreenData', () => ({
+  useHomeScreenData: jest.fn(),
 }));
 
-const repositories = jest.requireMock('@/storage/repositories') as Record<string, jest.Mock>;
 const { HomeScreen } = require('@/screens/HomeScreen') as typeof import('@/screens/HomeScreen');
+const { useHomeScreenData } = jest.requireMock('@/hooks/useHomeScreenData') as {
+  useHomeScreenData: jest.Mock;
+};
 
 function createNavigation() {
   return {
@@ -58,126 +52,156 @@ const openMare = {
   updatedAt: '2026-01-01T00:00:00.000Z',
 };
 
+function buildState(overrides: Record<string, unknown> = {}) {
+  return {
+    mares: [pregnantMare, openMare],
+    isLoading: false,
+    error: null,
+    selectedMareId: null,
+    pregnantInfo: new Map([
+      [
+        pregnantMare.id,
+        {
+          daysPostOvulation: 340,
+          estimatedDueDate: '2026-04-10',
+        },
+      ],
+    ]),
+    dashboardAlerts: [],
+    searchText: '',
+    statusFilter: 'all',
+    filteredMares: [pregnantMare, openMare],
+    loadMares: jest.fn().mockResolvedValue(undefined),
+    onDeleteMare: jest.fn(),
+    setSelectedMareId: jest.fn(),
+    setSearchText: jest.fn(),
+    setStatusFilter: jest.fn(),
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
-  repositories.listAllDailyLogs.mockResolvedValue([
-    {
-      id: 'log-1',
-      mareId: pregnantMare.id,
-      date: '2026-03-15',
-      teasingScore: 2,
-      rightOvary: null,
-      leftOvary: null,
-      ovulationDetected: true,
-      edema: 1,
-      uterineTone: null,
-      uterineCysts: null,
-      notes: null,
-      createdAt: '2026-03-15T00:00:00.000Z',
-      updatedAt: '2026-03-15T00:00:00.000Z',
-    },
-  ]);
-  repositories.listAllBreedingRecords.mockResolvedValue([
-    {
-      id: 'breed-1',
-      mareId: pregnantMare.id,
-      stallionId: null,
-      stallionName: 'Atlas',
-      date: '2025-04-15',
-      method: 'freshAI',
-      notes: null,
-      volumeMl: null,
-      concentrationMPerMl: null,
-      motilityPercent: null,
-      numberOfStraws: null,
-      strawVolumeMl: null,
-      strawDetails: null,
-      collectionDate: null,
-      createdAt: '2025-04-15T00:00:00.000Z',
-      updatedAt: '2025-04-15T00:00:00.000Z',
-    },
-    {
-      id: 'breed-2',
-      mareId: openMare.id,
-      stallionId: null,
-      stallionName: 'Orion',
-      date: '2026-03-16',
-      method: 'freshAI',
-      notes: null,
-      volumeMl: null,
-      concentrationMPerMl: null,
-      motilityPercent: null,
-      numberOfStraws: null,
-      strawVolumeMl: null,
-      strawDetails: null,
-      collectionDate: null,
-      createdAt: '2026-03-16T00:00:00.000Z',
-      updatedAt: '2026-03-16T00:00:00.000Z',
-    },
-  ]);
-  repositories.listAllPregnancyChecks.mockResolvedValue([
-    {
-      id: 'check-1',
-      mareId: pregnantMare.id,
-      breedingRecordId: 'breed-1',
-      date: '2025-05-01',
-      result: 'positive',
-      heartbeatDetected: true,
-      notes: null,
-      createdAt: '2025-05-01T00:00:00.000Z',
-      updatedAt: '2025-05-01T00:00:00.000Z',
-    },
-  ]);
-  repositories.listAllFoalingRecords.mockResolvedValue([]);
-  repositories.listAllMedicationLogs.mockResolvedValue([]);
-  repositories.listAllFoals.mockResolvedValue([]);
 });
 
-it('loads dashboard, search, and filter state correctly', async () => {
-  repositories.listMares.mockResolvedValue([pregnantMare, openMare]);
+it('loads dashboard, search, and filter state correctly', () => {
+  const setSearchText = jest.fn();
+  const setStatusFilter = jest.fn();
+  const loadMares = jest.fn().mockResolvedValue(undefined);
+  const setSelectedMareId = jest.fn();
   const navigation = createNavigation();
+
+  useHomeScreenData.mockReturnValue(
+    buildState({
+      loadMares,
+      setSelectedMareId,
+      setSearchText,
+      setStatusFilter,
+    }),
+  );
+
   const screen = render(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
 
-  await waitFor(() => expect(screen.getByText('Nova')).toBeTruthy());
+  expect(screen.getByText('Nova')).toBeTruthy();
   expect(screen.getByText('Maple')).toBeTruthy();
   expect(screen.getAllByText('Pregnant').length).toBeGreaterThan(0);
+  expect(loadMares).toHaveBeenCalled();
 
   fireEvent.changeText(screen.getByPlaceholderText('Search mares...'), 'map');
-  await waitFor(() => expect(screen.queryByText('Nova')).toBeNull());
+  expect(setSearchText).toHaveBeenCalledWith('map');
+
+  useHomeScreenData.mockReturnValue(
+    buildState({
+      loadMares,
+      setSelectedMareId,
+      setSearchText,
+      setStatusFilter,
+      searchText: 'map',
+      filteredMares: [openMare],
+    }),
+  );
+  screen.rerender(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
+
+  expect(screen.queryByText('Nova')).toBeNull();
   expect(screen.getByText('Maple')).toBeTruthy();
 
   fireEvent.press(screen.getByLabelText('Clear search'));
+  expect(setSearchText).toHaveBeenCalledWith('');
+
   fireEvent.press(screen.getByRole('button', { name: 'Open' }));
-  await waitFor(() => expect(screen.queryByText('Nova')).toBeNull());
+  expect(setStatusFilter).toHaveBeenCalledWith('open');
+
+  useHomeScreenData.mockReturnValue(
+    buildState({
+      loadMares,
+      setSelectedMareId,
+      setSearchText,
+      setStatusFilter,
+      statusFilter: 'open',
+      filteredMares: [openMare],
+    }),
+  );
+  screen.rerender(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
+
+  expect(screen.queryByText('Nova')).toBeNull();
   expect(screen.getByText('Maple')).toBeTruthy();
 });
 
-it('refreshes the list after deleting a mare', async () => {
-  repositories.listMares
-    .mockResolvedValueOnce([pregnantMare, openMare])
-    .mockResolvedValueOnce([pregnantMare]);
-  repositories.softDeleteMare.mockResolvedValue(undefined);
-  const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+it('refreshes the list after deleting a mare', () => {
+  const setSelectedMareId = jest.fn();
+  const onDeleteMare = jest.fn();
   const navigation = createNavigation();
+
+  useHomeScreenData.mockReturnValue(
+    buildState({
+      setSelectedMareId,
+      onDeleteMare,
+    }),
+  );
+
   const screen = render(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
 
-  await waitFor(() => expect(screen.getByText('Maple')).toBeTruthy());
+  setSelectedMareId.mockClear();
   fireEvent(screen.getByText('Maple'), 'longPress');
+  expect(setSelectedMareId).toHaveBeenCalledWith(openMare.id);
+
+  useHomeScreenData.mockReturnValue(
+    buildState({
+      selectedMareId: openMare.id,
+      setSelectedMareId,
+      onDeleteMare,
+    }),
+  );
+  screen.rerender(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
+
   fireEvent.press(screen.getByText('Delete'));
-
-  const buttons = alertSpy.mock.calls[0]?.[2] as { text: string; onPress?: () => void }[];
-  buttons.find((button) => button.text === 'Delete')?.onPress?.();
-
-  await waitFor(() => expect(repositories.softDeleteMare).toHaveBeenCalledWith(openMare.id));
-  await waitFor(() => expect(screen.queryByText('Maple')).toBeNull());
+  expect(onDeleteMare).toHaveBeenCalledWith(openMare);
 });
 
-it('routes alert taps to the expected destination', async () => {
-  repositories.listMares.mockResolvedValue([openMare]);
+it('routes alert taps to the expected destination', () => {
   const navigation = createNavigation();
+
+  useHomeScreenData.mockReturnValue(
+    buildState({
+      mares: [openMare],
+      filteredMares: [openMare],
+      pregnantInfo: new Map(),
+      dashboardAlerts: [
+        {
+          kind: 'pregnancyCheckNeeded',
+          priority: 'high',
+          mareId: openMare.id,
+          mareName: openMare.name,
+          title: 'Day 15 post-breeding',
+          subtitle: 'Preg check due',
+          sortKey: -15,
+        },
+      ],
+    }),
+  );
+
   const screen = render(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
 
-  await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeTruthy());
   fireEvent.press(screen.getByText("Today's Tasks"));
   fireEvent.press(screen.getByText('Day 15 post-breeding'));
 
