@@ -25,6 +25,7 @@ const { useHomeScreenData } = jest.requireMock('@/hooks/useHomeScreenData') as {
 function createNavigation() {
   return {
     navigate: jest.fn(),
+    setParams: jest.fn(),
     setOptions: jest.fn(),
     goBack: jest.fn(),
   };
@@ -67,7 +68,6 @@ function buildState(overrides: Record<string, unknown> = {}) {
         },
       ],
     ]),
-    dashboardAlerts: [],
     searchText: '',
     statusFilter: 'all',
     filteredMares: [pregnantMare, openMare],
@@ -100,7 +100,9 @@ it('loads dashboard, search, and filter state correctly', () => {
     }),
   );
 
-  const screen = render(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
+  const screen = render(
+    <HomeScreen navigation={navigation as never} route={{ key: 'Mares', name: 'Mares' } as never} />,
+  );
 
   expect(screen.getByText('Nova')).toBeTruthy();
   expect(screen.getByText('Maple')).toBeTruthy();
@@ -120,7 +122,7 @@ it('loads dashboard, search, and filter state correctly', () => {
       filteredMares: [openMare],
     }),
   );
-  screen.rerender(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
+  screen.rerender(<HomeScreen navigation={navigation as never} route={{ key: 'Mares', name: 'Mares' } as never} />);
 
   expect(screen.queryByText('Nova')).toBeNull();
   expect(screen.getByText('Maple')).toBeTruthy();
@@ -141,7 +143,7 @@ it('loads dashboard, search, and filter state correctly', () => {
       filteredMares: [openMare],
     }),
   );
-  screen.rerender(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
+  screen.rerender(<HomeScreen navigation={navigation as never} route={{ key: 'Mares', name: 'Mares' } as never} />);
 
   expect(screen.queryByText('Nova')).toBeNull();
   expect(screen.getByText('Maple')).toBeTruthy();
@@ -159,7 +161,9 @@ it('refreshes the list after deleting a mare', () => {
     }),
   );
 
-  const screen = render(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
+  const screen = render(
+    <HomeScreen navigation={navigation as never} route={{ key: 'Mares', name: 'Mares' } as never} />,
+  );
 
   setSelectedMareId.mockClear();
   fireEvent(screen.getByText('Maple'), 'longPress');
@@ -172,38 +176,60 @@ it('refreshes the list after deleting a mare', () => {
       onDeleteMare,
     }),
   );
-  screen.rerender(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
+  screen.rerender(<HomeScreen navigation={navigation as never} route={{ key: 'Mares', name: 'Mares' } as never} />);
 
   fireEvent.press(screen.getByText('Delete'));
   expect(onDeleteMare).toHaveBeenCalledWith(openMare);
 });
 
-it('routes alert taps to the expected destination', () => {
+it('applies initialFilter from route params and clears them', () => {
   const navigation = createNavigation();
+  const setStatusFilter = jest.fn();
 
   useHomeScreenData.mockReturnValue(
     buildState({
-      mares: [openMare],
-      filteredMares: [openMare],
-      pregnantInfo: new Map(),
-      dashboardAlerts: [
-        {
-          kind: 'pregnancyCheckNeeded',
-          priority: 'high',
-          mareId: openMare.id,
-          mareName: openMare.name,
-          title: 'Day 15 post-breeding',
-          subtitle: 'Preg check due',
-          sortKey: -15,
-        },
-      ],
+      setStatusFilter,
     }),
   );
 
-  const screen = render(<HomeScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />);
+  render(
+    <HomeScreen
+      navigation={navigation as never}
+      route={{
+        key: 'Mares',
+        name: 'Mares',
+        params: { initialFilter: 'pregnant', requestKey: 'request-1' },
+      } as never}
+    />,
+  );
 
-  fireEvent.press(screen.getByText("Today's Tasks"));
-  fireEvent.press(screen.getByText('Day 15 post-breeding'));
+  expect(setStatusFilter).toHaveBeenCalledWith('pregnant');
+  expect(navigation.setParams).toHaveBeenCalledWith({ initialFilter: undefined, requestKey: undefined });
+});
 
-  expect(navigation.navigate).toHaveBeenCalledWith('PregnancyCheckForm', { mareId: openMare.id });
+it('does not re-apply the filter when requestKey is unchanged', () => {
+  const navigation = createNavigation();
+  const setStatusFilter = jest.fn();
+
+  useHomeScreenData.mockReturnValue(
+    buildState({
+      setStatusFilter,
+    }),
+  );
+
+  const route = {
+    key: 'Mares',
+    name: 'Mares',
+    params: { initialFilter: 'pregnant', requestKey: 'request-1' },
+  } as never;
+
+  const screen = render(<HomeScreen navigation={navigation as never} route={route} />);
+
+  expect(setStatusFilter).toHaveBeenCalledTimes(1);
+  expect(navigation.setParams).toHaveBeenCalledTimes(1);
+
+  screen.rerender(<HomeScreen navigation={navigation as never} route={route} />);
+
+  expect(setStatusFilter).toHaveBeenCalledTimes(1);
+  expect(navigation.setParams).toHaveBeenCalledTimes(1);
 });

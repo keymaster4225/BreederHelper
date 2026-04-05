@@ -5,15 +5,12 @@ import { Mare, PregnancyInfo } from '@/models/types';
 import {
   listAllBreedingRecords,
   listAllDailyLogs,
-  listAllFoals,
   listAllFoalingRecords,
-  listAllMedicationLogs,
   listAllPregnancyChecks,
   listMares,
   softDeleteMare,
 } from '@/storage/repositories';
-import { buildHomeDashboardInput, buildPregnantInfoMap, selectFilteredMares } from '@/selectors/homeScreen';
-import { DashboardAlert, generateDashboardAlerts } from '@/utils/dashboardAlerts';
+import { buildPregnantInfoMap, selectFilteredMares } from '@/selectors/homeScreen';
 import { toLocalDate } from '@/utils/dates';
 import { StatusFilter } from '@/utils/filterMares';
 
@@ -23,7 +20,6 @@ type HomeScreenData = {
   readonly error: string | null;
   readonly selectedMareId: string | null;
   readonly pregnantInfo: ReadonlyMap<string, PregnancyInfo>;
-  readonly dashboardAlerts: readonly DashboardAlert[];
   readonly searchText: string;
   readonly statusFilter: StatusFilter;
   readonly filteredMares: Mare[];
@@ -40,7 +36,6 @@ export function useHomeScreenData(): HomeScreenData {
   const [error, setError] = useState<string | null>(null);
   const [selectedMareId, setSelectedMareId] = useState<string | null>(null);
   const [pregnantInfo, setPregnantInfo] = useState<Map<string, PregnancyInfo>>(new Map());
-  const [dashboardAlerts, setDashboardAlerts] = useState<readonly DashboardAlert[]>([]);
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
@@ -49,37 +44,18 @@ export function useHomeScreenData(): HomeScreenData {
       setIsLoading(true);
       setError(null);
 
-      const [nextMares, dailyLogs, breedingRecords, pregnancyChecks, foalingRecords, medicationLogs, foals] =
-        await Promise.all([
-          listMares(),
-          listAllDailyLogs(),
-          listAllBreedingRecords(),
-          listAllPregnancyChecks(),
-          listAllFoalingRecords(),
-          listAllMedicationLogs(),
-          listAllFoals(),
-        ]);
+      const [nextMares, dailyLogs, breedingRecords, pregnancyChecks, foalingRecords] = await Promise.all([
+        listMares(),
+        listAllDailyLogs(),
+        listAllBreedingRecords(),
+        listAllPregnancyChecks(),
+        listAllFoalingRecords(),
+      ]);
 
       const today = toLocalDate(new Date());
       setMares(nextMares);
       setPregnantInfo(
         buildPregnantInfoMap(nextMares, dailyLogs, breedingRecords, pregnancyChecks, foalingRecords, today),
-      );
-      setDashboardAlerts(
-        generateDashboardAlerts(
-          buildHomeDashboardInput(
-            {
-              mares: nextMares,
-              dailyLogs,
-              breedingRecords,
-              pregnancyChecks,
-              foalingRecords,
-              medicationLogs,
-              foals,
-            },
-            today,
-          ),
-        ),
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load mares.';
@@ -128,7 +104,6 @@ export function useHomeScreenData(): HomeScreenData {
     error,
     selectedMareId,
     pregnantInfo,
-    dashboardAlerts,
     searchText,
     statusFilter,
     filteredMares,

@@ -1,32 +1,33 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { seedSampleData } from '@/utils/devSeed';
-import { useFocusEffect } from '@react-navigation/native';
+import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useHomeScreenData } from '@/hooks/useHomeScreenData';
 import { IconButton } from '@/components/Buttons';
-import { DashboardSection } from '@/components/DashboardSection';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Mare } from '@/models/types';
-import { RootStackParamList } from '@/navigation/AppNavigator';
+import { RootStackParamList, TabParamList } from '@/navigation/AppNavigator';
 import { deriveAgeYears, formatLocalDate } from '@/utils/dates';
-import { DashboardAlert } from '@/utils/dashboardAlerts';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<TabParamList, 'Mares'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
-export function HomeScreen({ navigation }: Props): JSX.Element {
+export function HomeScreen({ navigation, route }: Props): JSX.Element {
   const {
     mares,
     isLoading,
     error,
     selectedMareId,
     pregnantInfo,
-    dashboardAlerts,
     searchText,
     statusFilter,
     filteredMares,
@@ -36,6 +37,8 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
     setSearchText,
     setStatusFilter,
   } = useHomeScreenData();
+  const { initialFilter, requestKey } = route.params ?? {};
+  const lastRequestKeyRef = useRef<string | undefined>(undefined);
 
   useFocusEffect(
     useCallback(() => {
@@ -44,36 +47,15 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
     }, [loadMares, setSelectedMareId])
   );
 
-  const onAlertPress = useCallback(
-    (alert: DashboardAlert) => {
-      switch (alert.kind) {
-        case 'approachingDueDate':
-          navigation.navigate('MareDetail', { mareId: alert.mareId });
-          break;
-        case 'pregnancyCheckNeeded':
-          navigation.navigate('PregnancyCheckForm', { mareId: alert.mareId });
-          break;
-        case 'recentOvulation':
-        case 'heatActivity':
-        case 'noRecentLog':
-          navigation.navigate('DailyLogForm', { mareId: alert.mareId });
-          break;
-        case 'medicationGap':
-          navigation.navigate('MareDetail', { mareId: alert.mareId, initialTab: 'meds' });
-          break;
-        case 'foalNeedsIgg':
-          if (alert.foalingRecordId) {
-            navigation.navigate('FoalForm', {
-              mareId: alert.mareId,
-              foalingRecordId: alert.foalingRecordId,
-              foalId: alert.foalId,
-            });
-          }
-          break;
+  useEffect(() => {
+    if (requestKey && requestKey !== lastRequestKeyRef.current) {
+      lastRequestKeyRef.current = requestKey;
+      if (initialFilter) {
+        setStatusFilter(initialFilter);
       }
-    },
-    [navigation]
-  );
+      navigation.setParams({ initialFilter: undefined, requestKey: undefined });
+    }
+  }, [initialFilter, navigation, requestKey, setStatusFilter]);
 
   const handleSeedSampleData = useCallback(() => {
     void (async () => {
@@ -127,10 +109,6 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
             </Pressable>
           ) : null}
         </View>
-      ) : null}
-
-      {!isLoading && mares.length > 0 ? (
-        <DashboardSection alerts={dashboardAlerts} onAlertPress={onAlertPress} />
       ) : null}
 
       {mares.length > 0 ? <Text style={styles.listHint}>Tap a mare to view details. Long press to delete.</Text> : null}

@@ -4,6 +4,7 @@ import { AppNavigator } from '@/navigation/AppNavigator';
 
 jest.mock('@/storage/repositories', () => ({
   listMares: jest.fn(),
+  listStallions: jest.fn(),
   listAllDailyLogs: jest.fn(),
   listAllBreedingRecords: jest.fn(),
   listAllPregnancyChecks: jest.fn(),
@@ -16,7 +17,10 @@ jest.mock('@/screens/EditMareScreen', () => ({
   EditMareScreen: () => null,
 }));
 jest.mock('@/screens/StallionManagementScreen', () => ({
-  StallionManagementScreen: () => null,
+  StallionManagementScreen: () => {
+    const { Text } = require('react-native');
+    return <Text>Stallion Management</Text>;
+  },
 }));
 jest.mock('@/screens/BreedingRecordFormScreen', () => ({
   BreedingRecordFormScreen: () => null,
@@ -71,6 +75,18 @@ beforeEach(() => {
       updatedAt: '2026-01-01T00:00:00.000Z',
     },
   ]);
+  repositories.listStallions.mockResolvedValue([
+    {
+      id: 'stallion-1',
+      name: 'Atlas',
+      breed: 'Warmblood',
+      dateOfBirth: '2014-03-03',
+      registrationNumber: null,
+      notes: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
   repositories.listAllDailyLogs.mockResolvedValue([]);
   repositories.listAllBreedingRecords.mockResolvedValue([
     {
@@ -98,11 +114,30 @@ beforeEach(() => {
   repositories.listAllFoals.mockResolvedValue([]);
 });
 
+it('defaults to the dashboard tab', async () => {
+  const screen = render(<AppNavigator />);
+
+  await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeTruthy());
+  expect(screen.getByText('BreedWise')).toBeTruthy();
+  expect(screen.getByLabelText('1 Mares')).toBeTruthy();
+});
+
+it('switches tabs from dashboard to stallions and mares', async () => {
+  const screen = render(<AppNavigator />);
+
+  await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeTruthy());
+
+  fireEvent.press(screen.getAllByText('Stallions').at(-1)!);
+  await waitFor(() => expect(screen.getByText('Stallion Management')).toBeTruthy());
+
+  fireEvent.press(screen.getAllByText('Mares').at(-1)!);
+  await waitFor(() => expect(screen.getByText('Maple')).toBeTruthy());
+});
+
 it('navigates from a dashboard alert to the intended screen params', async () => {
   const screen = render(<AppNavigator />);
 
   await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeTruthy());
-  fireEvent.press(screen.getByText("Today's Tasks"));
   fireEvent.press(screen.getByText(`Day ${BREEDING_DAYS_AGO} post-breeding`));
 
   await waitFor(() => expect(screen.getByText('Pregnancy mare-1', { includeHiddenElements: true })).toBeTruthy());

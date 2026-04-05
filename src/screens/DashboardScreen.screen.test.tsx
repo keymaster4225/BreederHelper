@@ -1,0 +1,133 @@
+import { fireEvent, render } from '@testing-library/react-native';
+
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+  const mockReact = require('react');
+  return {
+    ...actual,
+    useFocusEffect: (effect: () => void) => {
+      mockReact.useEffect(() => {
+        effect();
+      }, [effect]);
+    },
+  };
+});
+
+jest.mock('@/hooks/useDashboardData', () => ({
+  useDashboardData: jest.fn(),
+}));
+
+const { DashboardScreen } = require('@/screens/DashboardScreen') as typeof import('@/screens/DashboardScreen');
+const { useDashboardData } = jest.requireMock('@/hooks/useDashboardData') as {
+  useDashboardData: jest.Mock;
+};
+
+function createNavigation() {
+  return {
+    navigate: jest.fn(),
+    setOptions: jest.fn(),
+    goBack: jest.fn(),
+  };
+}
+
+const alert = {
+  kind: 'pregnancyCheckNeeded' as const,
+  priority: 'high' as const,
+  mareId: 'mare-1',
+  mareName: 'Nova',
+  title: 'Day 15 post-breeding',
+  subtitle: 'Preg check due',
+  sortKey: -15,
+};
+
+function buildState(overrides: Record<string, unknown> = {}) {
+  return {
+    totalMares: 3,
+    pregnantMares: 1,
+    totalStallions: 2,
+    alerts: [alert],
+    isLoading: false,
+    error: null,
+    reload: jest.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
+
+it('renders stat cards and expanded alerts', () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(buildState());
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  expect(screen.getByLabelText('3 Mares')).toBeTruthy();
+  expect(screen.getByLabelText('1 Pregnant')).toBeTruthy();
+  expect(screen.getByLabelText('2 Stallions')).toBeTruthy();
+  expect(screen.getByText("Today's Tasks")).toBeTruthy();
+  expect(screen.getByText('Day 15 post-breeding')).toBeTruthy();
+});
+
+it('navigates from stat cards and alert taps', () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(buildState());
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  fireEvent.press(screen.getByLabelText('3 Mares'));
+  expect(navigation.navigate).toHaveBeenCalledWith('MainTabs', {
+    screen: 'Mares',
+    params: expect.objectContaining({ initialFilter: 'all' }),
+  });
+
+  fireEvent.press(screen.getByLabelText('1 Pregnant'));
+  expect(navigation.navigate).toHaveBeenCalledWith('MainTabs', {
+    screen: 'Mares',
+    params: expect.objectContaining({ initialFilter: 'pregnant' }),
+  });
+
+  fireEvent.press(screen.getByLabelText('2 Stallions'));
+  expect(navigation.navigate).toHaveBeenCalledWith('MainTabs', { screen: 'Stallions' });
+
+  fireEvent.press(screen.getByText('Day 15 post-breeding'));
+  expect(navigation.navigate).toHaveBeenCalledWith('PregnancyCheckForm', { mareId: 'mare-1' });
+});
+
+it('shows the first-time empty state when there are no animals', () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(
+    buildState({
+      totalMares: 0,
+      totalStallions: 0,
+      alerts: [],
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  expect(screen.getByText('Welcome to BreedWise')).toBeTruthy();
+  expect(screen.getByText(/Track your mares, stallions/)).toBeTruthy();
+});
+
+it('shows the all caught up state when there are no alerts', () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(
+    buildState({
+      alerts: [],
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  expect(screen.getByText('All caught up! No tasks today.')).toBeTruthy();
+});
