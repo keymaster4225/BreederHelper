@@ -11,13 +11,15 @@ const MAX_VISIBLE_ALERTS = 8;
 interface DashboardSectionProps {
   readonly alerts: readonly DashboardAlert[];
   readonly onAlertPress: (alert: DashboardAlert) => void;
+  readonly collapsible?: boolean;
 }
 
 export function DashboardSection({
   alerts,
   onAlertPress,
+  collapsible = true,
 }: DashboardSectionProps): JSX.Element | null {
-  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [isCollapsed, setIsCollapsed] = useState(collapsible);
 
   if (alerts.length === 0) return null;
 
@@ -28,9 +30,9 @@ export function DashboardSection({
     <View style={styles.container}>
       <Pressable
         style={styles.header}
-        onPress={() => setIsCollapsed((prev) => !prev)}
+        onPress={collapsible ? () => setIsCollapsed((prev) => !prev) : undefined}
         accessibilityRole="button"
-        accessibilityLabel={isCollapsed ? 'Show tasks' : 'Hide tasks'}
+        accessibilityLabel={collapsible ? (isCollapsed ? 'Show tasks' : 'Hide tasks') : 'Tasks'}
       >
         <View style={styles.headerLeft}>
           <Text style={styles.headerTitle}>Today's Tasks</Text>
@@ -38,14 +40,16 @@ export function DashboardSection({
             <Text style={styles.countText}>{alerts.length}</Text>
           </View>
         </View>
-        <MaterialCommunityIcons
-          name={isCollapsed ? 'chevron-down' : 'chevron-up'}
-          size={22}
-          color={colors.onSurfaceVariant}
-        />
+        {collapsible ? (
+          <MaterialCommunityIcons
+            name={isCollapsed ? 'chevron-down' : 'chevron-up'}
+            size={22}
+            color={colors.onSurfaceVariant}
+          />
+        ) : null}
       </Pressable>
 
-      {!isCollapsed ? (
+      {!collapsible || !isCollapsed ? (
         <View style={styles.alertList}>
           {visibleAlerts.map((alert) => (
             <AlertCard

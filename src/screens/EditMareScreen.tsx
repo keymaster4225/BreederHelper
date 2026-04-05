@@ -168,7 +168,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
             setIsDeleting(true);
             try {
               await softDeleteMare(mareId);
-              navigation.navigate('Home');
+              navigation.navigate('MainTabs');
             } catch (err) {
               const message = err instanceof Error ? err.message : 'Failed to delete mare.';
               Alert.alert('Delete failed', message);

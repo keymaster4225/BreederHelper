@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
+import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -8,11 +9,14 @@ import { PrimaryButton } from '@/components/Buttons';
 import { EditIconButton, cardStyles } from '@/components/RecordCardParts';
 import { Screen } from '@/components/Screen';
 import { Stallion } from '@/models/types';
-import { RootStackParamList } from '@/navigation/AppNavigator';
+import { RootStackParamList, TabParamList } from '@/navigation/AppNavigator';
 import { listStallions } from '@/storage/repositories';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Stallions'>;
+type Props = CompositeScreenProps<
+  BottomTabScreenProps<TabParamList, 'Stallions'>,
+  NativeStackScreenProps<RootStackParamList>
+>;
 
 function deriveHorseAge(dateOfBirth?: string | null): number | null {
   if (!dateOfBirth) return null;

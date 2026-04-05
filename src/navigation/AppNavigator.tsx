@@ -1,11 +1,11 @@
-﻿import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { NavigatorScreenParams } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 
-import { HomeScreen } from '@/screens/HomeScreen';
+import { TabNavigator } from '@/navigation/TabNavigator';
 import { MareDetailScreen } from '@/screens/MareDetailScreen';
 import { EditMareScreen } from '@/screens/EditMareScreen';
 import { DailyLogFormScreen } from '@/screens/DailyLogFormScreen';
-import { StallionManagementScreen } from '@/screens/StallionManagementScreen';
 import { BreedingRecordFormScreen } from '@/screens/BreedingRecordFormScreen';
 import { PregnancyCheckFormScreen } from '@/screens/PregnancyCheckFormScreen';
 import { FoalingRecordFormScreen } from '@/screens/FoalingRecordFormScreen';
@@ -19,12 +19,17 @@ import { CollectionFormScreen } from '@/screens/CollectionFormScreen';
 import { FoalSex } from '@/models/types';
 import { colors } from '@/theme';
 
-export type RootStackParamList = {
+export type TabParamList = {
   Home: undefined;
+  Mares: { initialFilter?: 'all' | 'pregnant' | 'open'; requestKey?: string } | undefined;
+  Stallions: undefined;
+};
+
+export type RootStackParamList = {
+  MainTabs: NavigatorScreenParams<TabParamList> | undefined;
   MareDetail: { mareId: string; initialTab?: 'dailyLogs' | 'breeding' | 'pregnancy' | 'foaling' | 'meds' };
   EditMare: { mareId?: string } | undefined;
   DailyLogForm: { mareId: string; logId?: string };
-  Stallions: undefined;
   StallionDetail: { stallionId: string; initialTab?: 'collections' | 'breeding' };
   StallionForm: { stallionId?: string };
   CollectionForm: { stallionId: string; collectionId?: string };
@@ -42,7 +47,7 @@ export function AppNavigator(): JSX.Element {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName="Home"
+        initialRouteName="MainTabs"
         screenOptions={{
           headerStyle: { backgroundColor: colors.surface },
           headerTintColor: colors.onSurface,
@@ -51,11 +56,10 @@ export function AppNavigator(): JSX.Element {
           contentStyle: { backgroundColor: colors.surface },
         }}
       >
-        <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Mares' }} />
+        <Stack.Screen name="MainTabs" component={TabNavigator} options={{ headerShown: false }} />
         <Stack.Screen name="MareDetail" component={MareDetailScreen} options={{ title: 'Mare Detail' }} />
         <Stack.Screen name="EditMare" component={EditMareScreen} options={{ title: 'Add / Edit Mare' }} />
         <Stack.Screen name="DailyLogForm" component={DailyLogFormScreen} options={{ title: 'Daily Log' }} />
-        <Stack.Screen name="Stallions" component={StallionManagementScreen} options={{ title: 'Stallions' }} />
         <Stack.Screen name="BreedingRecordForm" component={BreedingRecordFormScreen} options={{ title: 'Breeding Record' }} />
         <Stack.Screen name="PregnancyCheckForm" component={PregnancyCheckFormScreen} options={{ title: 'Pregnancy Check' }} />
         <Stack.Screen name="FoalingRecordForm" component={FoalingRecordFormScreen} options={{ title: 'Foaling Record' }} />
@@ -69,4 +73,3 @@ export function AppNavigator(): JSX.Element {
     </NavigationContainer>
   );
 }
-
