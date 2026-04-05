@@ -207,6 +207,7 @@ export function HomeScreen({ navigation }: Props): JSX.Element {
         </Pressable>
       ) : null}
 
+
       {filteredMares.length > 0 ? <FlatList
         data={filteredMares}
         keyExtractor={(item) => item.id}
