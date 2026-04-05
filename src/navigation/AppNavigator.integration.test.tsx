@@ -45,8 +45,20 @@ jest.mock('@/screens/PregnancyCheckFormScreen', () => ({
 
 const repositories = jest.requireMock('@/storage/repositories') as Record<string, jest.Mock>;
 
+function localDateDaysAgo(n: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+const BREEDING_DAYS_AGO = 15;
+
 beforeEach(() => {
   jest.clearAllMocks();
+  const breedingDate = localDateDaysAgo(BREEDING_DAYS_AGO);
   repositories.listMares.mockResolvedValue([
     {
       id: 'mare-1',
@@ -66,7 +78,7 @@ beforeEach(() => {
       mareId: 'mare-1',
       stallionId: null,
       stallionName: null,
-      date: '2026-03-16',
+      date: breedingDate,
       method: 'freshAI',
       notes: null,
       volumeMl: null,
@@ -76,8 +88,8 @@ beforeEach(() => {
       strawVolumeMl: null,
       strawDetails: null,
       collectionDate: null,
-      createdAt: '2026-03-16T00:00:00.000Z',
-      updatedAt: '2026-03-16T00:00:00.000Z',
+      createdAt: `${breedingDate}T00:00:00.000Z`,
+      updatedAt: `${breedingDate}T00:00:00.000Z`,
     },
   ]);
   repositories.listAllPregnancyChecks.mockResolvedValue([]);
@@ -91,7 +103,7 @@ it('navigates from a dashboard alert to the intended screen params', async () =>
 
   await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeTruthy());
   fireEvent.press(screen.getByText("Today's Tasks"));
-  fireEvent.press(screen.getByText('Day 15 post-breeding'));
+  fireEvent.press(screen.getByText(`Day ${BREEDING_DAYS_AGO} post-breeding`));
 
   await waitFor(() => expect(screen.getByText('Pregnancy mare-1', { includeHiddenElements: true })).toBeTruthy());
 });
