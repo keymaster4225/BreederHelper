@@ -3,17 +3,21 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, V
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
-import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { FormDateInput, FormField, FormPickerInput, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
-import { BreedingMethod } from '@/models/types';
+import { BreedingMethod, SemenCollection, Stallion } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   createBreedingRecord,
   deleteBreedingRecord,
   getBreedingRecordById,
+  getStallionById,
+  listSemenCollectionsByStallion,
+  listStallions,
   updateBreedingRecord,
 } from '@/storage/repositories';
 import { colors } from '@/theme';
+import { formatLocalDate } from '@/utils/dates';
 import { newId } from '@/utils/id';
 import {
   normalizeLocalDate,
@@ -29,7 +33,7 @@ type Props = NativeStackScreenProps<RootStackParamList, 'BreedingRecordForm'>;
 
 type FormErrors = {
   date?: string;
-  stallionName?: string;
+  stallion?: string;
   collectionDate?: string;
   volumeMl?: string;
   concentrationMPerMl?: string;
@@ -53,6 +57,16 @@ const AI_METHOD_OPTIONS: { label: string; value: AIMethod }[] = [
   { label: 'Frozen', value: 'frozenAI' },
 ];
 
+const OTHER_STALLION = '__other__';
+const NO_COLLECTION = '__none__';
+
+function formatCollectionLabel(c: SemenCollection): string {
+  const date = formatLocalDate(c.collectionDate, 'MM-DD-YYYY');
+  const doses = c.doseCount != null ? `${c.doseCount} doses` : '-';
+  const motility = c.progressiveMotilityPercent != null ? `${c.progressiveMotilityPercent}%` : '-';
+  return `${date} - ${doses} - ${motility} motility`;
+}
+
 export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Element {
   const mareId = route.params.mareId;
   const breedingRecordId = route.params.breedingRecordId;
@@ -74,21 +88,37 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   const [isSaving, setIsSaving] = useState(false);
   const today = new Date();
 
+  // Stallion picker state
+  const [stallions, setStallions] = useState<Stallion[]>([]);
+  const [selectedStallionId, setSelectedStallionId] = useState<string | null>(null);
+  const [useCustomStallion, setUseCustomStallion] = useState(false);
+
+  // Collection picker state
+  const [collections, setCollections] = useState<SemenCollection[]>([]);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [showAllCollections, setShowAllCollections] = useState(false);
+
   useEffect(() => {
     navigation.setOptions({ title: isEdit ? 'Edit Breeding Record' : 'Add Breeding Record' });
   }, [isEdit, navigation]);
 
+  // Load stallions on mount
   useEffect(() => {
-    if (!breedingRecordId) {
-      return;
-    }
+    void (async () => {
+      const rows = await listStallions();
+      setStallions(rows);
+    })();
+  }, []);
+
+  // Load existing record
+  useEffect(() => {
+    if (!breedingRecordId) return;
 
     let mounted = true;
-    getBreedingRecordById(breedingRecordId)
-      .then((record) => {
-        if (!mounted) {
-          return;
-        }
+    void (async () => {
+      try {
+        const record = await getBreedingRecordById(breedingRecordId);
+        if (!mounted) return;
 
         if (!record) {
           Alert.alert('Record not found', 'This breeding record no longer exists.');
@@ -97,33 +127,53 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         }
 
         setDate(record.date);
-        setStallionName(record.stallionName ?? '');
         setMethod(record.method);
         setVolumeMl(record.volumeMl == null ? '' : String(record.volumeMl));
         setConcentrationMPerMl(record.concentrationMPerMl == null ? '' : String(record.concentrationMPerMl));
         setMotilityPercent(record.motilityPercent == null ? '' : String(record.motilityPercent));
         setNumberOfStraws(record.numberOfStraws == null ? '' : String(record.numberOfStraws));
-        // Math.trunc guards against any existing rows stored with REAL affinity
-        // (existing installs ran migration002 with REAL before it was corrected to INTEGER).
         setStrawVolumeMl(record.strawVolumeMl == null ? '' : String(Math.trunc(record.strawVolumeMl)));
         setStrawDetails(record.strawDetails ?? '');
         setCollectionDate(record.collectionDate ?? '');
         setNotes(record.notes ?? '');
-      })
-      .catch((err: unknown) => {
+
+        if (record.stallionId != null) {
+          setSelectedStallionId(record.stallionId);
+          setUseCustomStallion(false);
+          // Load collections for this stallion
+          const cols = await listSemenCollectionsByStallion(record.stallionId);
+          if (mounted) setCollections(cols);
+          // Check if the stallion is in the list; if not (soft-deleted), fetch and prepend
+          const currentList = await listStallions();
+          if (mounted) {
+            const found = currentList.some((s) => s.id === record.stallionId);
+            if (!found) {
+              const deleted = await getStallionById(record.stallionId);
+              if (deleted && mounted) {
+                setStallions([deleted, ...currentList]);
+              }
+            } else {
+              setStallions(currentList);
+            }
+          }
+        } else {
+          setUseCustomStallion(true);
+          setStallionName(record.stallionName ?? '');
+        }
+
+        if (record.collectionId != null) {
+          setSelectedCollectionId(record.collectionId);
+        }
+      } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Unable to load breeding record.';
         Alert.alert('Load error', message);
-        navigation.goBack();
-      })
-      .finally(() => {
-        if (mounted) {
-          setIsLoadingRecord(false);
-        }
-      });
+        if (mounted) navigation.goBack();
+      } finally {
+        if (mounted) setIsLoadingRecord(false);
+      }
+    })();
 
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [breedingRecordId, navigation]);
 
   const coverageType: CoverageType = method === 'liveCover' ? 'liveCover' : 'ai';
@@ -131,10 +181,56 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   const onCoverageChange = (coverage: CoverageType): void => {
     if (coverage === 'liveCover') {
       setMethod('liveCover');
+      setSelectedCollectionId(null);
     } else if (method === 'liveCover') {
       setMethod('freshAI');
     }
   };
+
+  const onStallionChange = (value: string): void => {
+    if (value === OTHER_STALLION) {
+      setUseCustomStallion(true);
+      setSelectedStallionId(null);
+      setSelectedCollectionId(null);
+      setCollections([]);
+    } else {
+      setUseCustomStallion(false);
+      setSelectedStallionId(value);
+      setSelectedCollectionId(null);
+      setShowAllCollections(false);
+      void (async () => {
+        const cols = await listSemenCollectionsByStallion(value);
+        setCollections(cols);
+      })();
+    }
+  };
+
+  const onCollectionChange = (value: string): void => {
+    if (value === NO_COLLECTION) {
+      setSelectedCollectionId(null);
+      return;
+    }
+    const c = collections.find((col) => col.id === value);
+    if (c) {
+      setSelectedCollectionId(c.id);
+      if (c.rawVolumeMl != null) setVolumeMl(String(c.rawVolumeMl));
+      if (c.concentrationMillionsPerMl != null) setConcentrationMPerMl(String(c.concentrationMillionsPerMl));
+      if (c.progressiveMotilityPercent != null) setMotilityPercent(String(c.progressiveMotilityPercent));
+      if (c.collectionDate) setCollectionDate(c.collectionDate);
+    }
+  };
+
+  const stallionPickerOptions = [
+    ...stallions.map((s) => ({ label: s.name, value: s.id })),
+    { label: 'Other / Not in list', value: OTHER_STALLION },
+  ];
+
+  const showCollectionPicker = selectedStallionId != null && method !== 'liveCover';
+  const recentCollections = showAllCollections ? collections : collections.slice(0, 10);
+  const collectionPickerOptions = [
+    { label: 'None', value: NO_COLLECTION },
+    ...recentCollections.map((c) => ({ label: formatCollectionLabel(c), value: c.id })),
+  ];
 
   const validate = (): {
     valid: boolean;
@@ -152,7 +248,11 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
     const nextErrors: FormErrors = {
       date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
-      stallionName: validateRequired(stallionName.trim(), 'Stallion name') ?? undefined,
+      stallion: useCustomStallion
+        ? validateRequired(stallionName.trim(), 'Stallion name') ?? undefined
+        : selectedStallionId == null
+          ? 'Please select a stallion.'
+          : undefined,
       collectionDate:
         method === 'shippedCooledAI' || method === 'frozenAI'
           ? (validateLocalDate(collectionDate, 'Collection date', false)
@@ -193,16 +293,15 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
   const onSave = async (): Promise<void> => {
     const { valid, parsedVolume, parsedConcentration, parsedMotility, parsedStraws, parsedStrawVolume } = validate();
-    if (!valid) {
-      return;
-    }
+    if (!valid) return;
 
     setIsSaving(true);
 
     try {
       const payload = {
-        stallionId: null,
-        stallionName: stallionName.trim() || null,
+        stallionId: selectedStallionId,
+        stallionName: useCustomStallion ? (stallionName.trim() || null) : null,
+        collectionId: selectedCollectionId,
         date: date.trim(),
         method,
         notes: notes.trim() || null,
@@ -231,9 +330,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   };
 
   const onDelete = (): void => {
-    if (!breedingRecordId) {
-      return;
-    }
+    if (!breedingRecordId) return;
 
     Alert.alert('Delete Breeding Record', 'Delete this breeding record?', [
       { text: 'Cancel', style: 'cancel' },
@@ -279,13 +376,24 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
           <FormDateInput value={date} onChange={setDate} placeholder="Select breeding date" maximumDate={today} />
         </FormField>
 
-        <FormField label="Stallion" required error={errors.stallionName}>
-          <FormTextInput
-            value={stallionName}
-            onChangeText={setStallionName}
-            placeholder="Enter stallion name"
+        <FormField label="Stallion" required error={errors.stallion}>
+          <FormPickerInput
+            value={selectedStallionId ?? (useCustomStallion ? OTHER_STALLION : '')}
+            onChange={onStallionChange}
+            options={stallionPickerOptions}
+            placeholder="Select stallion"
           />
         </FormField>
+
+        {useCustomStallion ? (
+          <FormField label="Stallion Name" required>
+            <FormTextInput
+              value={stallionName}
+              onChangeText={setStallionName}
+              placeholder="Enter stallion name"
+            />
+          </FormField>
+        ) : null}
 
         <FormField label="Breeding Method" required>
           <OptionSelector value={coverageType} onChange={onCoverageChange} options={COVERAGE_OPTIONS} />
@@ -293,6 +401,18 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
             <OptionSelector value={method as AIMethod} onChange={setMethod} options={AI_METHOD_OPTIONS} />
           ) : null}
         </FormField>
+
+        {showCollectionPicker ? (
+          <FormField label="Collection">
+            <FormPickerInput
+              value={selectedCollectionId ?? NO_COLLECTION}
+              onChange={onCollectionChange}
+              options={collectionPickerOptions}
+              placeholder="Select collection"
+              onShowAll={collections.length > 10 && !showAllCollections ? () => setShowAllCollections(true) : undefined}
+            />
+          </FormField>
+        ) : null}
 
         {(method === 'freshAI' || method === 'shippedCooledAI') && (
           <View style={formStyles.form}>

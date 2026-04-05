@@ -1,0 +1,168 @@
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+
+import { StallionDetailScreen } from '@/screens/StallionDetailScreen';
+
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+  const mockReact = require('react');
+  return {
+    ...actual,
+    useFocusEffect: (effect: () => void) => {
+      mockReact.useEffect(() => {
+        effect();
+      }, [effect]);
+    },
+  };
+});
+
+jest.mock('@/storage/repositories', () => ({
+  getStallionById: jest.fn(),
+  listSemenCollectionsByStallion: jest.fn(),
+  listBreedingRecordsForStallion: jest.fn(),
+  listLegacyBreedingRecordsMatchingStallionName: jest.fn(),
+  listMares: jest.fn(),
+}));
+
+const repositories = jest.requireMock('@/storage/repositories') as Record<string, jest.Mock>;
+
+const makeStallion = (overrides?: Record<string, unknown>) => ({
+  id: 'st-1',
+  name: 'Thunder',
+  breed: 'Thoroughbred',
+  registrationNumber: 'REG-123',
+  sire: 'Storm',
+  dam: 'Rain',
+  notes: null,
+  dateOfBirth: '2018-01-01',
+  avTemperatureF: 120,
+  avType: 'Colorado',
+  avLinerType: 'Disposable',
+  avWaterVolumeMl: 500,
+  avNotes: 'Use warm water',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  deletedAt: null,
+  ...overrides,
+});
+
+const makeCollection = (id: string, date: string, overrides?: Record<string, unknown>) => ({
+  id,
+  stallionId: 'st-1',
+  collectionDate: date,
+  rawVolumeMl: 50,
+  extendedVolumeMl: null,
+  concentrationMillionsPerMl: 200,
+  progressiveMotilityPercent: 75,
+  doseCount: 10,
+  doseSizeMillions: 1,
+  shipped: false,
+  shippedTo: null,
+  notes: null,
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  ...overrides,
+});
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  repositories.getStallionById.mockResolvedValue(makeStallion());
+  repositories.listSemenCollectionsByStallion.mockResolvedValue([]);
+  repositories.listBreedingRecordsForStallion.mockResolvedValue([]);
+  repositories.listLegacyBreedingRecordsMatchingStallionName.mockResolvedValue([]);
+  repositories.listMares.mockResolvedValue([]);
+});
+
+function renderScreen(params: { stallionId: string; initialTab?: 'collections' | 'breeding' } = { stallionId: 'st-1' }) {
+  const navigation = { navigate: jest.fn(), setOptions: jest.fn() };
+  return {
+    navigation,
+    ...render(
+      <StallionDetailScreen
+        navigation={navigation as never}
+        route={{ key: 'StallionDetail', name: 'StallionDetail', params } as never}
+      />,
+    ),
+  };
+}
+
+it('renders stallion name in header', async () => {
+  const screen = renderScreen();
+  await waitFor(() => expect(screen.getByText('Thunder')).toBeTruthy());
+});
+
+it('shows Collections and Breeding tab labels', async () => {
+  const screen = renderScreen();
+  await waitFor(() => {
+    expect(screen.getByRole('tab', { name: 'Collections' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Breeding' })).toBeTruthy();
+  });
+});
+
+it('shows AV preferences when values exist', async () => {
+  const screen = renderScreen();
+  await waitFor(() => expect(screen.getByText('120\u00B0F')).toBeTruthy());
+  expect(screen.getByText('Colorado')).toBeTruthy();
+  expect(screen.getByText('Disposable')).toBeTruthy();
+  expect(screen.getByText('500 mL')).toBeTruthy();
+});
+
+it('shows empty state when no collections', async () => {
+  const screen = renderScreen();
+  await waitFor(() => expect(screen.getByText('No collections recorded.')).toBeTruthy());
+});
+
+it('shows collection cards when collections exist', async () => {
+  repositories.listSemenCollectionsByStallion.mockResolvedValue([
+    makeCollection('col-1', '2026-04-01'),
+  ]);
+  const screen = renderScreen();
+  await waitFor(() => expect(screen.getByText('50 mL')).toBeTruthy());
+  expect(screen.getByText('75%')).toBeTruthy();
+});
+
+it('hides Add Collection button when stallion is soft-deleted', async () => {
+  repositories.getStallionById.mockResolvedValue(
+    makeStallion({ deletedAt: '2026-04-01T00:00:00.000Z' }),
+  );
+  const screen = renderScreen();
+  await waitFor(() => expect(screen.getByText('Thunder')).toBeTruthy());
+  expect(screen.queryByText('Add Collection')).toBeNull();
+});
+
+it('shows linked breeding records with mare names', async () => {
+  repositories.listBreedingRecordsForStallion.mockResolvedValue([
+    {
+      id: 'br-1',
+      mareId: 'mare-1',
+      stallionId: 'st-1',
+      stallionName: null,
+      collectionId: null,
+      date: '2026-03-15',
+      method: 'freshAI',
+      notes: null,
+      volumeMl: null,
+      concentrationMPerMl: null,
+      motilityPercent: null,
+      numberOfStraws: null,
+      strawVolumeMl: null,
+      strawDetails: null,
+      collectionDate: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+  repositories.listMares.mockResolvedValue([
+    { id: 'mare-1', name: 'Nova', breed: 'Warmblood', createdAt: '', updatedAt: '' },
+  ]);
+
+  const screen = renderScreen({ stallionId: 'st-1', initialTab: 'breeding' });
+  await waitFor(() => expect(screen.getByText('Linked Breeding Records')).toBeTruthy());
+  expect(screen.getByText('Mare: Nova')).toBeTruthy();
+});
+
+it('updates the active tab on tab press', async () => {
+  const screen = renderScreen();
+  await waitFor(() => expect(screen.getByRole('tab', { name: 'Collections' })).toBeTruthy());
+  fireEvent.press(screen.getByRole('tab', { name: 'Breeding' }));
+  expect(screen.getByRole('tab', { name: 'Breeding' }).props.accessibilityState.selected).toBe(true);
+});

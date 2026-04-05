@@ -12,6 +12,9 @@ import { FoalingRecordFormScreen } from '@/screens/FoalingRecordFormScreen';
 import { FoalFormScreen } from '@/screens/FoalFormScreen';
 import { MareCalendarScreen } from '@/screens/MareCalendarScreen';
 import { MedicationFormScreen } from '@/screens/MedicationFormScreen';
+import { StallionDetailScreen } from '@/screens/StallionDetailScreen';
+import { StallionFormScreen } from '@/screens/StallionFormScreen';
+import { CollectionFormScreen } from '@/screens/CollectionFormScreen';
 
 import { FoalSex } from '@/models/types';
 import { colors } from '@/theme';
@@ -22,6 +25,9 @@ export type RootStackParamList = {
   EditMare: { mareId?: string } | undefined;
   DailyLogForm: { mareId: string; logId?: string };
   Stallions: undefined;
+  StallionDetail: { stallionId: string; initialTab?: 'collections' | 'breeding' };
+  StallionForm: { stallionId?: string };
+  CollectionForm: { stallionId: string; collectionId?: string };
   BreedingRecordForm: { mareId: string; breedingRecordId?: string };
   PregnancyCheckForm: { mareId: string; pregnancyCheckId?: string };
   FoalingRecordForm: { mareId: string; foalingRecordId?: string };
@@ -55,6 +61,9 @@ export function AppNavigator(): JSX.Element {
         <Stack.Screen name="FoalingRecordForm" component={FoalingRecordFormScreen} options={{ title: 'Foaling Record' }} />
         <Stack.Screen name="FoalForm" component={FoalFormScreen} options={{ title: 'Foal Record' }} />
         <Stack.Screen name="MedicationForm" component={MedicationFormScreen} options={{ title: 'Medication' }} />
+        <Stack.Screen name="StallionDetail" component={StallionDetailScreen} options={{ title: 'Stallion Detail' }} />
+        <Stack.Screen name="StallionForm" component={StallionFormScreen} options={{ title: 'Stallion' }} />
+        <Stack.Screen name="CollectionForm" component={CollectionFormScreen} options={{ title: 'Collection' }} />
         <Stack.Screen name="MareCalendar" component={MareCalendarScreen} options={{ title: 'Calendar' }} />
       </Stack.Navigator>
     </NavigationContainer>

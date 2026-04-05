@@ -98,6 +98,76 @@ export function FormDateInput({
   );
 }
 
+type PickerOption = {
+  label: string;
+  value: string;
+};
+
+type FormPickerInputProps = {
+  value: string;
+  onChange: (value: string) => void;
+  options: PickerOption[];
+  placeholder?: string;
+  onShowAll?: () => void;
+  showAllLabel?: string;
+};
+
+export function FormPickerInput({
+  value,
+  onChange,
+  options,
+  placeholder = 'Select\u2026',
+  onShowAll,
+  showAllLabel = 'Show all',
+}: FormPickerInputProps): JSX.Element {
+  const [open, setOpen] = useState(false);
+  const selectedLabel = options.find((o) => o.value === value)?.label ?? (value || null);
+
+  return (
+    <>
+      <Pressable
+        style={styles.input}
+        onPress={() => setOpen(true)}
+        accessibilityRole="button"
+      >
+        <Text style={selectedLabel ? styles.dateValue : styles.datePlaceholder}>
+          {selectedLabel ?? placeholder}
+        </Text>
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
+          <View style={styles.modalSheet}>
+            <ScrollView bounces={false}>
+              {options.map((option) => (
+                <Pressable
+                  key={option.value}
+                  style={({ pressed }) => [styles.modalOption, pressed && styles.modalOptionPressed]}
+                  onPress={() => { onChange(option.value); setOpen(false); }}
+                >
+                  <Text style={[styles.modalOptionText, option.value === value && styles.modalOptionTextActive]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              ))}
+              {onShowAll ? (
+                <Pressable
+                  style={({ pressed }) => [styles.modalOption, pressed && styles.modalOptionPressed]}
+                  onPress={() => { onShowAll(); setOpen(false); }}
+                >
+                  <Text style={[styles.modalOptionText, { color: colors.primary }]}>
+                    {showAllLabel}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </ScrollView>
+          </View>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
 type FormSelectInputProps = {
   value: string;
   onChange: (value: string) => void;

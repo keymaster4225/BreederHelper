@@ -1,11 +1,13 @@
 import { BreedingMethod, BreedingRecord } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { getSemenCollectionById } from './semenCollections';
 
 type BreedingRecordRow = {
   id: string;
   mare_id: string;
   stallion_id: string | null;
   stallion_name: string | null;
+  collection_id: string | null;
   date: string;
   method: BreedingRecord['method'];
   notes: string | null;
@@ -26,6 +28,7 @@ function mapBreedingRecordRow(row: BreedingRecordRow): BreedingRecord {
     mareId: row.mare_id,
     stallionId: row.stallion_id,
     stallionName: row.stallion_name,
+    collectionId: row.collection_id,
     date: row.date,
     method: row.method,
     notes: row.notes,
@@ -41,11 +44,30 @@ function mapBreedingRecordRow(row: BreedingRecordRow): BreedingRecord {
   };
 }
 
+async function validateCollectionStallion(
+  collectionId: string | null | undefined,
+  stallionId: string | null,
+): Promise<void> {
+  if (collectionId != null) {
+    if (stallionId == null) {
+      throw new Error('A collection requires a linked stallion.');
+    }
+    const collection = await getSemenCollectionById(collectionId);
+    if (!collection) {
+      throw new Error('Collection not found.');
+    }
+    if (collection.stallionId !== stallionId) {
+      throw new Error('Collection belongs to a different stallion.');
+    }
+  }
+}
+
 export async function createBreedingRecord(input: {
   id: string;
   mareId: string;
   stallionId: string | null;
   stallionName?: string | null;
+  collectionId?: string | null;
   date: string;
   method: BreedingMethod;
   notes?: string | null;
@@ -57,35 +79,27 @@ export async function createBreedingRecord(input: {
   strawDetails?: string | null;
   collectionDate?: string | null;
 }): Promise<void> {
+  await validateCollectionStallion(input.collectionId, input.stallionId);
+
   const db = await getDb();
   const now = new Date().toISOString();
 
   await db.runAsync(
     `
     INSERT INTO breeding_records (
-      id,
-      mare_id,
-      stallion_id,
-      stallion_name,
-      date,
-      method,
-      notes,
-      volume_ml,
-      concentration_m_per_ml,
-      motility_percent,
-      number_of_straws,
-      straw_volume_ml,
-      straw_details,
-      collection_date,
-      created_at,
-      updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      id, mare_id, stallion_id, stallion_name, collection_id,
+      date, method, notes,
+      volume_ml, concentration_m_per_ml, motility_percent,
+      number_of_straws, straw_volume_ml, straw_details,
+      collection_date, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       input.id,
       input.mareId,
       input.stallionId,
       input.stallionName ?? null,
+      input.collectionId ?? null,
       input.date,
       input.method,
       input.notes ?? null,
@@ -107,6 +121,7 @@ export async function updateBreedingRecord(
   input: {
     stallionId: string | null;
     stallionName?: string | null;
+    collectionId?: string | null;
     date: string;
     method: BreedingMethod;
     notes?: string | null;
@@ -119,6 +134,8 @@ export async function updateBreedingRecord(
     collectionDate?: string | null;
   },
 ): Promise<void> {
+  await validateCollectionStallion(input.collectionId, input.stallionId);
+
   const db = await getDb();
 
   await db.runAsync(
@@ -127,6 +144,7 @@ export async function updateBreedingRecord(
     SET
       stallion_id = ?,
       stallion_name = ?,
+      collection_id = ?,
       date = ?,
       method = ?,
       notes = ?,
@@ -143,6 +161,7 @@ export async function updateBreedingRecord(
     [
       input.stallionId,
       input.stallionName ?? null,
+      input.collectionId ?? null,
       input.date,
       input.method,
       input.notes ?? null,
@@ -164,7 +183,7 @@ export async function getBreedingRecordById(id: string): Promise<BreedingRecord 
   const row = await db.getFirstAsync<BreedingRecordRow>(
     `
     SELECT
-      id, mare_id, stallion_id, stallion_name, date, method, notes, volume_ml, concentration_m_per_ml,
+      id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
       motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
     WHERE id = ?;
@@ -185,7 +204,7 @@ export async function listAllBreedingRecords(): Promise<BreedingRecord[]> {
   const rows = await db.getAllAsync<BreedingRecordRow>(
     `
     SELECT
-      id, mare_id, stallion_id, stallion_name, date, method, notes, volume_ml, concentration_m_per_ml,
+      id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
       motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
     ORDER BY date DESC;
@@ -200,7 +219,7 @@ export async function listBreedingRecordsByMare(mareId: string): Promise<Breedin
   const rows = await db.getAllAsync<BreedingRecordRow>(
     `
     SELECT
-      id, mare_id, stallion_id, stallion_name, date, method, notes, volume_ml, concentration_m_per_ml,
+      id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
       motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
     WHERE mare_id = ?
@@ -209,5 +228,42 @@ export async function listBreedingRecordsByMare(mareId: string): Promise<Breedin
     [mareId],
   );
 
+  return rows.map(mapBreedingRecordRow);
+}
+
+export async function listBreedingRecordsForStallion(
+  stallionId: string,
+): Promise<BreedingRecord[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<BreedingRecordRow>(
+    `
+    SELECT
+      id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
+      motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
+    FROM breeding_records
+    WHERE stallion_id = ?
+    ORDER BY date DESC;
+    `,
+    [stallionId],
+  );
+  return rows.map(mapBreedingRecordRow);
+}
+
+export async function listLegacyBreedingRecordsMatchingStallionName(
+  stallionName: string,
+): Promise<BreedingRecord[]> {
+  const db = await getDb();
+  const rows = await db.getAllAsync<BreedingRecordRow>(
+    `
+    SELECT
+      id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
+      motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
+    FROM breeding_records
+    WHERE stallion_id IS NULL
+    AND LOWER(stallion_name) = LOWER(?)
+    ORDER BY date DESC;
+    `,
+    [stallionName],
+  );
   return rows.map(mapBreedingRecordRow);
 }

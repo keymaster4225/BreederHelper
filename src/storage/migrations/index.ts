@@ -237,6 +237,99 @@ const migration007 = `
 ALTER TABLE foals ADD COLUMN igg_tests TEXT NOT NULL DEFAULT '[]';
 `;
 
+const migration008 = `
+ALTER TABLE stallions ADD COLUMN date_of_birth TEXT;
+ALTER TABLE stallions ADD COLUMN av_temperature_f REAL;
+ALTER TABLE stallions ADD COLUMN av_type TEXT;
+ALTER TABLE stallions ADD COLUMN av_liner_type TEXT;
+ALTER TABLE stallions ADD COLUMN av_water_volume_ml INTEGER;
+ALTER TABLE stallions ADD COLUMN av_notes TEXT;
+`;
+
+const migration009 = `
+CREATE TABLE IF NOT EXISTS semen_collections (
+  id TEXT PRIMARY KEY,
+  stallion_id TEXT NOT NULL,
+  collection_date TEXT NOT NULL,
+  raw_volume_ml REAL,
+  extended_volume_ml REAL,
+  concentration_millions_per_ml REAL,
+  progressive_motility_percent INTEGER,
+  dose_count INTEGER,
+  dose_size_millions REAL,
+  shipped INTEGER,
+  shipped_to TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (collection_date GLOB '????-??-??'),
+  CHECK (raw_volume_ml IS NULL OR raw_volume_ml >= 0),
+  CHECK (extended_volume_ml IS NULL OR extended_volume_ml >= 0),
+  CHECK (concentration_millions_per_ml IS NULL OR concentration_millions_per_ml >= 0),
+  CHECK (progressive_motility_percent IS NULL OR progressive_motility_percent BETWEEN 0 AND 100),
+  CHECK (dose_count IS NULL OR dose_count >= 0),
+  CHECK (dose_size_millions IS NULL OR dose_size_millions >= 0),
+  CHECK (shipped IS NULL OR shipped IN (0, 1)),
+  CHECK (
+    (shipped = 1 AND shipped_to IS NOT NULL AND TRIM(shipped_to) <> '')
+    OR (shipped IS NULL OR shipped = 0)
+  )
+);
+
+CREATE INDEX idx_semen_collections_stallion_date
+  ON semen_collections (stallion_id, collection_date DESC);
+`;
+
+const migration010 = `
+CREATE TABLE breeding_records_new (
+  id TEXT PRIMARY KEY,
+  mare_id TEXT NOT NULL,
+  stallion_id TEXT,
+  stallion_name TEXT,
+  collection_id TEXT,
+  date TEXT NOT NULL,
+  method TEXT NOT NULL,
+  notes TEXT,
+  volume_ml REAL,
+  concentration_m_per_ml REAL,
+  motility_percent REAL,
+  number_of_straws INTEGER,
+  straw_volume_ml INTEGER,
+  straw_details TEXT,
+  collection_date TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (mare_id) REFERENCES mares(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  FOREIGN KEY (collection_id) REFERENCES semen_collections(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (date GLOB '????-??-??'),
+  CHECK (collection_date IS NULL OR collection_date GLOB '????-??-??'),
+  CHECK (method IN ('liveCover', 'freshAI', 'shippedCooledAI', 'frozenAI')),
+  CHECK (motility_percent IS NULL OR (motility_percent >= 0 AND motility_percent <= 100)),
+  CHECK (number_of_straws IS NULL OR number_of_straws >= 1),
+  CHECK (
+    (method = 'frozenAI' AND number_of_straws IS NOT NULL)
+    OR (method <> 'frozenAI')
+  ),
+  CHECK (stallion_id IS NOT NULL OR stallion_name IS NOT NULL),
+  CHECK (collection_id IS NULL OR stallion_id IS NOT NULL)
+);
+
+INSERT INTO breeding_records_new
+  SELECT id, mare_id, stallion_id, stallion_name, NULL, date, method, notes,
+         volume_ml, concentration_m_per_ml, motility_percent, number_of_straws,
+         straw_volume_ml, straw_details, collection_date, created_at, updated_at
+  FROM breeding_records;
+
+DROP TABLE breeding_records;
+
+ALTER TABLE breeding_records_new RENAME TO breeding_records;
+
+CREATE INDEX IF NOT EXISTS idx_breeding_records_mare_date ON breeding_records (mare_id, date DESC);
+CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date ON breeding_records (stallion_id, date DESC);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -275,6 +368,22 @@ const migrations: Migration[] = [
     name: '007_add_foal_igg_tests',
     statements: splitStatements(migration007),
     shouldSkip: async (db) => hasColumn(db, 'foals', 'igg_tests'),
+  },
+  {
+    id: 8,
+    name: '008_stallion_dob_av_prefs',
+    statements: splitStatements(migration008),
+    shouldSkip: async (db) => hasColumn(db, 'stallions', 'date_of_birth'),
+  },
+  {
+    id: 9,
+    name: '009_create_semen_collections',
+    statements: splitStatements(migration009),
+  },
+  {
+    id: 10,
+    name: '010_breeding_records_collection_id',
+    statements: splitStatements(migration010),
   },
 ];
 

@@ -1,0 +1,228 @@
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
+
+import { DeleteButton, PrimaryButton } from '@/components/Buttons';
+import { FormCheckbox, FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
+import { Screen } from '@/components/Screen';
+import { RootStackParamList } from '@/navigation/AppNavigator';
+import {
+  createSemenCollection,
+  deleteSemenCollection,
+  getSemenCollectionById,
+  updateSemenCollection,
+} from '@/storage/repositories';
+import { colors } from '@/theme';
+import { newId } from '@/utils/id';
+import {
+  parseOptionalInteger,
+  parseOptionalNumber,
+  validateLocalDate,
+  validateLocalDateNotInFuture,
+  validateNumberRange,
+  validateRequired,
+} from '@/utils/validation';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'CollectionForm'>;
+
+type FormErrors = {
+  collectionDate?: string;
+  rawVolumeMl?: string;
+  extendedVolumeMl?: string;
+  concentrationMillionsPerMl?: string;
+  progressiveMotilityPercent?: string;
+  doseCount?: string;
+  doseSizeMillions?: string;
+  shippedTo?: string;
+};
+
+export function CollectionFormScreen({ navigation, route }: Props): JSX.Element {
+  const stallionId = route.params.stallionId;
+  const collectionId = route.params.collectionId;
+  const isEdit = Boolean(collectionId);
+
+  const [collectionDate, setCollectionDate] = useState('');
+  const [rawVolumeMl, setRawVolumeMl] = useState('');
+  const [extendedVolumeMl, setExtendedVolumeMl] = useState('');
+  const [concentrationMillionsPerMl, setConcentrationMillionsPerMl] = useState('');
+  const [progressiveMotilityPercent, setProgressiveMotilityPercent] = useState('');
+  const [doseCount, setDoseCount] = useState('');
+  const [doseSizeMillions, setDoseSizeMillions] = useState('');
+  const [shipped, setShipped] = useState(false);
+  const [shippedTo, setShippedTo] = useState('');
+  const [notes, setNotes] = useState('');
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [isLoadingRecord, setIsLoadingRecord] = useState(isEdit);
+  const [isSaving, setIsSaving] = useState(false);
+  const today = new Date();
+
+  useEffect(() => {
+    navigation.setOptions({ title: isEdit ? 'Edit Collection' : 'Add Collection' });
+  }, [isEdit, navigation]);
+
+  useEffect(() => {
+    if (!collectionId) return;
+    void (async () => {
+      try {
+        const record = await getSemenCollectionById(collectionId);
+        if (record) {
+          setCollectionDate(record.collectionDate);
+          setRawVolumeMl(record.rawVolumeMl != null ? String(record.rawVolumeMl) : '');
+          setExtendedVolumeMl(record.extendedVolumeMl != null ? String(record.extendedVolumeMl) : '');
+          setConcentrationMillionsPerMl(record.concentrationMillionsPerMl != null ? String(record.concentrationMillionsPerMl) : '');
+          setProgressiveMotilityPercent(record.progressiveMotilityPercent != null ? String(record.progressiveMotilityPercent) : '');
+          setDoseCount(record.doseCount != null ? String(record.doseCount) : '');
+          setDoseSizeMillions(record.doseSizeMillions != null ? String(record.doseSizeMillions) : '');
+          setShipped(record.shipped === true);
+          setShippedTo(record.shippedTo ?? '');
+          setNotes(record.notes ?? '');
+        }
+      } finally {
+        setIsLoadingRecord(false);
+      }
+    })();
+  }, [collectionId]);
+
+  const validate = (): FormErrors => {
+    const errs: FormErrors = {};
+    errs.collectionDate =
+      validateLocalDate(collectionDate, 'Collection date', true) ??
+      validateLocalDateNotInFuture(collectionDate) ??
+      undefined;
+    errs.rawVolumeMl = validateNumberRange(parseOptionalNumber(rawVolumeMl), 'Raw Volume', 0, 5000) ?? undefined;
+    errs.extendedVolumeMl = validateNumberRange(parseOptionalNumber(extendedVolumeMl), 'Extended Volume', 0, 50000) ?? undefined;
+    errs.concentrationMillionsPerMl = validateNumberRange(parseOptionalNumber(concentrationMillionsPerMl), 'Concentration', 0, 100000) ?? undefined;
+    errs.progressiveMotilityPercent = validateNumberRange(parseOptionalInteger(progressiveMotilityPercent), 'Motility', 0, 100) ?? undefined;
+    errs.doseCount = validateNumberRange(parseOptionalInteger(doseCount), 'Dose Count', 0, 1000) ?? undefined;
+    errs.doseSizeMillions = validateNumberRange(parseOptionalNumber(doseSizeMillions), 'Dose Size', 0, 100000) ?? undefined;
+    if (shipped) {
+      errs.shippedTo = validateRequired(shippedTo, 'Shipped To') ?? undefined;
+    }
+    return errs;
+  };
+
+  const onSave = async (): Promise<void> => {
+    const errs = validate();
+    setErrors(errs);
+    if (Object.values(errs).some(Boolean)) return;
+
+    setIsSaving(true);
+    try {
+      const payload = {
+        collectionDate,
+        rawVolumeMl: parseOptionalNumber(rawVolumeMl),
+        extendedVolumeMl: parseOptionalNumber(extendedVolumeMl),
+        concentrationMillionsPerMl: parseOptionalNumber(concentrationMillionsPerMl),
+        progressiveMotilityPercent: parseOptionalInteger(progressiveMotilityPercent),
+        doseCount: parseOptionalInteger(doseCount),
+        doseSizeMillions: parseOptionalNumber(doseSizeMillions),
+        shipped: shipped || null,
+        shippedTo: shipped ? shippedTo.trim() || null : null,
+        notes: notes.trim() || null,
+      };
+
+      if (isEdit && collectionId) {
+        await updateSemenCollection(collectionId, payload);
+      } else {
+        await createSemenCollection({ id: newId(), stallionId, ...payload });
+      }
+      navigation.goBack();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save collection.';
+      Alert.alert('Save error', message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const onDelete = (): void => {
+    if (!collectionId) return;
+    Alert.alert(
+      'Delete Collection',
+      'Are you sure you want to delete this collection record?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              try {
+                await deleteSemenCollection(collectionId);
+                navigation.goBack();
+              } catch (err) {
+                const message = err instanceof Error ? err.message : 'Unable to delete collection.';
+                Alert.alert('Delete blocked', message);
+              }
+            })();
+          },
+        },
+      ],
+    );
+  };
+
+  if (isLoadingRecord) {
+    return (
+      <Screen>
+        <ActivityIndicator color={colors.primary} size="large" />
+      </Screen>
+    );
+  }
+
+  return (
+    <Screen>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
+          <FormField label="Collection Date" required error={errors.collectionDate}>
+            <FormDateInput value={collectionDate} onChange={setCollectionDate} maximumDate={today} displayFormat="MM-DD-YYYY" />
+          </FormField>
+
+          <FormField label="Raw Volume (mL)" error={errors.rawVolumeMl}>
+            <FormTextInput value={rawVolumeMl} onChangeText={setRawVolumeMl} placeholder="Optional" keyboardType="numeric" />
+          </FormField>
+
+          <FormField label="Extended Volume (mL)" error={errors.extendedVolumeMl}>
+            <FormTextInput value={extendedVolumeMl} onChangeText={setExtendedVolumeMl} placeholder="Optional" keyboardType="numeric" />
+          </FormField>
+
+          <FormField label="Concentration (M/mL)" error={errors.concentrationMillionsPerMl}>
+            <FormTextInput value={concentrationMillionsPerMl} onChangeText={setConcentrationMillionsPerMl} placeholder="Optional" keyboardType="numeric" />
+          </FormField>
+
+          <FormField label="Progressive Motility (%)" error={errors.progressiveMotilityPercent}>
+            <FormTextInput value={progressiveMotilityPercent} onChangeText={setProgressiveMotilityPercent} placeholder="0-100" keyboardType="numeric" />
+          </FormField>
+
+          <FormField label="Dose Count" error={errors.doseCount}>
+            <FormTextInput value={doseCount} onChangeText={setDoseCount} placeholder="Optional" keyboardType="numeric" />
+          </FormField>
+
+          <FormField label="Dose Size (millions)" error={errors.doseSizeMillions}>
+            <FormTextInput value={doseSizeMillions} onChangeText={setDoseSizeMillions} placeholder="Optional" keyboardType="numeric" />
+          </FormField>
+
+          <FormCheckbox label="Semen was shipped" value={shipped} onChange={setShipped} />
+
+          {shipped ? (
+            <FormField label="Shipped To" required error={errors.shippedTo}>
+              <FormTextInput value={shippedTo} onChangeText={setShippedTo} placeholder="Recipient" />
+            </FormField>
+          ) : null}
+
+          <FormField label="Notes">
+            <FormTextInput value={notes} onChangeText={setNotes} multiline placeholder="Optional" />
+          </FormField>
+
+          <View style={{ gap: 12 }}>
+            <PrimaryButton
+              label={isEdit ? 'Update Collection' : 'Add Collection'}
+              onPress={() => { void onSave(); }}
+              disabled={isSaving}
+            />
+            {isEdit ? <DeleteButton label="Delete Collection" onPress={onDelete} disabled={isSaving} /> : null}
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Screen>
+  );
+}

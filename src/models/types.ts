@@ -101,9 +101,32 @@ export interface Stallion {
   sire?: string | null;
   dam?: string | null;
   notes?: string | null;
+  dateOfBirth?: LocalDate | null;
+  avTemperatureF?: number | null;
+  avType?: string | null;
+  avLinerType?: string | null;
+  avWaterVolumeMl?: number | null;
+  avNotes?: string | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
   deletedAt?: ISODateTime | null;
+}
+
+export interface SemenCollection {
+  id: UUID;
+  stallionId: UUID;
+  collectionDate: LocalDate;
+  rawVolumeMl?: number | null;
+  extendedVolumeMl?: number | null;
+  concentrationMillionsPerMl?: number | null;
+  progressiveMotilityPercent?: number | null;
+  doseCount?: number | null;
+  doseSizeMillions?: number | null;
+  shipped?: boolean | null;
+  shippedTo?: string | null;
+  notes?: string | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
 }
 
 export interface DailyLog {
@@ -127,6 +150,7 @@ export interface BreedingRecord {
   mareId: UUID;
   stallionId: UUID | null;
   stallionName?: string | null;
+  collectionId?: UUID | null;
   date: LocalDate;
   method: BreedingMethod;
   notes?: string | null;
