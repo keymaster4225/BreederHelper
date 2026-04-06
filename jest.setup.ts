@@ -42,10 +42,6 @@ jest.mock('@/storage/useAppBootstrap', () => ({
   useAppBootstrap: () => ({ isReady: true, error: null }),
 }));
 
-jest.mock('@/utils/onboarding', () => ({
-  getOnboardingComplete: jest.fn().mockResolvedValue(true),
-}));
-
 jest.mock('@expo/vector-icons', () => ({
   MaterialCommunityIcons: ({ name }: { name: string }) => {
     const mockReact = require('react');
