@@ -127,10 +127,12 @@ it('switches tabs from dashboard to stallions and mares', async () => {
 
   await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeTruthy());
 
-  fireEvent.press(screen.getAllByText('Stallions').at(-1)!);
+  const stallionTabs = screen.getAllByText('Stallions');
+  fireEvent.press(stallionTabs[stallionTabs.length - 1]!);
   await waitFor(() => expect(screen.getByText('Stallion Management')).toBeTruthy());
 
-  fireEvent.press(screen.getAllByText('Mares').at(-1)!);
+  const mareTabs = screen.getAllByText('Mares');
+  fireEvent.press(mareTabs[mareTabs.length - 1]!);
   await waitFor(() => expect(screen.getByText('Maple')).toBeTruthy());
 });
 

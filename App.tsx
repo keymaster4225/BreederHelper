@@ -6,11 +6,12 @@ import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { useAppBootstrap } from './src/storage/useAppBootstrap';
-import { getOnboardingComplete } from './src/utils/onboarding';
+
+const SPLASH_DURATION_MS = 1200;
 
 export default function App(): JSX.Element | null {
   const { isReady, error } = useAppBootstrap();
-  const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
+  const [showSplash, setShowSplash] = useState(true);
   const [fontsLoaded] = useFonts({
     Lora_400Regular,
     Lora_700Bold,
@@ -19,24 +20,31 @@ export default function App(): JSX.Element | null {
   });
 
   useEffect(() => {
-    if (!isReady) {
+    if (!fontsLoaded || !isReady) {
       return;
     }
-    getOnboardingComplete().then(setOnboardingComplete);
-  }, [isReady]);
+
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, SPLASH_DURATION_MS);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [fontsLoaded, isReady]);
 
   if (error) {
     throw error;
   }
 
-  if (!fontsLoaded || !isReady || onboardingComplete === null) {
+  if (!fontsLoaded || !isReady) {
     return null;
   }
 
-  if (!onboardingComplete) {
+  if (showSplash) {
     return (
       <SafeAreaProvider>
-        <WelcomeScreen onComplete={() => setOnboardingComplete(true)} />
+        <WelcomeScreen />
       </SafeAreaProvider>
     );
   }
