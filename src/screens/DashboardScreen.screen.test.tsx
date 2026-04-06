@@ -114,7 +114,29 @@ it('shows the first-time empty state when there are no animals', () => {
   );
 
   expect(screen.getByText('Welcome to BreedWise')).toBeTruthy();
-  expect(screen.getByText(/Track your mares, stallions/)).toBeTruthy();
+  expect(screen.getByText(/mare and stallion recordkeeping/)).toBeTruthy();
+  expect(screen.getByText('What you can track')).toBeTruthy();
+});
+
+it('navigates from first-time action cards', () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(
+    buildState({
+      totalMares: 0,
+      totalStallions: 0,
+      alerts: [],
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  fireEvent.press(screen.getByLabelText('Add a Mare'));
+  expect(navigation.navigate).toHaveBeenCalledWith('EditMare');
+
+  fireEvent.press(screen.getByLabelText('Add a Stallion'));
+  expect(navigation.navigate).toHaveBeenCalledWith('StallionForm', {});
 });
 
 it('shows the all caught up state when there are no alerts', () => {

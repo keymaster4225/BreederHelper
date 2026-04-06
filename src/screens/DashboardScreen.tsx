@@ -39,6 +39,16 @@ function StatCard({ label, count, iconName, onPress }: StatCardProps): JSX.Eleme
   );
 }
 
+type IconName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+
+const FEATURES: readonly { icon: IconName; color: string; title: string; subtitle: string }[] = [
+  { icon: 'clipboard-text-outline', color: colors.primary, title: 'Daily Observations', subtitle: 'Heat scores, teasing, edema, and ovulation' },
+  { icon: 'needle', color: colors.secondary, title: 'Breeding & Pregnancy', subtitle: 'Breeding records, pregnancy checks, and due dates' },
+  { icon: 'baby-carriage', color: colors.pregnant, title: 'Foaling & Foals', subtitle: 'Foaling outcomes, foal details, and milestones' },
+  { icon: 'pill', color: '#009688', title: 'Medications', subtitle: 'Track medication schedules and catch gaps' },
+  { icon: 'test-tube', color: colors.tertiary, title: 'Stallion Collections', subtitle: 'Semen collection records and AV preferences' },
+];
+
 export function DashboardScreen({ navigation }: Props): JSX.Element {
   const { totalMares, pregnantMares, totalStallions, alerts, isLoading, error, reload } =
     useDashboardData();
@@ -109,17 +119,49 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
 
         {isFirstTime ? (
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="horse" size={72} color={colors.primary} />
-            <Text style={styles.emptyHeading}>Welcome to BreedWise</Text>
-            <Text style={styles.emptySubtitle}>
-              Track your mares, stallions, breeding records, and foaling results — all in one place!
-            </Text>
-            <Pressable
-              style={({ pressed }) => [styles.emptyButton, pressed && styles.pressedOpacity]}
-              onPress={() => navigation.navigate('EditMare')}
-            >
-              <Text style={styles.emptyButtonText}>Add your first mare</Text>
-            </Pressable>
+            <View style={styles.welcomeHeader}>
+              <MaterialCommunityIcons name="horse" size={56} color={colors.primary} />
+              <Text style={styles.emptyHeading}>Welcome to BreedWise</Text>
+              <Text style={styles.emptySubtitle}>
+                Your complete mare and stallion recordkeeping companion.
+              </Text>
+            </View>
+
+            <View style={styles.getStartedRow}>
+              <Pressable
+                style={({ pressed }) => [styles.actionCard, pressed && styles.pressedOpacity]}
+                onPress={() => navigation.navigate('EditMare')}
+                accessibilityRole="button"
+                accessibilityLabel="Add a Mare"
+              >
+                <MaterialCommunityIcons name="horse" size={32} color={colors.primary} />
+                <Text style={styles.actionCardLabel}>Add a Mare</Text>
+              </Pressable>
+              <Pressable
+                style={({ pressed }) => [styles.actionCard, pressed && styles.pressedOpacity]}
+                onPress={() => navigation.navigate('StallionForm', {})}
+                accessibilityRole="button"
+                accessibilityLabel="Add a Stallion"
+              >
+                <MaterialCommunityIcons name="horse-variant" size={32} color={colors.primary} />
+                <Text style={styles.actionCardLabel}>Add a Stallion</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.featureSection}>
+              <Text style={styles.featureSectionTitle}>What you can track</Text>
+              {FEATURES.map((f) => (
+                <View key={f.title} style={styles.featureRow}>
+                  <View style={[styles.featureIconWrap, { backgroundColor: f.color + '18' }]}>
+                    <MaterialCommunityIcons name={f.icon} size={22} color={f.color} />
+                  </View>
+                  <View style={styles.featureTextWrap}>
+                    <Text style={styles.featureTitle}>{f.title}</Text>
+                    <Text style={styles.featureSubtitle}>{f.subtitle}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
         ) : null}
 
@@ -198,31 +240,72 @@ const styles = StyleSheet.create({
     color: colors.onSurfaceVariant,
   },
   emptyState: {
+    gap: spacing.xxl,
+    paddingTop: spacing.xl,
+  },
+  welcomeHeader: {
     alignItems: 'center',
-    flex: 1,
-    gap: spacing.lg,
-    justifyContent: 'center',
-    paddingTop: spacing.xxxl,
+    gap: spacing.md,
   },
   emptyHeading: {
-    ...typography.titleLarge,
+    ...typography.headlineSmall,
     color: colors.onSurface,
   },
   emptySubtitle: {
-    ...typography.bodyMedium,
+    ...typography.bodyLarge,
     color: colors.onSurfaceVariant,
     textAlign: 'center',
   },
-  emptyButton: {
-    backgroundColor: colors.primaryContainer,
-    borderRadius: borderRadius.md,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    marginTop: spacing.sm,
+  getStartedRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
   },
-  emptyButtonText: {
+  actionCard: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: borderRadius.lg,
+    flex: 1,
+    gap: spacing.sm,
+    padding: spacing.lg,
+    ...elevation.level1,
+  },
+  actionCardLabel: {
     ...typography.labelLarge,
-    color: colors.onPrimaryContainer,
+    color: colors.onSurface,
+  },
+  featureSection: {
+    gap: spacing.md,
+  },
+  featureSectionTitle: {
+    ...typography.titleMedium,
+    color: colors.onSurface,
+  },
+  featureRow: {
+    alignItems: 'center',
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: borderRadius.md,
+    flexDirection: 'row',
+    gap: spacing.md,
+    padding: spacing.md,
+  },
+  featureIconWrap: {
+    alignItems: 'center',
+    borderRadius: borderRadius.sm,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  featureTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  featureTitle: {
+    ...typography.titleSmall,
+    color: colors.onSurface,
+  },
+  featureSubtitle: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   pressedOpacity: {
     opacity: 0.85,
