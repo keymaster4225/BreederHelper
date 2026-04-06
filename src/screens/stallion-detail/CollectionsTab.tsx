@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { PrimaryButton } from '@/components/Buttons';
@@ -31,7 +31,12 @@ export function CollectionsTab({ stallionId, stallion, collections, isDeleted, n
   return (
     <View style={styles.page}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <View style={cardStyles.card}>
+      <Pressable
+        style={({ pressed }) => [cardStyles.card, pressed && styles.pressed]}
+        onPress={() => navigation.navigate('AVPreferencesForm', { stallionId })}
+        accessibilityRole="button"
+        accessibilityLabel="Edit AV Preferences"
+      >
         <Text style={styles.sectionTitle}>AV Preferences</Text>
         {hasAnyAvPref(stallion) ? (
           <>
@@ -42,9 +47,9 @@ export function CollectionsTab({ stallionId, stallion, collections, isDeleted, n
             <CardRow label="Notes" value={stallion.avNotes} />
           </>
         ) : (
-          <Text style={styles.mutedText}>No AV preferences set.</Text>
+          <Text style={styles.mutedText}>Tap to set AV preferences.</Text>
         )}
-      </View>
+      </Pressable>
 
       {!isDeleted ? (
         <PrimaryButton
@@ -112,5 +117,8 @@ const styles = StyleSheet.create({
   mutedText: {
     color: colors.onSurfaceVariant,
     ...typography.bodySmall,
+  },
+  pressed: {
+    opacity: 0.85,
   },
 });

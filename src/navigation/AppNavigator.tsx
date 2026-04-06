@@ -15,6 +15,7 @@ import { MedicationFormScreen } from '@/screens/MedicationFormScreen';
 import { StallionDetailScreen } from '@/screens/StallionDetailScreen';
 import { StallionFormScreen } from '@/screens/StallionFormScreen';
 import { CollectionFormScreen } from '@/screens/CollectionFormScreen';
+import { AVPreferencesFormScreen } from '@/screens/AVPreferencesFormScreen';
 
 import { FoalSex } from '@/models/types';
 import { colors } from '@/theme';
@@ -33,6 +34,7 @@ export type RootStackParamList = {
   StallionDetail: { stallionId: string; initialTab?: 'collections' | 'breeding' };
   StallionForm: { stallionId?: string };
   CollectionForm: { stallionId: string; collectionId?: string };
+  AVPreferencesForm: { stallionId: string };
   BreedingRecordForm: { mareId: string; breedingRecordId?: string };
   PregnancyCheckForm: { mareId: string; pregnancyCheckId?: string };
   FoalingRecordForm: { mareId: string; foalingRecordId?: string };
@@ -68,6 +70,7 @@ export function AppNavigator(): JSX.Element {
         <Stack.Screen name="StallionDetail" component={StallionDetailScreen} options={{ title: 'Stallion Detail' }} />
         <Stack.Screen name="StallionForm" component={StallionFormScreen} options={{ title: 'Stallion' }} />
         <Stack.Screen name="CollectionForm" component={CollectionFormScreen} options={{ title: 'Collection' }} />
+        <Stack.Screen name="AVPreferencesForm" component={AVPreferencesFormScreen} options={{ title: 'AV Preferences' }} />
         <Stack.Screen name="MareCalendar" component={MareCalendarScreen} options={{ title: 'Calendar' }} />
       </Stack.Navigator>
     </NavigationContainer>

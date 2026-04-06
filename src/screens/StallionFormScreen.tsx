@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
@@ -12,14 +12,11 @@ import {
   softDeleteStallion,
   updateStallion,
 } from '@/storage/repositories';
-import { colors, typography } from '@/theme';
+import { colors } from '@/theme';
 import { newId } from '@/utils/id';
 import {
-  parseOptionalInteger,
-  parseOptionalNumber,
   validateLocalDate,
   validateLocalDateNotInFuture,
-  validateNumberRange,
   validateRequired,
 } from '@/utils/validation';
 
@@ -28,8 +25,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'StallionForm'>;
 type FormErrors = {
   name?: string;
   dateOfBirth?: string;
-  avTemperatureF?: string;
-  avWaterVolumeMl?: string;
 };
 
 export function StallionFormScreen({ navigation, route }: Props): JSX.Element {
@@ -43,11 +38,6 @@ export function StallionFormScreen({ navigation, route }: Props): JSX.Element {
   const [sire, setSire] = useState('');
   const [dam, setDam] = useState('');
   const [notes, setNotes] = useState('');
-  const [avTemperatureF, setAvTemperatureF] = useState('');
-  const [avType, setAvType] = useState('');
-  const [avLinerType, setAvLinerType] = useState('');
-  const [avWaterVolumeMl, setAvWaterVolumeMl] = useState('');
-  const [avNotes, setAvNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoadingRecord, setIsLoadingRecord] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
@@ -70,11 +60,6 @@ export function StallionFormScreen({ navigation, route }: Props): JSX.Element {
           setSire(record.sire ?? '');
           setDam(record.dam ?? '');
           setNotes(record.notes ?? '');
-          setAvTemperatureF(record.avTemperatureF != null ? String(record.avTemperatureF) : '');
-          setAvType(record.avType ?? '');
-          setAvLinerType(record.avLinerType ?? '');
-          setAvWaterVolumeMl(record.avWaterVolumeMl != null ? String(record.avWaterVolumeMl) : '');
-          setAvNotes(record.avNotes ?? '');
         }
       } finally {
         setIsLoadingRecord(false);
@@ -89,10 +74,6 @@ export function StallionFormScreen({ navigation, route }: Props): JSX.Element {
       validateLocalDate(dateOfBirth, 'Date of birth') ??
       validateLocalDateNotInFuture(dateOfBirth) ??
       undefined;
-    errs.avTemperatureF =
-      validateNumberRange(parseOptionalNumber(avTemperatureF), 'AV Temperature', 0, 250) ?? undefined;
-    errs.avWaterVolumeMl =
-      validateNumberRange(parseOptionalInteger(avWaterVolumeMl), 'AV Water Volume', 0, 9999) ?? undefined;
     return errs;
   };
 
@@ -111,11 +92,6 @@ export function StallionFormScreen({ navigation, route }: Props): JSX.Element {
         dam: dam.trim() || null,
         notes: notes.trim() || null,
         dateOfBirth: dateOfBirth.trim() || null,
-        avTemperatureF: parseOptionalNumber(avTemperatureF),
-        avType: avType.trim() || null,
-        avLinerType: avLinerType.trim() || null,
-        avWaterVolumeMl: parseOptionalInteger(avWaterVolumeMl),
-        avNotes: avNotes.trim() || null,
       };
 
       if (isEdit && stallionId) {
@@ -204,38 +180,6 @@ export function StallionFormScreen({ navigation, route }: Props): JSX.Element {
             <FormTextInput value={notes} onChangeText={setNotes} multiline placeholder="Optional" />
           </FormField>
 
-          <Text style={avSectionTitle}>AV Preferences</Text>
-
-          <FormField label="Temperature (F)" error={errors.avTemperatureF}>
-            <FormTextInput
-              value={avTemperatureF}
-              onChangeText={setAvTemperatureF}
-              placeholder="Optional"
-              keyboardType="numeric"
-            />
-          </FormField>
-
-          <FormField label="AV Type">
-            <FormTextInput value={avType} onChangeText={setAvType} placeholder="Optional" />
-          </FormField>
-
-          <FormField label="Liner Type">
-            <FormTextInput value={avLinerType} onChangeText={setAvLinerType} placeholder="Optional" />
-          </FormField>
-
-          <FormField label="Water Volume (mL)" error={errors.avWaterVolumeMl}>
-            <FormTextInput
-              value={avWaterVolumeMl}
-              onChangeText={setAvWaterVolumeMl}
-              placeholder="Optional"
-              keyboardType="numeric"
-            />
-          </FormField>
-
-          <FormField label="AV Notes">
-            <FormTextInput value={avNotes} onChangeText={setAvNotes} multiline placeholder="Optional" />
-          </FormField>
-
           <View style={{ gap: 12 }}>
             <PrimaryButton
               label={isEdit ? 'Update Stallion' : 'Add Stallion'}
@@ -249,8 +193,3 @@ export function StallionFormScreen({ navigation, route }: Props): JSX.Element {
     </Screen>
   );
 }
-
-const avSectionTitle = {
-  color: colors.onSurface,
-  ...typography.titleMedium,
-} as const;
