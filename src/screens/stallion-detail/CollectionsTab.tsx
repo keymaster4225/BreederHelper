@@ -29,6 +29,7 @@ function hasAnyAvPref(s: Stallion): boolean {
 
 export function CollectionsTab({ stallionId, stallion, collections, isDeleted, navigation }: Props): JSX.Element {
   return (
+    <View style={styles.page}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       <View style={cardStyles.card}>
         <Text style={styles.sectionTitle}>AV Preferences</Text>
@@ -92,13 +93,17 @@ export function CollectionsTab({ stallionId, stallion, collections, isDeleted, n
         </View>
       )}
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+  },
   content: {
     gap: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xxxl,
   },
   sectionTitle: {
     ...typography.titleSmall,

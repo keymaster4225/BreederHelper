@@ -19,6 +19,7 @@ export function BreedingHistoryTab({ linkedBreedings, legacyBreedings, mareNameB
   const hasAny = linkedBreedings.length > 0 || legacyBreedings.length > 0;
 
   return (
+    <View style={styles.page}>
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       {linkedBreedings.length > 0 ? (
         <>
@@ -61,13 +62,17 @@ export function BreedingHistoryTab({ linkedBreedings, legacyBreedings, mareNameB
         </View>
       ) : null}
     </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  page: {
+    flex: 1,
+  },
   content: {
     gap: spacing.md,
-    paddingBottom: spacing.xl,
+    paddingBottom: spacing.xxxl,
   },
   sectionTitle: {
     ...typography.titleSmall,

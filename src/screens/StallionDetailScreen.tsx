@@ -1,9 +1,10 @@
-import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import PagerView from 'react-native-pager-view';
 import type { PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useStallionDetailData } from '@/hooks/useStallionDetailData';
 import { Screen } from '@/components/Screen';
@@ -50,6 +51,21 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
     loadData,
   } = useStallionDetailData({ stallionId, setTitle: handleSetTitle });
 
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable
+          onPress={() => navigation.navigate('StallionForm', { stallionId })}
+          hitSlop={8}
+          accessibilityLabel="Edit Stallion"
+          style={({ pressed }) => pressed ? { opacity: 0.6 } : undefined}
+        >
+          <MaterialCommunityIcons name="pencil" size={22} color={colors.onSurface} />
+        </Pressable>
+      ),
+    });
+  }, [navigation, stallionId]);
+
   useFocusEffect(
     useCallback(() => {
       void loadData();
@@ -76,7 +92,6 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
           <StallionDetailHeader
             stallion={stallion}
             age={age}
-            onEditPress={() => navigation.navigate('StallionForm', { stallionId })}
           />
 
           <MareDetailTabStrip tabs={TAB_OPTIONS} activeTabIndex={activeTabIndex} onTabPress={handleTabPress} />

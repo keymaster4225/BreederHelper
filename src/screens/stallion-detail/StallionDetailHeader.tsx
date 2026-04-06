@@ -1,21 +1,18 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { EditIconButton } from '@/components/RecordCardParts';
 import { Stallion } from '@/models/types';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type StallionDetailHeaderProps = {
   readonly stallion: Stallion;
   readonly age: number | null;
-  readonly onEditPress: () => void;
 };
 
-export function StallionDetailHeader({ stallion, age, onEditPress }: StallionDetailHeaderProps): JSX.Element {
+export function StallionDetailHeader({ stallion, age }: StallionDetailHeaderProps): JSX.Element {
   return (
     <View style={styles.headerCard}>
       <View style={styles.cardHeader}>
         <Text style={styles.headerName}>{stallion.name}</Text>
-        <EditIconButton onPress={onEditPress} />
       </View>
       {stallion.breed ? <Text style={styles.headerLine}>{stallion.breed}</Text> : null}
       {age !== null ? <Text style={styles.headerLine}>Age {age}</Text> : null}
