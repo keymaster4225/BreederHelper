@@ -44,6 +44,7 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
     collections,
     linkedBreedings,
     legacyBreedings,
+    doseEventsByCollectionId,
     mareNameById,
     age,
     isLoading,
@@ -108,7 +109,9 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
               stallionId={stallionId}
               stallion={stallion}
               collections={collections}
+              doseEventsByCollectionId={doseEventsByCollectionId}
               isDeleted={isDeleted}
+              onDoseEventsChanged={loadData}
               navigation={navigation}
             />
             <BreedingHistoryTab

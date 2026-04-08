@@ -112,6 +112,33 @@ export interface Stallion {
   deletedAt?: ISODateTime | null;
 }
 
+export type DoseEventType = 'shipped' | 'usedOnSite';
+
+export interface CollectionDoseEvent {
+  id: UUID;
+  collectionId: UUID;
+  eventType: DoseEventType;
+  recipient: string;
+  doseCount: number | null;
+  eventDate: LocalDate | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateCollectionDoseEventInput {
+  collectionId: UUID;
+  eventType: DoseEventType;
+  recipient: string;
+  doseCount?: number | null;
+  eventDate?: LocalDate | null;
+  notes?: string | null;
+}
+
+export type UpdateCollectionDoseEventInput = Partial<
+  Omit<CreateCollectionDoseEventInput, 'collectionId'>
+>;
+
 export interface SemenCollection {
   id: UUID;
   stallionId: UUID;
@@ -122,8 +149,6 @@ export interface SemenCollection {
   progressiveMotilityPercent?: number | null;
   doseCount?: number | null;
   doseSizeMillions?: number | null;
-  shipped?: boolean | null;
-  shippedTo?: string | null;
   notes?: string | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;

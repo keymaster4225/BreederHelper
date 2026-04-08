@@ -330,6 +330,77 @@ CREATE INDEX IF NOT EXISTS idx_breeding_records_mare_date ON breeding_records (m
 CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date ON breeding_records (stallion_id, date DESC);
 `;
 
+const migration011 = `
+ALTER TABLE semen_collections RENAME TO semen_collections_old;
+
+CREATE TABLE semen_collections_new (
+  id TEXT PRIMARY KEY,
+  stallion_id TEXT NOT NULL,
+  collection_date TEXT NOT NULL,
+  raw_volume_ml REAL,
+  extended_volume_ml REAL,
+  concentration_millions_per_ml REAL,
+  progressive_motility_percent INTEGER,
+  dose_count INTEGER,
+  dose_size_millions REAL,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (collection_date GLOB '????-??-??'),
+  CHECK (raw_volume_ml IS NULL OR raw_volume_ml >= 0),
+  CHECK (extended_volume_ml IS NULL OR extended_volume_ml >= 0),
+  CHECK (concentration_millions_per_ml IS NULL OR concentration_millions_per_ml >= 0),
+  CHECK (progressive_motility_percent IS NULL OR progressive_motility_percent BETWEEN 0 AND 100),
+  CHECK (dose_count IS NULL OR dose_count >= 0),
+  CHECK (dose_size_millions IS NULL OR dose_size_millions >= 0)
+);
+
+INSERT INTO semen_collections_new
+  SELECT
+    id, stallion_id, collection_date, raw_volume_ml, extended_volume_ml,
+    concentration_millions_per_ml, progressive_motility_percent,
+    dose_count, dose_size_millions, notes, created_at, updated_at
+  FROM semen_collections_old;
+
+ALTER TABLE semen_collections_new RENAME TO semen_collections;
+
+CREATE INDEX IF NOT EXISTS idx_semen_collections_stallion_date
+  ON semen_collections (stallion_id, collection_date DESC);
+
+CREATE TABLE collection_dose_events (
+  id TEXT PRIMARY KEY NOT NULL,
+  collection_id TEXT NOT NULL REFERENCES semen_collections(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL CHECK (event_type IN ('shipped', 'usedOnSite')),
+  recipient TEXT NOT NULL,
+  dose_count INTEGER CHECK (dose_count IS NULL OR dose_count > 0),
+  event_date TEXT CHECK (event_date IS NULL OR event_date GLOB '????-??-??'),
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX idx_collection_dose_events_collection_id
+  ON collection_dose_events(collection_id, created_at DESC);
+
+INSERT INTO collection_dose_events (
+  id, collection_id, event_type, recipient, dose_count, event_date, notes, created_at, updated_at
+)
+SELECT
+  'migrated-dose-event-' || id,
+  id,
+  'shipped',
+  shipped_to,
+  dose_count,
+  collection_date,
+  NULL,
+  created_at,
+  updated_at
+FROM semen_collections_old;
+
+DROP TABLE semen_collections_old;
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -384,6 +455,12 @@ const migrations: Migration[] = [
     id: 10,
     name: '010_breeding_records_collection_id',
     statements: splitStatements(migration010),
+  },
+  {
+    id: 11,
+    name: '011_collection_dose_events',
+    statements: splitStatements(migration011),
+    shouldSkip: async (db) => !(await hasColumn(db, 'semen_collections', 'shipped')),
   },
 ];
 

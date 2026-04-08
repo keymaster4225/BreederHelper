@@ -1,8 +1,14 @@
 import { useCallback, useState } from 'react';
 
-import { BreedingRecord, SemenCollection, Stallion } from '@/models/types';
+import {
+  BreedingRecord,
+  CollectionDoseEvent,
+  SemenCollection,
+  Stallion,
+} from '@/models/types';
 import {
   getStallionById,
+  listDoseEventsByCollectionIds,
   listBreedingRecordsForStallion,
   listLegacyBreedingRecordsMatchingStallionName,
   listMares,
@@ -19,6 +25,7 @@ type StallionDetailData = {
   readonly collections: SemenCollection[];
   readonly linkedBreedings: BreedingRecord[];
   readonly legacyBreedings: BreedingRecord[];
+  readonly doseEventsByCollectionId: Record<string, CollectionDoseEvent[]>;
   readonly mareNameById: Record<string, string>;
   readonly age: number | null;
   readonly isLoading: boolean;
@@ -38,6 +45,9 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
   const [collections, setCollections] = useState<SemenCollection[]>([]);
   const [linkedBreedings, setLinkedBreedings] = useState<BreedingRecord[]>([]);
   const [legacyBreedings, setLegacyBreedings] = useState<BreedingRecord[]>([]);
+  const [doseEventsByCollectionId, setDoseEventsByCollectionId] = useState<
+    Record<string, CollectionDoseEvent[]>
+  >({});
   const [mareNameById, setMareNameById] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -65,10 +75,12 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
         listLegacyBreedingRecordsMatchingStallionName(stallionRecord.name),
         listMares(),
       ]);
+      const doseEvents = await listDoseEventsByCollectionIds(cols.map((collection) => collection.id));
 
       setCollections(cols);
       setLinkedBreedings(linked);
       setLegacyBreedings(legacy);
+      setDoseEventsByCollectionId(doseEvents);
 
       const nameMap: Record<string, string> = {};
       for (const mare of allMares) {
@@ -88,6 +100,7 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
     collections,
     linkedBreedings,
     legacyBreedings,
+    doseEventsByCollectionId,
     mareNameById,
     age,
     isLoading,

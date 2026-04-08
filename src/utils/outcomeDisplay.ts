@@ -1,4 +1,14 @@
+import { DoseEventType } from '@/models/types';
 import { colors } from '@/theme';
+
+export const DOSE_EVENT_TYPE_LABELS: Record<DoseEventType, string> = {
+  shipped: 'Shipped',
+  usedOnSite: 'Used on site',
+};
+
+export function formatDoseEventType(type: DoseEventType): string {
+  return DOSE_EVENT_TYPE_LABELS[type];
+}
 
 export function getOutcomeColor(outcome: string): string {
   if (outcome === 'liveFoal') return colors.pregnant;

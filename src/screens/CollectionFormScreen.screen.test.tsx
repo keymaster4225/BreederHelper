@@ -51,9 +51,10 @@ it('renders all form fields in create mode', async () => {
   });
 });
 
-it('does not show Shipped To initially', () => {
+it('does not show legacy shipping controls', () => {
   const screen = renderForm();
   expect(screen.queryByText('Shipped To *')).toBeNull();
+  expect(screen.queryByText('Semen was shipped')).toBeNull();
 });
 
 it('does not show delete button in create mode', () => {
@@ -72,8 +73,6 @@ it('shows delete button in edit mode', async () => {
     progressiveMotilityPercent: 75,
     doseCount: null,
     doseSizeMillions: null,
-    shipped: false,
-    shippedTo: null,
     notes: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',

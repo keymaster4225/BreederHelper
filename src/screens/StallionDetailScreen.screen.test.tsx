@@ -17,6 +17,7 @@ jest.mock('@react-navigation/native', () => {
 
 jest.mock('@/storage/repositories', () => ({
   getStallionById: jest.fn(),
+  listDoseEventsByCollectionIds: jest.fn(),
   listSemenCollectionsByStallion: jest.fn(),
   listBreedingRecordsForStallion: jest.fn(),
   listLegacyBreedingRecordsMatchingStallionName: jest.fn(),
@@ -55,8 +56,6 @@ const makeCollection = (id: string, date: string, overrides?: Record<string, unk
   progressiveMotilityPercent: 75,
   doseCount: 10,
   doseSizeMillions: 1,
-  shipped: false,
-  shippedTo: null,
   notes: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
@@ -66,6 +65,7 @@ const makeCollection = (id: string, date: string, overrides?: Record<string, unk
 beforeEach(() => {
   jest.clearAllMocks();
   repositories.getStallionById.mockResolvedValue(makeStallion());
+  repositories.listDoseEventsByCollectionIds.mockResolvedValue({});
   repositories.listSemenCollectionsByStallion.mockResolvedValue([]);
   repositories.listBreedingRecordsForStallion.mockResolvedValue([]);
   repositories.listLegacyBreedingRecordsMatchingStallionName.mockResolvedValue([]);
@@ -87,7 +87,11 @@ function renderScreen(params: { stallionId: string; initialTab?: 'collections' |
 
 it('renders stallion name in header', async () => {
   const screen = renderScreen();
-  await waitFor(() => expect(screen.getByText('Thunder')).toBeTruthy());
+  await waitFor(() =>
+    expect(screen.navigation.setOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Thunder' }),
+    ),
+  );
 });
 
 it('shows Collections and Breeding tab labels', async () => {
@@ -115,9 +119,13 @@ it('shows collection cards when collections exist', async () => {
   repositories.listSemenCollectionsByStallion.mockResolvedValue([
     makeCollection('col-1', '2026-04-01'),
   ]);
+  repositories.listDoseEventsByCollectionIds.mockResolvedValue({
+    'col-1': [],
+  });
   const screen = renderScreen();
   await waitFor(() => expect(screen.getByText('50 mL')).toBeTruthy());
   expect(screen.getByText('75%')).toBeTruthy();
+  expect(screen.getByText('No dose events')).toBeTruthy();
 });
 
 it('hides Add Collection button when stallion is soft-deleted', async () => {

@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, V
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
-import { FormCheckbox, FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
+import { FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
@@ -20,7 +20,6 @@ import {
   validateLocalDate,
   validateLocalDateNotInFuture,
   validateNumberRange,
-  validateRequired,
 } from '@/utils/validation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CollectionForm'>;
@@ -33,7 +32,6 @@ type FormErrors = {
   progressiveMotilityPercent?: string;
   doseCount?: string;
   doseSizeMillions?: string;
-  shippedTo?: string;
 };
 
 export function CollectionFormScreen({ navigation, route }: Props): JSX.Element {
@@ -48,8 +46,6 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
   const [progressiveMotilityPercent, setProgressiveMotilityPercent] = useState('');
   const [doseCount, setDoseCount] = useState('');
   const [doseSizeMillions, setDoseSizeMillions] = useState('');
-  const [shipped, setShipped] = useState(false);
-  const [shippedTo, setShippedTo] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoadingRecord, setIsLoadingRecord] = useState(isEdit);
@@ -73,8 +69,6 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
           setProgressiveMotilityPercent(record.progressiveMotilityPercent != null ? String(record.progressiveMotilityPercent) : '');
           setDoseCount(record.doseCount != null ? String(record.doseCount) : '');
           setDoseSizeMillions(record.doseSizeMillions != null ? String(record.doseSizeMillions) : '');
-          setShipped(record.shipped === true);
-          setShippedTo(record.shippedTo ?? '');
           setNotes(record.notes ?? '');
         }
       } finally {
@@ -95,9 +89,6 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
     errs.progressiveMotilityPercent = validateNumberRange(parseOptionalInteger(progressiveMotilityPercent), 'Motility', 0, 100) ?? undefined;
     errs.doseCount = validateNumberRange(parseOptionalInteger(doseCount), 'Dose Count', 0, 1000) ?? undefined;
     errs.doseSizeMillions = validateNumberRange(parseOptionalNumber(doseSizeMillions), 'Dose Size', 0, 100000) ?? undefined;
-    if (shipped) {
-      errs.shippedTo = validateRequired(shippedTo, 'Shipped To') ?? undefined;
-    }
     return errs;
   };
 
@@ -116,8 +107,6 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
         progressiveMotilityPercent: parseOptionalInteger(progressiveMotilityPercent),
         doseCount: parseOptionalInteger(doseCount),
         doseSizeMillions: parseOptionalNumber(doseSizeMillions),
-        shipped: shipped || null,
-        shippedTo: shipped ? shippedTo.trim() || null : null,
         notes: notes.trim() || null,
       };
 
@@ -200,14 +189,6 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
           <FormField label="Dose Size (millions)" error={errors.doseSizeMillions}>
             <FormTextInput value={doseSizeMillions} onChangeText={setDoseSizeMillions} placeholder="Optional" keyboardType="numeric" />
           </FormField>
-
-          <FormCheckbox label="Semen was shipped" value={shipped} onChange={setShipped} />
-
-          {shipped ? (
-            <FormField label="Shipped To" required error={errors.shippedTo}>
-              <FormTextInput value={shippedTo} onChangeText={setShippedTo} placeholder="Recipient" />
-            </FormField>
-          ) : null}
 
           <FormField label="Notes">
             <FormTextInput value={notes} onChangeText={setNotes} multiline placeholder="Optional" />

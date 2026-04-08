@@ -49,8 +49,6 @@ type CollectionRow = {
   progressive_motility_percent: number | null;
   dose_count: number | null;
   dose_size_millions: number | null;
-  shipped: number | null;
-  shipped_to: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -109,22 +107,22 @@ function createFakeDb() {
       }
 
       if (stmt.startsWith('insert into semen_collections')) {
-        const [id, stallionId, collectionDate, rawVol, extVol, conc, motility, doseCount, doseSize, shipped, shippedTo, notes, createdAt, updatedAt] =
-          params as [string, string, string, number | null, number | null, number | null, number | null, number | null, number | null, number | null, string | null, string | null, string, string];
+        const [id, stallionId, collectionDate, rawVol, extVol, conc, motility, doseCount, doseSize, notes, createdAt, updatedAt] =
+          params as [string, string, string, number | null, number | null, number | null, number | null, number | null, number | null, string | null, string, string];
         collections.set(id, {
           id, stallion_id: stallionId, collection_date: collectionDate,
           raw_volume_ml: rawVol, extended_volume_ml: extVol,
           concentration_millions_per_ml: conc, progressive_motility_percent: motility,
           dose_count: doseCount, dose_size_millions: doseSize,
-          shipped, shipped_to: shippedTo, notes,
+          notes,
           created_at: createdAt, updated_at: updatedAt,
         });
         return;
       }
 
       if (stmt.startsWith('update semen_collections')) {
-        const [collectionDate, rawVol, extVol, conc, motility, doseCount, doseSize, shipped, shippedTo, notes, updatedAt, id] =
-          params as [string, number | null, number | null, number | null, number | null, number | null, number | null, number | null, string | null, string | null, string, string];
+        const [collectionDate, rawVol, extVol, conc, motility, doseCount, doseSize, notes, updatedAt, id] =
+          params as [string, number | null, number | null, number | null, number | null, number | null, number | null, string | null, string, string];
         const existing = collections.get(id);
         if (existing) {
           collections.set(id, {
@@ -132,7 +130,7 @@ function createFakeDb() {
             raw_volume_ml: rawVol, extended_volume_ml: extVol,
             concentration_millions_per_ml: conc, progressive_motility_percent: motility,
             dose_count: doseCount, dose_size_millions: doseSize,
-            shipped, shipped_to: shippedTo, notes, updated_at: updatedAt,
+            notes, updated_at: updatedAt,
           });
         }
         return;
@@ -262,20 +260,20 @@ describe('semen collection repository', () => {
     expect(list[0].id).toBe('col-b'); // newer first
   });
 
-  it('shipped boolean maps correctly', async () => {
+  it('stores dose-related collection fields without legacy shipping columns', async () => {
     await createStallion({ id: 'st-3', name: 'Bolt' });
 
     await createSemenCollection({
       id: 'col-ship',
       stallionId: 'st-3',
       collectionDate: '2026-04-01',
-      shipped: true,
-      shippedTo: 'Farm ABC',
+      doseCount: 12,
+      doseSizeMillions: 500,
     });
 
     const fetched = await getSemenCollectionById('col-ship');
-    expect(fetched?.shipped).toBe(true);
-    expect(fetched?.shippedTo).toBe('Farm ABC');
+    expect(fetched?.doseCount).toBe(12);
+    expect(fetched?.doseSizeMillions).toBe(500);
   });
 
   describe('invariant I4: soft-deleted stallion blocks collection creation', () => {

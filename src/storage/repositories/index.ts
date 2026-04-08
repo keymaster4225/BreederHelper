@@ -7,3 +7,4 @@ export * from './foalingRecords';
 export * from './foals';
 export * from './medications';
 export * from './semenCollections';
+export * from './collectionDoseEvents';

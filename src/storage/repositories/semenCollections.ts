@@ -12,8 +12,6 @@ type SemenCollectionRow = {
   progressive_motility_percent: number | null;
   dose_count: number | null;
   dose_size_millions: number | null;
-  shipped: number | null;
-  shipped_to: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -30,8 +28,6 @@ function mapRow(row: SemenCollectionRow): SemenCollection {
     progressiveMotilityPercent: row.progressive_motility_percent,
     doseCount: row.dose_count,
     doseSizeMillions: row.dose_size_millions,
-    shipped: row.shipped === 1 ? true : row.shipped === 0 ? false : null,
-    shippedTo: row.shipped_to,
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -75,8 +71,6 @@ export async function createSemenCollection(input: {
   progressiveMotilityPercent?: number | null;
   doseCount?: number | null;
   doseSizeMillions?: number | null;
-  shipped?: boolean | null;
-  shippedTo?: string | null;
   notes?: string | null;
 }): Promise<void> {
   const stallion = await getStallionById(input.stallionId);
@@ -95,8 +89,8 @@ export async function createSemenCollection(input: {
       id, stallion_id, collection_date,
       raw_volume_ml, extended_volume_ml, concentration_millions_per_ml,
       progressive_motility_percent, dose_count, dose_size_millions,
-      shipped, shipped_to, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      notes, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     [
       input.id,
       input.stallionId,
@@ -107,8 +101,6 @@ export async function createSemenCollection(input: {
       input.progressiveMotilityPercent ?? null,
       input.doseCount ?? null,
       input.doseSizeMillions ?? null,
-      input.shipped != null ? (input.shipped ? 1 : 0) : null,
-      input.shippedTo ?? null,
       input.notes ?? null,
       now,
       now,
@@ -126,8 +118,6 @@ export async function updateSemenCollection(
     progressiveMotilityPercent?: number | null;
     doseCount?: number | null;
     doseSizeMillions?: number | null;
-    shipped?: boolean | null;
-    shippedTo?: string | null;
     notes?: string | null;
   },
 ): Promise<void> {
@@ -143,8 +133,6 @@ export async function updateSemenCollection(
        progressive_motility_percent = ?,
        dose_count = ?,
        dose_size_millions = ?,
-       shipped = ?,
-       shipped_to = ?,
        notes = ?,
        updated_at = ?
      WHERE id = ?;`,
@@ -156,8 +144,6 @@ export async function updateSemenCollection(
       input.progressiveMotilityPercent ?? null,
       input.doseCount ?? null,
       input.doseSizeMillions ?? null,
-      input.shipped != null ? (input.shipped ? 1 : 0) : null,
-      input.shippedTo ?? null,
       input.notes ?? null,
       new Date().toISOString(),
       id,
