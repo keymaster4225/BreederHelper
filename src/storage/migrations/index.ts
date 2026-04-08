@@ -401,6 +401,64 @@ FROM semen_collections_old;
 DROP TABLE semen_collections_old;
 `;
 
+// SQLite rewrites dependent foreign keys during table rename, so migration011
+// leaves breeding_records.collection_id pointing at semen_collections_old.
+// Rebuild breeding_records to restore the FK target for both fresh installs and
+// already-upgraded local databases.
+const migration012 = `
+CREATE TABLE breeding_records_new (
+  id TEXT PRIMARY KEY,
+  mare_id TEXT NOT NULL,
+  stallion_id TEXT,
+  stallion_name TEXT,
+  collection_id TEXT,
+  date TEXT NOT NULL,
+  method TEXT NOT NULL,
+  notes TEXT,
+  volume_ml REAL,
+  concentration_m_per_ml REAL,
+  motility_percent REAL,
+  number_of_straws INTEGER,
+  straw_volume_ml INTEGER,
+  straw_details TEXT,
+  collection_date TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (mare_id) REFERENCES mares(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  FOREIGN KEY (collection_id) REFERENCES semen_collections(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (date GLOB '????-??-??'),
+  CHECK (collection_date IS NULL OR collection_date GLOB '????-??-??'),
+  CHECK (method IN ('liveCover', 'freshAI', 'shippedCooledAI', 'frozenAI')),
+  CHECK (motility_percent IS NULL OR (motility_percent >= 0 AND motility_percent <= 100)),
+  CHECK (number_of_straws IS NULL OR number_of_straws >= 1),
+  CHECK (
+    (method = 'frozenAI' AND number_of_straws IS NOT NULL)
+    OR (method <> 'frozenAI')
+  ),
+  CHECK (stallion_id IS NOT NULL OR stallion_name IS NOT NULL),
+  CHECK (collection_id IS NULL OR stallion_id IS NOT NULL)
+);
+
+INSERT INTO breeding_records_new
+  SELECT
+    id, mare_id, stallion_id, stallion_name, collection_id,
+    date, method, notes, volume_ml, concentration_m_per_ml,
+    motility_percent, number_of_straws, straw_volume_ml,
+    straw_details, collection_date, created_at, updated_at
+  FROM breeding_records;
+
+DROP TABLE breeding_records;
+
+ALTER TABLE breeding_records_new RENAME TO breeding_records;
+
+CREATE INDEX IF NOT EXISTS idx_breeding_records_mare_date
+  ON breeding_records (mare_id, date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date
+  ON breeding_records (stallion_id, date DESC);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -462,6 +520,13 @@ const migrations: Migration[] = [
     statements: splitStatements(migration011),
     shouldSkip: async (db) => !(await hasColumn(db, 'semen_collections', 'shipped')),
   },
+  {
+    id: 12,
+    name: '012_repair_breeding_records_collection_fk',
+    statements: splitStatements(migration012),
+    shouldSkip: async (db) =>
+      !(await tableDefinitionReferences(db, 'breeding_records', 'semen_collections_old')),
+  },
 ];
 
 export async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -511,6 +576,27 @@ async function hasColumn(
 ): Promise<boolean> {
   const rows = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${tableName});`);
   return rows.some((row) => row.name === columnName);
+}
+
+async function tableDefinitionReferences(
+  db: SQLite.SQLiteDatabase,
+  tableName: string,
+  referencedTable: string,
+): Promise<boolean> {
+  const row = await db.getFirstAsync<{ sql: string | null }>(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?;",
+    [tableName],
+  );
+
+  const sql = row?.sql;
+  if (!sql) {
+    return false;
+  }
+
+  const escapedTable = referencedTable.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const quotedPattern = new RegExp(`REFERENCES\\s+"${escapedTable}"\\s*\\(`, 'i');
+  const unquotedPattern = new RegExp(`REFERENCES\\s+${escapedTable}\\s*\\(`, 'i');
+  return quotedPattern.test(sql) || unquotedPattern.test(sql);
 }
 
 function splitStatements(sql: string): string[] {
