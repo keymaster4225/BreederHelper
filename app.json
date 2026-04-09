@@ -19,7 +19,10 @@
     ],
     "ios": {
       "bundleIdentifier": "com.tompkins.breedwise",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.anonymous.breedwise",

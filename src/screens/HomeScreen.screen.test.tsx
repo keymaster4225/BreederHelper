@@ -1,4 +1,5 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
@@ -17,10 +18,25 @@ jest.mock('@/hooks/useHomeScreenData', () => ({
   useHomeScreenData: jest.fn(),
 }));
 
+jest.mock('@/utils/devSeed', () => ({
+  seedPreviewData: jest.fn(),
+}));
+
+jest.mock('@/utils/buildProfile', () => ({
+  isPreviewBuild: jest.fn(),
+}));
+
 const { HomeScreen } = require('@/screens/HomeScreen') as typeof import('@/screens/HomeScreen');
 const { useHomeScreenData } = jest.requireMock('@/hooks/useHomeScreenData') as {
   useHomeScreenData: jest.Mock;
 };
+const { seedPreviewData } = jest.requireMock('@/utils/devSeed') as {
+  seedPreviewData: jest.Mock;
+};
+const { isPreviewBuild } = jest.requireMock('@/utils/buildProfile') as {
+  isPreviewBuild: jest.Mock;
+};
+const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
 
 function createNavigation() {
   return {
@@ -82,6 +98,7 @@ function buildState(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  isPreviewBuild.mockReturnValue(false);
 });
 
 it('loads dashboard, search, and filter state correctly', () => {
@@ -232,4 +249,47 @@ it('does not re-apply the filter when requestKey is unchanged', () => {
 
   expect(setStatusFilter).toHaveBeenCalledTimes(1);
   expect(navigation.setParams).toHaveBeenCalledTimes(1);
+});
+
+it('shows the preview seed button on the empty state only for preview builds', () => {
+  const navigation = createNavigation();
+  isPreviewBuild.mockReturnValue(true);
+
+  useHomeScreenData.mockReturnValue(
+    buildState({
+      mares: [],
+      filteredMares: [],
+    }),
+  );
+
+  const screen = render(
+    <HomeScreen navigation={navigation as never} route={{ key: 'Mares', name: 'Mares' } as never} />,
+  );
+
+  expect(screen.getByRole('button', { name: 'Seed preview data' })).toBeTruthy();
+});
+
+it('seeds preview data from the populated mares screen', async () => {
+  const navigation = createNavigation();
+  const loadMares = jest.fn().mockResolvedValue(undefined);
+  isPreviewBuild.mockReturnValue(true);
+  seedPreviewData.mockResolvedValue('inserted');
+
+  useHomeScreenData.mockReturnValue(
+    buildState({
+      loadMares,
+    }),
+  );
+
+  const screen = render(
+    <HomeScreen navigation={navigation as never} route={{ key: 'Mares', name: 'Mares' } as never} />,
+  );
+
+  fireEvent.press(screen.getByRole('button', { name: 'Seed preview data' }));
+
+  expect(seedPreviewData).toHaveBeenCalled();
+  await waitFor(() => {
+    expect(loadMares).toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith('Preview Data', 'Preview sample data is ready.');
+  });
 });

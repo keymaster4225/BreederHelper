@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { seedSampleData } from '@/utils/devSeed';
+import { seedPreviewData } from '@/utils/devSeed';
 import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -11,6 +11,7 @@ import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Mare } from '@/models/types';
 import { RootStackParamList, TabParamList } from '@/navigation/AppNavigator';
+import { isPreviewBuild } from '@/utils/buildProfile';
 import { deriveAgeYears, formatLocalDate } from '@/utils/dates';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
@@ -22,6 +23,7 @@ type Props = CompositeScreenProps<
 >;
 
 export function HomeScreen({ navigation, route }: Props): JSX.Element {
+  const previewBuild = isPreviewBuild();
   const {
     mares,
     isLoading,
@@ -60,8 +62,14 @@ export function HomeScreen({ navigation, route }: Props): JSX.Element {
   const handleSeedSampleData = useCallback(() => {
     void (async () => {
       try {
-        await seedSampleData();
+        const result = await seedPreviewData();
         await loadMares();
+        Alert.alert(
+          'Preview Data',
+          result === 'inserted'
+            ? 'Preview sample data is ready.'
+            : 'Preview sample data is already loaded.',
+        );
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Seed failed';
         Alert.alert('Seed Error', msg);
@@ -100,12 +108,14 @@ export function HomeScreen({ navigation, route }: Props): JSX.Element {
           >
             <Text style={styles.emptyButtonText}>Add your first mare</Text>
           </Pressable>
-          {__DEV__ ? (
+          {previewBuild ? (
             <Pressable
-              style={({ pressed }) => [styles.devSeedButton, pressed && styles.pressedOpacity]}
+              style={({ pressed }) => [styles.previewSeedButton, pressed && styles.pressedOpacity]}
               onPress={handleSeedSampleData}
+              accessibilityRole="button"
+              accessibilityLabel="Seed preview data"
             >
-              <Text style={styles.devSeedButtonText}>Seed Sample Data</Text>
+              <Text style={styles.previewSeedButtonText}>Seed Preview Data</Text>
             </Pressable>
           ) : null}
         </View>
@@ -115,6 +125,22 @@ export function HomeScreen({ navigation, route }: Props): JSX.Element {
 
       {mares.length > 0 ? (
         <>
+          {previewBuild ? (
+            <Pressable
+              style={({ pressed }) => [styles.previewSeedBanner, pressed && styles.pressedOpacity]}
+              onPress={handleSeedSampleData}
+              accessibilityRole="button"
+              accessibilityLabel="Seed preview data"
+            >
+              <View style={styles.previewSeedBannerTextWrap}>
+                <Text style={styles.previewSeedBannerTitle}>Preview Data</Text>
+                <Text style={styles.previewSeedBannerSubtitle}>
+                  Import the built-in sample mares, stallions, and records.
+                </Text>
+              </View>
+              <MaterialCommunityIcons name="database-import-outline" size={22} color={colors.onTertiaryContainer} />
+            </Pressable>
+          ) : null}
           <View style={styles.searchBar}>
             <MaterialCommunityIcons
               name="magnify"
@@ -347,14 +373,37 @@ const styles = StyleSheet.create({
     ...typography.labelLarge,
     color: colors.onPrimaryContainer,
   },
-  devSeedButton: {
+  previewSeedButton: {
     backgroundColor: colors.tertiaryContainer,
     borderRadius: borderRadius.md,
     paddingHorizontal: spacing.xl,
     paddingVertical: spacing.md,
   },
-  devSeedButtonText: {
+  previewSeedButtonText: {
     ...typography.labelLarge,
+    color: colors.onTertiaryContainer,
+  },
+  previewSeedBanner: {
+    alignItems: 'center',
+    backgroundColor: colors.tertiaryContainer,
+    borderRadius: borderRadius.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  previewSeedBannerTextWrap: {
+    flex: 1,
+    gap: spacing.xs,
+    marginRight: spacing.md,
+  },
+  previewSeedBannerTitle: {
+    ...typography.titleMedium,
+    color: colors.onTertiaryContainer,
+  },
+  previewSeedBannerSubtitle: {
+    ...typography.bodySmall,
     color: colors.onTertiaryContainer,
   },
   listHint: {
