@@ -1,5 +1,6 @@
 import { FoalingRecord } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { getBreedingRecordById } from './breedingRecords';
 
 type FoalingRecordRow = {
   id: string;
@@ -29,6 +30,25 @@ function mapFoalingRecordRow(row: FoalingRecordRow): FoalingRecord {
   };
 }
 
+async function validateOptionalBreedingRecordForMare(
+  breedingRecordId: string | null | undefined,
+  mareId: string,
+): Promise<void> {
+  if (breedingRecordId == null) {
+    return;
+  }
+
+  const breedingRecord = await getBreedingRecordById(breedingRecordId);
+
+  if (!breedingRecord) {
+    throw new Error('Breeding record not found.');
+  }
+
+  if (breedingRecord.mareId !== mareId) {
+    throw new Error('Breeding record belongs to a different mare.');
+  }
+}
+
 export async function createFoalingRecord(input: {
   id: string;
   mareId: string;
@@ -39,6 +59,8 @@ export async function createFoalingRecord(input: {
   complications?: string | null;
   notes?: string | null;
 }): Promise<void> {
+  await validateOptionalBreedingRecordForMare(input.breedingRecordId, input.mareId);
+
   const db = await getDb();
   const now = new Date().toISOString();
 
@@ -83,6 +105,13 @@ export async function updateFoalingRecord(
     notes?: string | null;
   },
 ): Promise<void> {
+  const existing = await getFoalingRecordById(id);
+  if (!existing) {
+    throw new Error('Foaling record not found.');
+  }
+
+  await validateOptionalBreedingRecordForMare(input.breedingRecordId, existing.mareId);
+
   const db = await getDb();
 
   await db.runAsync(

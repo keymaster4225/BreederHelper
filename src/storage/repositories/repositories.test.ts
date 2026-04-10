@@ -23,6 +23,8 @@ import {
   getPregnancyCheckById,
   listFoalsByMare,
   parseFoalMilestones,
+  updateFoalingRecord,
+  updatePregnancyCheck,
   updateDailyLog,
   updateFoal,
 } from '@/storage/repositories/queries';
@@ -417,6 +419,30 @@ function createFakeDb(): FakeDb {
         return;
       }
 
+      if (stmt.startsWith('update pregnancy_checks set')) {
+        const [breedingRecordId, date, result, heartbeat, notes, updatedAt, id] = params as [
+          string,
+          string,
+          'positive' | 'negative',
+          number | null,
+          string | null,
+          string,
+          string,
+        ];
+        const existing = pregnancyChecks.get(id);
+        if (!existing) return;
+        pregnancyChecks.set(id, {
+          ...existing,
+          breeding_record_id: breedingRecordId,
+          date,
+          result,
+          heartbeat_detected: heartbeat,
+          notes,
+          updated_at: updatedAt,
+        });
+        return;
+      }
+
       if (stmt.startsWith('insert into foaling_records')) {
         const [id, mareId, breedingRecordId, date, outcome, foalSex, complications, notes, createdAt, updatedAt] =
           params as [string, string, string | null, string, string, string | null, string | null, string | null, string, string];
@@ -430,6 +456,32 @@ function createFakeDb(): FakeDb {
           complications,
           notes,
           created_at: createdAt,
+          updated_at: updatedAt,
+        });
+        return;
+      }
+
+      if (stmt.startsWith('update foaling_records set')) {
+        const [breedingRecordId, date, outcome, foalSex, complications, notes, updatedAt, id] = params as [
+          string | null,
+          string,
+          string,
+          string | null,
+          string | null,
+          string | null,
+          string,
+          string,
+        ];
+        const existing = foalingRecords.get(id);
+        if (!existing) return;
+        foalingRecords.set(id, {
+          ...existing,
+          breeding_record_id: breedingRecordId,
+          date,
+          outcome,
+          foal_sex: foalSex,
+          complications,
+          notes,
           updated_at: updatedAt,
         });
         return;
@@ -679,6 +731,70 @@ describe('repository smoke tests', () => {
     expect(check?.heartbeatDetected).toBeNull();
   });
 
+  it('pregnancy check rejects a missing breeding record before SQLite', async () => {
+    await createMare({ id: 'mare-preg-missing', name: 'Lark', breed: 'Warmblood' });
+
+    await expect(
+      createPregnancyCheck({
+        id: 'check-missing',
+        mareId: 'mare-preg-missing',
+        breedingRecordId: 'breed-missing',
+        date: '2026-05-15',
+        result: 'positive',
+      }),
+    ).rejects.toThrow('Breeding record not found.');
+  });
+
+  it('pregnancy check rejects breeding records from a different mare', async () => {
+    await createMare({ id: 'mare-preg-a', name: 'June', breed: 'Quarter Horse' });
+    await createMare({ id: 'mare-preg-b', name: 'Maple', breed: 'Arabian' });
+    await createStallion({ id: 'stallion-preg', name: 'Comet' });
+    await createBreedingRecord({
+      id: 'breed-preg-a',
+      mareId: 'mare-preg-a',
+      stallionId: 'stallion-preg',
+      date: '2026-05-01',
+      method: 'freshAI',
+    });
+
+    await expect(
+      createPregnancyCheck({
+        id: 'check-wrong-mare',
+        mareId: 'mare-preg-b',
+        breedingRecordId: 'breed-preg-a',
+        date: '2026-05-16',
+        result: 'positive',
+      }),
+    ).rejects.toThrow('Breeding record belongs to a different mare.');
+  });
+
+  it('pregnancy check update rejects a missing breeding record', async () => {
+    await createMare({ id: 'mare-preg-update', name: 'Iris', breed: 'Warmblood' });
+    await createStallion({ id: 'stallion-preg-update', name: 'North' });
+    await createBreedingRecord({
+      id: 'breed-preg-update',
+      mareId: 'mare-preg-update',
+      stallionId: 'stallion-preg-update',
+      date: '2026-05-01',
+      method: 'freshAI',
+    });
+    await createPregnancyCheck({
+      id: 'check-update',
+      mareId: 'mare-preg-update',
+      breedingRecordId: 'breed-preg-update',
+      date: '2026-05-15',
+      result: 'positive',
+    });
+
+    await expect(
+      updatePregnancyCheck('check-update', {
+        breedingRecordId: 'breed-does-not-exist',
+        date: '2026-05-16',
+        result: 'negative',
+      }),
+    ).rejects.toThrow('Breeding record not found.');
+  });
+
   it('foaling record stores null foalSex when not provided', async () => {
     await createMare({ id: 'mare-fs', name: 'Rosie', breed: 'Quarter Horse' });
     await createFoalingRecord({
@@ -692,6 +808,61 @@ describe('repository smoke tests', () => {
     const record = await getFoalingRecordById('foal-fs');
     expect(record).not.toBeNull();
     expect(record?.foalSex).toBeNull();
+  });
+
+  it('foaling record rejects a missing breeding record before SQLite', async () => {
+    await createMare({ id: 'mare-foaling-missing', name: 'Ruby', breed: 'Thoroughbred' });
+
+    await expect(
+      createFoalingRecord({
+        id: 'foaling-missing',
+        mareId: 'mare-foaling-missing',
+        breedingRecordId: 'breed-missing',
+        date: '2026-07-01',
+        outcome: 'liveFoal',
+      }),
+    ).rejects.toThrow('Breeding record not found.');
+  });
+
+  it('foaling record rejects breeding records from a different mare', async () => {
+    await createMare({ id: 'mare-foaling-a', name: 'Skye', breed: 'Warmblood' });
+    await createMare({ id: 'mare-foaling-b', name: 'Fern', breed: 'Arabian' });
+    await createStallion({ id: 'stallion-foaling', name: 'Drift' });
+    await createBreedingRecord({
+      id: 'breed-foaling-a',
+      mareId: 'mare-foaling-a',
+      stallionId: 'stallion-foaling',
+      date: '2026-06-01',
+      method: 'freshAI',
+    });
+
+    await expect(
+      createFoalingRecord({
+        id: 'foaling-wrong-mare',
+        mareId: 'mare-foaling-b',
+        breedingRecordId: 'breed-foaling-a',
+        date: '2027-04-01',
+        outcome: 'liveFoal',
+      }),
+    ).rejects.toThrow('Breeding record belongs to a different mare.');
+  });
+
+  it('foaling record update rejects a missing breeding record', async () => {
+    await createMare({ id: 'mare-foaling-update', name: 'Hazel', breed: 'Warmblood' });
+    await createFoalingRecord({
+      id: 'foaling-update',
+      mareId: 'mare-foaling-update',
+      date: '2027-03-20',
+      outcome: 'unknown',
+    });
+
+    await expect(
+      updateFoalingRecord('foaling-update', {
+        breedingRecordId: 'breed-does-not-exist',
+        date: '2027-03-21',
+        outcome: 'liveFoal',
+      }),
+    ).rejects.toThrow('Breeding record not found.');
   });
 
   it('creates breeding record with stallion_name instead of stallionId', async () => {
@@ -814,6 +985,16 @@ describe('repository smoke tests', () => {
     await deleteFoal('foal-1');
     const deleted = await getFoalById('foal-1');
     expect(deleted).toBeNull();
+  });
+
+  it('foal rejects a missing foaling record before SQLite', async () => {
+    await expect(
+      createFoal({
+        id: 'foal-missing-parent',
+        foalingRecordId: 'foaling-does-not-exist',
+        milestones: {},
+      }),
+    ).rejects.toThrow('Foaling record not found.');
   });
 
   it('gets foal by foaling record id', async () => {

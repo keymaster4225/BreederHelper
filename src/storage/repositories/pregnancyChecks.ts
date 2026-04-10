@@ -1,5 +1,6 @@
 import { PregnancyCheck } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { getBreedingRecordById } from './breedingRecords';
 
 type PregnancyCheckRow = {
   id: string;
@@ -27,6 +28,21 @@ function mapPregnancyCheckRow(row: PregnancyCheckRow): PregnancyCheck {
   };
 }
 
+async function validateBreedingRecordForMare(
+  breedingRecordId: string,
+  mareId: string,
+): Promise<void> {
+  const breedingRecord = await getBreedingRecordById(breedingRecordId);
+
+  if (!breedingRecord) {
+    throw new Error('Breeding record not found.');
+  }
+
+  if (breedingRecord.mareId !== mareId) {
+    throw new Error('Breeding record belongs to a different mare.');
+  }
+}
+
 export async function createPregnancyCheck(input: {
   id: string;
   mareId: string;
@@ -36,6 +52,8 @@ export async function createPregnancyCheck(input: {
   heartbeatDetected?: boolean | null;
   notes?: string | null;
 }): Promise<void> {
+  await validateBreedingRecordForMare(input.breedingRecordId, input.mareId);
+
   const db = await getDb();
   const now = new Date().toISOString();
 
@@ -77,6 +95,13 @@ export async function updatePregnancyCheck(
     notes?: string | null;
   },
 ): Promise<void> {
+  const existing = await getPregnancyCheckById(id);
+  if (!existing) {
+    throw new Error('Pregnancy check not found.');
+  }
+
+  await validateBreedingRecordForMare(input.breedingRecordId, existing.mareId);
+
   const db = await getDb();
 
   await db.runAsync(

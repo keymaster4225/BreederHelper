@@ -1,6 +1,7 @@
 import { Foal, FoalColor, FoalMilestones, FoalSex, IggTest } from '@/models/types';
 import { getDb } from '@/storage/db';
 import { parseFoalMilestones, parseIggTests } from '@/storage/repositories/internal/foalCodecs';
+import { getFoalingRecordById } from './foalingRecords';
 
 type FoalRow = {
   id: string;
@@ -36,6 +37,13 @@ function mapFoalRow(row: FoalRow): Foal {
 
 export { parseFoalMilestones, parseIggTests };
 
+async function validateFoalingRecordExists(foalingRecordId: string): Promise<void> {
+  const foalingRecord = await getFoalingRecordById(foalingRecordId);
+  if (!foalingRecord) {
+    throw new Error('Foaling record not found.');
+  }
+}
+
 export async function createFoal(input: {
   id: string;
   foalingRecordId: string;
@@ -48,6 +56,8 @@ export async function createFoal(input: {
   iggTests?: readonly IggTest[];
   notes?: string | null;
 }): Promise<void> {
+  await validateFoalingRecordExists(input.foalingRecordId);
+
   const db = await getDb();
   const now = new Date().toISOString();
 
