@@ -39,7 +39,7 @@ jest.mock('expo-font', () => ({
 }));
 
 jest.mock('@/storage/useAppBootstrap', () => ({
-  useAppBootstrap: () => ({ isReady: true, error: null }),
+  useAppBootstrap: () => ({ isReady: true, error: null, errorReportId: null }),
 }));
 
 jest.mock('@/utils/onboarding', () => ({

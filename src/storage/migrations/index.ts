@@ -390,13 +390,19 @@ SELECT
   'migrated-dose-event-' || id,
   id,
   'shipped',
-  shipped_to,
-  dose_count,
+  TRIM(shipped_to),
+  CASE
+    WHEN dose_count IS NOT NULL AND dose_count > 0 THEN dose_count
+    ELSE NULL
+  END,
   collection_date,
   NULL,
   created_at,
   updated_at
-FROM semen_collections_old;
+FROM semen_collections_old
+WHERE shipped = 1
+  AND shipped_to IS NOT NULL
+  AND TRIM(shipped_to) <> '';
 `;
 
 // SQLite rewrites dependent foreign keys during table rename, so migration011

@@ -8,6 +8,7 @@ function createFakeDb(options: {
   appliedMigrationIds: number[];
   breedingRecordsSql: string;
   hasSemenCollectionsOld?: boolean;
+  hasSemenCollectionsShippedColumn?: boolean;
 }) {
   const execCalls: string[] = [];
   const runCalls: Array<{ sql: string; params: unknown[] }> = [];
@@ -48,7 +49,11 @@ function createFakeDb(options: {
 
       return null;
     },
-    async getAllAsync<T>(): Promise<T[]> {
+    async getAllAsync<T>(sql: string): Promise<T[]> {
+      const trimmed = sql.trim();
+      if (trimmed === 'PRAGMA table_info(semen_collections);' && options.hasSemenCollectionsShippedColumn) {
+        return [{ name: 'shipped' } as T];
+      }
       return [];
     },
   };
@@ -57,6 +62,29 @@ function createFakeDb(options: {
 }
 
 describe('applyMigrations', () => {
+  it('filters invalid legacy shipped rows when creating collection dose events', async () => {
+    const { db, execCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 10 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY,
+          collection_id TEXT,
+          FOREIGN KEY (collection_id) REFERENCES semen_collections(id) ON UPDATE CASCADE ON DELETE RESTRICT
+        )
+      `,
+      hasSemenCollectionsShippedColumn: true,
+    });
+
+    await applyMigrations(db as never);
+
+    const migrationInsert = execCalls.find((sql) => sql.includes('INSERT INTO collection_dose_events'));
+    expect(migrationInsert).toBeDefined();
+    expect(migrationInsert).toContain('TRIM(shipped_to)');
+    expect(migrationInsert).toContain('WHERE shipped = 1');
+    expect(migrationInsert).toContain('AND shipped_to IS NOT NULL');
+    expect(migrationInsert).toContain("AND TRIM(shipped_to) <> ''");
+  });
+
   it('repairs breeding_records foreign keys that still reference semen_collections_old', async () => {
     const { db, execCalls, runCalls } = createFakeDb({
       appliedMigrationIds: Array.from({ length: 11 }, (_, index) => index + 1),
