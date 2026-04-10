@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
   listAllBreedingRecords,
@@ -10,6 +10,10 @@ import {
   listMares,
   listStallions,
 } from '@/storage/repositories';
+import {
+  DataInvalidationDomain,
+  subscribeDataInvalidationForDomains,
+} from '@/storage/dataInvalidation';
 import { buildHomeDashboardInput, buildPregnantInfoMap } from '@/selectors/homeScreen';
 import { DashboardAlert, generateDashboardAlerts } from '@/utils/dashboardAlerts';
 import { toLocalDate } from '@/utils/dates';
@@ -22,7 +26,20 @@ type DashboardData = {
   readonly isLoading: boolean;
   readonly error: string | null;
   readonly reload: () => Promise<void>;
+  readonly reloadIfStale: () => Promise<void>;
 };
+
+const DASHBOARD_INVALIDATION_DOMAINS: readonly DataInvalidationDomain[] = [
+  'mares',
+  'stallions',
+  'dailyLogs',
+  'breedingRecords',
+  'pregnancyChecks',
+  'foalingRecords',
+  'medicationLogs',
+  'foals',
+];
+const FOCUS_REFRESH_STALE_MS = 30_000;
 
 export function useDashboardData(): DashboardData {
   const [totalMares, setTotalMares] = useState(0);
@@ -31,6 +48,7 @@ export function useDashboardData(): DashboardData {
   const [alerts, setAlerts] = useState<readonly DashboardAlert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastLoadedAtRef = useRef(0);
 
   const reload = useCallback(async () => {
     try {
@@ -63,6 +81,7 @@ export function useDashboardData(): DashboardData {
           ),
         ),
       );
+      lastLoadedAtRef.current = Date.now();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load dashboard data.';
       setError(message);
@@ -70,6 +89,22 @@ export function useDashboardData(): DashboardData {
       setIsLoading(false);
     }
   }, []);
+
+  const reloadIfStale = useCallback(async () => {
+    if (
+      lastLoadedAtRef.current > 0 &&
+      Date.now() - lastLoadedAtRef.current < FOCUS_REFRESH_STALE_MS
+    ) {
+      return;
+    }
+    await reload();
+  }, [reload]);
+
+  useEffect(() => {
+    return subscribeDataInvalidationForDomains(DASHBOARD_INVALIDATION_DOMAINS, () => {
+      void reload();
+    });
+  }, [reload]);
 
   return {
     totalMares,
@@ -79,5 +114,6 @@ export function useDashboardData(): DashboardData {
     isLoading,
     error,
     reload,
+    reloadIfStale,
   };
 }

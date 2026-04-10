@@ -41,6 +41,7 @@ const alert = {
 };
 
 function buildState(overrides: Record<string, unknown> = {}) {
+  const reload = jest.fn().mockResolvedValue(undefined);
   return {
     totalMares: 3,
     pregnantMares: 1,
@@ -48,7 +49,8 @@ function buildState(overrides: Record<string, unknown> = {}) {
     alerts: [alert],
     isLoading: false,
     error: null,
-    reload: jest.fn().mockResolvedValue(undefined),
+    reload,
+    reloadIfStale: jest.fn().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -59,7 +61,8 @@ beforeEach(() => {
 
 it('renders stat cards and expanded alerts', () => {
   const navigation = createNavigation();
-  useDashboardData.mockReturnValue(buildState());
+  const reloadIfStale = jest.fn().mockResolvedValue(undefined);
+  useDashboardData.mockReturnValue(buildState({ reloadIfStale }));
 
   const screen = render(
     <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
@@ -70,6 +73,7 @@ it('renders stat cards and expanded alerts', () => {
   expect(screen.getByLabelText('2 Stallions')).toBeTruthy();
   expect(screen.getByText("Today's Tasks")).toBeTruthy();
   expect(screen.getByText('Day 15 post-breeding')).toBeTruthy();
+  expect(reloadIfStale).toHaveBeenCalledTimes(1);
 });
 
 it('navigates from stat cards and alert taps', () => {
@@ -152,4 +156,20 @@ it('shows the all caught up state when there are no alerts', () => {
   );
 
   expect(screen.getByText('All caught up! No tasks today.')).toBeTruthy();
+});
+
+it('shows hook-level load errors', () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(
+    buildState({
+      error: 'Failed to load dashboard data.',
+      alerts: [],
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  expect(screen.getByText('Failed to load dashboard data.')).toBeTruthy();
 });

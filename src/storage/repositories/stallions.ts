@@ -1,5 +1,6 @@
 import { Stallion } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { emitDataInvalidation } from '@/storage/dataInvalidation';
 
 type StallionRow = {
   id: string;
@@ -113,6 +114,7 @@ export async function createStallion(input: {
       now,
     ],
   );
+  emitDataInvalidation('stallions');
 }
 
 export async function updateStallion(
@@ -170,6 +172,7 @@ export async function updateStallion(
       id,
     ],
   );
+  emitDataInvalidation('stallions');
 }
 
 export async function softDeleteStallion(id: string): Promise<void> {
@@ -183,4 +186,5 @@ export async function softDeleteStallion(id: string): Promise<void> {
     `,
     [new Date().toISOString(), new Date().toISOString(), id],
   );
+  emitDataInvalidation('stallions');
 }

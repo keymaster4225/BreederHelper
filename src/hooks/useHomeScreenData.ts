@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { Mare, PregnancyInfo } from '@/models/types';
@@ -11,6 +11,10 @@ import {
   softDeleteMare,
 } from '@/storage/repositories';
 import { buildPregnantInfoMap, selectFilteredMares } from '@/selectors/homeScreen';
+import {
+  DataInvalidationDomain,
+  subscribeDataInvalidationForDomains,
+} from '@/storage/dataInvalidation';
 import { toLocalDate } from '@/utils/dates';
 import { StatusFilter } from '@/utils/filterMares';
 
@@ -24,11 +28,21 @@ type HomeScreenData = {
   readonly statusFilter: StatusFilter;
   readonly filteredMares: Mare[];
   readonly loadMares: () => Promise<void>;
+  readonly loadMaresIfStale: () => Promise<void>;
   readonly onDeleteMare: (mare: Mare) => void;
   readonly setSelectedMareId: (mareId: string | null) => void;
   readonly setSearchText: (value: string) => void;
   readonly setStatusFilter: (value: StatusFilter) => void;
 };
+
+const HOME_INVALIDATION_DOMAINS: readonly DataInvalidationDomain[] = [
+  'mares',
+  'dailyLogs',
+  'breedingRecords',
+  'pregnancyChecks',
+  'foalingRecords',
+];
+const FOCUS_REFRESH_STALE_MS = 30_000;
 
 export function useHomeScreenData(): HomeScreenData {
   const [mares, setMares] = useState<Mare[]>([]);
@@ -38,6 +52,7 @@ export function useHomeScreenData(): HomeScreenData {
   const [pregnantInfo, setPregnantInfo] = useState<Map<string, PregnancyInfo>>(new Map());
   const [searchText, setSearchText] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const lastLoadedAtRef = useRef(0);
 
   const loadMares = useCallback(async () => {
     try {
@@ -57,6 +72,7 @@ export function useHomeScreenData(): HomeScreenData {
       setPregnantInfo(
         buildPregnantInfoMap(nextMares, dailyLogs, breedingRecords, pregnancyChecks, foalingRecords, today),
       );
+      lastLoadedAtRef.current = Date.now();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load mares.';
       setError(message);
@@ -64,6 +80,22 @@ export function useHomeScreenData(): HomeScreenData {
       setIsLoading(false);
     }
   }, []);
+
+  const loadMaresIfStale = useCallback(async () => {
+    if (
+      lastLoadedAtRef.current > 0 &&
+      Date.now() - lastLoadedAtRef.current < FOCUS_REFRESH_STALE_MS
+    ) {
+      return;
+    }
+    await loadMares();
+  }, [loadMares]);
+
+  useEffect(() => {
+    return subscribeDataInvalidationForDomains(HOME_INVALIDATION_DOMAINS, () => {
+      void loadMares();
+    });
+  }, [loadMares]);
 
   const onDeleteMare = useCallback(
     (mare: Mare) => {
@@ -108,6 +140,7 @@ export function useHomeScreenData(): HomeScreenData {
     statusFilter,
     filteredMares,
     loadMares,
+    loadMaresIfStale,
     onDeleteMare,
     setSelectedMareId,
     setSearchText,

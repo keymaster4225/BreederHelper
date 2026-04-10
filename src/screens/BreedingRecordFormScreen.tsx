@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormPickerInput, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { useRecordForm } from '@/hooks/useRecordForm';
 import { Screen } from '@/components/Screen';
 import { BreedingMethod, SemenCollection, Stallion } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -17,6 +18,7 @@ import {
   updateBreedingRecord,
 } from '@/storage/repositories';
 import { colors } from '@/theme';
+import { confirmDelete } from '@/utils/confirmDelete';
 import { formatLocalDate } from '@/utils/dates';
 import { newId } from '@/utils/id';
 import {
@@ -84,8 +86,9 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   const [collectionDate, setCollectionDate] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoadingRecord, setIsLoadingRecord] = useState(isEdit);
-  const [isSaving, setIsSaving] = useState(false);
+  const { isLoading, isSaving, isDeleting, runLoad, runSave, runDelete } = useRecordForm({
+    initialLoading: isEdit,
+  });
   const today = new Date();
 
   // Stallion picker state
@@ -114,12 +117,9 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   useEffect(() => {
     if (!breedingRecordId) return;
 
-    let mounted = true;
-    void (async () => {
-      try {
+    void runLoad(
+      async () => {
         const record = await getBreedingRecordById(breedingRecordId);
-        if (!mounted) return;
-
         if (!record) {
           Alert.alert('Record not found', 'This breeding record no longer exists.');
           navigation.goBack();
@@ -142,19 +142,17 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
           setUseCustomStallion(false);
           // Load collections for this stallion
           const cols = await listSemenCollectionsByStallion(record.stallionId);
-          if (mounted) setCollections(cols);
+          setCollections(cols);
           // Check if the stallion is in the list; if not (soft-deleted), fetch and prepend
           const currentList = await listStallions();
-          if (mounted) {
-            const found = currentList.some((s) => s.id === record.stallionId);
-            if (!found) {
-              const deleted = await getStallionById(record.stallionId);
-              if (deleted && mounted) {
-                setStallions([deleted, ...currentList]);
-              }
-            } else {
-              setStallions(currentList);
+          const found = currentList.some((s) => s.id === record.stallionId);
+          if (!found) {
+            const deleted = await getStallionById(record.stallionId);
+            if (deleted) {
+              setStallions([deleted, ...currentList]);
             }
+          } else {
+            setStallions(currentList);
           }
         } else {
           setUseCustomStallion(true);
@@ -164,17 +162,16 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         if (record.collectionId != null) {
           setSelectedCollectionId(record.collectionId);
         }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Unable to load breeding record.';
-        Alert.alert('Load error', message);
-        if (mounted) navigation.goBack();
-      } finally {
-        if (mounted) setIsLoadingRecord(false);
-      }
-    })();
-
-    return () => { mounted = false; };
-  }, [breedingRecordId, navigation]);
+      },
+      {
+        onError: (err: unknown) => {
+          const message = err instanceof Error ? err.message : 'Unable to load breeding record.';
+          Alert.alert('Load error', message);
+          navigation.goBack();
+        },
+      },
+    );
+  }, [breedingRecordId, navigation, runLoad]);
 
   const coverageType: CoverageType = method === 'liveCover' ? 'liveCover' : 'ai';
 
@@ -295,72 +292,73 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     const { valid, parsedVolume, parsedConcentration, parsedMotility, parsedStraws, parsedStrawVolume } = validate();
     if (!valid) return;
 
-    setIsSaving(true);
+    await runSave(
+      async () => {
+        const payload = {
+          stallionId: selectedStallionId,
+          stallionName: useCustomStallion ? (stallionName.trim() || null) : null,
+          collectionId: selectedCollectionId,
+          date: date.trim(),
+          method,
+          notes: notes.trim() || null,
+          volumeMl: method === 'freshAI' || method === 'shippedCooledAI' ? parsedVolume : null,
+          concentrationMPerMl: method === 'freshAI' || method === 'shippedCooledAI' ? parsedConcentration : null,
+          motilityPercent: method === 'freshAI' || method === 'shippedCooledAI' ? parsedMotility : null,
+          numberOfStraws: method === 'frozenAI' ? parsedStraws : null,
+          strawVolumeMl: method === 'frozenAI' ? parsedStrawVolume : null,
+          strawDetails: method === 'frozenAI' ? strawDetails.trim() || null : null,
+          collectionDate: method === 'shippedCooledAI' || method === 'frozenAI' ? normalizeLocalDate(collectionDate) : null,
+        };
 
-    try {
-      const payload = {
-        stallionId: selectedStallionId,
-        stallionName: useCustomStallion ? (stallionName.trim() || null) : null,
-        collectionId: selectedCollectionId,
-        date: date.trim(),
-        method,
-        notes: notes.trim() || null,
-        volumeMl: method === 'freshAI' || method === 'shippedCooledAI' ? parsedVolume : null,
-        concentrationMPerMl: method === 'freshAI' || method === 'shippedCooledAI' ? parsedConcentration : null,
-        motilityPercent: method === 'freshAI' || method === 'shippedCooledAI' ? parsedMotility : null,
-        numberOfStraws: method === 'frozenAI' ? parsedStraws : null,
-        strawVolumeMl: method === 'frozenAI' ? parsedStrawVolume : null,
-        strawDetails: method === 'frozenAI' ? strawDetails.trim() || null : null,
-        collectionDate: method === 'shippedCooledAI' || method === 'frozenAI' ? normalizeLocalDate(collectionDate) : null,
-      };
+        if (breedingRecordId) {
+          await updateBreedingRecord(breedingRecordId, payload);
+        } else {
+          await createBreedingRecord({ id: newId(), mareId, ...payload });
+        }
 
-      if (breedingRecordId) {
-        await updateBreedingRecord(breedingRecordId, payload);
-      } else {
-        await createBreedingRecord({ id: newId(), mareId, ...payload });
-      }
-
-      navigation.goBack();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save breeding record.';
-      Alert.alert('Save failed', message);
-    } finally {
-      setIsSaving(false);
-    }
+        navigation.goBack();
+      },
+      {
+        onError: (err: unknown) => {
+          const message = err instanceof Error ? err.message : 'Failed to save breeding record.';
+          Alert.alert('Save failed', message);
+        },
+      },
+    );
   };
 
   const onDelete = (): void => {
     if (!breedingRecordId) return;
 
-    Alert.alert('Delete Breeding Record', 'Delete this breeding record?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await deleteBreedingRecord(breedingRecordId);
-              navigation.goBack();
-            } catch (err) {
+    confirmDelete({
+      title: 'Delete Breeding Record',
+      message: 'Delete this breeding record?',
+      onConfirm: async () => {
+        await runDelete(
+          async () => {
+            await deleteBreedingRecord(breedingRecordId);
+            navigation.goBack();
+          },
+          {
+            onError: (err: unknown) => {
               const message = err instanceof Error ? err.message : 'Failed to delete breeding record.';
               if (message.toLowerCase().includes('foreign key')) {
                 Alert.alert('Delete blocked', 'Cannot delete this breeding record because linked records exist.');
                 return;
               }
               Alert.alert('Delete failed', message);
-            }
-          })();
-        },
+            },
+          },
+        );
       },
-    ]);
+    });
   };
 
   const onChangeStrawVolumeMl = (value: string): void => {
     setStrawVolumeMl(value.replace(/\D/g, '').slice(0, 2));
   };
 
-  if (isLoadingRecord) {
+  if (isLoading) {
     return (
       <Screen>
         <ActivityIndicator color={colors.primary} size="large" />
@@ -470,11 +468,15 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         <PrimaryButton
           label={isSaving ? 'Saving...' : 'Save'}
           onPress={onSave}
-          disabled={isSaving}
+          disabled={isSaving || isDeleting}
         />
 
         {isEdit ? (
-          <DeleteButton label="Delete" onPress={onDelete} disabled={isSaving} />
+          <DeleteButton
+            label={isDeleting ? 'Deleting...' : 'Delete'}
+            onPress={onDelete}
+            disabled={isSaving || isDeleting}
+          />
         ) : null}
       </ScrollView>
       </KeyboardAvoidingView>

@@ -34,6 +34,7 @@ export function HomeScreen({ navigation, route }: Props): JSX.Element {
     statusFilter,
     filteredMares,
     loadMares,
+    loadMaresIfStale,
     onDeleteMare,
     setSelectedMareId,
     setSearchText,
@@ -44,9 +45,9 @@ export function HomeScreen({ navigation, route }: Props): JSX.Element {
 
   useFocusEffect(
     useCallback(() => {
-      void loadMares();
+      void loadMaresIfStale();
       setSelectedMareId(null);
-    }, [loadMares, setSelectedMareId])
+    }, [loadMaresIfStale, setSelectedMareId])
   );
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { LocalDate, MedicationLog, MedicationRoute } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { emitDataInvalidation } from '@/storage/dataInvalidation';
 
 type MedicationLogRow = {
   id: string;
@@ -55,6 +56,7 @@ export async function createMedicationLog(input: {
       now,
     ],
   );
+  emitDataInvalidation('medicationLogs');
 }
 
 export async function getMedicationLogById(id: string): Promise<MedicationLog | null> {
@@ -116,9 +118,11 @@ export async function updateMedicationLog(
       id,
     ],
   );
+  emitDataInvalidation('medicationLogs');
 }
 
 export async function deleteMedicationLog(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM medication_logs WHERE id = ?;', [id]);
+  emitDataInvalidation('medicationLogs');
 }

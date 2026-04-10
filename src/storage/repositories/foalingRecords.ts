@@ -1,5 +1,6 @@
 import { FoalingRecord } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { getBreedingRecordById } from './breedingRecords';
 
 type FoalingRecordRow = {
@@ -92,6 +93,7 @@ export async function createFoalingRecord(input: {
       now,
     ],
   );
+  emitDataInvalidation('foalingRecords');
 }
 
 export async function updateFoalingRecord(
@@ -138,6 +140,7 @@ export async function updateFoalingRecord(
       id,
     ],
   );
+  emitDataInvalidation('foalingRecords');
 }
 
 export async function getFoalingRecordById(id: string): Promise<FoalingRecord | null> {
@@ -157,6 +160,7 @@ export async function getFoalingRecordById(id: string): Promise<FoalingRecord | 
 export async function deleteFoalingRecord(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM foaling_records WHERE id = ?;', [id]);
+  emitDataInvalidation('foalingRecords');
 }
 
 export async function listAllFoalingRecords(): Promise<FoalingRecord[]> {

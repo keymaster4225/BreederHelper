@@ -50,13 +50,13 @@ const FEATURES: readonly { icon: IconName; color: string; title: string; subtitl
 ];
 
 export function DashboardScreen({ navigation }: Props): JSX.Element {
-  const { totalMares, pregnantMares, totalStallions, alerts, isLoading, error, reload } =
+  const { totalMares, pregnantMares, totalStallions, alerts, isLoading, error, reloadIfStale } =
     useDashboardData();
 
   useFocusEffect(
     useCallback(() => {
-      void reload();
-    }, [reload]),
+      void reloadIfStale();
+    }, [reloadIfStale]),
   );
 
   const onAlertPress = useCallback(

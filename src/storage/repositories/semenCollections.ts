@@ -1,5 +1,6 @@
 import { SemenCollection } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { getStallionById } from './stallions';
 
 type SemenCollectionRow = {
@@ -106,6 +107,7 @@ export async function createSemenCollection(input: {
       now,
     ],
   );
+  emitDataInvalidation('semenCollections');
 }
 
 export async function updateSemenCollection(
@@ -149,6 +151,7 @@ export async function updateSemenCollection(
       id,
     ],
   );
+  emitDataInvalidation('semenCollections');
 }
 
 export async function deleteSemenCollection(id: string): Promise<void> {
@@ -159,6 +162,7 @@ export async function deleteSemenCollection(id: string): Promise<void> {
 
   const db = await getDb();
   await db.runAsync('DELETE FROM semen_collections WHERE id = ?;', [id]);
+  emitDataInvalidation('semenCollections');
 }
 
 export async function isSemenCollectionLinked(id: string): Promise<boolean> {

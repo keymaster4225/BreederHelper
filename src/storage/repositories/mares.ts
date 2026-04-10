@@ -1,5 +1,6 @@
 ﻿import { LocalDate, Mare } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { emitDataInvalidation } from '@/storage/dataInvalidation';
 
 export async function listMares(includeDeleted = false): Promise<Mare[]> {
   const db = await getDb();
@@ -83,6 +84,7 @@ export async function createMare(input: {
       now,
     ]
   );
+  emitDataInvalidation('mares');
 }
 
 export async function updateMare(
@@ -119,6 +121,7 @@ export async function updateMare(
       id,
     ]
   );
+  emitDataInvalidation('mares');
 }
 
 export async function softDeleteMare(id: string): Promise<void> {
@@ -132,6 +135,7 @@ export async function softDeleteMare(id: string): Promise<void> {
     `,
     [new Date().toISOString(), new Date().toISOString(), id]
   );
+  emitDataInvalidation('mares');
 }
 
 type MareRow = {

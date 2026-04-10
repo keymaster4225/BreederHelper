@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { useRecordForm } from '@/hooks/useRecordForm';
 import { Screen } from '@/components/Screen';
 import { BreedingRecord, calculateDaysPostBreeding, estimateFoalingDate } from '@/models/types';
 import { formatLocalDate } from '@/utils/dates';
@@ -17,6 +18,7 @@ import {
   updatePregnancyCheck,
 } from '@/storage/repositories';
 import { borderRadius, colors, spacing, typography } from '@/theme';
+import { confirmDelete } from '@/utils/confirmDelete';
 import { newId } from '@/utils/id';
 import { validateLocalDate, validateLocalDateNotInFuture, validateRequired } from '@/utils/validation';
 
@@ -52,8 +54,9 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
   const [heartbeat, setHeartbeat] = useState<YesNo>('no');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const { isLoading, isSaving, isDeleting, runLoad, runSave, runDelete } = useRecordForm({
+    initialLoading: true,
+  });
   const today = new Date();
 
   useEffect(() => {
@@ -61,17 +64,12 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
   }, [isEdit, navigation]);
 
   useEffect(() => {
-    let mounted = true;
-
-    Promise.all([
-      listBreedingRecordsByMare(mareId),
-      pregnancyCheckId ? getPregnancyCheckById(pregnancyCheckId) : Promise.resolve(null),
-    ])
-      .then(([records, existing]) => {
-        if (!mounted) {
-          return;
-        }
-
+    void runLoad(
+      async () => {
+        const [records, existing] = await Promise.all([
+          listBreedingRecordsByMare(mareId),
+          pregnancyCheckId ? getPregnancyCheckById(pregnancyCheckId) : Promise.resolve(null),
+        ]);
         if (pregnancyCheckId && !existing) {
           Alert.alert('Record not found', 'This pregnancy check no longer exists.');
           navigation.goBack();
@@ -89,26 +87,16 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
         } else if (records.length > 0) {
           setBreedingRecordId(records[0].id);
         }
-      })
-      .catch((err: unknown) => {
-        if (!mounted) {
-          return;
-        }
-
+      },
+      {
+        onError: (err: unknown) => {
         const message = err instanceof Error ? err.message : 'Unable to load pregnancy-check form data.';
         Alert.alert('Load error', message);
         navigation.goBack();
-      })
-      .finally(() => {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [mareId, navigation, pregnancyCheckId]);
+        },
+      },
+    );
+  }, [mareId, navigation, pregnancyCheckId, runLoad]);
 
   useEffect(() => {
     if (result === 'negative') {
@@ -165,30 +153,31 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
       return;
     }
 
-    setIsSaving(true);
+    await runSave(
+      async () => {
+        const payload = {
+          breedingRecordId,
+          date: date.trim(),
+          result,
+          heartbeatDetected: result === 'positive' ? heartbeat === 'yes' : null,
+          notes: notes.trim() || null,
+        };
 
-    try {
-      const payload = {
-        breedingRecordId,
-        date: date.trim(),
-        result,
-        heartbeatDetected: result === 'positive' ? heartbeat === 'yes' : null,
-        notes: notes.trim() || null,
-      };
+        if (pregnancyCheckId) {
+          await updatePregnancyCheck(pregnancyCheckId, payload);
+        } else {
+          await createPregnancyCheck({ id: newId(), mareId, ...payload });
+        }
 
-      if (pregnancyCheckId) {
-        await updatePregnancyCheck(pregnancyCheckId, payload);
-      } else {
-        await createPregnancyCheck({ id: newId(), mareId, ...payload });
-      }
-
-      navigation.goBack();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save pregnancy check.';
-      Alert.alert('Save failed', message);
-    } finally {
-      setIsSaving(false);
-    }
+        navigation.goBack();
+      },
+      {
+        onError: (err: unknown) => {
+          const message = err instanceof Error ? err.message : 'Failed to save pregnancy check.';
+          Alert.alert('Save failed', message);
+        },
+      },
+    );
   };
 
   const onDelete = (): void => {
@@ -196,24 +185,24 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
       return;
     }
 
-    Alert.alert('Delete Pregnancy Check', 'Delete this pregnancy check?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await deletePregnancyCheck(pregnancyCheckId);
-              navigation.goBack();
-            } catch (err) {
+    confirmDelete({
+      title: 'Delete Pregnancy Check',
+      message: 'Delete this pregnancy check?',
+      onConfirm: async () => {
+        await runDelete(
+          async () => {
+            await deletePregnancyCheck(pregnancyCheckId);
+            navigation.goBack();
+          },
+          {
+            onError: (err: unknown) => {
               const message = err instanceof Error ? err.message : 'Failed to delete pregnancy check.';
               Alert.alert('Delete failed', message);
-            }
-          })();
-        },
+            },
+          },
+        );
       },
-    ]);
+    });
   };
 
   if (isLoading) {
@@ -271,11 +260,15 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
         <PrimaryButton
           label={isSaving ? 'Saving...' : 'Save'}
           onPress={onSave}
-          disabled={isSaving || breedingRecords.length === 0}
+          disabled={isSaving || isDeleting || breedingRecords.length === 0}
         />
 
         {isEdit ? (
-          <DeleteButton label="Delete" onPress={onDelete} disabled={isSaving} />
+          <DeleteButton
+            label={isDeleting ? 'Deleting...' : 'Delete'}
+            onPress={onDelete}
+            disabled={isSaving || isDeleting}
+          />
         ) : null}
       </ScrollView>
       </KeyboardAvoidingView>

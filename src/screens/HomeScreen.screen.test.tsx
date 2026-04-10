@@ -70,6 +70,7 @@ const openMare = {
 };
 
 function buildState(overrides: Record<string, unknown> = {}) {
+  const loadMares = jest.fn().mockResolvedValue(undefined);
   return {
     mares: [pregnantMare, openMare],
     isLoading: false,
@@ -87,7 +88,8 @@ function buildState(overrides: Record<string, unknown> = {}) {
     searchText: '',
     statusFilter: 'all',
     filteredMares: [pregnantMare, openMare],
-    loadMares: jest.fn().mockResolvedValue(undefined),
+    loadMares,
+    loadMaresIfStale: jest.fn().mockResolvedValue(undefined),
     onDeleteMare: jest.fn(),
     setSelectedMareId: jest.fn(),
     setSearchText: jest.fn(),
@@ -105,12 +107,14 @@ it('loads dashboard, search, and filter state correctly', () => {
   const setSearchText = jest.fn();
   const setStatusFilter = jest.fn();
   const loadMares = jest.fn().mockResolvedValue(undefined);
+  const loadMaresIfStale = jest.fn().mockResolvedValue(undefined);
   const setSelectedMareId = jest.fn();
   const navigation = createNavigation();
 
   useHomeScreenData.mockReturnValue(
     buildState({
       loadMares,
+      loadMaresIfStale,
       setSelectedMareId,
       setSearchText,
       setStatusFilter,
@@ -124,7 +128,8 @@ it('loads dashboard, search, and filter state correctly', () => {
   expect(screen.getByText('Nova')).toBeTruthy();
   expect(screen.getByText('Maple')).toBeTruthy();
   expect(screen.getAllByText('Pregnant').length).toBeGreaterThan(0);
-  expect(loadMares).toHaveBeenCalled();
+  expect(loadMaresIfStale).toHaveBeenCalledTimes(1);
+  expect(setSelectedMareId).toHaveBeenCalledWith(null);
 
   fireEvent.changeText(screen.getByPlaceholderText('Search mares...'), 'map');
   expect(setSearchText).toHaveBeenCalledWith('map');
@@ -132,6 +137,7 @@ it('loads dashboard, search, and filter state correctly', () => {
   useHomeScreenData.mockReturnValue(
     buildState({
       loadMares,
+      loadMaresIfStale,
       setSelectedMareId,
       setSearchText,
       setStatusFilter,
@@ -153,6 +159,7 @@ it('loads dashboard, search, and filter state correctly', () => {
   useHomeScreenData.mockReturnValue(
     buildState({
       loadMares,
+      loadMaresIfStale,
       setSelectedMareId,
       setSearchText,
       setStatusFilter,
@@ -292,4 +299,20 @@ it('seeds preview data from the populated mares screen', async () => {
     expect(loadMares).toHaveBeenCalled();
     expect(alertSpy).toHaveBeenCalledWith('Preview Data', 'Preview sample data is ready.');
   });
+});
+
+it('shows hook-level load errors', () => {
+  const navigation = createNavigation();
+
+  useHomeScreenData.mockReturnValue(
+    buildState({
+      error: 'Failed to load mares.',
+    }),
+  );
+
+  const screen = render(
+    <HomeScreen navigation={navigation as never} route={{ key: 'Mares', name: 'Mares' } as never} />,
+  );
+
+  expect(screen.getByText('Failed to load mares.')).toBeTruthy();
 });

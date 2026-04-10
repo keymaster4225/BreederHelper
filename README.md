@@ -68,6 +68,7 @@ npm run web
 npm run typecheck
 npm test
 npm run test:screen
+npm run test:coverage
 npm run lint
 ```
 
@@ -76,7 +77,7 @@ npm run lint
 - Database file: `breeder-helper.db`
 - Migration entrypoint: `src/storage/migrations/index.ts`
 - DB bootstrap: `src/storage/db.ts`
-- CI: `.github/workflows/ci.yml` runs `npm ci`, `npm run typecheck`, `npm test`, `npm run test:screen`, and `npm run lint`
+- CI: `.github/workflows/ci.yml` runs `npm ci`, `npm run typecheck`, coverage-enforced unit + screen tests (`npm run test:coverage:unit` and `npm run test:coverage:screen`), and `npm run lint`
 
 ## Product and planning docs
 

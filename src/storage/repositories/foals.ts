@@ -1,5 +1,6 @@
 import { Foal, FoalColor, FoalMilestones, FoalSex, IggTest } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { parseFoalMilestones, parseIggTests } from '@/storage/repositories/internal/foalCodecs';
 import { getFoalingRecordById } from './foalingRecords';
 
@@ -93,6 +94,7 @@ export async function createFoal(input: {
       now,
     ],
   );
+  emitDataInvalidation('foals');
 }
 
 export async function updateFoal(
@@ -138,6 +140,7 @@ export async function updateFoal(
       id,
     ],
   );
+  emitDataInvalidation('foals');
 }
 
 export async function getFoalById(id: string): Promise<Foal | null> {
@@ -190,6 +193,7 @@ export async function listFoalsByMare(mareId: string): Promise<Foal[]> {
 export async function deleteFoal(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM foals WHERE id = ?;', [id]);
+  emitDataInvalidation('foals');
 }
 
 export async function listAllFoals(): Promise<Foal[]> {

@@ -4,10 +4,12 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormCheckbox, FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { useRecordForm } from '@/hooks/useRecordForm';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { createDailyLog, deleteDailyLog, getDailyLogById, updateDailyLog } from '@/storage/repositories';
 import { colors } from '@/theme';
+import { confirmDelete } from '@/utils/confirmDelete';
 import { newId } from '@/utils/id';
 import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validation';
 
@@ -44,8 +46,8 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
   const [uterineCysts, setUterineCysts] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoading, setIsLoading] = useState(isEdit);
-  const [isSaving, setIsSaving] = useState(false);
+  const { isLoading, isSaving, isDeleting, setIsLoading, runLoad, runSave, runDelete } =
+    useRecordForm({ initialLoading: isEdit });
   const today = new Date();
 
   useEffect(() => {
@@ -54,16 +56,13 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
 
   useEffect(() => {
     if (!logId) {
+      setIsLoading(false);
       return;
     }
 
-    let mounted = true;
-    getDailyLogById(logId)
-      .then((record) => {
-        if (!mounted) {
-          return;
-        }
-
+    void runLoad(
+      async () => {
+        const record = await getDailyLogById(logId);
         if (!record) {
           Alert.alert('Log not found', 'This daily log no longer exists.');
           navigation.goBack();
@@ -79,22 +78,16 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
         setUterineTone(record.uterineTone ?? '');
         setUterineCysts(record.uterineCysts ?? '');
         setNotes(record.notes ?? '');
-      })
-      .catch((err: unknown) => {
+      },
+      {
+        onError: (err: unknown) => {
         const message = err instanceof Error ? err.message : 'Unable to load daily log.';
         Alert.alert('Load error', message);
         navigation.goBack();
-      })
-      .finally(() => {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [logId, navigation]);
+        },
+      },
+    );
+  }, [logId, navigation, runLoad, setIsLoading]);
 
   const validate = (): boolean => {
     const nextErrors: FormErrors = {
@@ -110,37 +103,39 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
       return;
     }
 
-    setIsSaving(true);
-    try {
-      const payload = {
-        date: date.trim(),
-        teasingScore: teasingScore === '' ? null : Number(teasingScore),
-        rightOvary: rightOvary.trim() || null,
-        leftOvary: leftOvary.trim() || null,
-        ovulationDetected: ovulationDetected || null,
-        edema: edema === '' ? null : Number(edema),
-        uterineTone: uterineTone.trim() || null,
-        uterineCysts: uterineCysts.trim() || null,
-        notes: notes.trim() || null,
-      };
+    await runSave(
+      async () => {
+        const payload = {
+          date: date.trim(),
+          teasingScore: teasingScore === '' ? null : Number(teasingScore),
+          rightOvary: rightOvary.trim() || null,
+          leftOvary: leftOvary.trim() || null,
+          ovulationDetected: ovulationDetected || null,
+          edema: edema === '' ? null : Number(edema),
+          uterineTone: uterineTone.trim() || null,
+          uterineCysts: uterineCysts.trim() || null,
+          notes: notes.trim() || null,
+        };
 
-      if (logId) {
-        await updateDailyLog(logId, payload);
-      } else {
-        await createDailyLog({ id: newId(), mareId, ...payload });
-      }
+        if (logId) {
+          await updateDailyLog(logId, payload);
+        } else {
+          await createDailyLog({ id: newId(), mareId, ...payload });
+        }
 
-      navigation.goBack();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save daily log.';
-      if (message.toLowerCase().includes('unique')) {
-        Alert.alert('Duplicate date', 'A daily log already exists for this mare on that date.');
-      } else {
-        Alert.alert('Save failed', message);
-      }
-    } finally {
-      setIsSaving(false);
-    }
+        navigation.goBack();
+      },
+      {
+        onError: (err: unknown) => {
+          const message = err instanceof Error ? err.message : 'Failed to save daily log.';
+          if (message.toLowerCase().includes('unique')) {
+            Alert.alert('Duplicate date', 'A daily log already exists for this mare on that date.');
+          } else {
+            Alert.alert('Save failed', message);
+          }
+        },
+      },
+    );
   };
 
   const onDelete = (): void => {
@@ -148,24 +143,24 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
       return;
     }
 
-    Alert.alert('Delete Daily Log', 'Delete this daily log entry?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await deleteDailyLog(logId);
-              navigation.goBack();
-            } catch (err) {
+    confirmDelete({
+      title: 'Delete Daily Log',
+      message: 'Delete this daily log entry?',
+      onConfirm: async () => {
+        await runDelete(
+          async () => {
+            await deleteDailyLog(logId);
+            navigation.goBack();
+          },
+          {
+            onError: (err: unknown) => {
               const message = err instanceof Error ? err.message : 'Failed to delete daily log.';
               Alert.alert('Delete failed', message);
-            }
-          })();
-        },
+            },
+          },
+        );
       },
-    ]);
+    });
   };
 
   if (isLoading) {
@@ -221,11 +216,15 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
         <PrimaryButton
           label={isSaving ? 'Saving...' : 'Save'}
           onPress={onSave}
-          disabled={isSaving}
+          disabled={isSaving || isDeleting}
         />
 
         {isEdit ? (
-          <DeleteButton label="Delete" onPress={onDelete} disabled={isSaving} />
+          <DeleteButton
+            label={isDeleting ? 'Deleting...' : 'Delete'}
+            onPress={onDelete}
+            disabled={isSaving || isDeleting}
+          />
         ) : null}
       </ScrollView>
       </KeyboardAvoidingView>

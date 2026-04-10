@@ -26,11 +26,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Test
-        run: npm test
+      - name: Unit Tests + Coverage
+        run: npm run test:coverage:unit
 
-      - name: Screen Tests
-        run: npm run test:screen
+      - name: Screen Tests + Coverage
+        run: npm run test:coverage:screen
 
       - name: Lint
         run: npm run lint

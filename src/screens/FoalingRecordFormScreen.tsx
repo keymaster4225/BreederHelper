@@ -4,6 +4,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { useRecordForm } from '@/hooks/useRecordForm';
 import { Screen } from '@/components/Screen';
 import { FoalSex, FoalingOutcome } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -16,6 +17,7 @@ import {
   updateFoalingRecord,
 } from '@/storage/repositories';
 import { colors } from '@/theme';
+import { confirmDelete } from '@/utils/confirmDelete';
 import { newId } from '@/utils/id';
 import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validation';
 
@@ -34,7 +36,7 @@ const OUTCOME_OPTIONS: { label: string; value: FoalingOutcome }[] = [
 const SEX_OPTIONS: { label: string; value: FoalSex }[] = [
   { label: 'Colt', value: 'colt' },
   { label: 'Filly', value: 'filly' },
-  ];
+];
 
 export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Element {
   const mareId = route.params.mareId;
@@ -51,8 +53,9 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
   const [hasFoal, setHasFoal] = useState(false);
   const [originalOutcome, setOriginalOutcome] = useState<FoalingOutcome | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const { isLoading, isSaving, isDeleting, runLoad, runSave, runDelete } = useRecordForm({
+    initialLoading: true,
+  });
   const today = new Date();
 
   useEffect(() => {
@@ -60,18 +63,13 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
   }, [isEdit, navigation]);
 
   useEffect(() => {
-    let mounted = true;
-
-    Promise.all([
-      listBreedingRecordsByMare(mareId),
-      foalingRecordId ? getFoalingRecordById(foalingRecordId) : Promise.resolve(null),
-      foalingRecordId ? getFoalByFoalingRecordId(foalingRecordId) : Promise.resolve(null),
-    ])
-      .then(([records, existing, existingFoal]) => {
-        if (!mounted) {
-          return;
-        }
-
+    void runLoad(
+      async () => {
+        const [records, existing, existingFoal] = await Promise.all([
+          listBreedingRecordsByMare(mareId),
+          foalingRecordId ? getFoalingRecordById(foalingRecordId) : Promise.resolve(null),
+          foalingRecordId ? getFoalByFoalingRecordId(foalingRecordId) : Promise.resolve(null),
+        ]);
         if (foalingRecordId && !existing) {
           Alert.alert('Record not found', 'This foaling record no longer exists.');
           navigation.goBack();
@@ -94,22 +92,16 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
           setComplications(existing.complications ?? '');
           setNotes(existing.notes ?? '');
         }
-      })
-      .catch((err: unknown) => {
+      },
+      {
+        onError: (err: unknown) => {
         const message = err instanceof Error ? err.message : 'Unable to load foaling form data.';
         Alert.alert('Load error', message);
         navigation.goBack();
-      })
-      .finally(() => {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [foalingRecordId, mareId, navigation]);
+        },
+      },
+    );
+  }, [foalingRecordId, mareId, navigation, runLoad]);
 
   const validate = (): boolean => {
     const nextErrors: FormErrors = {
@@ -133,30 +125,32 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
       return;
     }
 
-    setIsSaving(true);
-    try {
-      const payload = {
-        breedingRecordId: breedingRecordId || null,
-        date: date.trim(),
-        outcome,
-        foalSex,
-        complications: complications.trim() || null,
-        notes: notes.trim() || null,
-      };
+    await runSave(
+      async () => {
+        const payload = {
+          breedingRecordId: breedingRecordId || null,
+          date: date.trim(),
+          outcome,
+          foalSex,
+          complications: complications.trim() || null,
+          notes: notes.trim() || null,
+        };
 
-      if (foalingRecordId) {
-        await updateFoalingRecord(foalingRecordId, payload);
-      } else {
-        await createFoalingRecord({ id: newId(), mareId, ...payload });
-      }
+        if (foalingRecordId) {
+          await updateFoalingRecord(foalingRecordId, payload);
+        } else {
+          await createFoalingRecord({ id: newId(), mareId, ...payload });
+        }
 
-      navigation.goBack();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save foaling record.';
-      Alert.alert('Save failed', message);
-    } finally {
-      setIsSaving(false);
-    }
+        navigation.goBack();
+      },
+      {
+        onError: (err: unknown) => {
+          const message = err instanceof Error ? err.message : 'Failed to save foaling record.';
+          Alert.alert('Save failed', message);
+        },
+      },
+    );
   };
 
   const onDelete = (): void => {
@@ -172,24 +166,24 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
       return;
     }
 
-    Alert.alert('Delete Foaling Record', 'Delete this foaling record?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            try {
-              await deleteFoalingRecord(foalingRecordId);
-              navigation.goBack();
-            } catch (err) {
+    confirmDelete({
+      title: 'Delete Foaling Record',
+      message: 'Delete this foaling record?',
+      onConfirm: async () => {
+        await runDelete(
+          async () => {
+            await deleteFoalingRecord(foalingRecordId);
+            navigation.goBack();
+          },
+          {
+            onError: (err: unknown) => {
               const message = err instanceof Error ? err.message : 'Failed to delete foaling record.';
               Alert.alert('Delete failed', message);
-            }
-          })();
-        },
+            },
+          },
+        );
       },
-    ]);
+    });
   };
 
   if (isLoading) {
@@ -231,11 +225,15 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
         <PrimaryButton
           label={isSaving ? 'Saving...' : 'Save'}
           onPress={onSave}
-          disabled={isSaving}
+          disabled={isSaving || isDeleting}
         />
 
         {isEdit ? (
-          <DeleteButton label="Delete" onPress={onDelete} disabled={isSaving} />
+          <DeleteButton
+            label={isDeleting ? 'Deleting...' : 'Delete'}
+            onPress={onDelete}
+            disabled={isSaving || isDeleting}
+          />
         ) : null}
       </ScrollView>
       </KeyboardAvoidingView>

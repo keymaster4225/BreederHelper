@@ -5,6 +5,7 @@ import {
   UUID,
 } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { newId } from '@/utils/id';
 
 type CollectionDoseEventRow = {
@@ -112,6 +113,7 @@ export async function createDoseEvent(
       now,
     ],
   );
+  emitDataInvalidation('collectionDoseEvents');
 
   const created = await getDoseEventById(id);
   if (!created) {
@@ -153,6 +155,7 @@ export async function updateDoseEvent(
       id,
     ],
   );
+  emitDataInvalidation('collectionDoseEvents');
 
   const updated = await getDoseEventById(id);
   if (!updated) {
@@ -164,6 +167,7 @@ export async function updateDoseEvent(
 export async function deleteDoseEvent(id: UUID): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM collection_dose_events WHERE id = ?;', [id]);
+  emitDataInvalidation('collectionDoseEvents');
 }
 
 async function getDoseEventById(id: UUID): Promise<CollectionDoseEvent | null> {

@@ -1,5 +1,6 @@
 import { DailyLog } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { emitDataInvalidation } from '@/storage/dataInvalidation';
 
 type DailyLogRow = {
   id: string;
@@ -85,6 +86,7 @@ export async function createDailyLog(input: {
       now,
     ],
   );
+  emitDataInvalidation('dailyLogs');
 }
 
 export async function updateDailyLog(
@@ -133,6 +135,7 @@ export async function updateDailyLog(
       id,
     ],
   );
+  emitDataInvalidation('dailyLogs');
 }
 
 export async function getDailyLogById(id: string): Promise<DailyLog | null> {
@@ -152,6 +155,7 @@ export async function getDailyLogById(id: string): Promise<DailyLog | null> {
 export async function deleteDailyLog(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM daily_logs WHERE id = ?;', [id]);
+  emitDataInvalidation('dailyLogs');
 }
 
 export async function listAllDailyLogs(): Promise<DailyLog[]> {

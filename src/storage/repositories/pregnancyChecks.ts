@@ -1,5 +1,6 @@
 import { PregnancyCheck } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { getBreedingRecordById } from './breedingRecords';
 
 type PregnancyCheckRow = {
@@ -83,6 +84,7 @@ export async function createPregnancyCheck(input: {
       now,
     ],
   );
+  emitDataInvalidation('pregnancyChecks');
 }
 
 export async function updatePregnancyCheck(
@@ -126,6 +128,7 @@ export async function updatePregnancyCheck(
       id,
     ],
   );
+  emitDataInvalidation('pregnancyChecks');
 }
 
 export async function getPregnancyCheckById(id: string): Promise<PregnancyCheck | null> {
@@ -145,6 +148,7 @@ export async function getPregnancyCheckById(id: string): Promise<PregnancyCheck 
 export async function deletePregnancyCheck(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM pregnancy_checks WHERE id = ?;', [id]);
+  emitDataInvalidation('pregnancyChecks');
 }
 
 export async function listAllPregnancyChecks(): Promise<PregnancyCheck[]> {

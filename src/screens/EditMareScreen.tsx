@@ -4,10 +4,12 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormSelectInput, FormTextInput, formStyles } from '@/components/FormControls';
+import { useRecordForm } from '@/hooks/useRecordForm';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { createMare, getMareById, softDeleteMare, updateMare } from '@/storage/repositories';
 import { colors } from '@/theme';
+import { confirmDelete } from '@/utils/confirmDelete';
 import { newId } from '@/utils/id';
 import { normalizeLocalDate, validateLocalDate, validateRequired } from '@/utils/validation';
 
@@ -47,9 +49,8 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoading, setIsLoading] = useState(isEdit);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const { isLoading, isSaving, isDeleting, setIsLoading, runLoad, runSave, runDelete } =
+    useRecordForm({ initialLoading: isEdit });
   const today = new Date();
 
   const screenTitle = useMemo(() => (isEdit ? 'Edit Mare' : 'Add Mare'), [isEdit]);
@@ -60,18 +61,13 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
 
   useEffect(() => {
     if (!mareId) {
+      setIsLoading(false);
       return;
     }
 
-    let mounted = true;
-    setIsLoading(true);
-
-    getMareById(mareId)
-      .then((mare) => {
-        if (!mounted) {
-          return;
-        }
-
+    void runLoad(
+      async () => {
+        const mare = await getMareById(mareId);
         if (!mare) {
           Alert.alert('Mare not found', 'This mare no longer exists.');
           navigation.goBack();
@@ -83,26 +79,16 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
         setDateOfBirth(mare.dateOfBirth ?? '');
         setRegistrationNumber(mare.registrationNumber ?? '');
         setNotes(mare.notes ?? '');
-      })
-      .catch((err: unknown) => {
-        if (!mounted) {
-          return;
-        }
-
+      },
+      {
+        onError: (err: unknown) => {
         const message = err instanceof Error ? err.message : 'Unable to load mare.';
         Alert.alert('Load error', message);
         navigation.goBack();
-      })
-      .finally(() => {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      });
-
-    return () => {
-      mounted = false;
-    };
-  }, [mareId, navigation]);
+        },
+      },
+    );
+  }, [mareId, navigation, runLoad, setIsLoading]);
 
   const validate = (): boolean => {
     const nextErrors: FormErrors = {
@@ -120,35 +106,36 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
       return;
     }
 
-    setIsSaving(true);
+    await runSave(
+      async () => {
+        if (mareId) {
+          await updateMare(mareId, {
+            name: name.trim(),
+            breed: breed.trim(),
+            dateOfBirth: normalizeLocalDate(dateOfBirth),
+            registrationNumber: registrationNumber.trim() || null,
+            notes: notes.trim() || null,
+          });
+        } else {
+          await createMare({
+            id: newId(),
+            name: name.trim(),
+            breed: breed.trim(),
+            dateOfBirth: normalizeLocalDate(dateOfBirth),
+            registrationNumber: registrationNumber.trim() || null,
+            notes: notes.trim() || null,
+          });
+        }
 
-    try {
-      if (mareId) {
-        await updateMare(mareId, {
-          name: name.trim(),
-          breed: breed.trim(),
-          dateOfBirth: normalizeLocalDate(dateOfBirth),
-          registrationNumber: registrationNumber.trim() || null,
-          notes: notes.trim() || null,
-        });
-      } else {
-        await createMare({
-          id: newId(),
-          name: name.trim(),
-          breed: breed.trim(),
-          dateOfBirth: normalizeLocalDate(dateOfBirth),
-          registrationNumber: registrationNumber.trim() || null,
-          notes: notes.trim() || null,
-        });
-      }
-
-      navigation.goBack();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save mare.';
-      Alert.alert('Save failed', message);
-    } finally {
-      setIsSaving(false);
-    }
+        navigation.goBack();
+      },
+      {
+        onError: (err: unknown) => {
+          const message = err instanceof Error ? err.message : 'Failed to save mare.';
+          Alert.alert('Save failed', message);
+        },
+      },
+    );
   };
 
   const onDelete = (): void => {
@@ -156,29 +143,24 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
       return;
     }
 
-    Alert.alert(
-      'Delete Mare',
-      'Are you sure you want to delete this mare? This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              await softDeleteMare(mareId);
-              navigation.navigate('MainTabs');
-            } catch (err) {
+    confirmDelete({
+      title: 'Delete Mare',
+      message: 'Are you sure you want to delete this mare? This cannot be undone.',
+      onConfirm: async () => {
+        await runDelete(
+          async () => {
+            await softDeleteMare(mareId);
+            navigation.navigate('MainTabs');
+          },
+          {
+            onError: (err: unknown) => {
               const message = err instanceof Error ? err.message : 'Failed to delete mare.';
               Alert.alert('Delete failed', message);
-            } finally {
-              setIsDeleting(false);
-            }
+            },
           },
-        },
-      ]
-    );
+        );
+      },
+    });
   };
 
   if (isLoading) {

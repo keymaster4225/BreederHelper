@@ -1,5 +1,6 @@
 import { BreedingMethod, BreedingRecord } from '@/models/types';
 import { getDb } from '@/storage/db';
+import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { getSemenCollectionById } from './semenCollections';
 
 type BreedingRecordRow = {
@@ -114,6 +115,7 @@ export async function createBreedingRecord(input: {
       now,
     ],
   );
+  emitDataInvalidation('breedingRecords');
 }
 
 export async function updateBreedingRecord(
@@ -176,6 +178,7 @@ export async function updateBreedingRecord(
       id,
     ],
   );
+  emitDataInvalidation('breedingRecords');
 }
 
 export async function getBreedingRecordById(id: string): Promise<BreedingRecord | null> {
@@ -197,6 +200,7 @@ export async function getBreedingRecordById(id: string): Promise<BreedingRecord 
 export async function deleteBreedingRecord(id: string): Promise<void> {
   const db = await getDb();
   await db.runAsync('DELETE FROM breeding_records WHERE id = ?;', [id]);
+  emitDataInvalidation('breedingRecords');
 }
 
 export async function listAllBreedingRecords(): Promise<BreedingRecord[]> {
