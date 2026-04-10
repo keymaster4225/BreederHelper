@@ -7,6 +7,7 @@ import { applyMigrations } from './index';
 function createFakeDb(options: {
   appliedMigrationIds: number[];
   breedingRecordsSql: string;
+  hasSemenCollectionsOld?: boolean;
 }) {
   const execCalls: string[] = [];
   const runCalls: Array<{ sql: string; params: unknown[] }> = [];
@@ -37,6 +38,14 @@ function createFakeDb(options: {
         return null;
       }
 
+      if (trimmed === "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?;") {
+        const [tableName] = params as [string];
+        if (tableName === 'semen_collections_old' && options.hasSemenCollectionsOld) {
+          return { name: tableName } as T;
+        }
+        return null;
+      }
+
       return null;
     },
     async getAllAsync<T>(): Promise<T[]> {
@@ -58,6 +67,7 @@ describe('applyMigrations', () => {
           FOREIGN KEY (collection_id) REFERENCES "semen_collections_old"(id) ON UPDATE CASCADE ON DELETE RESTRICT
         )
       `,
+      hasSemenCollectionsOld: true,
     });
 
     await applyMigrations(db as never);
@@ -68,6 +78,7 @@ describe('applyMigrations', () => {
     ).toBe(true);
     expect(execCalls.some((sql) => sql.includes('DROP TABLE breeding_records;'))).toBe(true);
     expect(execCalls.some((sql) => sql.includes('ALTER TABLE breeding_records_new RENAME TO breeding_records;'))).toBe(true);
+    expect(execCalls.some((sql) => sql.includes('DROP TABLE IF EXISTS semen_collections_old;'))).toBe(true);
     expect(runCalls.some(({ params }) => params[0] === 12)).toBe(true);
   });
 
@@ -88,5 +99,24 @@ describe('applyMigrations', () => {
     expect(execCalls).toHaveLength(1);
     expect(runCalls).toHaveLength(1);
     expect(runCalls[0]?.params[0]).toBe(12);
+  });
+
+  it('runs the repair migration when the legacy table still exists even if breeding_records already looks correct', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 11 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY,
+          collection_id TEXT,
+          FOREIGN KEY (collection_id) REFERENCES semen_collections(id) ON UPDATE CASCADE ON DELETE RESTRICT
+        )
+      `,
+      hasSemenCollectionsOld: true,
+    });
+
+    await applyMigrations(db as never);
+
+    expect(execCalls.some((sql) => sql.includes('DROP TABLE IF EXISTS semen_collections_old;'))).toBe(true);
+    expect(runCalls.some(({ params }) => params[0] === 12)).toBe(true);
   });
 });

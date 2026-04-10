@@ -397,14 +397,12 @@ SELECT
   created_at,
   updated_at
 FROM semen_collections_old;
-
-DROP TABLE semen_collections_old;
 `;
 
 // SQLite rewrites dependent foreign keys during table rename, so migration011
 // leaves breeding_records.collection_id pointing at semen_collections_old.
-// Rebuild breeding_records to restore the FK target for both fresh installs and
-// already-upgraded local databases.
+// Keep the old table in place until breeding_records has been rebuilt, otherwise
+// upgrades with linked breeding records can fail when SQLite blocks the drop.
 const migration012 = `
 CREATE TABLE breeding_records_new (
   id TEXT PRIMARY KEY,
@@ -457,6 +455,8 @@ CREATE INDEX IF NOT EXISTS idx_breeding_records_mare_date
 
 CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date
   ON breeding_records (stallion_id, date DESC);
+
+DROP TABLE IF EXISTS semen_collections_old;
 `;
 
 const migrations: Migration[] = [
@@ -525,7 +525,8 @@ const migrations: Migration[] = [
     name: '012_repair_breeding_records_collection_fk',
     statements: splitStatements(migration012),
     shouldSkip: async (db) =>
-      !(await tableDefinitionReferences(db, 'breeding_records', 'semen_collections_old')),
+      !(await tableDefinitionReferences(db, 'breeding_records', 'semen_collections_old')) &&
+      !(await tableExists(db, 'semen_collections_old')),
   },
 ];
 
@@ -597,6 +598,18 @@ async function tableDefinitionReferences(
   const quotedPattern = new RegExp(`REFERENCES\\s+"${escapedTable}"\\s*\\(`, 'i');
   const unquotedPattern = new RegExp(`REFERENCES\\s+${escapedTable}\\s*\\(`, 'i');
   return quotedPattern.test(sql) || unquotedPattern.test(sql);
+}
+
+async function tableExists(
+  db: SQLite.SQLiteDatabase,
+  tableName: string,
+): Promise<boolean> {
+  const row = await db.getFirstAsync<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?;",
+    [tableName],
+  );
+
+  return row != null;
 }
 
 function splitStatements(sql: string): string[] {
