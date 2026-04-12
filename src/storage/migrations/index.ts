@@ -5,6 +5,7 @@ type Migration = {
   name: string;
   statements: string[];
   shouldSkip?: (db: SQLite.SQLiteDatabase) => Promise<boolean>;
+  requiresForeignKeysOff?: boolean;
 };
 
 const migration001 = `
@@ -481,6 +482,7 @@ const migrations: Migration[] = [
     id: 3,
     name: '003_breeding_stallion_name',
     statements: splitStatements(migration003),
+    requiresForeignKeysOff: true,
   },
   {
     id: 4,
@@ -519,6 +521,7 @@ const migrations: Migration[] = [
     id: 10,
     name: '010_breeding_records_collection_id',
     statements: splitStatements(migration010),
+    requiresForeignKeysOff: true,
   },
   {
     id: 11,
@@ -530,6 +533,7 @@ const migrations: Migration[] = [
     id: 12,
     name: '012_repair_breeding_records_collection_fk',
     statements: splitStatements(migration012),
+    requiresForeignKeysOff: true,
     shouldSkip: async (db) =>
       !(await tableDefinitionReferences(db, 'breeding_records', 'semen_collections_old')) &&
       !(await tableExists(db, 'semen_collections_old')),
@@ -563,6 +567,11 @@ export async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> 
       continue;
     }
 
+    if (migration.requiresForeignKeysOff) {
+      await runMigrationWithForeignKeysDisabled(db, migration);
+      continue;
+    }
+
     await db.withTransactionAsync(async () => {
       for (const statement of migration.statements) {
         await db.execAsync(statement);
@@ -574,6 +583,62 @@ export async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> 
       );
     });
   }
+}
+
+async function runMigrationWithForeignKeysDisabled(
+  db: SQLite.SQLiteDatabase,
+  migration: Migration,
+): Promise<void> {
+  let transactionStarted = false;
+
+  await db.execAsync('PRAGMA foreign_keys = OFF;');
+
+  try {
+    await db.execAsync('BEGIN;');
+    transactionStarted = true;
+
+    for (const statement of migration.statements) {
+      await db.execAsync(statement);
+    }
+
+    await assertNoForeignKeyViolations(db, migration.name);
+
+    await db.runAsync(
+      'INSERT INTO schema_migrations (id, name, applied_at) VALUES (?, ?, ?);',
+      [migration.id, migration.name, new Date().toISOString()],
+    );
+
+    await db.execAsync('COMMIT;');
+    transactionStarted = false;
+  } catch (error) {
+    if (transactionStarted) {
+      await db.execAsync('ROLLBACK;');
+    }
+    throw error;
+  } finally {
+    await db.execAsync('PRAGMA foreign_keys = ON;');
+  }
+}
+
+async function assertNoForeignKeyViolations(
+  db: SQLite.SQLiteDatabase,
+  migrationName: string,
+): Promise<void> {
+  const rows = await db.getAllAsync<{
+    table: string;
+    rowid: number;
+    parent: string;
+    fkid: number;
+  }>('PRAGMA foreign_key_check;');
+
+  if (rows.length === 0) {
+    return;
+  }
+
+  const firstViolation = rows[0];
+  throw new Error(
+    `Foreign key check failed after migration ${migrationName}: ${firstViolation?.table ?? 'unknown'} row ${firstViolation?.rowid ?? 'unknown'} references missing parent ${firstViolation?.parent ?? 'unknown'}.`,
+  );
 }
 
 async function hasColumn(
