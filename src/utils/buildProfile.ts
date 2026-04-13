@@ -12,3 +12,7 @@ export function getBuildProfile(): string | null {
 export function isPreviewBuild(): boolean {
   return getBuildProfile() === 'preview';
 }
+
+export function canSeedPreviewData(): boolean {
+  return __DEV__ || isPreviewBuild();
+}

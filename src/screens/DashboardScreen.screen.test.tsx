@@ -1,4 +1,5 @@
-import { fireEvent, render } from '@testing-library/react-native';
+import { Alert } from 'react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
@@ -17,10 +18,29 @@ jest.mock('@/hooks/useDashboardData', () => ({
   useDashboardData: jest.fn(),
 }));
 
+jest.mock('@/utils/devSeed', () => ({
+  seedPreviewData: jest.fn(),
+}));
+
+jest.mock('@/utils/buildProfile', () => ({
+  canSeedPreviewData: jest.fn(),
+}));
+
 const { DashboardScreen } = require('@/screens/DashboardScreen') as typeof import('@/screens/DashboardScreen');
 const { useDashboardData } = jest.requireMock('@/hooks/useDashboardData') as {
   useDashboardData: jest.Mock;
 };
+const { seedPreviewData } = jest.requireMock('@/utils/devSeed') as {
+  seedPreviewData: jest.Mock;
+};
+const { canSeedPreviewData } = jest.requireMock('@/utils/buildProfile') as {
+  canSeedPreviewData: jest.Mock;
+};
+const onboardingStorage = jest.requireMock('@/utils/onboarding') as {
+  getOnboardingComplete: jest.Mock;
+  setOnboardingComplete: jest.Mock;
+};
+const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
 
 function createNavigation() {
   return {
@@ -57,9 +77,12 @@ function buildState(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  onboardingStorage.getOnboardingComplete.mockResolvedValue(true);
+  onboardingStorage.setOnboardingComplete.mockResolvedValue(undefined);
+  canSeedPreviewData.mockReturnValue(false);
 });
 
-it('renders stat cards and expanded alerts', () => {
+it('renders stat cards and expanded alerts', async () => {
   const navigation = createNavigation();
   const reloadIfStale = jest.fn().mockResolvedValue(undefined);
   useDashboardData.mockReturnValue(buildState({ reloadIfStale }));
@@ -68,21 +91,25 @@ it('renders stat cards and expanded alerts', () => {
     <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
   );
 
-  expect(screen.getByLabelText('3 Mares')).toBeTruthy();
-  expect(screen.getByLabelText('1 Pregnant')).toBeTruthy();
-  expect(screen.getByLabelText('2 Stallions')).toBeTruthy();
-  expect(screen.getByText("Today's Tasks")).toBeTruthy();
-  expect(screen.getByText('Day 15 post-breeding')).toBeTruthy();
+  await waitFor(() => {
+    expect(screen.getByLabelText('3 Mares')).toBeTruthy();
+    expect(screen.getByLabelText('1 Pregnant')).toBeTruthy();
+    expect(screen.getByLabelText('2 Stallions')).toBeTruthy();
+    expect(screen.getByText("Today's Tasks")).toBeTruthy();
+    expect(screen.getByText('Day 15 post-breeding')).toBeTruthy();
+  });
   expect(reloadIfStale).toHaveBeenCalledTimes(1);
 });
 
-it('navigates from stat cards and alert taps', () => {
+it('navigates from stat cards and alert taps', async () => {
   const navigation = createNavigation();
   useDashboardData.mockReturnValue(buildState());
 
   const screen = render(
     <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
   );
+
+  await waitFor(() => expect(screen.getByLabelText('3 Mares')).toBeTruthy());
 
   fireEvent.press(screen.getByLabelText('3 Mares'));
   expect(navigation.navigate).toHaveBeenCalledWith('MainTabs', {
@@ -103,8 +130,9 @@ it('navigates from stat cards and alert taps', () => {
   expect(navigation.navigate).toHaveBeenCalledWith('PregnancyCheckForm', { mareId: 'mare-1' });
 });
 
-it('shows the first-time empty state when there are no animals', () => {
+it('shows the onboarding carousel when there are no animals and onboarding is incomplete', async () => {
   const navigation = createNavigation();
+  onboardingStorage.getOnboardingComplete.mockResolvedValue(false);
   useDashboardData.mockReturnValue(
     buildState({
       totalMares: 0,
@@ -117,12 +145,45 @@ it('shows the first-time empty state when there are no animals', () => {
     <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
   );
 
-  expect(screen.getByText('Welcome to BreedWise')).toBeTruthy();
-  expect(screen.getByText(/mare and stallion recordkeeping/)).toBeTruthy();
-  expect(screen.getByText('What you can track')).toBeTruthy();
+  await waitFor(() => {
+    expect(screen.getByText('Welcome to BreedWise')).toBeTruthy();
+    expect(screen.getByText('Swipe to learn more')).toBeTruthy();
+    expect(screen.getByText('Skip')).toBeTruthy();
+  });
 });
 
-it('navigates from first-time action cards', () => {
+it('shows local sample data action during onboarding when enabled', async () => {
+  const navigation = createNavigation();
+  const reload = jest.fn().mockResolvedValue(undefined);
+  onboardingStorage.getOnboardingComplete.mockResolvedValue(false);
+  canSeedPreviewData.mockReturnValue(true);
+  seedPreviewData.mockResolvedValue('inserted');
+  useDashboardData.mockReturnValue(
+    buildState({
+      totalMares: 0,
+      totalStallions: 0,
+      alerts: [],
+      reload,
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Load sample data' })).toBeTruthy());
+
+  fireEvent.press(screen.getByRole('button', { name: 'Load sample data' }));
+
+  await waitFor(() => {
+    expect(seedPreviewData).toHaveBeenCalledTimes(1);
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(onboardingStorage.setOnboardingComplete).toHaveBeenCalledTimes(1);
+    expect(alertSpy).toHaveBeenCalledWith('Sample Data', 'Sample mares, stallions, and records are ready.');
+  });
+});
+
+it('shows the empty dashboard when onboarding is complete', async () => {
   const navigation = createNavigation();
   useDashboardData.mockReturnValue(
     buildState({
@@ -135,6 +196,98 @@ it('navigates from first-time action cards', () => {
   const screen = render(
     <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
   );
+
+  await waitFor(() => {
+    expect(screen.getByLabelText('Add a Mare')).toBeTruthy();
+    expect(screen.getByText('Get started')).toBeTruthy();
+  });
+  expect(screen.queryByText('Skip')).toBeNull();
+});
+
+it('dismisses onboarding when skip is pressed', async () => {
+  const navigation = createNavigation();
+  onboardingStorage.getOnboardingComplete.mockResolvedValue(false);
+  useDashboardData.mockReturnValue(
+    buildState({
+      totalMares: 0,
+      totalStallions: 0,
+      alerts: [],
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => expect(screen.getByText('Skip')).toBeTruthy());
+
+  fireEvent.press(screen.getByText('Skip'));
+
+  await waitFor(() => {
+    expect(screen.getByLabelText('Add a Mare')).toBeTruthy();
+    expect(screen.queryByText('Skip')).toBeNull();
+  });
+  expect(onboardingStorage.setOnboardingComplete).toHaveBeenCalledTimes(1);
+});
+
+it('dismisses onboarding even if the completion write fails', async () => {
+  const navigation = createNavigation();
+  onboardingStorage.getOnboardingComplete.mockResolvedValue(false);
+  onboardingStorage.setOnboardingComplete.mockRejectedValue(new Error('write failed'));
+  useDashboardData.mockReturnValue(
+    buildState({
+      totalMares: 0,
+      totalStallions: 0,
+      alerts: [],
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => expect(screen.getByText('Skip')).toBeTruthy());
+  fireEvent.press(screen.getByText('Skip'));
+
+  await waitFor(() => expect(screen.getByLabelText('Add a Mare')).toBeTruthy());
+});
+
+it('falls back to the empty dashboard when onboarding state cannot be read', async () => {
+  const navigation = createNavigation();
+  onboardingStorage.getOnboardingComplete.mockRejectedValue(new Error('read failed'));
+  useDashboardData.mockReturnValue(
+    buildState({
+      totalMares: 0,
+      totalStallions: 0,
+      alerts: [],
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => {
+    expect(screen.getByLabelText('Add a Mare')).toBeTruthy();
+    expect(screen.queryByText('Skip')).toBeNull();
+  });
+});
+
+it('navigates from empty-dashboard action cards', async () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(
+    buildState({
+      totalMares: 0,
+      totalStallions: 0,
+      alerts: [],
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => expect(screen.getByLabelText('Add a Mare')).toBeTruthy());
 
   fireEvent.press(screen.getByLabelText('Add a Mare'));
   expect(navigation.navigate).toHaveBeenCalledWith('EditMare');
@@ -143,7 +296,20 @@ it('navigates from first-time action cards', () => {
   expect(navigation.navigate).toHaveBeenCalledWith('StallionForm', {});
 });
 
-it('shows the all caught up state when there are no alerts', () => {
+it('auto-completes onboarding when animals already exist', async () => {
+  const navigation = createNavigation();
+  onboardingStorage.getOnboardingComplete.mockResolvedValue(false);
+  useDashboardData.mockReturnValue(buildState());
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => expect(screen.getByLabelText('3 Mares')).toBeTruthy());
+  expect(onboardingStorage.setOnboardingComplete).toHaveBeenCalledTimes(1);
+});
+
+it('shows the all caught up state when there are no alerts', async () => {
   const navigation = createNavigation();
   useDashboardData.mockReturnValue(
     buildState({
@@ -155,10 +321,10 @@ it('shows the all caught up state when there are no alerts', () => {
     <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
   );
 
-  expect(screen.getByText('All caught up! No tasks today.')).toBeTruthy();
+  await waitFor(() => expect(screen.getByText('All caught up! No tasks today.')).toBeTruthy());
 });
 
-it('shows hook-level load errors', () => {
+it('shows hook-level load errors', async () => {
   const navigation = createNavigation();
   useDashboardData.mockReturnValue(
     buildState({
@@ -171,5 +337,5 @@ it('shows hook-level load errors', () => {
     <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
   );
 
-  expect(screen.getByText('Failed to load dashboard data.')).toBeTruthy();
+  await waitFor(() => expect(screen.getByText('Failed to load dashboard data.')).toBeTruthy());
 });

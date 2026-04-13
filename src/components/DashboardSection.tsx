@@ -34,11 +34,16 @@ export function DashboardSection({
         accessibilityRole="button"
         accessibilityLabel={collapsible ? (isCollapsed ? 'Show tasks' : 'Hide tasks') : 'Tasks'}
       >
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>Today's Tasks</Text>
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{alerts.length}</Text>
+        <View style={styles.headerContent}>
+          <View style={styles.headerLeft}>
+            <Text style={styles.headerTitle}>Today's Tasks</Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{alerts.length}</Text>
+            </View>
           </View>
+          <Text style={styles.headerSubtitle}>
+            Prioritized checks and follow-ups for the mares that need attention first.
+          </Text>
         </View>
         {collapsible ? (
           <MaterialCommunityIcons
@@ -74,11 +79,20 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   header: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    backgroundColor: colors.surface,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginBottom: spacing.md,
-    paddingVertical: spacing.xs,
+    padding: spacing.md,
+  },
+  headerContent: {
+    flex: 1,
+    gap: spacing.xs,
+    paddingRight: spacing.sm,
   },
   headerLeft: {
     alignItems: 'center',
@@ -101,6 +115,10 @@ const styles = StyleSheet.create({
   countText: {
     ...typography.labelSmall,
     color: colors.onSecondaryContainer,
+  },
+  headerSubtitle: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   alertList: {
     gap: spacing.sm,
