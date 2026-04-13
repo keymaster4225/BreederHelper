@@ -37,6 +37,16 @@ export function useOnboardingState(hasAnimals: boolean): OnboardingState {
   useEffect(() => {
     let isActive = true;
 
+    if (hasAnimals) {
+      setOnboardingCompleteState(true);
+      setIsOnboardingLoading(false);
+      void persistCompletion();
+
+      return () => {
+        isActive = false;
+      };
+    }
+
     const loadOnboardingState = async () => {
       try {
         const storedValue = await getOnboardingComplete();
@@ -64,16 +74,7 @@ export function useOnboardingState(hasAnimals: boolean): OnboardingState {
     return () => {
       isActive = false;
     };
-  }, []);
-
-  useEffect(() => {
-    if (!hasAnimals || onboardingComplete) {
-      return;
-    }
-
-    setOnboardingCompleteState(true);
-    void persistCompletion();
-  }, [hasAnimals, onboardingComplete, persistCompletion]);
+  }, [hasAnimals, persistCompletion]);
 
   return {
     onboardingComplete,
