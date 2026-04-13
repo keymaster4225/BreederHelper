@@ -26,6 +26,11 @@ jest.mock('@/utils/buildProfile', () => ({
   canSeedPreviewData: jest.fn(),
 }));
 
+jest.mock('@/utils/onboarding', () => ({
+  getOnboardingComplete: jest.fn(),
+  setOnboardingComplete: jest.fn(),
+}));
+
 const { DashboardScreen } = require('@/screens/DashboardScreen') as typeof import('@/screens/DashboardScreen');
 const { useDashboardData } = jest.requireMock('@/hooks/useDashboardData') as {
   useDashboardData: jest.Mock;
