@@ -25,32 +25,33 @@ const CAROUSEL_PAGES: readonly {
     heading: 'Daily Observations',
     icon: 'clipboard-text-outline',
     accentColor: colors.primary,
-    kicker: 'Daily rhythm',
+    kicker: 'Daily Observations',
     lines: [
-      'Record heat scores, teasing, and edema',
-      'Track ovulation to time breedings',
       'See which mares need attention first',
+      'Track ovulation for precise timing',
+      'Record teasing scores, ultrasound results, and more',
+      
     ],
   },
   {
     heading: 'Breeding Through Foaling',
-    icon: 'needle',
+    icon: 'calendar-heart',
     accentColor: colors.secondary,
-    kicker: 'Breeding pipeline',
+    kicker: 'Breeding Workflow',
     lines: [
-      'Log breedings with method and stallion',
+      'Quickly log breeding events and outcomes',
       'Track pregnancy checks and due dates',
-      'Record foaling outcomes and foal milestones',
+      'Record foaling details and early foal milestones',
     ],
   },
   {
     heading: 'Stallions & Medications',
     icon: 'test-tube',
     accentColor: colors.tertiary,
-    kicker: 'Support records',
+    kicker: 'Stallions & Medications',
     lines: [
       'Manage stallion profiles and collections',
-      'Track AV preferences and collection history',
+      'Track collection history and AV preferences',
       'Log medications for any animal',
     ],
   },
@@ -74,10 +75,9 @@ export function OnboardingCarousel({
       >
         <View key="welcome" style={styles.page}>
           <View style={styles.pageContent}>
-
             <Text style={styles.heading}>Welcome to BreedWise</Text>
             <Text style={styles.subtitle}>
-              Keep your mares, stallions, and breeding records in one calm workspace.
+              All your mares, stallions, and breeding records — organized and paperwork-free.
             </Text>
 
             <View style={styles.hintRow}>
@@ -137,7 +137,6 @@ export function OnboardingCarousel({
                     </View>
                   </View>
 
-                  <Text style={styles.heading}>{page.heading}</Text>
                   <View style={styles.lineGroup}>
                     {page.lines.map((line) => (
                       <View key={line} style={styles.lineCard}>
@@ -191,7 +190,6 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     width: '100%',
   },
-
   heading: {
     ...typography.headlineSmall,
     color: colors.onSurface,
@@ -254,13 +252,11 @@ const styles = StyleSheet.create({
     width: 84,
   },
   featureKicker: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.full,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
   featureKickerText: {
-    ...typography.labelMedium,
+    ...typography.headlineSmall,
     color: colors.onSurface,
   },
   lineGroup: {
