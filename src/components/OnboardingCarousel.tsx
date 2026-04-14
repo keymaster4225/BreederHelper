@@ -74,21 +74,6 @@ export function OnboardingCarousel({
       >
         <View key="welcome" style={styles.page}>
           <View style={styles.pageContent}>
-            <View style={styles.heroPanel}>
-              <View style={styles.heroGlowPrimary} />
-              <View style={styles.heroGlowSecondary} />
-              <View style={styles.heroBadge}>
-                <MaterialCommunityIcons name="star-four-points-outline" size={16} color={colors.onPrimaryContainer} />
-                <Text style={styles.heroBadgeText}>Offline-first breeding records</Text>
-              </View>
-              <View style={styles.heroMark}>
-                <MaterialCommunityIcons name="horse-variant" size={46} color={colors.onPrimaryContainer} />
-              </View>
-              <View style={styles.heroMiniCard}>
-                <MaterialCommunityIcons name="calendar-heart" size={18} color={colors.secondary} />
-                <Text style={styles.heroMiniCardText}>Daily logs, preg checks, and foaling follow-ups</Text>
-              </View>
-            </View>
 
             <Text style={styles.heading}>Welcome to BreedWise</Text>
             <Text style={styles.subtitle}>
@@ -206,68 +191,7 @@ const styles = StyleSheet.create({
     maxWidth: 360,
     width: '100%',
   },
-  heroPanel: {
-    alignItems: 'center',
-    backgroundColor: colors.primaryContainer,
-    borderRadius: borderRadius.xl,
-    gap: spacing.md,
-    overflow: 'hidden',
-    padding: spacing.xl,
-    width: '100%',
-  },
-  heroGlowPrimary: {
-    backgroundColor: `${colors.secondary}22`,
-    borderRadius: borderRadius.full,
-    height: 140,
-    position: 'absolute',
-    right: -30,
-    top: -24,
-    width: 140,
-  },
-  heroGlowSecondary: {
-    backgroundColor: `${colors.tertiary}18`,
-    borderRadius: borderRadius.full,
-    bottom: -36,
-    height: 120,
-    left: -28,
-    position: 'absolute',
-    width: 120,
-  },
-  heroBadge: {
-    alignItems: 'center',
-    alignSelf: 'stretch',
-    flexDirection: 'row',
-    gap: spacing.xs,
-    justifyContent: 'center',
-  },
-  heroBadgeText: {
-    ...typography.labelMedium,
-    color: colors.onPrimaryContainer,
-  },
-  heroMark: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.full,
-    height: 92,
-    justifyContent: 'center',
-    width: 92,
-  },
-  heroMiniCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.outlineVariant,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  heroMiniCardText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-    flex: 1,
-  },
+
   heading: {
     ...typography.headlineSmall,
     color: colors.onSurface,

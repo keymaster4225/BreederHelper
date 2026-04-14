@@ -154,6 +154,7 @@ it('shows the onboarding carousel when there are no animals and onboarding is in
     expect(screen.getByText('Welcome to BreedWise')).toBeTruthy();
     expect(screen.getByText('Swipe to learn more')).toBeTruthy();
     expect(screen.getByText('Skip')).toBeTruthy();
+    expect(screen.queryByText('Offline-first breeding records')).toBeNull();
   });
 });
 
