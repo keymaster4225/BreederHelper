@@ -48,8 +48,8 @@ function StatCard({
       <View style={[styles.statIconWrap, { backgroundColor: `${accentColor}1A` }]}>
         <MaterialCommunityIcons name={iconName} size={20} color={accentColor} />
       </View>
-      <Text style={styles.statCount}>{count}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statCount}>{count}</Text>
       <Text style={styles.statCaption}>{caption}</Text>
     </Pressable>
   );
@@ -224,7 +224,7 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
                 count={totalMares}
                 iconName="horse"
                 accentColor={colors.primary}
-                caption="Profiles on file"
+                caption="Active"
                 onPress={() => navigateToMares('all')}
               />
               <StatCard
@@ -232,7 +232,7 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
                 count={pregnantMares}
                 iconName="stethoscope"
                 accentColor={colors.pregnant}
-                caption="Due-date pipeline"
+                caption="Expecting"
                 onPress={() => navigateToMares('pregnant')}
               />
               <StatCard
@@ -240,7 +240,7 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
                 count={totalStallions}
                 iconName="horse-variant"
                 accentColor={colors.tertiary}
-                caption="Collection records"
+                caption="Active"
                 onPress={() => navigateToStallions()}
               />
             </View>
