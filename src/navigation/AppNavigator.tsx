@@ -16,6 +16,7 @@ import { StallionDetailScreen } from '@/screens/StallionDetailScreen';
 import { StallionFormScreen } from '@/screens/StallionFormScreen';
 import { CollectionFormScreen } from '@/screens/CollectionFormScreen';
 import { AVPreferencesFormScreen } from '@/screens/AVPreferencesFormScreen';
+import { DataBackupScreen } from '@/screens/DataBackupScreen';
 
 import { FoalSex } from '@/models/types';
 import { colors } from '@/theme';
@@ -24,6 +25,7 @@ export type TabParamList = {
   Home: undefined;
   Mares: { initialFilter?: 'all' | 'pregnant' | 'open'; requestKey?: string } | undefined;
   Stallions: undefined;
+  Settings: undefined;
 };
 
 export type RootStackParamList = {
@@ -41,6 +43,7 @@ export type RootStackParamList = {
   FoalForm: { mareId: string; foalingRecordId: string; foalId?: string; defaultSex?: FoalSex | null };
   MedicationForm: { mareId: string; medicationLogId?: string };
   MareCalendar: { mareId: string };
+  DataBackup: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -72,6 +75,7 @@ export function AppNavigator(): JSX.Element {
         <Stack.Screen name="CollectionForm" component={CollectionFormScreen} options={{ title: 'Collection' }} />
         <Stack.Screen name="AVPreferencesForm" component={AVPreferencesFormScreen} options={{ title: 'AV Preferences' }} />
         <Stack.Screen name="MareCalendar" component={MareCalendarScreen} options={{ title: 'Calendar' }} />
+        <Stack.Screen name="DataBackup" component={DataBackupScreen} options={{ title: 'Data Backup & Restore' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

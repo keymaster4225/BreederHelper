@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { DashboardScreen } from '@/screens/DashboardScreen';
 import { HomeScreen } from '@/screens/HomeScreen';
 import { StallionManagementScreen } from '@/screens/StallionManagementScreen';
+import { SettingsScreen } from '@/screens/SettingsScreen';
 import { TabParamList } from '@/navigation/AppNavigator';
 import { colors } from '@/theme';
 
@@ -56,6 +57,20 @@ export function TabNavigator(): JSX.Element {
           title: 'Stallions',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="horse-variant" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          title: 'Settings',
+          tabBarIcon: ({ focused, color, size }) => (
+            <MaterialCommunityIcons
+              name={focused ? 'cog' : 'cog-outline'}
+              size={size}
+              color={color}
+            />
           ),
         }}
       />

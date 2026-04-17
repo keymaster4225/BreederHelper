@@ -8,5 +8,9 @@ export async function getOnboardingComplete(): Promise<boolean> {
 }
 
 export async function setOnboardingComplete(): Promise<void> {
-  await AsyncStorage.setItem(KEY, 'true');
+  await setOnboardingCompleteValue(true);
+}
+
+export async function setOnboardingCompleteValue(value: boolean): Promise<void> {
+  await AsyncStorage.setItem(KEY, value ? 'true' : 'false');
 }

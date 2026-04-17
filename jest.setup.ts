@@ -38,12 +38,55 @@ jest.mock('expo-font', () => ({
   loadAsync: jest.fn(),
 }));
 
+jest.mock('expo-file-system', () => ({
+  documentDirectory: 'file:///mock-documents/',
+  cacheDirectory: 'file:///mock-cache/',
+  Directory: jest.fn(),
+  File: jest.fn(),
+  Paths: {
+    document: 'file:///mock-documents/',
+    cache: 'file:///mock-cache/',
+  },
+  makeDirectoryAsync: jest.fn(),
+  writeAsStringAsync: jest.fn(),
+  readAsStringAsync: jest.fn(),
+  getInfoAsync: jest.fn(),
+  deleteAsync: jest.fn(),
+  moveAsync: jest.fn(),
+  copyAsync: jest.fn(),
+  readDirectoryAsync: jest.fn(),
+}));
+
+jest.mock('expo-file-system/legacy', () => ({
+  documentDirectory: 'file:///mock-documents/',
+  cacheDirectory: 'file:///mock-cache/',
+  makeDirectoryAsync: jest.fn(),
+  writeAsStringAsync: jest.fn(),
+  readAsStringAsync: jest.fn(),
+  getInfoAsync: jest.fn(),
+  deleteAsync: jest.fn(),
+  moveAsync: jest.fn(),
+  copyAsync: jest.fn(),
+  readDirectoryAsync: jest.fn(),
+}));
+
+jest.mock('expo-sharing', () => ({
+  isAvailableAsync: jest.fn().mockResolvedValue(true),
+  shareAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn().mockResolvedValue({ canceled: true, assets: null }),
+}));
+
 jest.mock('@/storage/useAppBootstrap', () => ({
   useAppBootstrap: () => ({ isReady: true, error: null, errorReportId: null }),
 }));
 
 jest.mock('@/utils/onboarding', () => ({
   getOnboardingComplete: jest.fn().mockResolvedValue(true),
+  setOnboardingComplete: jest.fn().mockResolvedValue(undefined),
+  setOnboardingCompleteValue: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('@expo/vector-icons', () => ({

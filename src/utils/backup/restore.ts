@@ -1,0 +1,495 @@
+import { emitDataInvalidation } from '@/storage/dataInvalidation';
+import { getDb } from '@/storage/db';
+import { setOnboardingCompleteValue } from '@/utils/onboarding';
+
+import { createSafetySnapshot } from './safetyBackups';
+import type {
+  BackupBreedingRecordRow,
+  BackupCollectionDoseEventRow,
+  BackupDailyLogRow,
+  BackupEnvelopeV1,
+  BackupFoalingRecordRow,
+  BackupFoalRow,
+  BackupMareRow,
+  BackupMedicationLogRow,
+  BackupPregnancyCheckRow,
+  BackupSemenCollectionRow,
+  BackupStallionRow,
+  RestoreBackupResult,
+} from './types';
+import { validateBackup, validateBackupJson } from './validate';
+
+type RestoreOptions = {
+  readonly skipSafetySnapshot?: boolean;
+  readonly onStepChange?: (stepLabel: string) => void;
+};
+
+export async function restoreBackup(
+  candidate: string | BackupEnvelopeV1 | unknown,
+  options: RestoreOptions = {},
+): Promise<RestoreBackupResult> {
+  options.onStepChange?.('Validating backup...');
+
+  const validation =
+    typeof candidate === 'string' ? validateBackupJson(candidate) : validateBackup(candidate);
+
+  if (!validation.ok) {
+    return {
+      ok: false,
+      errorMessage: validation.error.message,
+    };
+  }
+
+  try {
+    if (!options.skipSafetySnapshot) {
+      options.onStepChange?.('Creating safety snapshot...');
+      await createSafetySnapshot();
+    }
+
+    const db = await getDb();
+    options.onStepChange?.('Restoring data...');
+    await db.withTransactionAsync(async () => {
+      await deleteManagedTables(db);
+      await insertManagedTables(db, validation.backup);
+    });
+
+    let warningMessage: string | undefined;
+
+    try {
+      options.onStepChange?.('Updating app settings...');
+      await setOnboardingCompleteValue(validation.backup.settings.onboardingComplete);
+    } catch {
+      warningMessage =
+        'Breeding data was restored, but onboarding state could not be updated. Close and reopen the app if the home screen looks incorrect.';
+    }
+
+    emitDataInvalidation('all');
+
+    return {
+      ok: true,
+      warningMessage,
+      safetySnapshotCreated: !options.skipSafetySnapshot,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      errorMessage:
+        error instanceof Error ? error.message : 'Restore failed unexpectedly.',
+    };
+  }
+}
+
+async function deleteManagedTables(db: Awaited<ReturnType<typeof getDb>>): Promise<void> {
+  await db.runAsync('DELETE FROM collection_dose_events;');
+  await db.runAsync('DELETE FROM foals;');
+  await db.runAsync('DELETE FROM pregnancy_checks;');
+  await db.runAsync('DELETE FROM foaling_records;');
+  await db.runAsync('DELETE FROM medication_logs;');
+  await db.runAsync('DELETE FROM daily_logs;');
+  await db.runAsync('DELETE FROM breeding_records;');
+  await db.runAsync('DELETE FROM semen_collections;');
+  await db.runAsync('DELETE FROM mares;');
+  await db.runAsync('DELETE FROM stallions;');
+}
+
+async function insertManagedTables(
+  db: Awaited<ReturnType<typeof getDb>>,
+  backup: BackupEnvelopeV1,
+): Promise<void> {
+  for (const row of backup.tables.mares) {
+    await insertMare(db, row);
+  }
+  for (const row of backup.tables.stallions) {
+    await insertStallion(db, row);
+  }
+  for (const row of backup.tables.semen_collections) {
+    await insertSemenCollection(db, row);
+  }
+  for (const row of backup.tables.breeding_records) {
+    await insertBreedingRecord(db, row);
+  }
+  for (const row of backup.tables.daily_logs) {
+    await insertDailyLog(db, row);
+  }
+  for (const row of backup.tables.medication_logs) {
+    await insertMedicationLog(db, row);
+  }
+  for (const row of backup.tables.pregnancy_checks) {
+    await insertPregnancyCheck(db, row);
+  }
+  for (const row of backup.tables.foaling_records) {
+    await insertFoalingRecord(db, row);
+  }
+  for (const row of backup.tables.foals) {
+    await insertFoal(db, row);
+  }
+  for (const row of backup.tables.collection_dose_events) {
+    await insertCollectionDoseEvent(db, row);
+  }
+}
+
+async function insertMare(db: Awaited<ReturnType<typeof getDb>>, row: BackupMareRow): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO mares (
+      id,
+      name,
+      breed,
+      date_of_birth,
+      registration_number,
+      notes,
+      created_at,
+      updated_at,
+      deleted_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.name,
+      row.breed,
+      row.date_of_birth,
+      row.registration_number,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+      row.deleted_at,
+    ],
+  );
+}
+
+async function insertStallion(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupStallionRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO stallions (
+      id,
+      name,
+      breed,
+      registration_number,
+      sire,
+      dam,
+      notes,
+      date_of_birth,
+      av_temperature_f,
+      av_type,
+      av_liner_type,
+      av_water_volume_ml,
+      av_notes,
+      created_at,
+      updated_at,
+      deleted_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.name,
+      row.breed,
+      row.registration_number,
+      row.sire,
+      row.dam,
+      row.notes,
+      row.date_of_birth,
+      row.av_temperature_f,
+      row.av_type,
+      row.av_liner_type,
+      row.av_water_volume_ml,
+      row.av_notes,
+      row.created_at,
+      row.updated_at,
+      row.deleted_at,
+    ],
+  );
+}
+
+async function insertSemenCollection(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupSemenCollectionRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO semen_collections (
+      id,
+      stallion_id,
+      collection_date,
+      raw_volume_ml,
+      extended_volume_ml,
+      concentration_millions_per_ml,
+      progressive_motility_percent,
+      dose_count,
+      dose_size_millions,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.stallion_id,
+      row.collection_date,
+      row.raw_volume_ml,
+      row.extended_volume_ml,
+      row.concentration_millions_per_ml,
+      row.progressive_motility_percent,
+      row.dose_count,
+      row.dose_size_millions,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertBreedingRecord(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupBreedingRecordRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO breeding_records (
+      id,
+      mare_id,
+      stallion_id,
+      stallion_name,
+      collection_id,
+      date,
+      method,
+      notes,
+      volume_ml,
+      concentration_m_per_ml,
+      motility_percent,
+      number_of_straws,
+      straw_volume_ml,
+      straw_details,
+      collection_date,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.mare_id,
+      row.stallion_id,
+      row.stallion_name,
+      row.collection_id,
+      row.date,
+      row.method,
+      row.notes,
+      row.volume_ml,
+      row.concentration_m_per_ml,
+      row.motility_percent,
+      row.number_of_straws,
+      row.straw_volume_ml,
+      row.straw_details,
+      row.collection_date,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertDailyLog(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupDailyLogRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO daily_logs (
+      id,
+      mare_id,
+      date,
+      teasing_score,
+      right_ovary,
+      left_ovary,
+      ovulation_detected,
+      edema,
+      uterine_tone,
+      uterine_cysts,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.mare_id,
+      row.date,
+      row.teasing_score,
+      row.right_ovary,
+      row.left_ovary,
+      row.ovulation_detected,
+      row.edema,
+      row.uterine_tone,
+      row.uterine_cysts,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertMedicationLog(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupMedicationLogRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO medication_logs (
+      id,
+      mare_id,
+      date,
+      medication_name,
+      dose,
+      route,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.mare_id,
+      row.date,
+      row.medication_name,
+      row.dose,
+      row.route,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertPregnancyCheck(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupPregnancyCheckRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO pregnancy_checks (
+      id,
+      mare_id,
+      breeding_record_id,
+      date,
+      result,
+      heartbeat_detected,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.mare_id,
+      row.breeding_record_id,
+      row.date,
+      row.result,
+      row.heartbeat_detected,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertFoalingRecord(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupFoalingRecordRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO foaling_records (
+      id,
+      mare_id,
+      breeding_record_id,
+      date,
+      outcome,
+      foal_sex,
+      complications,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.mare_id,
+      row.breeding_record_id,
+      row.date,
+      row.outcome,
+      row.foal_sex,
+      row.complications,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertFoal(db: Awaited<ReturnType<typeof getDb>>, row: BackupFoalRow): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO foals (
+      id,
+      foaling_record_id,
+      name,
+      sex,
+      color,
+      markings,
+      birth_weight_lbs,
+      milestones,
+      igg_tests,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.foaling_record_id,
+      row.name,
+      row.sex,
+      row.color,
+      row.markings,
+      row.birth_weight_lbs,
+      row.milestones,
+      row.igg_tests,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertCollectionDoseEvent(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupCollectionDoseEventRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO collection_dose_events (
+      id,
+      collection_id,
+      event_type,
+      recipient,
+      dose_count,
+      event_date,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.collection_id,
+      row.event_type,
+      row.recipient,
+      row.dose_count,
+      row.event_date,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}

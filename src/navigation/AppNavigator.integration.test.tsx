@@ -22,6 +22,23 @@ jest.mock('@/screens/StallionManagementScreen', () => ({
     return <Text>Stallion Management</Text>;
   },
 }));
+jest.mock('@/screens/SettingsScreen', () => ({
+  SettingsScreen: ({ navigation }: { navigation: { navigate: (route: string) => void } }) => {
+    const { Pressable, Text } = require('react-native');
+    return (
+      <Pressable onPress={() => navigation.navigate('DataBackup')}>
+        <Text>Settings Screen</Text>
+        <Text>Open Backup</Text>
+      </Pressable>
+    );
+  },
+}));
+jest.mock('@/screens/DataBackupScreen', () => ({
+  DataBackupScreen: () => {
+    const { Text } = require('react-native');
+    return <Text>Data Backup Screen</Text>;
+  },
+}));
 jest.mock('@/screens/BreedingRecordFormScreen', () => ({
   BreedingRecordFormScreen: () => null,
 }));
@@ -134,6 +151,19 @@ it('switches tabs from dashboard to stallions and mares', async () => {
   const mareTabs = screen.getAllByText('Mares');
   fireEvent.press(mareTabs[mareTabs.length - 1]!);
   await waitFor(() => expect(screen.getByText('Maple')).toBeTruthy());
+});
+
+it('opens settings and reaches the data backup screen', async () => {
+  const screen = render(<AppNavigator />);
+
+  await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeTruthy());
+
+  const settingsTabs = screen.getAllByText('Settings');
+  fireEvent.press(settingsTabs[settingsTabs.length - 1]!);
+  await waitFor(() => expect(screen.getByText('Settings Screen')).toBeTruthy());
+
+  fireEvent.press(screen.getByText('Open Backup'));
+  await waitFor(() => expect(screen.getByText('Data Backup Screen')).toBeTruthy());
 });
 
 it('navigates from a dashboard alert to the intended screen params', async () => {

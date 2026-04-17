@@ -1,0 +1,259 @@
+import { getDb } from '@/storage/db';
+import { getOnboardingComplete } from '@/utils/onboarding';
+
+import {
+  BACKUP_SCHEMA_VERSION_V1,
+  type BackupBreedingRecordRow,
+  type BackupCollectionDoseEventRow,
+  type BackupDailyLogRow,
+  type BackupEnvelopeV1,
+  type BackupFoalingRecordRow,
+  type BackupFoalRow,
+  type BackupMareRow,
+  type BackupMedicationLogRow,
+  type BackupPregnancyCheckRow,
+  type BackupSemenCollectionRow,
+  type BackupStallionRow,
+} from './types';
+
+type AppJsonShape = {
+  expo?: {
+    version?: string;
+  };
+};
+
+const appJson = require('../../../app.json') as AppJsonShape;
+
+function getAppVersion(): string {
+  return appJson.expo?.version ?? 'unknown';
+}
+
+export async function serializeBackup(): Promise<BackupEnvelopeV1> {
+  const db = await getDb();
+
+  const [
+    mares,
+    stallions,
+    dailyLogs,
+    breedingRecords,
+    pregnancyChecks,
+    foalingRecords,
+    foals,
+    medicationLogs,
+    semenCollections,
+    collectionDoseEvents,
+    onboardingComplete,
+  ] = await Promise.all([
+    db.getAllAsync<BackupMareRow>(
+      `
+      SELECT
+        id,
+        name,
+        breed,
+        date_of_birth,
+        registration_number,
+        notes,
+        created_at,
+        updated_at,
+        deleted_at
+      FROM mares
+      ORDER BY name COLLATE NOCASE ASC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupStallionRow>(
+      `
+      SELECT
+        id,
+        name,
+        breed,
+        registration_number,
+        sire,
+        dam,
+        notes,
+        date_of_birth,
+        av_temperature_f,
+        av_type,
+        av_liner_type,
+        av_water_volume_ml,
+        av_notes,
+        created_at,
+        updated_at,
+        deleted_at
+      FROM stallions
+      ORDER BY name COLLATE NOCASE ASC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupDailyLogRow>(
+      `
+      SELECT
+        id,
+        mare_id,
+        date,
+        teasing_score,
+        right_ovary,
+        left_ovary,
+        ovulation_detected,
+        edema,
+        uterine_tone,
+        uterine_cysts,
+        notes,
+        created_at,
+        updated_at
+      FROM daily_logs
+      ORDER BY date DESC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupBreedingRecordRow>(
+      `
+      SELECT
+        id,
+        mare_id,
+        stallion_id,
+        stallion_name,
+        collection_id,
+        date,
+        method,
+        notes,
+        volume_ml,
+        concentration_m_per_ml,
+        motility_percent,
+        number_of_straws,
+        straw_volume_ml,
+        straw_details,
+        collection_date,
+        created_at,
+        updated_at
+      FROM breeding_records
+      ORDER BY date DESC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupPregnancyCheckRow>(
+      `
+      SELECT
+        id,
+        mare_id,
+        breeding_record_id,
+        date,
+        result,
+        heartbeat_detected,
+        notes,
+        created_at,
+        updated_at
+      FROM pregnancy_checks
+      ORDER BY date DESC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupFoalingRecordRow>(
+      `
+      SELECT
+        id,
+        mare_id,
+        breeding_record_id,
+        date,
+        outcome,
+        foal_sex,
+        complications,
+        notes,
+        created_at,
+        updated_at
+      FROM foaling_records
+      ORDER BY date DESC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupFoalRow>(
+      `
+      SELECT
+        id,
+        foaling_record_id,
+        name,
+        sex,
+        color,
+        markings,
+        birth_weight_lbs,
+        milestones,
+        igg_tests,
+        notes,
+        created_at,
+        updated_at
+      FROM foals
+      ORDER BY foaling_record_id ASC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupMedicationLogRow>(
+      `
+      SELECT
+        id,
+        mare_id,
+        date,
+        medication_name,
+        dose,
+        route,
+        notes,
+        created_at,
+        updated_at
+      FROM medication_logs
+      ORDER BY date DESC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupSemenCollectionRow>(
+      `
+      SELECT
+        id,
+        stallion_id,
+        collection_date,
+        raw_volume_ml,
+        extended_volume_ml,
+        concentration_millions_per_ml,
+        progressive_motility_percent,
+        dose_count,
+        dose_size_millions,
+        notes,
+        created_at,
+        updated_at
+      FROM semen_collections
+      ORDER BY collection_date DESC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupCollectionDoseEventRow>(
+      `
+      SELECT
+        id,
+        collection_id,
+        event_type,
+        recipient,
+        dose_count,
+        event_date,
+        notes,
+        created_at,
+        updated_at
+      FROM collection_dose_events
+      ORDER BY created_at DESC, id ASC;
+      `,
+    ),
+    getOnboardingComplete(),
+  ]);
+
+  return {
+    schemaVersion: BACKUP_SCHEMA_VERSION_V1,
+    createdAt: new Date().toISOString(),
+    app: {
+      name: 'BreedWise',
+      version: getAppVersion(),
+    },
+    settings: {
+      onboardingComplete,
+    },
+    tables: {
+      mares,
+      stallions,
+      daily_logs: dailyLogs,
+      breeding_records: breedingRecords,
+      pregnancy_checks: pregnancyChecks,
+      foaling_records: foalingRecords,
+      foals,
+      medication_logs: medicationLogs,
+      semen_collections: semenCollections,
+      collection_dose_events: collectionDoseEvents,
+    },
+  };
+}

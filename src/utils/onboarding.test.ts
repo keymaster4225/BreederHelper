@@ -8,7 +8,11 @@ vi.mock('@react-native-async-storage/async-storage', () => ({
 }));
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getOnboardingComplete, setOnboardingComplete } from './onboarding';
+import {
+  getOnboardingComplete,
+  setOnboardingComplete,
+  setOnboardingCompleteValue,
+} from './onboarding';
 
 const mockGetItem = AsyncStorage.getItem as ReturnType<typeof vi.fn>;
 const mockSetItem = AsyncStorage.setItem as ReturnType<typeof vi.fn>;
@@ -34,5 +38,19 @@ describe('setOnboardingComplete', () => {
     mockSetItem.mockResolvedValue(undefined);
     await setOnboardingComplete();
     expect(mockSetItem).toHaveBeenCalledWith('onboarding_complete', 'true');
+  });
+});
+
+describe('setOnboardingCompleteValue', () => {
+  it('writes "true" when true is provided', async () => {
+    mockSetItem.mockResolvedValue(undefined);
+    await setOnboardingCompleteValue(true);
+    expect(mockSetItem).toHaveBeenCalledWith('onboarding_complete', 'true');
+  });
+
+  it('writes "false" when false is provided', async () => {
+    mockSetItem.mockResolvedValue(undefined);
+    await setOnboardingCompleteValue(false);
+    expect(mockSetItem).toHaveBeenCalledWith('onboarding_complete', 'false');
   });
 });
