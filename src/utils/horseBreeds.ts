@@ -1,0 +1,17 @@
+export const HORSE_BREEDS: readonly string[] = [
+  'Hanoverian',
+  'KWPN',
+  'Oldenburg (GOV)',
+  'Oldenburg (ISR/OLD)',
+  'Westfalen',
+  'Trakehner',
+  'Holsteiner',
+  'Thoroughbred',
+  'Swedish Warmblood',
+  'Belgian Warmblood',
+  'Irish Sport Horse',
+  'American Warmblood',
+  'Quarter Horse',
+  'Paint',
+  'Morgan',
+];

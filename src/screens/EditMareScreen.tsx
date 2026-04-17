@@ -10,26 +10,9 @@ import { RootStackParamList } from '@/navigation/AppNavigator';
 import { createMare, getMareById, softDeleteMare, updateMare } from '@/storage/repositories';
 import { colors } from '@/theme';
 import { confirmDelete } from '@/utils/confirmDelete';
+import { HORSE_BREEDS } from '@/utils/horseBreeds';
 import { newId } from '@/utils/id';
 import { normalizeLocalDate, validateLocalDate, validateRequired } from '@/utils/validation';
-
-const HORSE_BREEDS = [
-  'Hanoverian',
-  'KWPN',
-  'Oldenburg (GOV)',
-  'Oldenburg (ISR/OLD)',
-  'Westfalen',
-  'Trakehner',
-  'Holsteiner',
-  'Thoroughbred',
-  'Swedish Warmblood',
-  'Belgian Warmblood',
-  'Irish Sport Horse',
-  'American Warmblood',
-  'Quarter Horse',
-  'Paint',
-  'Morgan',
-];
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditMare'>;
 

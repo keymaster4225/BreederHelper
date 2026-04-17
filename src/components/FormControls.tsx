@@ -171,8 +171,9 @@ export function FormPickerInput({
 type FormSelectInputProps = {
   value: string;
   onChange: (value: string) => void;
-  options: string[];
+  options: readonly string[];
   placeholder?: string;
+  clearable?: boolean;
 };
 
 export function FormSelectInput({
@@ -180,6 +181,7 @@ export function FormSelectInput({
   onChange,
   options,
   placeholder = 'Select…',
+  clearable = false,
 }: FormSelectInputProps): JSX.Element {
   const [open, setOpen] = useState(false);
 
@@ -199,6 +201,19 @@ export function FormSelectInput({
         <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
           <View style={styles.modalSheet}>
             <ScrollView bounces={false}>
+              {clearable && value ? (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.modalOption,
+                    styles.modalOptionClear,
+                    pressed && styles.modalOptionPressed,
+                  ]}
+                  onPress={() => { onChange(''); setOpen(false); }}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.modalOptionClearText}>Clear selection</Text>
+                </Pressable>
+              ) : null}
               {options.map((option) => (
                 <Pressable
                   key={option}
@@ -423,5 +438,13 @@ const styles = StyleSheet.create({
   modalOptionTextActive: {
     color: colors.primary,
     ...typography.labelLarge,
+  },
+  modalOptionClear: {
+    borderBottomColor: colors.outlineVariant,
+    borderBottomWidth: 1,
+  },
+  modalOptionClearText: {
+    color: colors.onSurfaceVariant,
+    ...typography.labelMedium,
   },
 });
