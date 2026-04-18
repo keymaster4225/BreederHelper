@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Calendar, DateData } from 'react-native-calendars';
@@ -128,6 +129,16 @@ export function MareCalendarScreen({ navigation, route }: Props): JSX.Element {
     setSelectedDay(day.dateString as LocalDate);
   }, []);
 
+  const renderCalendarArrow = useCallback((direction: 'left' | 'right') => {
+    return (
+      <MaterialCommunityIcons
+        name={direction === 'left' ? 'chevron-left' : 'chevron-right'}
+        size={24}
+        color={colors.primary}
+      />
+    );
+  }, []);
+
   if (isLoading) {
     return (
       <Screen>
@@ -151,6 +162,7 @@ export function MareCalendarScreen({ navigation, route }: Props): JSX.Element {
           markingType="multi-dot"
           markedDates={markedDates}
           onDayPress={handleDayPress}
+          renderArrow={renderCalendarArrow}
           theme={calendarTheme}
           enableSwipeMonths
         />
