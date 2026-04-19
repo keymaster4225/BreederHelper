@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, V
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
-import { FormDateInput, FormField, FormSelectInput, FormTextInput, formStyles } from '@/components/FormControls';
+import { FormAutocompleteInput, FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
 import { useRecordForm } from '@/hooks/useRecordForm';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -15,7 +15,7 @@ import {
 } from '@/storage/repositories';
 import { colors } from '@/theme';
 import { confirmDelete } from '@/utils/confirmDelete';
-import { HORSE_BREEDS } from '@/utils/horseBreeds';
+import { getBreedSuggestions, HORSE_BREEDS } from '@/utils/horseBreeds';
 import { newId } from '@/utils/id';
 import {
   validateLocalDate,
@@ -174,12 +174,14 @@ export function StallionFormScreen({ navigation, route }: Props): JSX.Element {
           </FormField>
 
           <FormField label="Breed">
-            <FormSelectInput
+            <FormAutocompleteInput
               value={breed}
-              onChange={setBreed}
+              onChangeText={setBreed}
               options={HORSE_BREEDS}
-              placeholder="Select breed (optional)"
-              clearable
+              getSuggestions={getBreedSuggestions}
+              placeholder="Type or select breed (optional)"
+              autoCapitalize="words"
+              autoCorrect={false}
             />
           </FormField>
 

@@ -3,14 +3,14 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
-import { FormDateInput, FormField, FormSelectInput, FormTextInput, formStyles } from '@/components/FormControls';
+import { FormAutocompleteInput, FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
 import { useRecordForm } from '@/hooks/useRecordForm';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { createMare, getMareById, softDeleteMare, updateMare } from '@/storage/repositories';
 import { colors } from '@/theme';
 import { confirmDelete } from '@/utils/confirmDelete';
-import { HORSE_BREEDS } from '@/utils/horseBreeds';
+import { getBreedSuggestions, HORSE_BREEDS } from '@/utils/horseBreeds';
 import { newId } from '@/utils/id';
 import { normalizeLocalDate, validateLocalDate, validateRequired } from '@/utils/validation';
 
@@ -163,7 +163,15 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
         </FormField>
 
         <FormField label="Breed" required error={errors.breed}>
-          <FormSelectInput value={breed} onChange={setBreed} options={HORSE_BREEDS} placeholder="Select breed" />
+          <FormAutocompleteInput
+            value={breed}
+            onChangeText={setBreed}
+            options={HORSE_BREEDS}
+            getSuggestions={getBreedSuggestions}
+            placeholder="Type or select breed"
+            autoCapitalize="words"
+            autoCorrect={false}
+          />
         </FormField>
 
         <FormField label="Date of Birth" error={errors.dateOfBirth}>

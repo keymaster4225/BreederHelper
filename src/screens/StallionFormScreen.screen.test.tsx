@@ -8,7 +8,8 @@ jest.mock('@/storage/repositories', () => ({
 }));
 
 const { StallionFormScreen } = require('@/screens/StallionFormScreen') as typeof import('@/screens/StallionFormScreen');
-const { getStallionById, updateStallion } = jest.requireMock('@/storage/repositories') as {
+const { createStallion, getStallionById, updateStallion } = jest.requireMock('@/storage/repositories') as {
+  createStallion: jest.Mock;
   getStallionById: jest.Mock;
   updateStallion: jest.Mock;
 };
@@ -65,6 +66,40 @@ it('loads an existing stallion and saves updates', async () => {
       'stallion-1',
       expect.objectContaining({
         name: 'Atlas',
+      }),
+    );
+    expect(navigation.goBack).toHaveBeenCalled();
+  });
+});
+
+it('filters breed suggestions and allows clearing the optional stallion breed', async () => {
+  const navigation = createNavigation();
+  createStallion.mockResolvedValue(undefined);
+
+  const screen = render(
+    <StallionFormScreen
+      navigation={navigation as never}
+      route={{ key: 'StallionForm', name: 'StallionForm', params: undefined } as never}
+    />,
+  );
+
+  const breedInput = screen.getByPlaceholderText('Type or select breed (optional)');
+
+  fireEvent.changeText(screen.getByPlaceholderText('Stallion name'), 'Atlas');
+  fireEvent.changeText(breedInput, 'warm');
+  fireEvent.press(await screen.findByText('Warmblood'));
+  await waitFor(() => {
+    expect(screen.getByDisplayValue('Warmblood')).toBeTruthy();
+  });
+
+  fireEvent.changeText(breedInput, '');
+  fireEvent.press(screen.getByText('Add Stallion'));
+
+  await waitFor(() => {
+    expect(createStallion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Atlas',
+        breed: null,
       }),
     );
     expect(navigation.goBack).toHaveBeenCalled();

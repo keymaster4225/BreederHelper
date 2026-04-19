@@ -8,7 +8,8 @@ jest.mock('@/storage/repositories', () => ({
 }));
 
 const { EditMareScreen } = require('@/screens/EditMareScreen') as typeof import('@/screens/EditMareScreen');
-const { getMareById, updateMare } = jest.requireMock('@/storage/repositories') as {
+const { createMare, getMareById, updateMare } = jest.requireMock('@/storage/repositories') as {
+  createMare: jest.Mock;
   getMareById: jest.Mock;
   updateMare: jest.Mock;
 };
@@ -51,6 +52,7 @@ it('loads an existing mare and saves updates', async () => {
     expect(getMareById).toHaveBeenCalledWith('mare-1');
   });
 
+  await screen.findByDisplayValue('Warmblood');
   fireEvent.press(screen.getByText('Save'));
 
   await waitFor(() => {
@@ -63,4 +65,73 @@ it('loads an existing mare and saves updates', async () => {
     );
     expect(navigation.goBack).toHaveBeenCalled();
   });
+});
+
+it('filters breed suggestions and saves a selected breed on create', async () => {
+  const navigation = createNavigation();
+  createMare.mockResolvedValue(undefined);
+
+  const screen = render(
+    <EditMareScreen
+      navigation={navigation as never}
+      route={{ key: 'EditMare', name: 'EditMare', params: undefined } as never}
+    />,
+  );
+
+  fireEvent.changeText(screen.getByPlaceholderText('Mare name'), 'Luna');
+  fireEvent.changeText(screen.getByPlaceholderText('Type or select breed'), 'warm');
+  fireEvent.press(await screen.findByText('Warmblood'));
+  fireEvent.press(screen.getByText('Save'));
+
+  await waitFor(() => {
+    expect(createMare).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Luna',
+        breed: 'Warmblood',
+      }),
+    );
+    expect(navigation.goBack).toHaveBeenCalled();
+  });
+});
+
+it('saves a custom typed breed for a mare', async () => {
+  const navigation = createNavigation();
+  createMare.mockResolvedValue(undefined);
+
+  const screen = render(
+    <EditMareScreen
+      navigation={navigation as never}
+      route={{ key: 'EditMare', name: 'EditMare', params: undefined } as never}
+    />,
+  );
+
+  fireEvent.changeText(screen.getByPlaceholderText('Mare name'), 'Nova');
+  fireEvent.changeText(screen.getByPlaceholderText('Type or select breed'), 'Spanish Barb Cross');
+  fireEvent.press(screen.getByText('Save'));
+
+  await waitFor(() => {
+    expect(createMare).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Nova',
+        breed: 'Spanish Barb Cross',
+      }),
+    );
+  });
+});
+
+it('requires a breed for mares', () => {
+  const navigation = createNavigation();
+
+  const screen = render(
+    <EditMareScreen
+      navigation={navigation as never}
+      route={{ key: 'EditMare', name: 'EditMare', params: undefined } as never}
+    />,
+  );
+
+  fireEvent.changeText(screen.getByPlaceholderText('Mare name'), 'Nova');
+  fireEvent.press(screen.getByText('Save'));
+
+  expect(createMare).not.toHaveBeenCalled();
+  expect(screen.getByText('Breed is required.')).toBeTruthy();
 });

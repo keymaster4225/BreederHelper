@@ -3,7 +3,7 @@ import { Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, Tex
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
 import { formatLocalDate, fromLocalDate, toLocalDate } from '@/utils/dates';
-import { borderRadius, colors, spacing, typography } from '@/theme';
+import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type FormFieldProps = {
   label: string;
@@ -233,6 +233,105 @@ export function FormSelectInput({
   );
 }
 
+type SuggestionProvider = (
+  query: string,
+  options: readonly string[],
+  limit: number,
+) => readonly string[];
+
+type FormAutocompleteInputProps = Omit<TextInputProps, 'onChangeText' | 'value'> & {
+  value: string;
+  onChangeText: (value: string) => void;
+  options: readonly string[];
+  maxSuggestions?: number;
+  getSuggestions?: SuggestionProvider;
+};
+
+export function FormAutocompleteInput({
+  value,
+  onChangeText,
+  options,
+  maxSuggestions = 8,
+  getSuggestions,
+  onBlur,
+  onFocus,
+  placeholder,
+  style,
+  ...rest
+}: FormAutocompleteInputProps): JSX.Element {
+  const [isFocused, setIsFocused] = useState(false);
+  const suggestions = useMemo(() => {
+    if (getSuggestions) {
+      return [...getSuggestions(value, options, maxSuggestions)];
+    }
+
+    const normalizedQuery = value.trim().toLowerCase();
+    const normalizedOptions = Array.from(new Set(options.map((option) => option.trim()).filter(Boolean)));
+
+    if (!normalizedQuery) {
+      return normalizedOptions.slice(0, maxSuggestions);
+    }
+
+    return normalizedOptions
+      .filter((option) => option.toLowerCase().includes(normalizedQuery))
+      .slice(0, maxSuggestions);
+  }, [getSuggestions, maxSuggestions, options, value]);
+
+  const showSuggestions = isFocused && suggestions.length > 0;
+
+  const selectSuggestion = (nextValue: string): void => {
+    onChangeText(nextValue);
+    setIsFocused(false);
+    Keyboard.dismiss();
+  };
+
+  return (
+    <View style={styles.autocompleteWrap}>
+      <TextInput
+        {...rest}
+        value={value}
+        onChangeText={(nextValue) => {
+          onChangeText(nextValue);
+          setIsFocused(true);
+        }}
+        onFocus={(event) => {
+          setIsFocused(true);
+          onFocus?.(event);
+        }}
+        onBlur={(event) => {
+          setIsFocused(false);
+          onBlur?.(event);
+        }}
+        placeholder={placeholder}
+        placeholderTextColor={colors.onSurfaceVariant}
+        style={[styles.input, style]}
+      />
+      {showSuggestions ? (
+        <View style={styles.autocompleteDropdown}>
+          <ScrollView
+            bounces={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
+            {suggestions.map((option) => (
+              <Pressable
+                key={option}
+                style={({ pressed }) => [styles.autocompleteOption, pressed && styles.modalOptionPressed]}
+                onPress={() => selectSuggestion(option)}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.modalOptionText, option === value && styles.modalOptionTextActive]}>
+                  {option}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 type Option<T extends string> = {
   label: string;
   value: T;
@@ -360,6 +459,25 @@ const styles = StyleSheet.create({
   },
   dateWrap: {
     gap: spacing.sm,
+  },
+  autocompleteWrap: {
+    gap: spacing.xs,
+  },
+  autocompleteDropdown: {
+    backgroundColor: colors.surface,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    maxHeight: 240,
+    overflow: 'hidden',
+    zIndex: 10,
+    ...elevation.level2,
+  },
+  autocompleteOption: {
+    minHeight: 48,
+    justifyContent: 'center' as const,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
   dateValue: {
     color: colors.onSurface,
