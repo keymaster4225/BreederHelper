@@ -39,7 +39,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - YOUR_EMAIL_HERE
+          - BreedWise@aptitudedressage.com
         notify:
           success: true
           failure: true
