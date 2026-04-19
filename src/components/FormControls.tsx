@@ -251,7 +251,7 @@ export function FormAutocompleteInput({
   value,
   onChangeText,
   options,
-  maxSuggestions = 8,
+  maxSuggestions = Number.POSITIVE_INFINITY,
   getSuggestions,
   onBlur,
   onFocus,
@@ -269,12 +269,16 @@ export function FormAutocompleteInput({
     const normalizedOptions = Array.from(new Set(options.map((option) => option.trim()).filter(Boolean)));
 
     if (!normalizedQuery) {
-      return normalizedOptions.slice(0, maxSuggestions);
+      return Number.isFinite(maxSuggestions)
+        ? normalizedOptions.slice(0, maxSuggestions)
+        : normalizedOptions;
     }
 
-    return normalizedOptions
-      .filter((option) => option.toLowerCase().includes(normalizedQuery))
-      .slice(0, maxSuggestions);
+    const matchedOptions = normalizedOptions.filter((option) => option.toLowerCase().includes(normalizedQuery));
+
+    return Number.isFinite(maxSuggestions)
+      ? matchedOptions.slice(0, maxSuggestions)
+      : matchedOptions;
   }, [getSuggestions, maxSuggestions, options, value]);
 
   const showSuggestions = isFocused && suggestions.length > 0;
