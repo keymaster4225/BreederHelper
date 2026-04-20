@@ -9,5 +9,6 @@ describe('medications', () => {
     expect(formatRoute('IM')).toBe('IM');
     expect(formatRoute('IV')).toBe('IV');
     expect(formatRoute('SQ')).toBe('SQ');
+    expect(formatRoute('topical')).toBe('topical');
   });
 });

@@ -4,8 +4,10 @@ import {
   AI_BREEDING_METHOD_OPTIONS,
   DOSE_EVENT_TYPE_OPTIONS,
   FOAL_COLOR_OPTIONS,
+  FOAL_SEX_VALUES,
   FOAL_MILESTONE_KEYS,
   FOAL_SEX_OPTIONS,
+  FOALING_OUTCOME_VALUES,
   FOALING_OUTCOME_OPTIONS,
   MEDICATION_ROUTE_OPTIONS,
   PREGNANCY_RESULT_OPTIONS,
@@ -21,10 +23,23 @@ describe('shared enum definitions', () => {
   });
 
   it('keeps foaling and foal picker options aligned with current UI behavior', () => {
+    expect(FOALING_OUTCOME_VALUES).toEqual([
+      'liveFoal',
+      'stillbirth',
+      'aborted',
+      'unknown',
+    ]);
+
     expect(FOALING_OUTCOME_OPTIONS).toEqual([
       { label: 'Live Foal', value: 'liveFoal' },
       { label: 'Stillbirth', value: 'stillbirth' },
       { label: 'Aborted', value: 'aborted' },
+    ]);
+
+    expect(FOAL_SEX_VALUES).toEqual([
+      'colt',
+      'filly',
+      'unknown',
     ]);
 
     expect(FOAL_SEX_OPTIONS).toEqual([

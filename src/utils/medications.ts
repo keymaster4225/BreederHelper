@@ -16,6 +16,6 @@ export const PREDEFINED_MEDICATIONS = [
   'Gentamicin',
 ] as const;
 
-export function formatRoute(route: MedicationRoute): string {
-  return MEDICATION_ROUTE_LABELS[route];
+export function formatRoute(route: MedicationRoute | string): string {
+  return MEDICATION_ROUTE_LABELS[route as MedicationRoute] ?? route;
 }
