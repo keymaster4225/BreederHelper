@@ -42,12 +42,21 @@ it('renders all form fields in create mode', async () => {
   await waitFor(() => {
     expect(screen.getByText('Collection Date *')).toBeTruthy();
     expect(screen.getByText('Raw Volume (mL)')).toBeTruthy();
-    expect(screen.getByText('Extended Volume (mL)')).toBeTruthy();
+    expect(screen.getByText('Total Volume (mL)')).toBeTruthy();
+    expect(screen.getByText('Extender Volume (mL)')).toBeTruthy();
+    expect(screen.getByText('Extender Type')).toBeTruthy();
     expect(screen.getByText('Concentration (M/mL)')).toBeTruthy();
     expect(screen.getByText('Progressive Motility (%)')).toBeTruthy();
     expect(screen.getByText('Dose Count')).toBeTruthy();
     expect(screen.getByText('Dose Size (millions)')).toBeTruthy();
     expect(screen.getByText('Notes')).toBeTruthy();
+  });
+});
+
+it('does not show the legacy extended volume label', async () => {
+  const screen = renderForm();
+  await waitFor(() => {
+    expect(screen.queryByText('Extended Volume (mL)')).toBeNull();
   });
 });
 
@@ -68,7 +77,9 @@ it('shows delete button in edit mode', async () => {
     stallionId: 'st-1',
     collectionDate: '2026-04-01',
     rawVolumeMl: 50,
-    extendedVolumeMl: null,
+    totalVolumeMl: 450,
+    extenderVolumeMl: 400,
+    extenderType: 'INRA 96',
     concentrationMillionsPerMl: null,
     progressiveMotilityPercent: 75,
     doseCount: null,

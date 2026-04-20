@@ -340,6 +340,8 @@ CREATE TABLE semen_collections_new (
   collection_date TEXT NOT NULL,
   raw_volume_ml REAL,
   extended_volume_ml REAL,
+  extender_volume_ml REAL,
+  extender_type TEXT,
   concentration_millions_per_ml REAL,
   progressive_motility_percent INTEGER,
   dose_count INTEGER,
@@ -351,6 +353,7 @@ CREATE TABLE semen_collections_new (
   CHECK (collection_date GLOB '????-??-??'),
   CHECK (raw_volume_ml IS NULL OR raw_volume_ml >= 0),
   CHECK (extended_volume_ml IS NULL OR extended_volume_ml >= 0),
+  CHECK (extender_volume_ml IS NULL OR extender_volume_ml >= 0),
   CHECK (concentration_millions_per_ml IS NULL OR concentration_millions_per_ml >= 0),
   CHECK (progressive_motility_percent IS NULL OR progressive_motility_percent BETWEEN 0 AND 100),
   CHECK (dose_count IS NULL OR dose_count >= 0),
@@ -360,6 +363,7 @@ CREATE TABLE semen_collections_new (
 INSERT INTO semen_collections_new
   SELECT
     id, stallion_id, collection_date, raw_volume_ml, extended_volume_ml,
+    NULL, NULL,
     concentration_millions_per_ml, progressive_motility_percent,
     dose_count, dose_size_millions, notes, created_at, updated_at
   FROM semen_collections_old;
@@ -466,6 +470,14 @@ CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date
 DROP TABLE IF EXISTS semen_collections_old;
 `;
 
+const migration013 = `
+ALTER TABLE semen_collections ADD COLUMN extender_volume_ml REAL;
+`;
+
+const migration014 = `
+ALTER TABLE semen_collections ADD COLUMN extender_type TEXT;
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -537,6 +549,18 @@ const migrations: Migration[] = [
     shouldSkip: async (db) =>
       !(await tableDefinitionReferences(db, 'breeding_records', 'semen_collections_old')) &&
       !(await tableExists(db, 'semen_collections_old')),
+  },
+  {
+    id: 13,
+    name: '013_collection_extender_volume',
+    statements: splitStatements(migration013),
+    shouldSkip: async (db) => hasColumn(db, 'semen_collections', 'extender_volume_ml'),
+  },
+  {
+    id: 14,
+    name: '014_collection_extender_type',
+    statements: splitStatements(migration014),
+    shouldSkip: async (db) => hasColumn(db, 'semen_collections', 'extender_type'),
   },
 ];
 

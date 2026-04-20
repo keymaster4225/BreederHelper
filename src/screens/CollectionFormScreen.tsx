@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, V
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
-import { FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
+import { FormAutocompleteInput, FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
@@ -13,6 +13,7 @@ import {
   updateSemenCollection,
 } from '@/storage/repositories';
 import { colors } from '@/theme';
+import { EXTENDER_TYPES, getExtenderTypeSuggestions } from '@/utils/extenderTypes';
 import { newId } from '@/utils/id';
 import {
   parseOptionalInteger,
@@ -27,7 +28,8 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CollectionForm'>;
 type FormErrors = {
   collectionDate?: string;
   rawVolumeMl?: string;
-  extendedVolumeMl?: string;
+  totalVolumeMl?: string;
+  extenderVolumeMl?: string;
   concentrationMillionsPerMl?: string;
   progressiveMotilityPercent?: string;
   doseCount?: string;
@@ -41,7 +43,9 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
 
   const [collectionDate, setCollectionDate] = useState('');
   const [rawVolumeMl, setRawVolumeMl] = useState('');
-  const [extendedVolumeMl, setExtendedVolumeMl] = useState('');
+  const [totalVolumeMl, setTotalVolumeMl] = useState('');
+  const [extenderVolumeMl, setExtenderVolumeMl] = useState('');
+  const [extenderType, setExtenderType] = useState('');
   const [concentrationMillionsPerMl, setConcentrationMillionsPerMl] = useState('');
   const [progressiveMotilityPercent, setProgressiveMotilityPercent] = useState('');
   const [doseCount, setDoseCount] = useState('');
@@ -64,7 +68,9 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
         if (record) {
           setCollectionDate(record.collectionDate);
           setRawVolumeMl(record.rawVolumeMl != null ? String(record.rawVolumeMl) : '');
-          setExtendedVolumeMl(record.extendedVolumeMl != null ? String(record.extendedVolumeMl) : '');
+          setTotalVolumeMl(record.totalVolumeMl != null ? String(record.totalVolumeMl) : '');
+          setExtenderVolumeMl(record.extenderVolumeMl != null ? String(record.extenderVolumeMl) : '');
+          setExtenderType(record.extenderType ?? '');
           setConcentrationMillionsPerMl(record.concentrationMillionsPerMl != null ? String(record.concentrationMillionsPerMl) : '');
           setProgressiveMotilityPercent(record.progressiveMotilityPercent != null ? String(record.progressiveMotilityPercent) : '');
           setDoseCount(record.doseCount != null ? String(record.doseCount) : '');
@@ -84,7 +90,8 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
       validateLocalDateNotInFuture(collectionDate) ??
       undefined;
     errs.rawVolumeMl = validateNumberRange(parseOptionalNumber(rawVolumeMl), 'Raw Volume', 0, 5000) ?? undefined;
-    errs.extendedVolumeMl = validateNumberRange(parseOptionalNumber(extendedVolumeMl), 'Extended Volume', 0, 50000) ?? undefined;
+    errs.totalVolumeMl = validateNumberRange(parseOptionalNumber(totalVolumeMl), 'Total Volume', 0, 50000) ?? undefined;
+    errs.extenderVolumeMl = validateNumberRange(parseOptionalNumber(extenderVolumeMl), 'Extender Volume', 0, 50000) ?? undefined;
     errs.concentrationMillionsPerMl = validateNumberRange(parseOptionalNumber(concentrationMillionsPerMl), 'Concentration', 0, 100000) ?? undefined;
     errs.progressiveMotilityPercent = validateNumberRange(parseOptionalInteger(progressiveMotilityPercent), 'Motility', 0, 100) ?? undefined;
     errs.doseCount = validateNumberRange(parseOptionalInteger(doseCount), 'Dose Count', 0, 1000) ?? undefined;
@@ -102,7 +109,9 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
       const payload = {
         collectionDate,
         rawVolumeMl: parseOptionalNumber(rawVolumeMl),
-        extendedVolumeMl: parseOptionalNumber(extendedVolumeMl),
+        totalVolumeMl: parseOptionalNumber(totalVolumeMl),
+        extenderVolumeMl: parseOptionalNumber(extenderVolumeMl),
+        extenderType: extenderType.trim() || null,
         concentrationMillionsPerMl: parseOptionalNumber(concentrationMillionsPerMl),
         progressiveMotilityPercent: parseOptionalInteger(progressiveMotilityPercent),
         doseCount: parseOptionalInteger(doseCount),
@@ -170,8 +179,24 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
             <FormTextInput value={rawVolumeMl} onChangeText={setRawVolumeMl} placeholder="Optional" keyboardType="numeric" />
           </FormField>
 
-          <FormField label="Extended Volume (mL)" error={errors.extendedVolumeMl}>
-            <FormTextInput value={extendedVolumeMl} onChangeText={setExtendedVolumeMl} placeholder="Optional" keyboardType="numeric" />
+          <FormField label="Total Volume (mL)" error={errors.totalVolumeMl}>
+            <FormTextInput value={totalVolumeMl} onChangeText={setTotalVolumeMl} placeholder="Optional" keyboardType="numeric" />
+          </FormField>
+
+          <FormField label="Extender Volume (mL)" error={errors.extenderVolumeMl}>
+            <FormTextInput value={extenderVolumeMl} onChangeText={setExtenderVolumeMl} placeholder="Optional" keyboardType="numeric" />
+          </FormField>
+
+          <FormField label="Extender Type">
+            <FormAutocompleteInput
+              value={extenderType}
+              onChangeText={setExtenderType}
+              options={EXTENDER_TYPES}
+              getSuggestions={getExtenderTypeSuggestions}
+              placeholder="Type or select extender (optional)"
+              autoCapitalize="words"
+              autoCorrect={false}
+            />
           </FormField>
 
           <FormField label="Concentration (M/mL)" error={errors.concentrationMillionsPerMl}>

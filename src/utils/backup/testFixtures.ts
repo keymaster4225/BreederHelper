@@ -157,6 +157,8 @@ export function createBackupFixture(): BackupEnvelopeV1 {
           collection_date: '2026-04-01',
           raw_volume_ml: 100,
           extended_volume_ml: 500,
+          extender_volume_ml: 400,
+          extender_type: 'INRA 96',
           concentration_millions_per_ml: 200,
           progressive_motility_percent: 70,
           dose_count: 10,

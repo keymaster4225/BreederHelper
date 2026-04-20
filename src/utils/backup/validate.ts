@@ -519,6 +519,12 @@ function validateSemenCollectionRow(row: unknown, rowIndex: number): ValidateBac
   if (!isNullableFiniteNumberAtLeast(row.extended_volume_ml, 0)) {
     return rowFailure('semen_collections', rowIndex, 'extended_volume_ml', 'must be >= 0 or null');
   }
+  if (!(row.extender_volume_ml === undefined || isNullableFiniteNumberAtLeast(row.extender_volume_ml, 0))) {
+    return rowFailure('semen_collections', rowIndex, 'extender_volume_ml', 'must be >= 0 or null');
+  }
+  if (!(row.extender_type === undefined || isNullableString(row.extender_type))) {
+    return rowFailure('semen_collections', rowIndex, 'extender_type', 'must be a string or null');
+  }
   if (!isNullableFiniteNumberAtLeast(row.concentration_millions_per_ml, 0)) {
     return rowFailure('semen_collections', rowIndex, 'concentration_millions_per_ml', 'must be >= 0 or null');
   }

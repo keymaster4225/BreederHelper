@@ -191,6 +191,8 @@ export type BackupSemenCollectionRow = {
   readonly collection_date: BackupLocalDate;
   readonly raw_volume_ml: number | null;
   readonly extended_volume_ml: number | null;
+  readonly extender_volume_ml?: number | null;
+  readonly extender_type?: string | null;
   readonly concentration_millions_per_ml: number | null;
   readonly progressive_motility_percent: number | null;
   readonly dose_count: number | null;

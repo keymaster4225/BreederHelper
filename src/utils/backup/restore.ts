@@ -215,6 +215,8 @@ async function insertSemenCollection(
       collection_date,
       raw_volume_ml,
       extended_volume_ml,
+      extender_volume_ml,
+      extender_type,
       concentration_millions_per_ml,
       progressive_motility_percent,
       dose_count,
@@ -222,7 +224,7 @@ async function insertSemenCollection(
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
@@ -230,6 +232,8 @@ async function insertSemenCollection(
       row.collection_date,
       row.raw_volume_ml,
       row.extended_volume_ml,
+      row.extender_volume_ml ?? null,
+      row.extender_type ?? null,
       row.concentration_millions_per_ml,
       row.progressive_motility_percent,
       row.dose_count,

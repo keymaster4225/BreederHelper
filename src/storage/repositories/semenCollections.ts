@@ -9,6 +9,8 @@ type SemenCollectionRow = {
   collection_date: string;
   raw_volume_ml: number | null;
   extended_volume_ml: number | null;
+  extender_volume_ml: number | null;
+  extender_type: string | null;
   concentration_millions_per_ml: number | null;
   progressive_motility_percent: number | null;
   dose_count: number | null;
@@ -24,7 +26,9 @@ function mapRow(row: SemenCollectionRow): SemenCollection {
     stallionId: row.stallion_id,
     collectionDate: row.collection_date,
     rawVolumeMl: row.raw_volume_ml,
-    extendedVolumeMl: row.extended_volume_ml,
+    totalVolumeMl: row.extended_volume_ml,
+    extenderVolumeMl: row.extender_volume_ml,
+    extenderType: row.extender_type,
     concentrationMillionsPerMl: row.concentration_millions_per_ml,
     progressiveMotilityPercent: row.progressive_motility_percent,
     doseCount: row.dose_count,
@@ -67,7 +71,9 @@ export async function createSemenCollection(input: {
   stallionId: string;
   collectionDate: string;
   rawVolumeMl?: number | null;
-  extendedVolumeMl?: number | null;
+  totalVolumeMl?: number | null;
+  extenderVolumeMl?: number | null;
+  extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
   progressiveMotilityPercent?: number | null;
   doseCount?: number | null;
@@ -88,16 +94,18 @@ export async function createSemenCollection(input: {
   await db.runAsync(
     `INSERT INTO semen_collections (
       id, stallion_id, collection_date,
-      raw_volume_ml, extended_volume_ml, concentration_millions_per_ml,
+      raw_volume_ml, extended_volume_ml, extender_volume_ml, extender_type, concentration_millions_per_ml,
       progressive_motility_percent, dose_count, dose_size_millions,
       notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     [
       input.id,
       input.stallionId,
       input.collectionDate,
       input.rawVolumeMl ?? null,
-      input.extendedVolumeMl ?? null,
+      input.totalVolumeMl ?? null,
+      input.extenderVolumeMl ?? null,
+      input.extenderType ?? null,
       input.concentrationMillionsPerMl ?? null,
       input.progressiveMotilityPercent ?? null,
       input.doseCount ?? null,
@@ -115,7 +123,9 @@ export async function updateSemenCollection(
   input: {
     collectionDate: string;
     rawVolumeMl?: number | null;
-    extendedVolumeMl?: number | null;
+    totalVolumeMl?: number | null;
+    extenderVolumeMl?: number | null;
+    extenderType?: string | null;
     concentrationMillionsPerMl?: number | null;
     progressiveMotilityPercent?: number | null;
     doseCount?: number | null;
@@ -131,17 +141,21 @@ export async function updateSemenCollection(
        collection_date = ?,
        raw_volume_ml = ?,
        extended_volume_ml = ?,
+       extender_volume_ml = ?,
+       extender_type = ?,
        concentration_millions_per_ml = ?,
        progressive_motility_percent = ?,
        dose_count = ?,
        dose_size_millions = ?,
-       notes = ?,
-       updated_at = ?
+        notes = ?,
+        updated_at = ?
      WHERE id = ?;`,
     [
       input.collectionDate,
       input.rawVolumeMl ?? null,
-      input.extendedVolumeMl ?? null,
+      input.totalVolumeMl ?? null,
+      input.extenderVolumeMl ?? null,
+      input.extenderType ?? null,
       input.concentrationMillionsPerMl ?? null,
       input.progressiveMotilityPercent ?? null,
       input.doseCount ?? null,

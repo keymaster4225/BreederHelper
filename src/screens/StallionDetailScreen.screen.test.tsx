@@ -51,7 +51,9 @@ const makeCollection = (id: string, date: string, overrides?: Record<string, unk
   stallionId: 'st-1',
   collectionDate: date,
   rawVolumeMl: 50,
-  extendedVolumeMl: null,
+  totalVolumeMl: 550,
+  extenderVolumeMl: 450,
+  extenderType: 'INRA 96',
   concentrationMillionsPerMl: 200,
   progressiveMotilityPercent: 75,
   doseCount: 10,
@@ -124,6 +126,9 @@ it('shows collection cards when collections exist', async () => {
   });
   const screen = renderScreen();
   await waitFor(() => expect(screen.getByText('50 mL')).toBeTruthy());
+  expect(screen.getByText('550 mL')).toBeTruthy();
+  expect(screen.getByText('450 mL')).toBeTruthy();
+  expect(screen.getByText('INRA 96')).toBeTruthy();
   expect(screen.getByText('75%')).toBeTruthy();
   expect(screen.getByText('No dose events')).toBeTruthy();
 });

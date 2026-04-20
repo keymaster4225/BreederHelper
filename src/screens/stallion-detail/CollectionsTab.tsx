@@ -136,6 +136,9 @@ export function CollectionsTab({
                     <EditIconButton onPress={() => navigation.navigate('CollectionForm', { stallionId, collectionId: c.id })} />
                   </View>
                   <CardRow label="Raw Volume" value={c.rawVolumeMl != null ? `${c.rawVolumeMl} mL` : null} />
+                  <CardRow label="Total Volume" value={c.totalVolumeMl != null ? `${c.totalVolumeMl} mL` : null} />
+                  <CardRow label="Extender Volume" value={c.extenderVolumeMl != null ? `${c.extenderVolumeMl} mL` : null} />
+                  <CardRow label="Extender Type" value={c.extenderType} />
                   <CardRow label="Concentration" value={c.concentrationMillionsPerMl != null ? `${c.concentrationMillionsPerMl} M/mL` : null} />
                   <CardRow label="Motility" value={c.progressiveMotilityPercent != null ? `${c.progressiveMotilityPercent}%` : null} />
                   <CardRow

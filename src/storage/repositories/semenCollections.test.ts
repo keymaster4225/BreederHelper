@@ -45,6 +45,8 @@ type CollectionRow = {
   collection_date: string;
   raw_volume_ml: number | null;
   extended_volume_ml: number | null;
+  extender_volume_ml: number | null;
+  extender_type: string | null;
   concentration_millions_per_ml: number | null;
   progressive_motility_percent: number | null;
   dose_count: number | null;
@@ -107,11 +109,12 @@ function createFakeDb() {
       }
 
       if (stmt.startsWith('insert into semen_collections')) {
-        const [id, stallionId, collectionDate, rawVol, extVol, conc, motility, doseCount, doseSize, notes, createdAt, updatedAt] =
-          params as [string, string, string, number | null, number | null, number | null, number | null, number | null, number | null, string | null, string, string];
+        const [id, stallionId, collectionDate, rawVol, totalVol, extenderVol, extenderType, conc, motility, doseCount, doseSize, notes, createdAt, updatedAt] =
+          params as [string, string, string, number | null, number | null, number | null, string | null, number | null, number | null, number | null, number | null, string | null, string, string];
         collections.set(id, {
           id, stallion_id: stallionId, collection_date: collectionDate,
-          raw_volume_ml: rawVol, extended_volume_ml: extVol,
+          raw_volume_ml: rawVol, extended_volume_ml: totalVol,
+          extender_volume_ml: extenderVol, extender_type: extenderType,
           concentration_millions_per_ml: conc, progressive_motility_percent: motility,
           dose_count: doseCount, dose_size_millions: doseSize,
           notes,
@@ -121,13 +124,14 @@ function createFakeDb() {
       }
 
       if (stmt.startsWith('update semen_collections')) {
-        const [collectionDate, rawVol, extVol, conc, motility, doseCount, doseSize, notes, updatedAt, id] =
-          params as [string, number | null, number | null, number | null, number | null, number | null, number | null, string | null, string, string];
+        const [collectionDate, rawVol, totalVol, extenderVol, extenderType, conc, motility, doseCount, doseSize, notes, updatedAt, id] =
+          params as [string, number | null, number | null, number | null, string | null, number | null, number | null, number | null, number | null, string | null, string, string];
         const existing = collections.get(id);
         if (existing) {
           collections.set(id, {
             ...existing, collection_date: collectionDate,
-            raw_volume_ml: rawVol, extended_volume_ml: extVol,
+            raw_volume_ml: rawVol, extended_volume_ml: totalVol,
+            extender_volume_ml: extenderVol, extender_type: extenderType,
             concentration_millions_per_ml: conc, progressive_motility_percent: motility,
             dose_count: doseCount, dose_size_millions: doseSize,
             notes, updated_at: updatedAt,
@@ -224,6 +228,9 @@ describe('semen collection repository', () => {
       stallionId: 'st-1',
       collectionDate: '2026-04-01',
       rawVolumeMl: 50,
+      totalVolumeMl: 450,
+      extenderVolumeMl: 400,
+      extenderType: 'INRA 96',
       progressiveMotilityPercent: 75,
       doseCount: 10,
     });
@@ -232,17 +239,26 @@ describe('semen collection repository', () => {
     expect(fetched).not.toBeNull();
     expect(fetched?.stallionId).toBe('st-1');
     expect(fetched?.rawVolumeMl).toBe(50);
+    expect(fetched?.totalVolumeMl).toBe(450);
+    expect(fetched?.extenderVolumeMl).toBe(400);
+    expect(fetched?.extenderType).toBe('INRA 96');
     expect(fetched?.progressiveMotilityPercent).toBe(75);
 
     await updateSemenCollection('col-1', {
       collectionDate: '2026-04-02',
       rawVolumeMl: 55,
+      totalVolumeMl: 500,
+      extenderVolumeMl: 445,
+      extenderType: 'BotuSemen',
       progressiveMotilityPercent: 80,
     });
 
     const updated = await getSemenCollectionById('col-1');
     expect(updated?.collectionDate).toBe('2026-04-02');
     expect(updated?.rawVolumeMl).toBe(55);
+    expect(updated?.totalVolumeMl).toBe(500);
+    expect(updated?.extenderVolumeMl).toBe(445);
+    expect(updated?.extenderType).toBe('BotuSemen');
 
     await deleteSemenCollection('col-1');
     const deleted = await getSemenCollectionById('col-1');
@@ -267,6 +283,9 @@ describe('semen collection repository', () => {
       id: 'col-ship',
       stallionId: 'st-3',
       collectionDate: '2026-04-01',
+      totalVolumeMl: 600,
+      extenderVolumeMl: 525,
+      extenderType: 'INRA 96',
       doseCount: 12,
       doseSizeMillions: 500,
     });
@@ -274,6 +293,9 @@ describe('semen collection repository', () => {
     const fetched = await getSemenCollectionById('col-ship');
     expect(fetched?.doseCount).toBe(12);
     expect(fetched?.doseSizeMillions).toBe(500);
+    expect(fetched?.totalVolumeMl).toBe(600);
+    expect(fetched?.extenderVolumeMl).toBe(525);
+    expect(fetched?.extenderType).toBe('INRA 96');
   });
 
   describe('invariant I4: soft-deleted stallion blocks collection creation', () => {

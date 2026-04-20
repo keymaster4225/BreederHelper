@@ -9,6 +9,7 @@ function createFakeDb(options: {
   breedingRecordsSql: string;
   hasSemenCollectionsOld?: boolean;
   hasSemenCollectionsShippedColumn?: boolean;
+  semenCollectionsColumns?: string[];
   failDropBreedingRecordsWhenForeignKeysEnabled?: boolean;
   foreignKeyCheckRows?: Array<{
     table: string;
@@ -79,8 +80,27 @@ function createFakeDb(options: {
     async getAllAsync<T>(sql: string): Promise<T[]> {
       const trimmed = sql.trim();
       queryCalls.push(trimmed);
-      if (trimmed === 'PRAGMA table_info(semen_collections);' && options.hasSemenCollectionsShippedColumn) {
-        return [{ name: 'shipped' } as T];
+      if (trimmed === 'PRAGMA table_info(semen_collections);') {
+        const columns = options.semenCollectionsColumns ??
+          (options.hasSemenCollectionsShippedColumn
+            ? ['shipped']
+            : [
+                'id',
+                'stallion_id',
+                'collection_date',
+                'raw_volume_ml',
+                'extended_volume_ml',
+                'extender_volume_ml',
+                'extender_type',
+                'concentration_millions_per_ml',
+                'progressive_motility_percent',
+                'dose_count',
+                'dose_size_millions',
+                'notes',
+                'created_at',
+                'updated_at',
+              ]);
+        return columns.map((name) => ({ name } as T));
       }
       if (trimmed === 'PRAGMA foreign_key_check;') {
         return (options.foreignKeyCheckRows ?? []) as T[];
@@ -208,8 +228,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls).toHaveLength(1);
-    expect(runCalls[0]?.params[0]).toBe(12);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14]);
   });
 
   it('runs the repair migration when the legacy table still exists even if breeding_records already looks correct', async () => {
@@ -229,5 +248,37 @@ describe('applyMigrations', () => {
 
     expect(execCalls.some((sql) => sql.includes('DROP TABLE IF EXISTS semen_collections_old;'))).toBe(true);
     expect(runCalls.some(({ params }) => params[0] === 12)).toBe(true);
+  });
+
+  it('adds extender columns to semen_collections for existing installs', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 12 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY
+        )
+      `,
+      semenCollectionsColumns: [
+        'id',
+        'stallion_id',
+        'collection_date',
+        'raw_volume_ml',
+        'extended_volume_ml',
+        'concentration_millions_per_ml',
+        'progressive_motility_percent',
+        'dose_count',
+        'dose_size_millions',
+        'notes',
+        'created_at',
+        'updated_at',
+      ],
+    });
+
+    await applyMigrations(db as never);
+
+    expect(execCalls).toContain('ALTER TABLE semen_collections ADD COLUMN extender_volume_ml REAL;');
+    expect(execCalls).toContain('ALTER TABLE semen_collections ADD COLUMN extender_type TEXT;');
+    expect(runCalls.some(({ params }) => params[0] === 13)).toBe(true);
+    expect(runCalls.some(({ params }) => params[0] === 14)).toBe(true);
   });
 });

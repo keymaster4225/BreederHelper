@@ -203,6 +203,8 @@ export async function serializeBackup(): Promise<BackupEnvelopeV1> {
         collection_date,
         raw_volume_ml,
         extended_volume_ml,
+        extender_volume_ml,
+        extender_type,
         concentration_millions_per_ml,
         progressive_motility_percent,
         dose_count,

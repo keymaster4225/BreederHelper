@@ -144,7 +144,9 @@ export interface SemenCollection {
   stallionId: UUID;
   collectionDate: LocalDate;
   rawVolumeMl?: number | null;
-  extendedVolumeMl?: number | null;
+  totalVolumeMl?: number | null;
+  extenderVolumeMl?: number | null;
+  extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
   progressiveMotilityPercent?: number | null;
   doseCount?: number | null;
