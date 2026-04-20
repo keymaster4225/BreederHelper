@@ -36,17 +36,27 @@ function createFakeDb(options: {
       id TEXT PRIMARY KEY,
       date_of_birth TEXT,
       av_temperature_f REAL,
+      av_type TEXT,
+      av_liner_type TEXT,
       av_water_volume_ml INTEGER,
+      av_notes TEXT,
       CHECK (date_of_birth IS NULL OR date_of_birth GLOB '????-??-??'),
       CHECK (av_temperature_f IS NULL OR typeof(av_temperature_f) IN ('integer', 'real')),
-      CHECK (av_water_volume_ml IS NULL OR (typeof(av_water_volume_ml) = 'integer' AND av_water_volume_ml >= 0))
+      CHECK (av_type IS NULL OR typeof(av_type) = 'text'),
+      CHECK (av_liner_type IS NULL OR typeof(av_liner_type) = 'text'),
+      CHECK (av_water_volume_ml IS NULL OR (typeof(av_water_volume_ml) = 'integer' AND av_water_volume_ml >= 0)),
+      CHECK (av_notes IS NULL OR typeof(av_notes) = 'text')
     )
   `;
   let semenCollectionsSql = options.semenCollectionsSql ?? `
     CREATE TABLE semen_collections (
       id TEXT PRIMARY KEY,
       extender_volume_ml REAL,
-      CHECK (extender_volume_ml IS NULL OR extender_volume_ml >= 0)
+      extender_type TEXT,
+      stallion_id TEXT,
+      FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+      CHECK (extender_volume_ml IS NULL OR extender_volume_ml >= 0),
+      CHECK (extender_type IS NULL OR typeof(extender_type) = 'text')
     )
   `;
   let pendingBreedingRecordsSql: string | null = null;
@@ -513,17 +523,27 @@ describe('applyMigrations', () => {
           id TEXT PRIMARY KEY,
           date_of_birth TEXT,
           av_temperature_f REAL,
+          av_type TEXT,
+          av_liner_type TEXT,
           av_water_volume_ml INTEGER,
+          av_notes TEXT,
           CHECK (date_of_birth IS NULL OR date_of_birth GLOB '????-??-??'),
           CHECK (av_temperature_f IS NULL OR typeof(av_temperature_f) IN ('integer', 'real')),
-          CHECK (av_water_volume_ml IS NULL OR (typeof(av_water_volume_ml) = 'integer' AND av_water_volume_ml >= 0))
+          CHECK (av_type IS NULL OR typeof(av_type) = 'text'),
+          CHECK (av_liner_type IS NULL OR typeof(av_liner_type) = 'text'),
+          CHECK (av_water_volume_ml IS NULL OR (typeof(av_water_volume_ml) = 'integer' AND av_water_volume_ml >= 0)),
+          CHECK (av_notes IS NULL OR typeof(av_notes) = 'text')
         )
       `,
       semenCollectionsSql: `
         CREATE TABLE semen_collections (
           id TEXT PRIMARY KEY,
           extender_volume_ml REAL,
-          CHECK (extender_volume_ml IS NULL OR extender_volume_ml >= 0)
+          extender_type TEXT,
+          stallion_id TEXT,
+          FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+          CHECK (extender_volume_ml IS NULL OR extender_volume_ml >= 0),
+          CHECK (extender_type IS NULL OR typeof(extender_type) = 'text')
         )
       `,
     });

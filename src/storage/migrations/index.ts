@@ -713,13 +713,22 @@ const migrations: Migration[] = [
     shouldSkip: async (db) =>
       (await tableDefinitionIncludesAll(db, 'stallions', [
         /\bdate_of_birth\b\s+TEXT\b/i,
+        /\bav_type\b\s+TEXT\b/i,
+        /\bav_liner_type\b\s+TEXT\b/i,
+        /\bav_notes\b\s+TEXT\b/i,
         /CHECK\s*\(date_of_birth IS NULL OR date_of_birth GLOB '\?\?\?\?-\?\?-\?\?'\)/i,
         /CHECK\s*\(av_temperature_f IS NULL OR typeof\(av_temperature_f\) IN \('integer', 'real'\)\)/i,
+        /CHECK\s*\(av_type IS NULL OR typeof\(av_type\) = 'text'\)/i,
+        /CHECK\s*\(av_liner_type IS NULL OR typeof\(av_liner_type\) = 'text'\)/i,
         /CHECK\s*\(av_water_volume_ml IS NULL OR \(typeof\(av_water_volume_ml\) = 'integer' AND av_water_volume_ml >= 0\)\)/i,
+        /CHECK\s*\(av_notes IS NULL OR typeof\(av_notes\) = 'text'\)/i,
       ])) &&
       (await tableDefinitionIncludesAll(db, 'semen_collections', [
         /\bextender_volume_ml\b\s+REAL\b/i,
+        /\bextender_type\b\s+TEXT\b/i,
+        /FOREIGN KEY\s*\(stallion_id\)\s+REFERENCES\s+stallions\(id\)\s+ON UPDATE CASCADE ON DELETE RESTRICT/i,
         /CHECK\s*\(extender_volume_ml IS NULL OR extender_volume_ml >= 0\)/i,
+        /CHECK\s*\(extender_type IS NULL OR typeof\(extender_type\) = 'text'\)/i,
       ])),
   },
 ];
@@ -909,16 +918,6 @@ async function assertCanonicalConstraintRepairPreconditions(
     );
   }
 
-  const invalidAvTemperature = await findRowId(
-    db,
-    "SELECT id FROM stallions WHERE av_temperature_f IS NOT NULL AND typeof(av_temperature_f) NOT IN ('integer', 'real') LIMIT 1;",
-  );
-  if (invalidAvTemperature) {
-    throw new Error(
-      `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: stallions.av_temperature_f is invalid for stallion ${invalidAvTemperature}.`,
-    );
-  }
-
   const invalidAvType = await findRowId(
     db,
     "SELECT id FROM stallions WHERE av_type IS NOT NULL AND typeof(av_type) <> 'text' LIMIT 1;",
@@ -939,16 +938,6 @@ async function assertCanonicalConstraintRepairPreconditions(
     );
   }
 
-  const invalidAvWaterVolume = await findRowId(
-    db,
-    "SELECT id FROM stallions WHERE av_water_volume_ml IS NOT NULL AND (typeof(av_water_volume_ml) <> 'integer' OR av_water_volume_ml < 0) LIMIT 1;",
-  );
-  if (invalidAvWaterVolume) {
-    throw new Error(
-      `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: stallions.av_water_volume_ml is invalid for stallion ${invalidAvWaterVolume}.`,
-    );
-  }
-
   const invalidAvNotes = await findRowId(
     db,
     "SELECT id FROM stallions WHERE av_notes IS NOT NULL AND typeof(av_notes) <> 'text' LIMIT 1;",
@@ -956,16 +945,6 @@ async function assertCanonicalConstraintRepairPreconditions(
   if (invalidAvNotes) {
     throw new Error(
       `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: stallions.av_notes is invalid for stallion ${invalidAvNotes}.`,
-    );
-  }
-
-  const invalidExtenderVolume = await findRowId(
-    db,
-    "SELECT id FROM semen_collections WHERE extender_volume_ml IS NOT NULL AND (typeof(extender_volume_ml) NOT IN ('integer', 'real') OR extender_volume_ml < 0) LIMIT 1;",
-  );
-  if (invalidExtenderVolume) {
-    throw new Error(
-      `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: semen_collections.extender_volume_ml is invalid for collection ${invalidExtenderVolume}.`,
     );
   }
 
