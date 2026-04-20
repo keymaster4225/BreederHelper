@@ -8,7 +8,7 @@ export function createBackupFixture(): BackupEnvelopeV1 {
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
-      version: '1.0.2',
+      version: '1.0.21',
     },
     settings: {
       onboardingComplete: true,
