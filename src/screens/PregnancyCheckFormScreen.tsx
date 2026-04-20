@@ -6,8 +6,9 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { useRecordForm } from '@/hooks/useRecordForm';
+import { PREGNANCY_RESULT_OPTIONS } from '@/models/enums';
 import { Screen } from '@/components/Screen';
-import { BreedingRecord, calculateDaysPostBreeding, estimateFoalingDate } from '@/models/types';
+import { BreedingRecord, PregnancyResult, calculateDaysPostBreeding, estimateFoalingDate } from '@/models/types';
 import { formatLocalDate } from '@/utils/dates';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
@@ -24,18 +25,13 @@ import { validateLocalDate, validateLocalDateNotInFuture, validateRequired } fro
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PregnancyCheckForm'>;
 
-type ResultOption = 'positive' | 'negative';
+type ResultOption = PregnancyResult;
 type YesNo = 'yes' | 'no';
 
 type FormErrors = {
   breedingRecordId?: string;
   date?: string;
 };
-
-const RESULT_OPTIONS: { label: string; value: ResultOption }[] = [
-  { label: 'Positive', value: 'positive' },
-  { label: 'Negative', value: 'negative' },
-];
 
 const YES_NO_OPTIONS: { label: string; value: YesNo }[] = [
   { label: 'Yes', value: 'yes' },
@@ -238,7 +234,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
         </FormField>
 
         <FormField label="Result" required>
-          <OptionSelector value={result} onChange={setResult} options={RESULT_OPTIONS} />
+          <OptionSelector value={result} onChange={setResult} options={PREGNANCY_RESULT_OPTIONS} />
         </FormField>
 
         <FormField label="Heartbeat Detected">

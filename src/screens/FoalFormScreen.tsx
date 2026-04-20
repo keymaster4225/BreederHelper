@@ -7,33 +7,13 @@ import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormCheckbox, FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { StatusBadge } from '@/components/StatusBadge';
-import { FoalColor, FoalSex } from '@/models/types';
+import { FOAL_COLOR_OPTIONS, FOAL_SEX_OPTIONS } from '@/models/enums';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 import { FOAL_MILESTONE_KEYS, FOAL_MILESTONE_LABELS } from '@/utils/foalMilestones';
 import { interpretIgg, formatIggInterpretation, getIggColor } from '@/utils/igg';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'FoalForm'>;
-
-const SEX_OPTIONS: { label: string; value: FoalSex }[] = [
-  { label: 'Colt', value: 'colt' },
-  { label: 'Filly', value: 'filly' },
-];
-
-const COLOR_OPTIONS: { label: string; value: FoalColor }[] = [
-  { label: 'Bay', value: 'bay' },
-  { label: 'Chestnut', value: 'chestnut' },
-  { label: 'Black', value: 'black' },
-  { label: 'Gray', value: 'gray' },
-  { label: 'Palomino', value: 'palomino' },
-  { label: 'Buckskin', value: 'buckskin' },
-  { label: 'Roan', value: 'roan' },
-  { label: 'Pinto/Paint', value: 'pintoPaint' },
-  { label: 'Sorrel', value: 'sorrel' },
-  { label: 'Dun', value: 'dun' },
-  { label: 'Cremello', value: 'cremello' },
-  { label: 'Other', value: 'other' },
-];
 
 export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
   const { foalingRecordId, foalId, defaultSex } = route.params;
@@ -94,11 +74,11 @@ export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
           </FormField>
 
           <FormField label="Sex">
-            <OptionSelector value={sex} onChange={setSex} options={SEX_OPTIONS} />
+            <OptionSelector value={sex} onChange={setSex} options={FOAL_SEX_OPTIONS} />
           </FormField>
 
           <FormField label="Color">
-            <OptionSelector value={color} onChange={setColor} options={COLOR_OPTIONS} />
+            <OptionSelector value={color} onChange={setColor} options={FOAL_COLOR_OPTIONS} />
           </FormField>
 
           <FormField label="Markings">

@@ -1,4 +1,14 @@
 import {
+  BREEDING_METHOD_VALUES,
+  DOSE_EVENT_TYPE_VALUES,
+  FOAL_COLOR_VALUES,
+  FOAL_MILESTONE_KEYS as FOAL_MILESTONE_VALUE_KEYS,
+  FOAL_SEX_VALUES,
+  FOALING_OUTCOME_VALUES,
+  MEDICATION_ROUTE_VALUES,
+  PREGNANCY_RESULT_VALUES,
+} from '@/models/enums';
+import {
   BACKUP_SCHEMA_VERSION_V1,
   type BackupBreedingRecordRow,
   type BackupEnvelopeV1,
@@ -12,35 +22,14 @@ import {
   type ValidateBackupResult,
 } from './types';
 
-const BREEDING_METHODS = new Set(['liveCover', 'freshAI', 'shippedCooledAI', 'frozenAI']);
-const PREGNANCY_RESULTS = new Set(['positive', 'negative']);
-const FOALING_OUTCOMES = new Set(['liveFoal', 'stillbirth', 'aborted', 'unknown']);
-const FOAL_SEXES = new Set(['colt', 'filly', 'unknown']);
-const FOAL_COLORS = new Set([
-  'bay',
-  'chestnut',
-  'black',
-  'gray',
-  'palomino',
-  'buckskin',
-  'roan',
-  'pintoPaint',
-  'sorrel',
-  'dun',
-  'cremello',
-  'other',
-]);
-const MEDICATION_ROUTES = new Set(['oral', 'IM', 'IV', 'intrauterine', 'SQ']);
-const COLLECTION_EVENT_TYPES = new Set(['shipped', 'usedOnSite']);
-const FOAL_MILESTONE_KEYS = new Set([
-  'stood',
-  'nursed',
-  'passedMeconium',
-  'iggTested',
-  'enemaGiven',
-  'umbilicalTreated',
-  'firstVetCheck',
-]);
+const BREEDING_METHODS = new Set(BREEDING_METHOD_VALUES);
+const PREGNANCY_RESULTS = new Set(PREGNANCY_RESULT_VALUES);
+const FOALING_OUTCOMES = new Set(FOALING_OUTCOME_VALUES);
+const FOAL_SEXES = new Set(FOAL_SEX_VALUES);
+const FOAL_COLORS = new Set(FOAL_COLOR_VALUES);
+const MEDICATION_ROUTES = new Set(MEDICATION_ROUTE_VALUES);
+const COLLECTION_EVENT_TYPES = new Set(DOSE_EVENT_TYPE_VALUES);
+const FOAL_MILESTONE_KEYS: ReadonlySet<string> = new Set(FOAL_MILESTONE_VALUE_KEYS);
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;

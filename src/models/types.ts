@@ -1,20 +1,27 @@
-﻿export type UUID = string;
+﻿import {
+  BREEDING_METHOD_VALUES,
+  DOSE_EVENT_TYPE_VALUES,
+  FOAL_COLOR_VALUES,
+  FOAL_MILESTONE_KEYS,
+  FOAL_SEX_VALUES,
+  FOALING_OUTCOME_VALUES,
+  MEDICATION_ROUTE_VALUES,
+  PREGNANCY_RESULT_VALUES,
+} from './enums';
+
+export type UUID = string;
 export type LocalDate = string; // YYYY-MM-DD
 export type ISODateTime = string; // ISO-8601
 
-export type BreedingMethod =
-  | 'liveCover'
-  | 'freshAI'
-  | 'shippedCooledAI'
-  | 'frozenAI';
+export type BreedingMethod = (typeof BREEDING_METHOD_VALUES)[number];
 
-export type PregnancyResult = 'positive' | 'negative';
+export type PregnancyResult = (typeof PREGNANCY_RESULT_VALUES)[number];
 
-export type FoalingOutcome = 'liveFoal' | 'stillbirth' | 'aborted' | 'unknown';
+export type FoalingOutcome = (typeof FOALING_OUTCOME_VALUES)[number];
 
-export type FoalSex = 'colt' | 'filly' | 'unknown';
+export type FoalSex = (typeof FOAL_SEX_VALUES)[number];
 
-export type MedicationRoute = 'oral' | 'IM' | 'IV' | 'intrauterine' | 'SQ';
+export type MedicationRoute = (typeof MEDICATION_ROUTE_VALUES)[number];
 
 export interface MedicationLog {
   id: UUID;
@@ -28,28 +35,9 @@ export interface MedicationLog {
   updatedAt: ISODateTime;
 }
 
-export type FoalColor =
-  | 'bay'
-  | 'chestnut'
-  | 'black'
-  | 'gray'
-  | 'palomino'
-  | 'buckskin'
-  | 'roan'
-  | 'pintoPaint'
-  | 'sorrel'
-  | 'dun'
-  | 'cremello'
-  | 'other';
+export type FoalColor = (typeof FOAL_COLOR_VALUES)[number];
 
-export type FoalMilestoneKey =
-  | 'stood'
-  | 'nursed'
-  | 'passedMeconium'
-  | 'iggTested'
-  | 'enemaGiven'
-  | 'umbilicalTreated'
-  | 'firstVetCheck';
+export type FoalMilestoneKey = (typeof FOAL_MILESTONE_KEYS)[number];
 
 export interface FoalMilestoneEntry {
   done: boolean;
@@ -112,7 +100,7 @@ export interface Stallion {
   deletedAt?: ISODateTime | null;
 }
 
-export type DoseEventType = 'shipped' | 'usedOnSite';
+export type DoseEventType = (typeof DOSE_EVENT_TYPE_VALUES)[number];
 
 export interface CollectionDoseEvent {
   id: UUID;

@@ -1,3 +1,13 @@
+import type {
+  BreedingMethod,
+  DoseEventType,
+  FoalColor,
+  FoalSex,
+  FoalingOutcome,
+  MedicationRoute,
+  PregnancyResult,
+} from '@/models/types';
+
 export const BACKUP_SCHEMA_VERSION_V1 = 1 as const;
 
 export const BACKUP_TABLE_NAMES = [
@@ -107,7 +117,7 @@ export type BackupBreedingRecordRow = {
   readonly stallion_name: string | null;
   readonly collection_id: string | null;
   readonly date: BackupLocalDate;
-  readonly method: 'liveCover' | 'freshAI' | 'shippedCooledAI' | 'frozenAI';
+  readonly method: BreedingMethod;
   readonly notes: string | null;
   readonly volume_ml: number | null;
   readonly concentration_m_per_ml: number | null;
@@ -125,7 +135,7 @@ export type BackupPregnancyCheckRow = {
   readonly mare_id: string;
   readonly breeding_record_id: string;
   readonly date: BackupLocalDate;
-  readonly result: 'positive' | 'negative';
+  readonly result: PregnancyResult;
   readonly heartbeat_detected: 0 | 1 | null;
   readonly notes: string | null;
   readonly created_at: BackupIsoDateTime;
@@ -137,8 +147,8 @@ export type BackupFoalingRecordRow = {
   readonly mare_id: string;
   readonly breeding_record_id: string | null;
   readonly date: BackupLocalDate;
-  readonly outcome: 'liveFoal' | 'stillbirth' | 'aborted' | 'unknown';
-  readonly foal_sex: 'colt' | 'filly' | 'unknown' | null;
+  readonly outcome: FoalingOutcome;
+  readonly foal_sex: FoalSex | null;
   readonly complications: string | null;
   readonly notes: string | null;
   readonly created_at: BackupIsoDateTime;
@@ -149,21 +159,8 @@ export type BackupFoalRow = {
   readonly id: string;
   readonly foaling_record_id: string;
   readonly name: string | null;
-  readonly sex: 'colt' | 'filly' | 'unknown' | null;
-  readonly color:
-    | 'bay'
-    | 'chestnut'
-    | 'black'
-    | 'gray'
-    | 'palomino'
-    | 'buckskin'
-    | 'roan'
-    | 'pintoPaint'
-    | 'sorrel'
-    | 'dun'
-    | 'cremello'
-    | 'other'
-    | null;
+  readonly sex: FoalSex | null;
+  readonly color: FoalColor | null;
   readonly markings: string | null;
   readonly birth_weight_lbs: number | null;
   readonly milestones: string;
@@ -179,7 +176,7 @@ export type BackupMedicationLogRow = {
   readonly date: BackupLocalDate;
   readonly medication_name: string;
   readonly dose: string | null;
-  readonly route: 'oral' | 'IM' | 'IV' | 'intrauterine' | 'SQ' | null;
+  readonly route: MedicationRoute | null;
   readonly notes: string | null;
   readonly created_at: BackupIsoDateTime;
   readonly updated_at: BackupIsoDateTime;
@@ -205,7 +202,7 @@ export type BackupSemenCollectionRow = {
 export type BackupCollectionDoseEventRow = {
   readonly id: string;
   readonly collection_id: string;
-  readonly event_type: 'shipped' | 'usedOnSite';
+  readonly event_type: DoseEventType;
   readonly recipient: string;
   readonly dose_count: number | null;
   readonly event_date: BackupLocalDate | null;

@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormPickerInput, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { useRecordForm } from '@/hooks/useRecordForm';
+import { AI_BREEDING_METHOD_OPTIONS } from '@/models/enums';
 import { Screen } from '@/components/Screen';
 import { BreedingMethod, SemenCollection, Stallion } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -51,13 +52,7 @@ const COVERAGE_OPTIONS: { label: string; value: CoverageType }[] = [
   { label: 'AI', value: 'ai' },
 ];
 
-type AIMethod = 'freshAI' | 'shippedCooledAI' | 'frozenAI';
-
-const AI_METHOD_OPTIONS: { label: string; value: AIMethod }[] = [
-  { label: 'Fresh', value: 'freshAI' },
-  { label: 'Shipped Cooled', value: 'shippedCooledAI' },
-  { label: 'Frozen', value: 'frozenAI' },
-];
+type AIMethod = Exclude<BreedingMethod, 'liveCover'>;
 
 const OTHER_STALLION = '__other__';
 const NO_COLLECTION = '__none__';
@@ -396,7 +391,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         <FormField label="Breeding Method" required>
           <OptionSelector value={coverageType} onChange={onCoverageChange} options={COVERAGE_OPTIONS} />
           {method !== 'liveCover' ? (
-            <OptionSelector value={method as AIMethod} onChange={setMethod} options={AI_METHOD_OPTIONS} />
+            <OptionSelector value={method as AIMethod} onChange={setMethod} options={AI_BREEDING_METHOD_OPTIONS} />
           ) : null}
         </FormField>
 

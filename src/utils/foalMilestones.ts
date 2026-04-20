@@ -1,21 +1,7 @@
-import { FoalMilestoneKey } from '@/models/types';
+import {
+  FOAL_MILESTONE_KEYS as SHARED_FOAL_MILESTONE_KEYS,
+  FOAL_MILESTONE_LABELS as SHARED_FOAL_MILESTONE_LABELS,
+} from '@/models/enums';
 
-export const FOAL_MILESTONE_KEYS: FoalMilestoneKey[] = [
-  'stood',
-  'nursed',
-  'passedMeconium',
-  'iggTested',
-  'enemaGiven',
-  'umbilicalTreated',
-  'firstVetCheck',
-];
-
-export const FOAL_MILESTONE_LABELS: Record<FoalMilestoneKey, string> = {
-  stood: 'Stood',
-  nursed: 'Nursed',
-  passedMeconium: 'Passed Meconium',
-  iggTested: 'IgG Tested',
-  enemaGiven: 'Enema Given',
-  umbilicalTreated: 'Umbilical Treated',
-  firstVetCheck: 'First Vet Check',
-};
+export const FOAL_MILESTONE_KEYS = SHARED_FOAL_MILESTONE_KEYS;
+export const FOAL_MILESTONE_LABELS = SHARED_FOAL_MILESTONE_LABELS;
