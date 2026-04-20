@@ -4,6 +4,7 @@ type Migration = {
   id: number;
   name: string;
   statements: string[];
+  beforeApply?: (db: SQLite.SQLiteDatabase) => Promise<void>;
   shouldSkip?: (db: SQLite.SQLiteDatabase) => Promise<boolean>;
   requiresForeignKeysOff?: boolean;
 };
@@ -532,6 +533,86 @@ CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date
   ON breeding_records (stallion_id, date DESC);
 `;
 
+const migration016 = `
+CREATE TABLE stallions_new (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  breed TEXT,
+  registration_number TEXT,
+  sire TEXT,
+  dam TEXT,
+  notes TEXT,
+  date_of_birth TEXT,
+  av_temperature_f REAL,
+  av_type TEXT,
+  av_liner_type TEXT,
+  av_water_volume_ml INTEGER,
+  av_notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT,
+  CHECK (date_of_birth IS NULL OR date_of_birth GLOB '????-??-??'),
+  CHECK (av_temperature_f IS NULL OR typeof(av_temperature_f) IN ('integer', 'real')),
+  CHECK (av_type IS NULL OR typeof(av_type) = 'text'),
+  CHECK (av_liner_type IS NULL OR typeof(av_liner_type) = 'text'),
+  CHECK (av_water_volume_ml IS NULL OR (typeof(av_water_volume_ml) = 'integer' AND av_water_volume_ml >= 0)),
+  CHECK (av_notes IS NULL OR typeof(av_notes) = 'text')
+);
+
+INSERT INTO stallions_new
+  SELECT
+    id, name, breed, registration_number, sire, dam, notes,
+    date_of_birth, av_temperature_f, av_type, av_liner_type,
+    av_water_volume_ml, av_notes, created_at, updated_at, deleted_at
+  FROM stallions;
+
+DROP TABLE stallions;
+
+ALTER TABLE stallions_new RENAME TO stallions;
+
+CREATE TABLE semen_collections_new (
+  id TEXT PRIMARY KEY,
+  stallion_id TEXT NOT NULL,
+  collection_date TEXT NOT NULL,
+  raw_volume_ml REAL,
+  extended_volume_ml REAL,
+  extender_volume_ml REAL,
+  extender_type TEXT,
+  concentration_millions_per_ml REAL,
+  progressive_motility_percent INTEGER,
+  dose_count INTEGER,
+  dose_size_millions REAL,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (collection_date GLOB '????-??-??'),
+  CHECK (raw_volume_ml IS NULL OR raw_volume_ml >= 0),
+  CHECK (extended_volume_ml IS NULL OR extended_volume_ml >= 0),
+  CHECK (extender_volume_ml IS NULL OR extender_volume_ml >= 0),
+  CHECK (extender_type IS NULL OR typeof(extender_type) = 'text'),
+  CHECK (concentration_millions_per_ml IS NULL OR concentration_millions_per_ml >= 0),
+  CHECK (progressive_motility_percent IS NULL OR progressive_motility_percent BETWEEN 0 AND 100),
+  CHECK (dose_count IS NULL OR dose_count >= 0),
+  CHECK (dose_size_millions IS NULL OR dose_size_millions >= 0)
+);
+
+INSERT INTO semen_collections_new
+  SELECT
+    id, stallion_id, collection_date, raw_volume_ml, extended_volume_ml,
+    extender_volume_ml, extender_type, concentration_millions_per_ml,
+    progressive_motility_percent, dose_count, dose_size_millions,
+    notes, created_at, updated_at
+  FROM semen_collections;
+
+DROP TABLE semen_collections;
+
+ALTER TABLE semen_collections_new RENAME TO semen_collections;
+
+CREATE INDEX IF NOT EXISTS idx_semen_collections_stallion_date
+  ON semen_collections (stallion_id, collection_date DESC);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -623,6 +704,24 @@ const migrations: Migration[] = [
     requiresForeignKeysOff: true,
     shouldSkip: async (db) => columnDefinitionHasType(db, 'breeding_records', 'straw_volume_ml', 'REAL'),
   },
+  {
+    id: 16,
+    name: '016_canonicalize_stallions_and_semen_collections',
+    statements: splitStatements(migration016),
+    beforeApply: async (db) => assertCanonicalConstraintRepairPreconditions(db),
+    requiresForeignKeysOff: true,
+    shouldSkip: async (db) =>
+      (await tableDefinitionIncludesAll(db, 'stallions', [
+        /\bdate_of_birth\b\s+TEXT\b/i,
+        /CHECK\s*\(date_of_birth IS NULL OR date_of_birth GLOB '\?\?\?\?-\?\?-\?\?'\)/i,
+        /CHECK\s*\(av_temperature_f IS NULL OR typeof\(av_temperature_f\) IN \('integer', 'real'\)\)/i,
+        /CHECK\s*\(av_water_volume_ml IS NULL OR \(typeof\(av_water_volume_ml\) = 'integer' AND av_water_volume_ml >= 0\)\)/i,
+      ])) &&
+      (await tableDefinitionIncludesAll(db, 'semen_collections', [
+        /\bextender_volume_ml\b\s+REAL\b/i,
+        /CHECK\s*\(extender_volume_ml IS NULL OR extender_volume_ml >= 0\)/i,
+      ])),
+  },
 ];
 
 export async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -650,6 +749,10 @@ export async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> 
         [migration.id, migration.name, new Date().toISOString()]
       );
       continue;
+    }
+
+    if (migration.beforeApply) {
+      await migration.beforeApply(db);
     }
 
     if (migration.requiresForeignKeysOff) {
@@ -740,12 +843,7 @@ async function tableDefinitionReferences(
   tableName: string,
   referencedTable: string,
 ): Promise<boolean> {
-  const row = await db.getFirstAsync<{ sql: string | null }>(
-    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?;",
-    [tableName],
-  );
-
-  const sql = row?.sql;
+  const sql = await getTableDefinitionSql(db, tableName);
   if (!sql) {
     return false;
   }
@@ -762,12 +860,7 @@ async function columnDefinitionHasType(
   columnName: string,
   expectedType: string,
 ): Promise<boolean> {
-  const row = await db.getFirstAsync<{ sql: string | null }>(
-    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?;",
-    [tableName],
-  );
-
-  const sql = row?.sql;
+  const sql = await getTableDefinitionSql(db, tableName);
   if (!sql) {
     return false;
   }
@@ -776,6 +869,123 @@ async function columnDefinitionHasType(
   const escapedType = expectedType.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const pattern = new RegExp(`\\b${escapedColumn}\\b\\s+${escapedType}\\b`, 'i');
   return pattern.test(sql);
+}
+
+async function tableDefinitionIncludesAll(
+  db: SQLite.SQLiteDatabase,
+  tableName: string,
+  patterns: readonly RegExp[],
+): Promise<boolean> {
+  const sql = await getTableDefinitionSql(db, tableName);
+  if (!sql) {
+    return false;
+  }
+
+  return patterns.every((pattern) => pattern.test(sql));
+}
+
+async function getTableDefinitionSql(
+  db: SQLite.SQLiteDatabase,
+  tableName: string,
+): Promise<string | null> {
+  const row = await db.getFirstAsync<{ sql: string | null }>(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?;",
+    [tableName],
+  );
+
+  return row?.sql ?? null;
+}
+
+async function assertCanonicalConstraintRepairPreconditions(
+  db: SQLite.SQLiteDatabase,
+): Promise<void> {
+  const invalidStallionDate = await findRowId(
+    db,
+    "SELECT id FROM stallions WHERE date_of_birth IS NOT NULL AND date_of_birth NOT GLOB '????-??-??' LIMIT 1;",
+  );
+  if (invalidStallionDate) {
+    throw new Error(
+      `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: stallions.date_of_birth is invalid for stallion ${invalidStallionDate}.`,
+    );
+  }
+
+  const invalidAvTemperature = await findRowId(
+    db,
+    "SELECT id FROM stallions WHERE av_temperature_f IS NOT NULL AND typeof(av_temperature_f) NOT IN ('integer', 'real') LIMIT 1;",
+  );
+  if (invalidAvTemperature) {
+    throw new Error(
+      `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: stallions.av_temperature_f is invalid for stallion ${invalidAvTemperature}.`,
+    );
+  }
+
+  const invalidAvType = await findRowId(
+    db,
+    "SELECT id FROM stallions WHERE av_type IS NOT NULL AND typeof(av_type) <> 'text' LIMIT 1;",
+  );
+  if (invalidAvType) {
+    throw new Error(
+      `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: stallions.av_type is invalid for stallion ${invalidAvType}.`,
+    );
+  }
+
+  const invalidAvLinerType = await findRowId(
+    db,
+    "SELECT id FROM stallions WHERE av_liner_type IS NOT NULL AND typeof(av_liner_type) <> 'text' LIMIT 1;",
+  );
+  if (invalidAvLinerType) {
+    throw new Error(
+      `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: stallions.av_liner_type is invalid for stallion ${invalidAvLinerType}.`,
+    );
+  }
+
+  const invalidAvWaterVolume = await findRowId(
+    db,
+    "SELECT id FROM stallions WHERE av_water_volume_ml IS NOT NULL AND (typeof(av_water_volume_ml) <> 'integer' OR av_water_volume_ml < 0) LIMIT 1;",
+  );
+  if (invalidAvWaterVolume) {
+    throw new Error(
+      `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: stallions.av_water_volume_ml is invalid for stallion ${invalidAvWaterVolume}.`,
+    );
+  }
+
+  const invalidAvNotes = await findRowId(
+    db,
+    "SELECT id FROM stallions WHERE av_notes IS NOT NULL AND typeof(av_notes) <> 'text' LIMIT 1;",
+  );
+  if (invalidAvNotes) {
+    throw new Error(
+      `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: stallions.av_notes is invalid for stallion ${invalidAvNotes}.`,
+    );
+  }
+
+  const invalidExtenderVolume = await findRowId(
+    db,
+    "SELECT id FROM semen_collections WHERE extender_volume_ml IS NOT NULL AND (typeof(extender_volume_ml) NOT IN ('integer', 'real') OR extender_volume_ml < 0) LIMIT 1;",
+  );
+  if (invalidExtenderVolume) {
+    throw new Error(
+      `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: semen_collections.extender_volume_ml is invalid for collection ${invalidExtenderVolume}.`,
+    );
+  }
+
+  const invalidExtenderType = await findRowId(
+    db,
+    "SELECT id FROM semen_collections WHERE extender_type IS NOT NULL AND typeof(extender_type) <> 'text' LIMIT 1;",
+  );
+  if (invalidExtenderType) {
+    throw new Error(
+      `Cannot apply migration 016_canonicalize_stallions_and_semen_collections: semen_collections.extender_type is invalid for collection ${invalidExtenderType}.`,
+    );
+  }
+}
+
+async function findRowId(
+  db: SQLite.SQLiteDatabase,
+  sql: string,
+): Promise<string | null> {
+  const row = await db.getFirstAsync<{ id: string }>(sql);
+  return row?.id ?? null;
 }
 
 async function tableExists(
