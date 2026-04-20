@@ -2,7 +2,7 @@
   "expo": {
     "name": "BreedWise",
     "slug": "breeder-helper",
-    "version": "1.0.2",
+    "version": "1.0.21",
     "icon": "./assets/icon.png",
     "orientation": "portrait",
     "platforms": [

@@ -1,6 +1,6 @@
 {
   "name": "breedwise",
-  "version": "1.0.2",
+  "version": "1.0.21",
   "private": true,
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
@@ -8,6 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "build:release": "bash scripts/build-release.sh",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:screen": "jest --runInBand",
