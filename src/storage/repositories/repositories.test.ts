@@ -22,12 +22,14 @@ import {
   getFoalingRecordById,
   getPregnancyCheckById,
   listFoalsByMare,
+  parseIggTests,
   parseFoalMilestones,
   updateFoalingRecord,
   updatePregnancyCheck,
   updateDailyLog,
   updateFoal,
 } from '@/storage/repositories/queries';
+import { serializeIggTestsForSave } from '@/storage/repositories/internal/foalCodecs';
 import { createMare, getMareById, listMares, softDeleteMare, updateMare } from '@/storage/repositories/mares';
 
 type MareRow = {
@@ -1064,19 +1066,152 @@ describe('repository smoke tests', () => {
     expect(parseFoalMilestones('[]')).toEqual({});
   });
 
-  it('parseFoalMilestones ignores unknown keys and malformed entries', () => {
+  it('parseFoalMilestones preserves unknown keys and extra entry properties while filtering malformed known entries', () => {
     const input = JSON.stringify({
-      stood: { done: true, recordedAt: '2026-04-01T02:00:00Z' },
-      unknownKey: { done: true },
+      stood: { done: true, recordedAt: '2026-04-01T02:00:00Z', source: 'nurse note' },
+      unknownKey: { done: true, windowHours: 6 },
       nursed: { done: 'yes' },
       iggTested: { done: false },
     });
-    const result = parseFoalMilestones(input);
-    expect(result.stood?.done).toBe(true);
-    expect(result.stood?.recordedAt).toBe('2026-04-01T02:00:00Z');
-    expect(result).not.toHaveProperty('unknownKey');
+    const result = parseFoalMilestones(input) as Record<string, unknown>;
+    const stood = result.stood as { done?: unknown; recordedAt?: unknown } | undefined;
+    const iggTested = result.iggTested as { done?: unknown } | undefined;
+    expect(stood?.done).toBe(true);
+    expect(stood?.recordedAt).toBe('2026-04-01T02:00:00Z');
+    expect((result.stood as Record<string, unknown>).source).toBe('nurse note');
+    expect(result.unknownKey).toEqual({ done: true, windowHours: 6 });
     expect(result).not.toHaveProperty('nursed');
-    expect(result.iggTested?.done).toBe(false);
+    expect(iggTested?.done).toBe(false);
+  });
+
+  it('parseIggTests preserves unknown properties on valid tests', () => {
+    const result = parseIggTests(
+      JSON.stringify([
+        {
+          date: '2026-04-01',
+          valueMgDl: 900,
+          recordedAt: '2026-04-01T08:00:00Z',
+          lab: 'North Lab',
+        },
+      ]),
+    ) as unknown as Array<Record<string, unknown>>;
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.valueMgDl).toBe(900);
+    expect(result[0]?.lab).toBe('North Lab');
+  });
+
+  it('updateFoal preserves forward-compatible milestone keys and igg properties when saving known fields', async () => {
+    await createMare({ id: 'mare-foal-forward', name: 'Juniper', breed: 'Warmblood' });
+    await createFoalingRecord({
+      id: 'fr-foal-forward',
+      mareId: 'mare-foal-forward',
+      date: '2026-08-01',
+      outcome: 'liveFoal',
+    });
+
+    await createFoal({
+      id: 'foal-forward',
+      foalingRecordId: 'fr-foal-forward',
+      milestones: {
+        stood: {
+          done: true,
+          recordedAt: '2026-08-01T02:00:00Z',
+          source: 'initial observation',
+        } as never,
+        futureMilestone: {
+          done: true,
+          windowHours: 6,
+        } as never,
+      } as never,
+      iggTests: [
+        {
+          date: '2026-08-02',
+          valueMgDl: 800,
+          recordedAt: '2026-08-02T09:00:00Z',
+          lab: 'North Lab',
+        } as never,
+      ],
+    });
+
+    await updateFoal('foal-forward', {
+      milestones: {
+        stood: {
+          done: false,
+          recordedAt: '2026-08-01T02:00:00Z',
+        },
+      },
+      iggTests: [
+        {
+          date: '2026-08-02',
+          valueMgDl: 950,
+          recordedAt: '2026-08-02T09:00:00Z',
+        },
+      ],
+    });
+
+    const updated = await getFoalById('foal-forward');
+    expect(updated).not.toBeNull();
+
+    const milestones = updated?.milestones as Record<string, unknown>;
+    expect(updated?.milestones.stood?.done).toBe(false);
+    expect((milestones.stood as Record<string, unknown>).source).toBe('initial observation');
+    expect(milestones.futureMilestone).toEqual({ done: true, windowHours: 6 });
+
+    const iggTest = updated?.iggTests[0] as unknown as Record<string, unknown>;
+    expect(updated?.iggTests[0]?.valueMgDl).toBe(950);
+    expect(iggTest.lab).toBe('North Lab');
+  });
+
+  it('serializeIggTestsForSave preserves hidden raw igg entries without reordering visible tests', () => {
+    const rawTests = JSON.parse(
+      serializeIggTestsForSave(
+        JSON.stringify([
+          {
+            date: '2026-09-02',
+            valueMgDl: 800,
+            recordedAt: '2026-09-02T09:00:00Z',
+            lab: 'North Lab',
+          },
+          {
+            recordedAt: '2026-09-04T09:00:00Z',
+            panel: 'future-format',
+            externalId: 'lab-7',
+          },
+        ]),
+        [
+          {
+            date: '2026-09-03',
+            valueMgDl: 700,
+            recordedAt: '2026-09-03T09:00:00Z',
+          } as never,
+          {
+            date: '2026-09-02',
+            valueMgDl: 950,
+            recordedAt: '2026-09-02T09:00:00Z',
+          } as never,
+        ],
+      ),
+    ) as Array<string | Record<string, unknown>>;
+
+    expect(rawTests).toEqual([
+      {
+        date: '2026-09-03',
+        valueMgDl: 700,
+        recordedAt: '2026-09-03T09:00:00Z',
+      },
+      {
+        date: '2026-09-02',
+        valueMgDl: 950,
+        recordedAt: '2026-09-02T09:00:00Z',
+        lab: 'North Lab',
+      },
+      {
+        recordedAt: '2026-09-04T09:00:00Z',
+        panel: 'future-format',
+        externalId: 'lab-7',
+      },
+    ]);
   });
 
   it('foal with null name reads back as null', async () => {

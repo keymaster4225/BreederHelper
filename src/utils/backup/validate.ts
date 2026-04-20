@@ -577,9 +577,7 @@ function validateFoalMilestonesJson(value: string, rowIndex: number): ValidateBa
   }
 
   for (const [key, entry] of Object.entries(parsed)) {
-    if (!FOAL_MILESTONE_KEYS.has(key)) {
-      return rowFailure('foals', rowIndex, 'milestones', `contains unsupported milestone key "${key}"`);
-    }
+    if (!FOAL_MILESTONE_KEYS.has(key)) continue;
     if (!isRecord(entry) || typeof entry.done !== 'boolean') {
       return rowFailure('foals', rowIndex, 'milestones', `milestone "${key}" is invalid`);
     }
@@ -606,6 +604,17 @@ function validateIggTestsJson(value: string, rowIndex: number): ValidateBackupRe
 
   for (const entry of parsed) {
     if (!isRecord(entry)) {
+      return rowFailure('foals', rowIndex, 'igg_tests', 'contains an invalid test entry');
+    }
+    const hasCurrentFields = 'date' in entry || 'valueMgDl' in entry;
+    const hasRecordedAt = 'recordedAt' in entry;
+    const isFutureCompatibleOpaqueEntry =
+      hasRecordedAt &&
+      !hasCurrentFields &&
+      isNonEmptyString(entry.recordedAt) &&
+      Object.keys(entry).some((key) => key !== 'recordedAt');
+    if (isFutureCompatibleOpaqueEntry) continue;
+    if (!hasCurrentFields && !hasRecordedAt) {
       return rowFailure('foals', rowIndex, 'igg_tests', 'contains an invalid test entry');
     }
     if (!isLocalDate(entry.date)) {
