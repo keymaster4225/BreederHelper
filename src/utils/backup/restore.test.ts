@@ -99,6 +99,9 @@ describe('restoreBackup', () => {
     expect(sqlCalls[11]).toContain('INSERT INTO stallions');
     expect(sqlCalls[12]).toContain('INSERT INTO semen_collections');
     expect(sqlCalls[13]).toContain('INSERT INTO breeding_records');
+    const breedingInsertCall = db.runAsync.mock.calls[13] as unknown[] | undefined;
+    const breedingInsertParams = (breedingInsertCall?.[1] ?? []) as unknown[];
+    expect(breedingInsertParams[12]).toBe(0.5);
     expect(sqlCalls[14]).toContain('INSERT INTO daily_logs');
     expect(sqlCalls[15]).toContain('INSERT INTO medication_logs');
     expect(sqlCalls[16]).toContain('INSERT INTO pregnancy_checks');

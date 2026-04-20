@@ -24,6 +24,7 @@ import {
   listFoalsByMare,
   parseIggTests,
   parseFoalMilestones,
+  updateBreedingRecord,
   updateFoalingRecord,
   updatePregnancyCheck,
   updateDailyLog,
@@ -78,6 +79,7 @@ type BreedingRecordRow = {
   mare_id: string;
   stallion_id: string | null;
   stallion_name: string | null;
+  collection_id: string | null;
   date: string;
   method: string;
   notes: string | null;
@@ -344,6 +346,7 @@ function createFakeDb(): FakeDb {
           mareId,
           stallionId,
           stallionName,
+          collectionId,
           date,
           method,
           notes,
@@ -359,6 +362,7 @@ function createFakeDb(): FakeDb {
         ] = params as [
           string,
           string,
+          string | null,
           string | null,
           string | null,
           string,
@@ -379,6 +383,7 @@ function createFakeDb(): FakeDb {
           mare_id: mareId,
           stallion_id: stallionId,
           stallion_name: stallionName,
+          collection_id: collectionId,
           date,
           method,
           notes,
@@ -390,6 +395,62 @@ function createFakeDb(): FakeDb {
           straw_details: strawDetails,
           collection_date: collectionDate,
           created_at: createdAt,
+          updated_at: updatedAt,
+        });
+        return;
+      }
+
+      if (stmt.startsWith('update breeding_records set')) {
+        const [
+          stallionId,
+          stallionName,
+          collectionId,
+          date,
+          method,
+          notes,
+          volumeMl,
+          concentration,
+          motility,
+          numberOfStraws,
+          strawVolumeMl,
+          strawDetails,
+          collectionDate,
+          updatedAt,
+          id,
+        ] = params as [
+          string | null,
+          string | null,
+          string | null,
+          string,
+          string,
+          string | null,
+          number | null,
+          number | null,
+          number | null,
+          number | null,
+          number | null,
+          string | null,
+          string | null,
+          string,
+          string,
+        ];
+        const existing = breedingRecords.get(id);
+        if (!existing) return;
+        breedingRecords.set(id, {
+          ...existing,
+          stallion_id: stallionId,
+          stallion_name: stallionName,
+          collection_id: collectionId,
+          date,
+          method,
+          notes,
+          volume_ml: volumeMl,
+          concentration_m_per_ml: concentration,
+          motility_percent: motility,
+          number_of_straws: numberOfStraws,
+          straw_volume_ml: strawVolumeMl,
+          straw_details: strawDetails,
+          collection_date: collectionDate,
           updated_at: updatedAt,
         });
         return;
@@ -882,6 +943,34 @@ describe('repository smoke tests', () => {
     expect(record).not.toBeNull();
     expect(record?.stallionId).toBeNull();
     expect(record?.stallionName).toBe('Outside Stallion');
+  });
+
+  it('preserves decimal straw volume values across breeding record create and update', async () => {
+    await createMare({ id: 'mare-straw-decimal', name: 'Delta', breed: 'Warmblood' });
+    await createStallion({ id: 'stallion-straw-decimal', name: 'North Star' });
+    await createBreedingRecord({
+      id: 'breed-straw-decimal',
+      mareId: 'mare-straw-decimal',
+      stallionId: 'stallion-straw-decimal',
+      date: '2026-06-01',
+      method: 'frozenAI',
+      numberOfStraws: 2,
+      strawVolumeMl: 0.5,
+    });
+
+    let record = await getBreedingRecordById('breed-straw-decimal');
+    expect(record?.strawVolumeMl).toBe(0.5);
+
+    await updateBreedingRecord('breed-straw-decimal', {
+      stallionId: 'stallion-straw-decimal',
+      date: '2026-06-02',
+      method: 'frozenAI',
+      numberOfStraws: 2,
+      strawVolumeMl: 0.75,
+    });
+
+    record = await getBreedingRecordById('breed-straw-decimal');
+    expect(record?.strawVolumeMl).toBe(0.75);
   });
 
   it('daily log with ovulationDetected true reads back as true', async () => {

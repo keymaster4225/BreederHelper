@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS breeding_records (
   concentration_m_per_ml REAL,
   motility_percent REAL,
   number_of_straws INTEGER,
-  straw_volume_ml INTEGER,
+  straw_volume_ml REAL,
   straw_details TEXT,
   collection_date TEXT,
   created_at TEXT NOT NULL,
@@ -132,11 +132,11 @@ CREATE INDEX IF NOT EXISTS idx_pregnancy_checks_breeding_record ON pregnancy_che
 CREATE INDEX IF NOT EXISTS idx_foaling_records_mare_date ON foaling_records (mare_id, date DESC);
 `;
 
-// migration002: column is INTEGER here; existing installs that ran the original
-// REAL version retain that affinity (no structural migration is possible without
-// disabling FK enforcement, which cannot be done inside a transaction).
+// Existing installs that already applied migration002 keep their previous
+// affinity until migration015 repairs breeding_records to the canonical REAL
+// schema with foreign keys disabled.
 const migration002 = `
-ALTER TABLE breeding_records ADD COLUMN straw_volume_ml INTEGER;
+ALTER TABLE breeding_records ADD COLUMN straw_volume_ml REAL;
 `;
 
 const migration003 = `
@@ -152,7 +152,7 @@ CREATE TABLE breeding_records_new (
   concentration_m_per_ml REAL,
   motility_percent REAL,
   number_of_straws INTEGER,
-  straw_volume_ml INTEGER,
+  straw_volume_ml REAL,
   straw_details TEXT,
   collection_date TEXT,
   created_at TEXT NOT NULL,
@@ -296,7 +296,7 @@ CREATE TABLE breeding_records_new (
   concentration_m_per_ml REAL,
   motility_percent REAL,
   number_of_straws INTEGER,
-  straw_volume_ml INTEGER,
+  straw_volume_ml REAL,
   straw_details TEXT,
   collection_date TEXT,
   created_at TEXT NOT NULL,
@@ -428,7 +428,7 @@ CREATE TABLE breeding_records_new (
   concentration_m_per_ml REAL,
   motility_percent REAL,
   number_of_straws INTEGER,
-  straw_volume_ml INTEGER,
+  straw_volume_ml REAL,
   straw_details TEXT,
   collection_date TEXT,
   created_at TEXT NOT NULL,
@@ -476,6 +476,60 @@ ALTER TABLE semen_collections ADD COLUMN extender_volume_ml REAL;
 
 const migration014 = `
 ALTER TABLE semen_collections ADD COLUMN extender_type TEXT;
+`;
+
+const migration015 = `
+CREATE TABLE breeding_records_new (
+  id TEXT PRIMARY KEY,
+  mare_id TEXT NOT NULL,
+  stallion_id TEXT,
+  stallion_name TEXT,
+  collection_id TEXT,
+  date TEXT NOT NULL,
+  method TEXT NOT NULL,
+  notes TEXT,
+  volume_ml REAL,
+  concentration_m_per_ml REAL,
+  motility_percent REAL,
+  number_of_straws INTEGER,
+  straw_volume_ml REAL,
+  straw_details TEXT,
+  collection_date TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (mare_id) REFERENCES mares(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  FOREIGN KEY (collection_id) REFERENCES semen_collections(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (date GLOB '????-??-??'),
+  CHECK (collection_date IS NULL OR collection_date GLOB '????-??-??'),
+  CHECK (method IN ('liveCover', 'freshAI', 'shippedCooledAI', 'frozenAI')),
+  CHECK (motility_percent IS NULL OR (motility_percent >= 0 AND motility_percent <= 100)),
+  CHECK (number_of_straws IS NULL OR number_of_straws >= 1),
+  CHECK (
+    (method = 'frozenAI' AND number_of_straws IS NOT NULL)
+    OR (method <> 'frozenAI')
+  ),
+  CHECK (stallion_id IS NOT NULL OR stallion_name IS NOT NULL),
+  CHECK (collection_id IS NULL OR stallion_id IS NOT NULL)
+);
+
+INSERT INTO breeding_records_new
+  SELECT
+    id, mare_id, stallion_id, stallion_name, collection_id,
+    date, method, notes, volume_ml, concentration_m_per_ml,
+    motility_percent, number_of_straws, straw_volume_ml,
+    straw_details, collection_date, created_at, updated_at
+  FROM breeding_records;
+
+DROP TABLE breeding_records;
+
+ALTER TABLE breeding_records_new RENAME TO breeding_records;
+
+CREATE INDEX IF NOT EXISTS idx_breeding_records_mare_date
+  ON breeding_records (mare_id, date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date
+  ON breeding_records (stallion_id, date DESC);
 `;
 
 const migrations: Migration[] = [
@@ -561,6 +615,13 @@ const migrations: Migration[] = [
     name: '014_collection_extender_type',
     statements: splitStatements(migration014),
     shouldSkip: async (db) => hasColumn(db, 'semen_collections', 'extender_type'),
+  },
+  {
+    id: 15,
+    name: '015_breeding_records_straw_volume_real',
+    statements: splitStatements(migration015),
+    requiresForeignKeysOff: true,
+    shouldSkip: async (db) => columnDefinitionHasType(db, 'breeding_records', 'straw_volume_ml', 'REAL'),
   },
 ];
 
@@ -693,6 +754,28 @@ async function tableDefinitionReferences(
   const quotedPattern = new RegExp(`REFERENCES\\s+"${escapedTable}"\\s*\\(`, 'i');
   const unquotedPattern = new RegExp(`REFERENCES\\s+${escapedTable}\\s*\\(`, 'i');
   return quotedPattern.test(sql) || unquotedPattern.test(sql);
+}
+
+async function columnDefinitionHasType(
+  db: SQLite.SQLiteDatabase,
+  tableName: string,
+  columnName: string,
+  expectedType: string,
+): Promise<boolean> {
+  const row = await db.getFirstAsync<{ sql: string | null }>(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?;",
+    [tableName],
+  );
+
+  const sql = row?.sql;
+  if (!sql) {
+    return false;
+  }
+
+  const escapedColumn = columnName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const escapedType = expectedType.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(`\\b${escapedColumn}\\b\\s+${escapedType}\\b`, 'i');
+  return pattern.test(sql);
 }
 
 async function tableExists(

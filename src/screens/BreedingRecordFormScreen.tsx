@@ -127,7 +127,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         setConcentrationMPerMl(record.concentrationMPerMl == null ? '' : String(record.concentrationMPerMl));
         setMotilityPercent(record.motilityPercent == null ? '' : String(record.motilityPercent));
         setNumberOfStraws(record.numberOfStraws == null ? '' : String(record.numberOfStraws));
-        setStrawVolumeMl(record.strawVolumeMl == null ? '' : String(Math.trunc(record.strawVolumeMl)));
+        setStrawVolumeMl(record.strawVolumeMl == null ? '' : String(record.strawVolumeMl));
         setStrawDetails(record.strawDetails ?? '');
         setCollectionDate(record.collectionDate ?? '');
         setNotes(record.notes ?? '');
@@ -236,7 +236,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     const parsedConcentration = parseOptionalNumber(concentrationMPerMl);
     const parsedMotility = parseOptionalNumber(motilityPercent);
     const parsedStraws = parseOptionalInteger(numberOfStraws);
-    const parsedStrawVolume = parseOptionalInteger(strawVolumeMl);
+    const parsedStrawVolume = parseOptionalNumber(strawVolumeMl);
 
     const nextErrors: FormErrors = {
       date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
@@ -349,10 +349,6 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     });
   };
 
-  const onChangeStrawVolumeMl = (value: string): void => {
-    setStrawVolumeMl(value.replace(/\D/g, '').slice(0, 2));
-  };
-
   if (isLoading) {
     return (
       <Screen>
@@ -364,7 +360,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   return (
     <Screen style={{ paddingTop: 0 }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Date" required error={errors.date}>
           <FormDateInput value={date} onChange={setDate} placeholder="Select breeding date" maximumDate={today} />
         </FormField>
@@ -430,12 +426,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
             </FormField>
 
             <FormField label="Straw Volume (mL)" error={errors.strawVolumeMl}>
-              <FormTextInput
-                value={strawVolumeMl}
-                onChangeText={onChangeStrawVolumeMl}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
+              <FormTextInput value={strawVolumeMl} onChangeText={setStrawVolumeMl} keyboardType="decimal-pad" />
             </FormField>
 
             <FormField label="Straw Details">
@@ -473,7 +464,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
             disabled={isSaving || isDeleting}
           />
         ) : null}
-      </ScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   );
