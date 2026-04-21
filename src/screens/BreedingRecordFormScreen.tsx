@@ -302,7 +302,10 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
           numberOfStraws: method === 'frozenAI' ? parsedStraws : null,
           strawVolumeMl: method === 'frozenAI' ? parsedStrawVolume : null,
           strawDetails: method === 'frozenAI' ? strawDetails.trim() || null : null,
-          collectionDate: method === 'shippedCooledAI' || method === 'frozenAI' ? normalizeLocalDate(collectionDate) : null,
+          collectionDate:
+            selectedCollectionId != null || method === 'shippedCooledAI' || method === 'frozenAI'
+              ? normalizeLocalDate(collectionDate)
+              : null,
         };
 
         if (breedingRecordId) {

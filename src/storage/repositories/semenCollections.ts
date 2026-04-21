@@ -1,6 +1,7 @@
 import { SemenCollection } from '@/models/types';
 import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
+import { assertCollectionDoseCountCanBeUpdated } from './internal/collectionAllocation';
 import { getStallionById } from './stallions';
 
 type SemenCollectionRow = {
@@ -134,6 +135,7 @@ export async function updateSemenCollection(
   },
 ): Promise<void> {
   const db = await getDb();
+  await assertCollectionDoseCountCanBeUpdated(db, id, input.doseCount ?? null);
 
   await db.runAsync(
     `UPDATE semen_collections

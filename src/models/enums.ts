@@ -185,7 +185,7 @@ type DoseEventTypeValue = (typeof DOSE_EVENT_TYPE_VALUES)[number];
 
 export const DOSE_EVENT_TYPE_LABELS: Readonly<Record<DoseEventTypeValue, string>> = {
   shipped: 'Shipped',
-  usedOnSite: 'Used on site',
+  usedOnSite: 'On-farm',
 };
 
 export const DOSE_EVENT_TYPE_OPTIONS = buildOptions(

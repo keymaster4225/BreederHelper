@@ -14,7 +14,22 @@ const repositories = jest.requireMock('@/storage/repositories') as Record<string
 
 beforeEach(() => {
   jest.clearAllMocks();
-  repositories.getSemenCollectionById.mockResolvedValue(null);
+  repositories.getSemenCollectionById.mockResolvedValue({
+    id: 'col-1',
+    stallionId: 'st-1',
+    collectionDate: '2026-04-01',
+    rawVolumeMl: 50,
+    totalVolumeMl: 450,
+    extenderVolumeMl: 400,
+    extenderType: 'INRA 96',
+    concentrationMillionsPerMl: null,
+    progressiveMotilityPercent: 75,
+    doseCount: null,
+    doseSizeMillions: null,
+    notes: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  });
   repositories.getStallionById.mockResolvedValue({
     id: 'st-1',
     name: 'Thunder',
@@ -24,7 +39,7 @@ beforeEach(() => {
   });
 });
 
-function renderForm(params: { stallionId: string; collectionId?: string } = { stallionId: 'st-1' }) {
+function renderForm(params: { stallionId: string; collectionId: string } = { stallionId: 'st-1', collectionId: 'col-1' }) {
   const navigation = { navigate: jest.fn(), setOptions: jest.fn(), goBack: jest.fn() };
   return {
     navigation,
@@ -37,9 +52,12 @@ function renderForm(params: { stallionId: string; collectionId?: string } = { st
   };
 }
 
-it('renders all form fields in create mode', async () => {
+it('renders all form fields in edit mode', async () => {
   const screen = renderForm();
   await waitFor(() => {
+    expect(screen.navigation.setOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Edit Collection' }),
+    );
     expect(screen.getByText('Collection Date *')).toBeTruthy();
     expect(screen.getByText('Raw Volume (mL)')).toBeTruthy();
     expect(screen.getByText('Total Volume (mL)')).toBeTruthy();
@@ -64,11 +82,6 @@ it('does not show legacy shipping controls', () => {
   const screen = renderForm();
   expect(screen.queryByText('Shipped To *')).toBeNull();
   expect(screen.queryByText('Semen was shipped')).toBeNull();
-});
-
-it('does not show delete button in create mode', () => {
-  const screen = renderForm();
-  expect(screen.queryByText('Delete Collection')).toBeNull();
 });
 
 it('shows delete button in edit mode', async () => {

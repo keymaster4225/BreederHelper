@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,13 +17,7 @@ import {
   FormTextInput,
   formStyles,
 } from '@/components/FormControls';
-import {
-  CollectionDoseEvent,
-  CreateCollectionDoseEventInput,
-  UpdateCollectionDoseEventInput,
-  UUID,
-} from '@/models/types';
-import { createDoseEvent, updateDoseEvent } from '@/storage/repositories';
+import { CollectionWizardShippedRow } from '@/hooks/useCollectionWizard';
 import { borderRadius, colors, spacing } from '@/theme';
 import { CARRIER_SERVICES, getCarrierServiceSuggestions } from '@/utils/carrierServices';
 import { CONTAINER_TYPES, getContainerTypeSuggestions } from '@/utils/containerTypes';
@@ -36,11 +29,11 @@ import {
   validateRequired,
 } from '@/utils/validation';
 
-type DoseEventModalProps = {
+type Props = {
   visible: boolean;
-  collectionId: UUID;
-  event?: CollectionDoseEvent;
-  onSaved: () => void;
+  initialValue?: CollectionWizardShippedRow;
+  defaultDate: string;
+  onSave: (value: CollectionWizardShippedRow) => void;
   onClose: () => void;
 };
 
@@ -57,14 +50,13 @@ type FormErrors = {
   doseCount?: string;
 };
 
-export function DoseEventModal({
+export function ShippedDoseRowEditor({
   visible,
-  collectionId,
-  event,
-  onSaved,
+  initialValue,
+  defaultDate,
+  onSave,
   onClose,
-}: DoseEventModalProps): JSX.Element {
-  const isEdit = event != null;
+}: Props): JSX.Element {
   const [recipient, setRecipient] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
   const [recipientStreet, setRecipientStreet] = useState('');
@@ -78,33 +70,30 @@ export function DoseEventModal({
   const [doseCount, setDoseCount] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (!visible) {
       return;
     }
 
-    setRecipient(event?.recipient ?? '');
-    setRecipientPhone(event?.recipientPhone ?? '');
-    setRecipientStreet(event?.recipientStreet ?? '');
-    setRecipientCity(event?.recipientCity ?? '');
-    setRecipientState(event?.recipientState ?? '');
-    setRecipientZip(event?.recipientZip ?? '');
-    setCarrierService(event?.carrierService ?? '');
-    setContainerType(event?.containerType ?? '');
-    setTrackingNumber(event?.trackingNumber ?? '');
-    setEventDate(event?.eventDate ?? '');
-    setDoseCount(event?.doseCount != null ? String(event.doseCount) : '');
-    setNotes(event?.notes ?? '');
+    setRecipient(initialValue?.recipient ?? '');
+    setRecipientPhone(initialValue?.recipientPhone ?? '');
+    setRecipientStreet(initialValue?.recipientStreet ?? '');
+    setRecipientCity(initialValue?.recipientCity ?? '');
+    setRecipientState(initialValue?.recipientState ?? '');
+    setRecipientZip(initialValue?.recipientZip ?? '');
+    setCarrierService(initialValue?.carrierService ?? '');
+    setContainerType(initialValue?.containerType ?? '');
+    setTrackingNumber(initialValue?.trackingNumber ?? '');
+    setEventDate(initialValue?.eventDate ?? defaultDate);
+    setDoseCount(initialValue?.doseCount != null ? String(initialValue.doseCount) : '');
+    setNotes(initialValue?.notes ?? '');
     setErrors({});
-    setIsSaving(false);
-  }, [event, visible]);
+  }, [defaultDate, initialValue, visible]);
 
-  const validate = (): FormErrors => {
+  const handleSave = (): void => {
     const parsedDoseCount = parseOptionalInteger(doseCount);
-
-    return {
+    const nextErrors: FormErrors = {
       recipient: validateRequired(recipient, 'Recipient name') ?? undefined,
       recipientPhone: validateRequired(recipientPhone, 'Recipient phone') ?? undefined,
       recipientStreet: validateRequired(recipientStreet, 'Recipient street') ?? undefined,
@@ -119,65 +108,26 @@ export function DoseEventModal({
         undefined,
       doseCount: validateNumberRange(parsedDoseCount, 'Dose Count', 1, 1000) ?? undefined,
     };
-  };
 
-  const handleSave = async (): Promise<void> => {
-    const nextErrors = validate();
     setErrors(nextErrors);
-
-    if (Object.values(nextErrors).some(Boolean)) {
+    if (Object.values(nextErrors).some(Boolean) || parsedDoseCount == null) {
       return;
     }
 
-    setIsSaving(true);
-    try {
-      const baseInput: CreateCollectionDoseEventInput | UpdateCollectionDoseEventInput = {
-        collectionId,
-        eventType: 'shipped',
-        recipient: recipient.trim(),
-        recipientPhone: recipientPhone.trim(),
-        recipientStreet: recipientStreet.trim(),
-        recipientCity: recipientCity.trim(),
-        recipientState: recipientState.trim(),
-        recipientZip: recipientZip.trim(),
-        carrierService: carrierService.trim(),
-        containerType: containerType.trim(),
-        trackingNumber: trackingNumber.trim() || null,
-        doseCount: parseOptionalInteger(doseCount),
-        eventDate: eventDate.trim(),
-        notes: notes.trim() || null,
-      };
-
-      if (event) {
-        const createInput = baseInput as CreateCollectionDoseEventInput;
-        const updateInput: UpdateCollectionDoseEventInput = {
-          eventType: createInput.eventType,
-          recipient: createInput.recipient,
-          recipientPhone: createInput.recipientPhone,
-          recipientStreet: createInput.recipientStreet,
-          recipientCity: createInput.recipientCity,
-          recipientState: createInput.recipientState,
-          recipientZip: createInput.recipientZip,
-          carrierService: createInput.carrierService,
-          containerType: createInput.containerType,
-          trackingNumber: createInput.trackingNumber,
-          doseCount: createInput.doseCount,
-          eventDate: createInput.eventDate,
-          notes: createInput.notes,
-        };
-        await updateDoseEvent(event.id, updateInput);
-      } else {
-        await createDoseEvent(baseInput as CreateCollectionDoseEventInput);
-      }
-
-      onSaved();
-      onClose();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save shipment.';
-      Alert.alert('Save error', message);
-    } finally {
-      setIsSaving(false);
-    }
+    onSave({
+      recipient: recipient.trim(),
+      recipientPhone: recipientPhone.trim(),
+      recipientStreet: recipientStreet.trim(),
+      recipientCity: recipientCity.trim(),
+      recipientState: recipientState.trim(),
+      recipientZip: recipientZip.trim(),
+      carrierService: carrierService.trim(),
+      containerType: containerType.trim(),
+      trackingNumber: trackingNumber.trim() || null,
+      eventDate,
+      doseCount: parsedDoseCount,
+      notes: notes.trim() || null,
+    });
   };
 
   return (
@@ -264,13 +214,10 @@ export function DoseEventModal({
 
               <View style={styles.actions}>
                 <PrimaryButton
-                  label={isEdit ? 'Update Shipment' : 'Save Shipment'}
-                  onPress={() => {
-                    void handleSave();
-                  }}
-                  disabled={isSaving}
+                  label={initialValue ? 'Update Shipment' : 'Save Shipment'}
+                  onPress={handleSave}
                 />
-                <SecondaryButton label="Cancel" onPress={onClose} disabled={isSaving} />
+                <SecondaryButton label="Cancel" onPress={onClose} />
               </View>
             </ScrollView>
           </Pressable>

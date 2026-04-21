@@ -588,6 +588,44 @@ function validateCollectionDoseEventRow(row: unknown, rowIndex: number): Validat
   if (!isNonEmptyString(row.recipient)) {
     return rowFailure('collection_dose_events', rowIndex, 'recipient', 'is required');
   }
+  if (!isOptionalNullableString(row.recipient_phone)) {
+    return rowFailure('collection_dose_events', rowIndex, 'recipient_phone', 'must be a string or null');
+  }
+  if (!isOptionalNullableString(row.recipient_street)) {
+    return rowFailure('collection_dose_events', rowIndex, 'recipient_street', 'must be a string or null');
+  }
+  if (!isOptionalNullableString(row.recipient_city)) {
+    return rowFailure('collection_dose_events', rowIndex, 'recipient_city', 'must be a string or null');
+  }
+  if (!isOptionalNullableString(row.recipient_state)) {
+    return rowFailure('collection_dose_events', rowIndex, 'recipient_state', 'must be a string or null');
+  }
+  if (!isOptionalNullableString(row.recipient_zip)) {
+    return rowFailure('collection_dose_events', rowIndex, 'recipient_zip', 'must be a string or null');
+  }
+  if (!isOptionalNullableString(row.carrier_service)) {
+    return rowFailure('collection_dose_events', rowIndex, 'carrier_service', 'must be a string or null');
+  }
+  if (!isOptionalNullableString(row.container_type)) {
+    return rowFailure('collection_dose_events', rowIndex, 'container_type', 'must be a string or null');
+  }
+  if (!isOptionalNullableString(row.tracking_number)) {
+    return rowFailure('collection_dose_events', rowIndex, 'tracking_number', 'must be a string or null');
+  }
+  if (
+    !(
+      row.breeding_record_id === undefined ||
+      row.breeding_record_id === null ||
+      isNonEmptyString(row.breeding_record_id)
+    )
+  ) {
+    return rowFailure(
+      'collection_dose_events',
+      rowIndex,
+      'breeding_record_id',
+      'must be a string or null',
+    );
+  }
   if (!isNullableIntegerAtLeast(row.dose_count, 1)) {
     return rowFailure('collection_dose_events', rowIndex, 'dose_count', 'must be an integer > 0 or null');
   }
@@ -796,6 +834,37 @@ function validateCrossTableRules(
     if (!indexes.collectionById.has(row.collection_id)) {
       return rowFailure('collection_dose_events', index, 'collection_id', 'references missing semen collection');
     }
+    if (row.breeding_record_id != null && !indexes.breedingById.has(row.breeding_record_id)) {
+      return rowFailure(
+        'collection_dose_events',
+        index,
+        'breeding_record_id',
+        'references missing breeding record',
+      );
+    }
+  }
+
+  const collectionDoseTotals = new Map<string, number>();
+  for (const row of tables.collection_dose_events) {
+    collectionDoseTotals.set(
+      row.collection_id,
+      (collectionDoseTotals.get(row.collection_id) ?? 0) + (row.dose_count ?? 0),
+    );
+  }
+
+  for (let index = 0; index < tables.semen_collections.length; index += 1) {
+    const row = tables.semen_collections[index];
+    if (row.dose_count != null) {
+      const totalDoseCount = collectionDoseTotals.get(row.id) ?? 0;
+      if (totalDoseCount > row.dose_count) {
+        return rowFailure(
+          'semen_collections',
+          index,
+          'dose_count',
+          `must be at least the sum of linked dose events (${totalDoseCount})`,
+        );
+      }
+    }
   }
 
   return null;
@@ -859,6 +928,10 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isNullableString(value: unknown): value is string | null {
   return value == null || typeof value === 'string';
+}
+
+function isOptionalNullableString(value: unknown): value is string | null | undefined {
+  return value === undefined || isNullableString(value);
 }
 
 function isStringEnum(value: unknown, validValues: ReadonlySet<string>): value is string {

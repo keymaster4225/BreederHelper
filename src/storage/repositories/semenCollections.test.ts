@@ -4,7 +4,12 @@ vi.mock('@/storage/db', () => ({
   getDb: vi.fn(),
 }));
 
+vi.mock('@/utils/id', () => ({
+  newId: vi.fn(),
+}));
+
 import { getDb } from '@/storage/db';
+import { newId } from '@/utils/id';
 import {
   createSemenCollection,
   deleteSemenCollection,
@@ -19,6 +24,7 @@ import {
   listLegacyBreedingRecordsMatchingStallionName,
 } from './breedingRecords';
 import { createStallion, softDeleteStallion } from './stallions';
+import { createDoseEvent } from './collectionDoseEvents';
 
 type StallionRow = {
   id: string;
@@ -84,6 +90,26 @@ function createFakeDb() {
   const stallions = new Map<string, StallionRow>();
   const collections = new Map<string, CollectionRow>();
   const breedings = new Map<string, BreedingRow>();
+  const doseEvents = new Map<string, {
+    id: string;
+    collection_id: string;
+    event_type: 'shipped' | 'usedOnSite';
+    recipient: string;
+    recipient_phone: string | null;
+    recipient_street: string | null;
+    recipient_city: string | null;
+    recipient_state: string | null;
+    recipient_zip: string | null;
+    carrier_service: string | null;
+    container_type: string | null;
+    tracking_number: string | null;
+    breeding_record_id: string | null;
+    dose_count: number | null;
+    event_date: string | null;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+  }>();
 
   return {
     async runAsync(sql: string, params: unknown[] = []): Promise<void> {
@@ -159,6 +185,69 @@ function createFakeDb() {
         });
         return;
       }
+
+      if (stmt.startsWith('insert into collection_dose_events')) {
+        const [
+          id,
+          collectionId,
+          eventType,
+          recipient,
+          recipientPhone,
+          recipientStreet,
+          recipientCity,
+          recipientState,
+          recipientZip,
+          carrierService,
+          containerType,
+          trackingNumber,
+          breedingRecordId,
+          doseCount,
+          eventDate,
+          notes,
+          createdAt,
+          updatedAt,
+        ] = params as [
+          string,
+          string,
+          string,
+          string,
+          string | null,
+          string | null,
+          string | null,
+          string | null,
+          string | null,
+          string | null,
+          string | null,
+          string | null,
+          string | null,
+          number | null,
+          string | null,
+          string | null,
+          string,
+          string,
+        ];
+        doseEvents.set(id, {
+          id,
+          collection_id: collectionId,
+          event_type: eventType as 'shipped' | 'usedOnSite',
+          recipient,
+          recipient_phone: recipientPhone,
+          recipient_street: recipientStreet,
+          recipient_city: recipientCity,
+          recipient_state: recipientState,
+          recipient_zip: recipientZip,
+          carrier_service: carrierService,
+          container_type: containerType,
+          tracking_number: trackingNumber,
+          breeding_record_id: breedingRecordId,
+          dose_count: doseCount,
+          event_date: eventDate,
+          notes,
+          created_at: createdAt,
+          updated_at: updatedAt,
+        });
+        return;
+      }
     },
 
     async getFirstAsync<T>(sql: string, params: unknown[] = []): Promise<T | null> {
@@ -178,6 +267,19 @@ function createFakeDb() {
         const [collectionId] = params as [string];
         const count = Array.from(breedings.values()).filter((b) => b.collection_id === collectionId).length;
         return { count } as T;
+      }
+
+      if (stmt.includes('allocated_dose_count') && stmt.includes('from collection_dose_events')) {
+        const [collectionId] = params as [string];
+        const allocatedDoseCount = Array.from(doseEvents.values())
+          .filter((event) => event.collection_id === collectionId)
+          .reduce((total, event) => total + (event.dose_count ?? 0), 0);
+        return { allocated_dose_count: allocatedDoseCount } as T;
+      }
+
+      if (stmt.includes('from collection_dose_events') && stmt.includes('where id = ?')) {
+        const [id] = params as [string];
+        return (doseEvents.get(id) as T | undefined) ?? null;
       }
 
       return null;
@@ -218,6 +320,7 @@ function createFakeDb() {
 describe('semen collection repository', () => {
   beforeEach(() => {
     vi.mocked(getDb).mockResolvedValue(createFakeDb() as unknown as Awaited<ReturnType<typeof getDb>>);
+    vi.mocked(newId).mockReturnValue('dose-1');
   });
 
   it('creates, reads, updates, and deletes a collection (happy path)', async () => {
@@ -336,6 +439,38 @@ describe('semen collection repository', () => {
         'This collection is linked to a breeding record and cannot be deleted.',
       );
     });
+  });
+
+  it('rejects lowering dose count below the allocated total', async () => {
+    await createStallion({ id: 'st-dose', name: 'Dose Guard' });
+    await createSemenCollection({
+      id: 'col-dose',
+      stallionId: 'st-dose',
+      collectionDate: '2026-04-01',
+      doseCount: 6,
+    });
+
+    await createDoseEvent({
+      collectionId: 'col-dose',
+      eventType: 'shipped',
+      recipient: 'Farm ABC',
+      recipientPhone: '555-0100',
+      recipientStreet: '100 Main St',
+      recipientCity: 'Lexington',
+      recipientState: 'KY',
+      recipientZip: '40511',
+      carrierService: 'FedEx Priority Overnight',
+      containerType: 'Equitainer',
+      doseCount: 4,
+      eventDate: '2026-04-01',
+    });
+
+    await expect(
+      updateSemenCollection('col-dose', {
+        collectionDate: '2026-04-01',
+        doseCount: 3,
+      }),
+    ).rejects.toThrow('Dose count cannot be lower than the allocated dose total.');
   });
 
   describe('invariant I2: cross-stallion rejection', () => {

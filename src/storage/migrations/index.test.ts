@@ -16,6 +16,7 @@ function createFakeDb(options: {
   hasSemenCollectionsOld?: boolean;
   hasSemenCollectionsShippedColumn?: boolean;
   semenCollectionsColumns?: string[];
+  collectionDoseEventColumns?: string[];
   failDropBreedingRecordsWhenForeignKeysEnabled?: boolean;
   invalidStallionDateOfBirthId?: string;
   invalidExtenderVolumeCollectionId?: string;
@@ -221,6 +222,20 @@ function createFakeDb(options: {
               ]);
         return columns.map((name) => ({ name } as T));
       }
+      if (trimmed === 'PRAGMA table_info(collection_dose_events);') {
+        const columns = options.collectionDoseEventColumns ?? [
+          'id',
+          'collection_id',
+          'event_type',
+          'recipient',
+          'dose_count',
+          'event_date',
+          'notes',
+          'created_at',
+          'updated_at',
+        ];
+        return columns.map((name) => ({ name } as T));
+      }
       if (trimmed === 'PRAGMA foreign_key_check;') {
         return (options.foreignKeyCheckRows ?? []) as T[];
       }
@@ -332,9 +347,57 @@ describe('applyMigrations', () => {
     expect(runCalls.some(({ params }) => params[0] === 10)).toBe(false);
   });
 
+  it('adds collection dose event shipping detail columns and breeding_record_id foreign key in migration018', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 17 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY
+        )
+      `,
+    });
+
+    await applyMigrations(db as never);
+
+    const createTableStatement = execCalls.find((sql) => sql.includes('CREATE TABLE collection_dose_events_new'));
+    expect(createTableStatement).toBeDefined();
+    expect(createTableStatement).toContain('recipient_phone TEXT');
+    expect(createTableStatement).toContain('recipient_street TEXT');
+    expect(createTableStatement).toContain('recipient_city TEXT');
+    expect(createTableStatement).toContain('recipient_state TEXT');
+    expect(createTableStatement).toContain('recipient_zip TEXT');
+    expect(createTableStatement).toContain('carrier_service TEXT');
+    expect(createTableStatement).toContain('container_type TEXT');
+    expect(createTableStatement).toContain('tracking_number TEXT');
+    expect(createTableStatement).toContain('breeding_record_id TEXT REFERENCES breeding_records(id) ON DELETE CASCADE');
+    expect(execCalls.some((sql) => sql.includes('ALTER TABLE collection_dose_events_new RENAME TO collection_dose_events;'))).toBe(true);
+    expect(execCalls.some((sql) => sql.includes('CREATE INDEX IF NOT EXISTS idx_collection_dose_events_breeding_record_id'))).toBe(true);
+    expect(runCalls.some(({ params }) => params[0] === 18)).toBe(true);
+  });
+
   it('skips the repair migration when breeding_records already references semen_collections', async () => {
     const { db, execCalls, runCalls } = createFakeDb({
       appliedMigrationIds: [...Array.from({ length: 11 }, (_, index) => index + 1), 17],
+      collectionDoseEventColumns: [
+        'id',
+        'collection_id',
+        'event_type',
+        'recipient',
+        'recipient_phone',
+        'recipient_street',
+        'recipient_city',
+        'recipient_state',
+        'recipient_zip',
+        'carrier_service',
+        'container_type',
+        'tracking_number',
+        'breeding_record_id',
+        'dose_count',
+        'event_date',
+        'notes',
+        'created_at',
+        'updated_at',
+      ],
       breedingRecordsSql: `
         CREATE TABLE breeding_records (
           id TEXT PRIMARY KEY,
@@ -348,7 +411,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18]);
   });
 
   it('runs the repair migration when the legacy table still exists even if breeding_records already looks correct', async () => {
@@ -456,6 +519,26 @@ describe('applyMigrations', () => {
   it('skips straw volume affinity repair when breeding_records already uses REAL', async () => {
     const { db, execCalls, runCalls } = createFakeDb({
       appliedMigrationIds: [...Array.from({ length: 14 }, (_, index) => index + 1), 17],
+      collectionDoseEventColumns: [
+        'id',
+        'collection_id',
+        'event_type',
+        'recipient',
+        'recipient_phone',
+        'recipient_street',
+        'recipient_city',
+        'recipient_state',
+        'recipient_zip',
+        'carrier_service',
+        'container_type',
+        'tracking_number',
+        'breeding_record_id',
+        'dose_count',
+        'event_date',
+        'notes',
+        'created_at',
+        'updated_at',
+      ],
       breedingRecordsSql: `
         CREATE TABLE breeding_records (
           id TEXT PRIMARY KEY,
@@ -469,7 +552,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18]);
   });
 
   it('rebuilds stallions and semen_collections when canonical constraint checks are missing', async () => {
@@ -512,6 +595,26 @@ describe('applyMigrations', () => {
   it('skips canonical stallion and collection repair when both tables already include the required checks', async () => {
     const { db, execCalls, runCalls } = createFakeDb({
       appliedMigrationIds: [...Array.from({ length: 15 }, (_, index) => index + 1), 17],
+      collectionDoseEventColumns: [
+        'id',
+        'collection_id',
+        'event_type',
+        'recipient',
+        'recipient_phone',
+        'recipient_street',
+        'recipient_city',
+        'recipient_state',
+        'recipient_zip',
+        'carrier_service',
+        'container_type',
+        'tracking_number',
+        'breeding_record_id',
+        'dose_count',
+        'event_date',
+        'notes',
+        'created_at',
+        'updated_at',
+      ],
       breedingRecordsSql: `
         CREATE TABLE breeding_records (
           id TEXT PRIMARY KEY,
@@ -551,7 +654,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([16]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18]);
   });
 
   it('fails the canonical repair migration with a targeted error when legacy stallion rows are invalid', async () => {

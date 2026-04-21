@@ -112,17 +112,35 @@ export interface CollectionDoseEvent {
   collectionId: UUID;
   eventType: DoseEventType;
   recipient: string;
+  recipientPhone?: string | null;
+  recipientStreet?: string | null;
+  recipientCity?: string | null;
+  recipientState?: string | null;
+  recipientZip?: string | null;
+  carrierService?: string | null;
+  containerType?: string | null;
+  trackingNumber?: string | null;
+  breedingRecordId?: UUID | null;
   doseCount: number | null;
   eventDate: LocalDate | null;
   notes: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
 }
 
 export interface CreateCollectionDoseEventInput {
   collectionId: UUID;
   eventType: DoseEventType;
   recipient: string;
+  recipientPhone?: string | null;
+  recipientStreet?: string | null;
+  recipientCity?: string | null;
+  recipientState?: string | null;
+  recipientZip?: string | null;
+  carrierService?: string | null;
+  containerType?: string | null;
+  trackingNumber?: string | null;
+  breedingRecordId?: UUID | null;
   doseCount?: number | null;
   eventDate?: LocalDate | null;
   notes?: string | null;

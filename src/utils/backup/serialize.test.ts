@@ -147,7 +147,28 @@ describe('serializeBackup', () => {
         }
 
         if (sql.includes('FROM collection_dose_events')) {
-          return [];
+          return [
+            {
+              id: 'event-1',
+              collection_id: 'collection-1',
+              event_type: 'usedOnSite',
+              recipient: 'Maple',
+              recipient_phone: '555-0101',
+              recipient_street: '123 Barn Road',
+              recipient_city: 'Lexington',
+              recipient_state: 'KY',
+              recipient_zip: '40511',
+              carrier_service: 'FedEx',
+              container_type: 'Thermos',
+              tracking_number: 'TRACK-123',
+              breeding_record_id: 'breed-1',
+              dose_count: 1,
+              event_date: '2026-04-02',
+              notes: null,
+              created_at: '2026-04-02T00:00:00.000Z',
+              updated_at: '2026-04-02T00:00:00.000Z',
+            },
+          ];
         }
 
         throw new Error(`Unexpected query: ${sql}`);
@@ -168,6 +189,8 @@ describe('serializeBackup', () => {
     expect(backup.tables.breeding_records[0]?.straw_volume_ml).toBe(0.5);
     expect(backup.tables.foals[0]?.milestones).toBe('{"stood":{"done":true}}');
     expect(backup.tables.foals[0]?.igg_tests).toContain('"valueMgDl":900');
+    expect(backup.tables.collection_dose_events[0]?.recipient_phone).toBe('555-0101');
+    expect(backup.tables.collection_dose_events[0]?.breeding_record_id).toBe('breed-1');
     expect(db.getAllAsync).toHaveBeenCalledTimes(10);
   });
 });

@@ -111,6 +111,10 @@ describe('restoreBackup', () => {
     expect(sqlCalls[17]).toContain('INSERT INTO foaling_records');
     expect(sqlCalls[18]).toContain('INSERT INTO foals');
     expect(sqlCalls[19]).toContain('INSERT INTO collection_dose_events');
+    const collectionInsertCall = db.runAsync.mock.calls[19] as unknown[] | undefined;
+    const collectionInsertParams = (collectionInsertCall?.[1] ?? []) as unknown[];
+    expect(collectionInsertParams[4]).toBeNull();
+    expect(collectionInsertParams[12]).toBe('breed-1');
     expect(setOnboardingCompleteValue).toHaveBeenCalledWith(true);
     expect(emitDataInvalidation).toHaveBeenCalledTimes(1);
     expect(emitDataInvalidation).toHaveBeenCalledWith('all');
@@ -281,5 +285,71 @@ describe('restoreBackup', () => {
       typeof sql === 'string' && sql.includes('INSERT INTO mares'),
     );
     expect((mareInsertCall?.[1] as unknown[] | undefined)?.[3]).toBe(340);
+  });
+
+  it('defaults missing collection dose-event backup fields when restoring an older v2 backup', async () => {
+    const backup = cloneBackupFixture();
+    const legacyBackup = {
+      ...backup,
+      tables: {
+        ...backup.tables,
+        collection_dose_events: backup.tables.collection_dose_events.map((row) => {
+          const legacyRow = { ...row } as Record<string, unknown>;
+          delete legacyRow.recipient_phone;
+          delete legacyRow.recipient_street;
+          delete legacyRow.recipient_city;
+          delete legacyRow.recipient_state;
+          delete legacyRow.recipient_zip;
+          delete legacyRow.carrier_service;
+          delete legacyRow.container_type;
+          delete legacyRow.tracking_number;
+          delete legacyRow.breeding_record_id;
+          return legacyRow;
+        }),
+      },
+    } as unknown as typeof backup;
+    const db = {
+      runAsync: vi.fn(async () => undefined),
+      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
+        await callback();
+      }),
+    };
+
+    vi.mocked(validateBackup).mockReturnValue({
+      ok: true,
+      backup: legacyBackup,
+      preview: {
+        createdAt: legacyBackup.createdAt,
+        mareCount: 1,
+        stallionCount: 1,
+        dailyLogCount: 1,
+        onboardingComplete: true,
+        schemaVersion: 2,
+      },
+    });
+    vi.mocked(getDb).mockResolvedValue(db as never);
+    vi.mocked(setOnboardingCompleteValue).mockResolvedValue(undefined);
+
+    const result = await restoreBackup(legacyBackup, { skipSafetySnapshot: true });
+
+    expect(result).toEqual({
+      ok: true,
+      safetySnapshotCreated: false,
+    });
+    const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
+    const collectionInsertCall = runCalls.find(([sql]) =>
+      typeof sql === 'string' && sql.includes('INSERT INTO collection_dose_events'),
+    );
+    expect((collectionInsertCall?.[1] as unknown[] | undefined)?.slice(4, 13)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
   });
 });

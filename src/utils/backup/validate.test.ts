@@ -135,6 +135,83 @@ describe('validateBackup', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('accepts v2 collection dose events without the new optional shipping fields', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        collection_dose_events: backup.tables.collection_dose_events.map((row) => {
+          const legacyRow = { ...row } as Record<string, unknown>;
+          delete legacyRow.recipient_phone;
+          delete legacyRow.recipient_street;
+          delete legacyRow.recipient_city;
+          delete legacyRow.recipient_state;
+          delete legacyRow.recipient_zip;
+          delete legacyRow.carrier_service;
+          delete legacyRow.container_type;
+          delete legacyRow.tracking_number;
+          delete legacyRow.breeding_record_id;
+          return legacyRow;
+        }),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('requires collection dose events to reference an existing breeding record when provided', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        collection_dose_events: backup.tables.collection_dose_events.map((row, index) =>
+          index === 0 ? { ...row, breeding_record_id: 'missing-breed' } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('collection_dose_events');
+    expect(result.error.field).toBe('breeding_record_id');
+    expect(result.error.message).toContain('references missing breeding record');
+  });
+
+  it('rejects collection dose totals that exceed the semen collection dose count', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        semen_collections: backup.tables.semen_collections.map((row, index) =>
+          index === 0 ? { ...row, dose_count: 1 } : row,
+        ),
+        collection_dose_events: [
+          ...backup.tables.collection_dose_events,
+          {
+            ...backup.tables.collection_dose_events[0]!,
+            id: 'event-2',
+            dose_count: 1,
+          },
+        ],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('semen_collections');
+    expect(result.error.field).toBe('dose_count');
+    expect(result.error.message).toContain('sum of linked dose events');
+  });
+
   it('accepts preserved future-format foal igg entries that do not match the current schema', () => {
     const backup = cloneBackupFixture();
     const result = validateBackup({

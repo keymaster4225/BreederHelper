@@ -55,6 +55,15 @@ jest.mock('@/screens/DataBackupScreen', () => ({
 jest.mock('@/screens/BreedingRecordFormScreen', () => ({
   BreedingRecordFormScreen: () => null,
 }));
+jest.mock('@/screens/CollectionFormScreen', () => ({
+  CollectionFormScreen: () => null,
+}));
+jest.mock('@/screens/CollectionWizardScreen', () => ({
+  CollectionWizardScreen: () => {
+    const { Text } = require('react-native');
+    return <Text>Collection Wizard Screen</Text>;
+  },
+}));
 jest.mock('@/screens/FoalingRecordFormScreen', () => ({
   FoalingRecordFormScreen: () => null,
 }));

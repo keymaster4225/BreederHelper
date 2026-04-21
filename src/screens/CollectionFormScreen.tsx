@@ -7,14 +7,12 @@ import { FormAutocompleteInput, FormDateInput, FormField, FormTextInput, formSty
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
-  createSemenCollection,
   deleteSemenCollection,
   getSemenCollectionById,
   updateSemenCollection,
 } from '@/storage/repositories';
 import { colors } from '@/theme';
 import { EXTENDER_TYPES, getExtenderTypeSuggestions } from '@/utils/extenderTypes';
-import { newId } from '@/utils/id';
 import {
   parseOptionalInteger,
   parseOptionalNumber,
@@ -37,9 +35,7 @@ type FormErrors = {
 };
 
 export function CollectionFormScreen({ navigation, route }: Props): JSX.Element {
-  const stallionId = route.params.stallionId;
   const collectionId = route.params.collectionId;
-  const isEdit = Boolean(collectionId);
 
   const [collectionDate, setCollectionDate] = useState('');
   const [rawVolumeMl, setRawVolumeMl] = useState('');
@@ -52,16 +48,15 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
   const [doseSizeMillions, setDoseSizeMillions] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoadingRecord, setIsLoadingRecord] = useState(isEdit);
+  const [isLoadingRecord, setIsLoadingRecord] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const today = new Date();
 
   useEffect(() => {
-    navigation.setOptions({ title: isEdit ? 'Edit Collection' : 'Add Collection' });
-  }, [isEdit, navigation]);
+    navigation.setOptions({ title: 'Edit Collection' });
+  }, [navigation]);
 
   useEffect(() => {
-    if (!collectionId) return;
     void (async () => {
       try {
         const record = await getSemenCollectionById(collectionId);
@@ -76,12 +71,15 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
           setDoseCount(record.doseCount != null ? String(record.doseCount) : '');
           setDoseSizeMillions(record.doseSizeMillions != null ? String(record.doseSizeMillions) : '');
           setNotes(record.notes ?? '');
+        } else {
+          Alert.alert('Collection not found', 'This collection no longer exists.');
+          navigation.goBack();
         }
       } finally {
         setIsLoadingRecord(false);
       }
     })();
-  }, [collectionId]);
+  }, [collectionId, navigation]);
 
   const validate = (): FormErrors => {
     const errs: FormErrors = {};
@@ -119,11 +117,7 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
         notes: notes.trim() || null,
       };
 
-      if (isEdit && collectionId) {
-        await updateSemenCollection(collectionId, payload);
-      } else {
-        await createSemenCollection({ id: newId(), stallionId, ...payload });
-      }
+      await updateSemenCollection(collectionId, payload);
       navigation.goBack();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save collection.';
@@ -134,7 +128,6 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
   };
 
   const onDelete = (): void => {
-    if (!collectionId) return;
     Alert.alert(
       'Delete Collection',
       'Are you sure you want to delete this collection record?',
@@ -221,11 +214,11 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
 
           <View style={{ gap: 12 }}>
             <PrimaryButton
-              label={isEdit ? 'Update Collection' : 'Add Collection'}
+              label="Update Collection"
               onPress={() => { void onSave(); }}
               disabled={isSaving}
             />
-            {isEdit ? <DeleteButton label="Delete Collection" onPress={onDelete} disabled={isSaving} /> : null}
+            <DeleteButton label="Delete Collection" onPress={onDelete} disabled={isSaving} />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

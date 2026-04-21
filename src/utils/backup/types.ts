@@ -212,6 +212,15 @@ export type BackupCollectionDoseEventRow = {
   readonly collection_id: string;
   readonly event_type: DoseEventType;
   readonly recipient: string;
+  readonly recipient_phone?: string | null;
+  readonly recipient_street?: string | null;
+  readonly recipient_city?: string | null;
+  readonly recipient_state?: string | null;
+  readonly recipient_zip?: string | null;
+  readonly carrier_service?: string | null;
+  readonly container_type?: string | null;
+  readonly tracking_number?: string | null;
+  readonly breeding_record_id?: string | null;
   readonly dose_count: number | null;
   readonly event_date: BackupLocalDate | null;
   readonly notes: string | null;

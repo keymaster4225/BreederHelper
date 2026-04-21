@@ -130,7 +130,36 @@ it('shows collection cards when collections exist', async () => {
   expect(screen.getByText('450 mL')).toBeTruthy();
   expect(screen.getByText('INRA 96')).toBeTruthy();
   expect(screen.getByText('75%')).toBeTruthy();
-  expect(screen.getByText('No dose events')).toBeTruthy();
+});
+
+it('navigates to the collection wizard from Add Collection', async () => {
+  const screen = renderScreen();
+
+  await waitFor(() => expect(screen.getByText('Add Collection')).toBeTruthy());
+  fireEvent.press(screen.getByText('Add Collection'));
+
+  expect(screen.navigation.navigate).toHaveBeenCalledWith('CollectionCreateWizard', {
+    stallionId: 'st-1',
+  });
+});
+
+it('navigates to the collection form from a collection card edit button', async () => {
+  repositories.listSemenCollectionsByStallion.mockResolvedValue([
+    makeCollection('col-1', '2026-04-01'),
+  ]);
+  repositories.listDoseEventsByCollectionIds.mockResolvedValue({
+    'col-1': [],
+  });
+
+  const screen = renderScreen();
+
+  await waitFor(() => expect(screen.getByText('04-01-2026')).toBeTruthy());
+  fireEvent.press(screen.getByLabelText('Edit'));
+
+  expect(screen.navigation.navigate).toHaveBeenCalledWith('CollectionForm', {
+    stallionId: 'st-1',
+    collectionId: 'col-1',
+  });
 });
 
 it('hides Add Collection button when stallion is soft-deleted', async () => {

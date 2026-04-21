@@ -7,12 +7,24 @@ import {
 import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { newId } from '@/utils/id';
+import {
+  assertCollectionDoseCountCanSupportAllocations,
+} from './internal/collectionAllocation';
 
 type CollectionDoseEventRow = {
   id: string;
   collection_id: string;
   event_type: CollectionDoseEvent['eventType'];
   recipient: string;
+  recipient_phone: string | null;
+  recipient_street: string | null;
+  recipient_city: string | null;
+  recipient_state: string | null;
+  recipient_zip: string | null;
+  carrier_service: string | null;
+  container_type: string | null;
+  tracking_number: string | null;
+  breeding_record_id: string | null;
   dose_count: number | null;
   event_date: string | null;
   notes: string | null;
@@ -26,12 +38,41 @@ function mapRow(row: CollectionDoseEventRow): CollectionDoseEvent {
     collectionId: row.collection_id,
     eventType: row.event_type,
     recipient: row.recipient,
+    recipientPhone: row.recipient_phone,
+    recipientStreet: row.recipient_street,
+    recipientCity: row.recipient_city,
+    recipientState: row.recipient_state,
+    recipientZip: row.recipient_zip,
+    carrierService: row.carrier_service,
+    containerType: row.container_type,
+    trackingNumber: row.tracking_number,
+    breedingRecordId: row.breeding_record_id,
     doseCount: row.dose_count,
     eventDate: row.event_date,
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function normalizeRequiredText(value: string | null | undefined, label: string): string {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed) {
+    throw new Error(`${label} is required.`);
+  }
+  return trimmed;
+}
+
+function normalizeOptionalText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? '';
+  return trimmed ? trimmed : null;
+}
+
+function normalizeRequiredDoseCount(value: number | null | undefined): number {
+  if (value == null || value <= 0) {
+    throw new Error('Dose count is required.');
+  }
+  return value;
 }
 
 function buildCollectionIdPlaceholders(count: number): string {
@@ -45,7 +86,24 @@ export async function listDoseEventsByCollection(
   const rows = await db.getAllAsync<CollectionDoseEventRow>(
     `
     SELECT
-      id, collection_id, event_type, recipient, dose_count, event_date, notes, created_at, updated_at
+      id,
+      collection_id,
+      event_type,
+      recipient,
+      recipient_phone,
+      recipient_street,
+      recipient_city,
+      recipient_state,
+      recipient_zip,
+      carrier_service,
+      container_type,
+      tracking_number,
+      breeding_record_id,
+      dose_count,
+      event_date,
+      notes,
+      created_at,
+      updated_at
     FROM collection_dose_events
     WHERE collection_id = ?
     ORDER BY created_at DESC, id DESC;
@@ -72,7 +130,24 @@ export async function listDoseEventsByCollectionIds(
   const rows = await db.getAllAsync<CollectionDoseEventRow>(
     `
     SELECT
-      id, collection_id, event_type, recipient, dose_count, event_date, notes, created_at, updated_at
+      id,
+      collection_id,
+      event_type,
+      recipient,
+      recipient_phone,
+      recipient_street,
+      recipient_city,
+      recipient_state,
+      recipient_zip,
+      carrier_service,
+      container_type,
+      tracking_number,
+      breeding_record_id,
+      dose_count,
+      event_date,
+      notes,
+      created_at,
+      updated_at
     FROM collection_dose_events
     WHERE collection_id IN (${buildCollectionIdPlaceholders(collectionIds.length)})
     ORDER BY created_at DESC, id DESC;
@@ -94,21 +169,55 @@ export async function createDoseEvent(
   const db = await getDb();
   const now = new Date().toISOString();
   const id = newId();
+  const eventType = input.eventType;
+
+  if (eventType !== 'shipped') {
+    throw new Error('On-farm allocations must be created through the collection wizard.');
+  }
+
+  const doseCount = normalizeRequiredDoseCount(input.doseCount);
+  await assertCollectionDoseCountCanSupportAllocations(db, input.collectionId, doseCount);
 
   await db.runAsync(
     `
     INSERT INTO collection_dose_events (
-      id, collection_id, event_type, recipient, dose_count, event_date, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+      id,
+      collection_id,
+      event_type,
+      recipient,
+      recipient_phone,
+      recipient_street,
+      recipient_city,
+      recipient_state,
+      recipient_zip,
+      carrier_service,
+      container_type,
+      tracking_number,
+      breeding_record_id,
+      dose_count,
+      event_date,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       id,
       input.collectionId,
-      input.eventType,
-      input.recipient.trim(),
-      input.doseCount ?? null,
-      input.eventDate ?? null,
-      input.notes ?? null,
+      eventType,
+      normalizeRequiredText(input.recipient, 'Recipient name'),
+      normalizeRequiredText(input.recipientPhone, 'Recipient phone'),
+      normalizeRequiredText(input.recipientStreet, 'Recipient street'),
+      normalizeRequiredText(input.recipientCity, 'Recipient city'),
+      normalizeRequiredText(input.recipientState, 'Recipient state'),
+      normalizeRequiredText(input.recipientZip, 'Recipient ZIP'),
+      normalizeRequiredText(input.carrierService, 'Carrier/service'),
+      normalizeRequiredText(input.containerType, 'Container type'),
+      normalizeOptionalText(input.trackingNumber),
+      null,
+      doseCount,
+      normalizeRequiredText(input.eventDate, 'Ship date'),
+      normalizeOptionalText(input.notes),
       now,
       now,
     ],
@@ -131,7 +240,20 @@ export async function updateDoseEvent(
     throw new Error('Dose event not found.');
   }
 
+  if (existing.eventType !== 'shipped' || input.eventType === 'usedOnSite') {
+    throw new Error('On-farm allocations must be edited through the breeding record.');
+  }
+
   const db = await getDb();
+  const doseCount = normalizeRequiredDoseCount(
+    input.doseCount === undefined ? existing.doseCount : input.doseCount,
+  );
+  await assertCollectionDoseCountCanSupportAllocations(
+    db,
+    existing.collectionId,
+    doseCount,
+    { excludeDoseEventId: id },
+  );
 
   await db.runAsync(
     `
@@ -139,6 +261,15 @@ export async function updateDoseEvent(
     SET
       event_type = ?,
       recipient = ?,
+      recipient_phone = ?,
+      recipient_street = ?,
+      recipient_city = ?,
+      recipient_state = ?,
+      recipient_zip = ?,
+      carrier_service = ?,
+      container_type = ?,
+      tracking_number = ?,
+      breeding_record_id = ?,
       dose_count = ?,
       event_date = ?,
       notes = ?,
@@ -146,11 +277,20 @@ export async function updateDoseEvent(
     WHERE id = ?;
     `,
     [
-      input.eventType ?? existing.eventType,
-      input.recipient?.trim() ?? existing.recipient,
-      input.doseCount === undefined ? existing.doseCount : input.doseCount,
-      input.eventDate === undefined ? existing.eventDate : input.eventDate,
-      input.notes === undefined ? existing.notes : input.notes,
+      'shipped',
+      normalizeRequiredText(input.recipient ?? existing.recipient, 'Recipient name'),
+      normalizeRequiredText(input.recipientPhone ?? existing.recipientPhone, 'Recipient phone'),
+      normalizeRequiredText(input.recipientStreet ?? existing.recipientStreet, 'Recipient street'),
+      normalizeRequiredText(input.recipientCity ?? existing.recipientCity, 'Recipient city'),
+      normalizeRequiredText(input.recipientState ?? existing.recipientState, 'Recipient state'),
+      normalizeRequiredText(input.recipientZip ?? existing.recipientZip, 'Recipient ZIP'),
+      normalizeRequiredText(input.carrierService ?? existing.carrierService, 'Carrier/service'),
+      normalizeRequiredText(input.containerType ?? existing.containerType, 'Container type'),
+      normalizeOptionalText(input.trackingNumber === undefined ? existing.trackingNumber : input.trackingNumber),
+      existing.breedingRecordId ?? null,
+      doseCount,
+      normalizeRequiredText(input.eventDate === undefined ? existing.eventDate : input.eventDate, 'Ship date'),
+      normalizeOptionalText(input.notes === undefined ? existing.notes : input.notes),
       new Date().toISOString(),
       id,
     ],
@@ -175,7 +315,24 @@ async function getDoseEventById(id: UUID): Promise<CollectionDoseEvent | null> {
   const row = await db.getFirstAsync<CollectionDoseEventRow>(
     `
     SELECT
-      id, collection_id, event_type, recipient, dose_count, event_date, notes, created_at, updated_at
+      id,
+      collection_id,
+      event_type,
+      recipient,
+      recipient_phone,
+      recipient_street,
+      recipient_city,
+      recipient_state,
+      recipient_zip,
+      carrier_service,
+      container_type,
+      tracking_number,
+      breeding_record_id,
+      dose_count,
+      event_date,
+      notes,
+      created_at,
+      updated_at
     FROM collection_dose_events
     WHERE id = ?;
     `,

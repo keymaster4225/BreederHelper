@@ -10,7 +10,7 @@ import {
 
 describe('outcomeDisplay', () => {
   it('formats known shared enum values with the existing labels', () => {
-    expect(formatDoseEventType('usedOnSite')).toBe('Used on site');
+    expect(formatDoseEventType('usedOnSite')).toBe('On-farm');
     expect(formatBreedingMethod('freshAI')).toBe('Fresh AI');
     expect(formatOutcome('unknown')).toBe('Unknown');
     expect(formatFoalColor('pintoPaint')).toBe('Pinto/Paint');

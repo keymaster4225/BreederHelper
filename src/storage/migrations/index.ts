@@ -619,6 +619,80 @@ ADD COLUMN gestation_length_days INTEGER NOT NULL DEFAULT 340
 CHECK (gestation_length_days BETWEEN 300 AND 420);
 `;
 
+const migration018 = `
+CREATE TABLE collection_dose_events_new (
+  id TEXT PRIMARY KEY NOT NULL,
+  collection_id TEXT NOT NULL REFERENCES semen_collections(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL CHECK (event_type IN ('shipped', 'usedOnSite')),
+  recipient TEXT NOT NULL,
+  recipient_phone TEXT,
+  recipient_street TEXT,
+  recipient_city TEXT,
+  recipient_state TEXT,
+  recipient_zip TEXT,
+  carrier_service TEXT,
+  container_type TEXT,
+  tracking_number TEXT,
+  breeding_record_id TEXT REFERENCES breeding_records(id) ON DELETE CASCADE,
+  dose_count INTEGER CHECK (dose_count IS NULL OR dose_count > 0),
+  event_date TEXT CHECK (event_date IS NULL OR event_date GLOB '????-??-??'),
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+INSERT INTO collection_dose_events_new (
+  id,
+  collection_id,
+  event_type,
+  recipient,
+  recipient_phone,
+  recipient_street,
+  recipient_city,
+  recipient_state,
+  recipient_zip,
+  carrier_service,
+  container_type,
+  tracking_number,
+  breeding_record_id,
+  dose_count,
+  event_date,
+  notes,
+  created_at,
+  updated_at
+)
+SELECT
+  id,
+  collection_id,
+  event_type,
+  recipient,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  dose_count,
+  event_date,
+  notes,
+  created_at,
+  updated_at
+FROM collection_dose_events;
+
+DROP TABLE collection_dose_events;
+
+ALTER TABLE collection_dose_events_new RENAME TO collection_dose_events;
+
+CREATE INDEX IF NOT EXISTS idx_collection_dose_events_collection_id
+  ON collection_dose_events(collection_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_collection_dose_events_breeding_record_id
+  ON collection_dose_events(breeding_record_id);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -742,6 +816,12 @@ const migrations: Migration[] = [
     name: '017_mare_gestation_length_days',
     statements: splitStatements(migration017),
     shouldSkip: async (db) => hasColumn(db, 'mares', 'gestation_length_days'),
+  },
+  {
+    id: 18,
+    name: '018_collection_dose_event_shipping_details',
+    statements: splitStatements(migration018),
+    shouldSkip: async (db) => hasColumn(db, 'collection_dose_events', 'breeding_record_id'),
   },
 ];
 
