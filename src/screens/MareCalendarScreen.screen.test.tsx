@@ -41,6 +41,7 @@ jest.mock('@/screens/mare-detail/TimelineTab', () => {
 });
 
 jest.mock('@/storage/repositories', () => ({
+  getMareById: jest.fn(),
   listDailyLogsByMare: jest.fn(),
   listBreedingRecordsByMare: jest.fn(),
   listPregnancyChecksByMare: jest.fn(),
@@ -58,6 +59,14 @@ const repositories = jest.requireMock('@/storage/repositories') as Record<string
 
 beforeEach(() => {
   jest.clearAllMocks();
+  repositories.getMareById.mockResolvedValue({
+    id: 'mare-1',
+    name: 'Maple',
+    breed: 'Quarter Horse',
+    gestationLengthDays: 340,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  });
   repositories.listDailyLogsByMare.mockResolvedValue([]);
   repositories.listBreedingRecordsByMare.mockResolvedValue([]);
   repositories.listPregnancyChecksByMare.mockResolvedValue([]);

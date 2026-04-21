@@ -2,6 +2,19 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { AppNavigator } from '@/navigation/AppNavigator';
 
+jest.mock('@/hooks/useDashboardData', () => ({
+  useDashboardData: jest.fn(),
+}));
+
+jest.mock('@/hooks/useOnboardingState', () => ({
+  useOnboardingState: jest.fn(),
+}));
+
+jest.mock('@/utils/buildProfile', () => ({
+  canSeedPreviewData: jest.fn(),
+  isPreviewBuild: jest.fn(),
+}));
+
 jest.mock('@/storage/repositories', () => ({
   listMares: jest.fn(),
   listStallions: jest.fn(),
@@ -64,6 +77,16 @@ jest.mock('@/screens/PregnancyCheckFormScreen', () => ({
   },
 }));
 
+const { useDashboardData } = jest.requireMock('@/hooks/useDashboardData') as {
+  useDashboardData: jest.Mock;
+};
+const { useOnboardingState } = jest.requireMock('@/hooks/useOnboardingState') as {
+  useOnboardingState: jest.Mock;
+};
+const { canSeedPreviewData } = jest.requireMock('@/utils/buildProfile') as {
+  canSeedPreviewData: jest.Mock;
+  isPreviewBuild: jest.Mock;
+};
 const repositories = jest.requireMock('@/storage/repositories') as Record<string, jest.Mock>;
 
 function localDateDaysAgo(n: number): string {
@@ -79,6 +102,36 @@ const BREEDING_DAYS_AGO = 15;
 
 beforeEach(() => {
   jest.clearAllMocks();
+  canSeedPreviewData.mockReturnValue(false);
+  const buildProfile = jest.requireMock('@/utils/buildProfile') as {
+    isPreviewBuild: jest.Mock;
+  };
+  buildProfile.isPreviewBuild.mockReturnValue(false);
+  useOnboardingState.mockReturnValue({
+    onboardingComplete: true,
+    isOnboardingLoading: false,
+    completeOnboarding: jest.fn().mockResolvedValue(undefined),
+  });
+  useDashboardData.mockReturnValue({
+    totalMares: 1,
+    pregnantMares: 0,
+    totalStallions: 1,
+    alerts: [
+      {
+        kind: 'pregnancyCheckNeeded',
+        priority: 'high',
+        mareId: 'mare-1',
+        mareName: 'Maple',
+        title: `Day ${BREEDING_DAYS_AGO} post-breeding`,
+        subtitle: 'Preg check due',
+        sortKey: -BREEDING_DAYS_AGO,
+      },
+    ],
+    isLoading: false,
+    error: null,
+    reload: jest.fn().mockResolvedValue(undefined),
+    reloadIfStale: jest.fn().mockResolvedValue(undefined),
+  });
   const breedingDate = localDateDaysAgo(BREEDING_DAYS_AGO);
   repositories.listMares.mockResolvedValue([
     {
