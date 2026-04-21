@@ -2,11 +2,11 @@ import { getDb } from '@/storage/db';
 import { getOnboardingComplete } from '@/utils/onboarding';
 
 import {
-  BACKUP_SCHEMA_VERSION_V1,
+  BACKUP_SCHEMA_VERSION_CURRENT,
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRow,
   type BackupDailyLogRow,
-  type BackupEnvelopeV1,
+  type BackupEnvelopeV2,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
   type BackupMareRow,
@@ -28,7 +28,7 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV1> {
+export async function serializeBackup(): Promise<BackupEnvelopeV2> {
   const db = await getDb();
 
   const [
@@ -50,6 +50,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV1> {
         id,
         name,
         breed,
+        gestation_length_days,
         date_of_birth,
         registration_number,
         notes,
@@ -236,7 +237,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV1> {
   ]);
 
   return {
-    schemaVersion: BACKUP_SCHEMA_VERSION_V1,
+    schemaVersion: BACKUP_SCHEMA_VERSION_CURRENT,
     createdAt: new Date().toISOString(),
     app: {
       name: 'BreedWise',

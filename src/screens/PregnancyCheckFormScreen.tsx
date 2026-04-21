@@ -8,12 +8,19 @@ import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } f
 import { useRecordForm } from '@/hooks/useRecordForm';
 import { PREGNANCY_RESULT_OPTIONS } from '@/models/enums';
 import { Screen } from '@/components/Screen';
-import { BreedingRecord, PregnancyResult, calculateDaysPostBreeding, estimateFoalingDate } from '@/models/types';
+import {
+  BreedingRecord,
+  DEFAULT_GESTATION_LENGTH_DAYS,
+  PregnancyResult,
+  calculateDaysPostBreeding,
+  estimateFoalingDate,
+} from '@/models/types';
 import { formatLocalDate } from '@/utils/dates';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   createPregnancyCheck,
   deletePregnancyCheck,
+  getMareById,
   getPregnancyCheckById,
   listBreedingRecordsByMare,
   updatePregnancyCheck,
@@ -44,6 +51,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
   const isEdit = Boolean(pregnancyCheckId);
 
   const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
+  const [gestationLengthDays, setGestationLengthDays] = useState(DEFAULT_GESTATION_LENGTH_DAYS);
   const [breedingRecordId, setBreedingRecordId] = useState('');
   const [date, setDate] = useState('');
   const [result, setResult] = useState<ResultOption>('positive');
@@ -62,16 +70,23 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
   useEffect(() => {
     void runLoad(
       async () => {
-        const [records, existing] = await Promise.all([
+        const [mare, records, existing] = await Promise.all([
+          getMareById(mareId),
           listBreedingRecordsByMare(mareId),
           pregnancyCheckId ? getPregnancyCheckById(pregnancyCheckId) : Promise.resolve(null),
         ]);
+        if (!mare) {
+          Alert.alert('Mare not found', 'This mare no longer exists.');
+          navigation.goBack();
+          return;
+        }
         if (pregnancyCheckId && !existing) {
           Alert.alert('Record not found', 'This pregnancy check no longer exists.');
           navigation.goBack();
           return;
         }
 
+        setGestationLengthDays(mare.gestationLengthDays);
         setBreedingRecords(records);
 
         if (existing) {
@@ -121,8 +136,8 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
     if (!selectedBreedingRecord) {
       return null;
     }
-    return estimateFoalingDate(selectedBreedingRecord.date);
-  }, [selectedBreedingRecord]);
+    return estimateFoalingDate(selectedBreedingRecord.date, gestationLengthDays);
+  }, [gestationLengthDays, selectedBreedingRecord]);
 
   const validate = (): boolean => {
     const dateError = validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date);

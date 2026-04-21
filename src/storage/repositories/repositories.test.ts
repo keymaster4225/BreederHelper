@@ -37,6 +37,7 @@ type MareRow = {
   id: string;
   name: string;
   breed: string;
+  gestation_length_days: number;
   date_of_birth: string | null;
   registration_number: string | null;
   notes: string | null;
@@ -159,10 +160,11 @@ function createFakeDb(): FakeDb {
       const stmt = normalized(sql);
 
       if (stmt.startsWith('insert into mares')) {
-        const [id, name, breed, dateOfBirth, registrationNumber, notes, createdAt, updatedAt] = params as [
+        const [id, name, breed, gestationLengthDays, dateOfBirth, registrationNumber, notes, createdAt, updatedAt] = params as [
           string,
           string,
           string,
+          number,
           string | null,
           string | null,
           string | null,
@@ -173,6 +175,7 @@ function createFakeDb(): FakeDb {
           id,
           name,
           breed,
+          gestation_length_days: gestationLengthDays,
           date_of_birth: dateOfBirth,
           registration_number: registrationNumber,
           notes,
@@ -184,9 +187,10 @@ function createFakeDb(): FakeDb {
       }
 
       if (stmt.startsWith('update mares set name =')) {
-        const [name, breed, dateOfBirth, registrationNumber, notes, updatedAt, id] = params as [
+        const [name, breed, gestationLengthDays, dateOfBirth, registrationNumber, notes, updatedAt, id] = params as [
           string,
           string,
+          number,
           string | null,
           string | null,
           string | null,
@@ -199,6 +203,7 @@ function createFakeDb(): FakeDb {
           ...existing,
           name,
           breed,
+          gestation_length_days: gestationLengthDays,
           date_of_birth: dateOfBirth,
           registration_number: registrationNumber,
           notes,
@@ -701,6 +706,7 @@ describe('repository smoke tests', () => {
       id: 'mare-1',
       name: 'Astra',
       breed: 'Thoroughbred',
+      gestationLengthDays: 340,
       dateOfBirth: '2018-03-01',
       registrationNumber: 'REG-1',
       notes: 'Initial',
@@ -709,10 +715,12 @@ describe('repository smoke tests', () => {
     const created = await getMareById('mare-1');
     expect(created?.name).toBe('Astra');
     expect(created?.breed).toBe('Thoroughbred');
+    expect(created?.gestationLengthDays).toBe(340);
 
     await updateMare('mare-1', {
       name: 'Astra Prime',
       breed: 'Arabian',
+      gestationLengthDays: 345,
       dateOfBirth: '2018-03-01',
       registrationNumber: 'REG-2',
       notes: 'Updated',
@@ -721,6 +729,7 @@ describe('repository smoke tests', () => {
     const updated = await getMareById('mare-1');
     expect(updated?.name).toBe('Astra Prime');
     expect(updated?.registrationNumber).toBe('REG-2');
+    expect(updated?.gestationLengthDays).toBe(345);
 
     const listedBeforeDelete = await listMares();
     expect(listedBeforeDelete).toHaveLength(1);

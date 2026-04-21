@@ -5,6 +5,7 @@ import { Mare, PregnancyInfo } from '@/models/types';
 function makeMare(overrides: Partial<Mare> & { id: string; name: string }): Mare {
   return {
     breed: 'Thoroughbred',
+    gestationLengthDays: 340,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     ...overrides,

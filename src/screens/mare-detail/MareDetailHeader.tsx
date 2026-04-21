@@ -25,6 +25,7 @@ export function MareDetailHeader({ mare, age, onCalendarPress }: MareDetailHeade
         </View>
       </View>
       <Text style={styles.headerLine}>{mare.breed}</Text>
+      <Text style={styles.headerLine}>Gestation {mare.gestationLengthDays} days</Text>
       {age !== null ? <Text style={styles.headerLine}>Age {age}</Text> : null}
       {mare.registrationNumber ? <Text style={styles.headerLine}>Reg #: {mare.registrationNumber}</Text> : null}
     </View>

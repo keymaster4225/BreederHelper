@@ -13,6 +13,10 @@ export type UUID = string;
 export type LocalDate = string; // YYYY-MM-DD
 export type ISODateTime = string; // ISO-8601
 
+export const DEFAULT_GESTATION_LENGTH_DAYS = 340;
+export const MIN_GESTATION_LENGTH_DAYS = 300;
+export const MAX_GESTATION_LENGTH_DAYS = 420;
+
 export type BreedingMethod = (typeof BREEDING_METHOD_VALUES)[number];
 
 export type PregnancyResult = (typeof PREGNANCY_RESULT_VALUES)[number];
@@ -73,6 +77,7 @@ export interface Mare {
   id: UUID;
   name: string;
   breed: string;
+  gestationLengthDays: number;
   dateOfBirth?: LocalDate | null;
   registrationNumber?: string | null;
   notes?: string | null;
@@ -226,9 +231,12 @@ export function calculateDaysPostBreeding(
   return Math.floor((check.getTime() - breeding.getTime()) / msPerDay);
 }
 
-export function estimateFoalingDate(breedingDate: LocalDate): LocalDate {
+export function estimateFoalingDate(
+  breedingDate: LocalDate,
+  gestationLengthDays: number
+): LocalDate {
   const base = new Date(`${breedingDate}T00:00:00Z`);
-  base.setUTCDate(base.getUTCDate() + 340);
+  base.setUTCDate(base.getUTCDate() + gestationLengthDays);
   return base.toISOString().slice(0, 10);
 }
 
@@ -280,12 +288,15 @@ export function buildPregnancyInfoForCheck(
   check: PregnancyCheck,
   dailyLogs: DailyLog[],
   breedingRecord: BreedingRecord | null,
-  today: LocalDate
+  today: LocalDate,
+  gestationLengthDays: number
 ): PregnancyInfo {
   const ovulationDate = findMostRecentOvulationDate(dailyLogs, check.date);
 
   return {
     daysPostOvulation: ovulationDate ? calculateDaysPostBreeding(today, ovulationDate) : null,
-    estimatedDueDate: breedingRecord ? estimateFoalingDate(breedingRecord.date) : null,
+    estimatedDueDate: breedingRecord
+      ? estimateFoalingDate(breedingRecord.date, gestationLengthDays)
+      : null,
   };
 }

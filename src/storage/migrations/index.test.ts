@@ -334,7 +334,7 @@ describe('applyMigrations', () => {
 
   it('skips the repair migration when breeding_records already references semen_collections', async () => {
     const { db, execCalls, runCalls } = createFakeDb({
-      appliedMigrationIds: Array.from({ length: 11 }, (_, index) => index + 1),
+      appliedMigrationIds: [...Array.from({ length: 11 }, (_, index) => index + 1), 17],
       breedingRecordsSql: `
         CREATE TABLE breeding_records (
           id TEXT PRIMARY KEY,
@@ -455,7 +455,7 @@ describe('applyMigrations', () => {
 
   it('skips straw volume affinity repair when breeding_records already uses REAL', async () => {
     const { db, execCalls, runCalls } = createFakeDb({
-      appliedMigrationIds: Array.from({ length: 14 }, (_, index) => index + 1),
+      appliedMigrationIds: [...Array.from({ length: 14 }, (_, index) => index + 1), 17],
       breedingRecordsSql: `
         CREATE TABLE breeding_records (
           id TEXT PRIMARY KEY,
@@ -511,7 +511,7 @@ describe('applyMigrations', () => {
 
   it('skips canonical stallion and collection repair when both tables already include the required checks', async () => {
     const { db, execCalls, runCalls } = createFakeDb({
-      appliedMigrationIds: Array.from({ length: 15 }, (_, index) => index + 1),
+      appliedMigrationIds: [...Array.from({ length: 15 }, (_, index) => index + 1), 17],
       breedingRecordsSql: `
         CREATE TABLE breeding_records (
           id TEXT PRIMARY KEY,

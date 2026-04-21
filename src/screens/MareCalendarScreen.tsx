@@ -6,9 +6,19 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Calendar, DateData } from 'react-native-calendars';
 
 import { Screen } from '@/components/Screen';
-import { BreedingRecord, DailyLog, Foal, FoalingRecord, LocalDate, MedicationLog, PregnancyCheck } from '@/models/types';
+import {
+  BreedingRecord,
+  DailyLog,
+  DEFAULT_GESTATION_LENGTH_DAYS,
+  Foal,
+  FoalingRecord,
+  LocalDate,
+  MedicationLog,
+  PregnancyCheck,
+} from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
+  getMareById,
   listBreedingRecordsByMare,
   listDailyLogsByMare,
   listFoalingRecordsByMare,
@@ -51,6 +61,7 @@ export function MareCalendarScreen({ navigation, route }: Props): JSX.Element {
   const [medicationLogs, setMedicationLogs] = useState<MedicationLog[]>([]);
   const [foalByFoalingRecordId, setFoalByFoalingRecordId] = useState<Record<string, Foal>>({});
   const [stallionNameById, setStallionNameById] = useState<Record<string, string>>({});
+  const [gestationLengthDays, setGestationLengthDays] = useState(DEFAULT_GESTATION_LENGTH_DAYS);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDay, setSelectedDay] = useState<LocalDate>(toLocalDate(new Date()));
@@ -60,7 +71,8 @@ export function MareCalendarScreen({ navigation, route }: Props): JSX.Element {
       setIsLoading(true);
       setError(null);
 
-      const [logs, breeding, checks, foaling, foals, stallions, meds] = await Promise.all([
+      const [mare, logs, breeding, checks, foaling, foals, stallions, meds] = await Promise.all([
+        getMareById(mareId),
         listDailyLogsByMare(mareId),
         listBreedingRecordsByMare(mareId),
         listPregnancyChecksByMare(mareId),
@@ -70,9 +82,14 @@ export function MareCalendarScreen({ navigation, route }: Props): JSX.Element {
         listMedicationLogsByMare(mareId),
       ]);
 
+      if (!mare) {
+        throw new Error('Failed to load mare.');
+      }
+
       const stallionMap = Object.fromEntries(stallions.map((s) => [s.id, s.name]));
       const foalMap = Object.fromEntries(foals.map((f) => [f.foalingRecordId, f]));
 
+      setGestationLengthDays(mare.gestationLengthDays);
       setDailyLogs(logs);
       setBreedingRecords(breeding);
       setPregnancyChecks(checks);
@@ -180,6 +197,7 @@ export function MareCalendarScreen({ navigation, route }: Props): JSX.Element {
           <Text style={styles.dayHeader}>{selectedDay}</Text>
           <TimelineTab
             mareId={mareId}
+            gestationLengthDays={gestationLengthDays}
             dailyLogs={filteredLogs}
             breedingRecords={filteredBreedings}
             pregnancyChecks={filteredChecks}

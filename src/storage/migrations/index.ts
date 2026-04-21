@@ -613,6 +613,12 @@ CREATE INDEX IF NOT EXISTS idx_semen_collections_stallion_date
   ON semen_collections (stallion_id, collection_date DESC);
 `;
 
+const migration017 = `
+ALTER TABLE mares
+ADD COLUMN gestation_length_days INTEGER NOT NULL DEFAULT 340
+CHECK (gestation_length_days BETWEEN 300 AND 420);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -730,6 +736,12 @@ const migrations: Migration[] = [
         /CHECK\s*\(extender_volume_ml IS NULL OR extender_volume_ml >= 0\)/i,
         /CHECK\s*\(extender_type IS NULL OR typeof\(extender_type\) = 'text'\)/i,
       ])),
+  },
+  {
+    id: 17,
+    name: '017_mare_gestation_length_days',
+    statements: splitStatements(migration017),
+    shouldSkip: async (db) => hasColumn(db, 'mares', 'gestation_length_days'),
   },
 ];
 

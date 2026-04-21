@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_GESTATION_LENGTH_DAYS,
   calculateDaysPostBreeding,
   estimateFoalingDate,
   findCurrentPregnancyCheck,
@@ -11,17 +12,21 @@ import type { BreedingRecord, DailyLog, FoalingRecord, PregnancyCheck } from './
 describe('estimateFoalingDate', () => {
   it('adds 340 days to the breeding date', () => {
     // 2026-01-01 + 340 days = 2026-12-07
-    expect(estimateFoalingDate('2026-01-01')).toBe('2026-12-07');
+    expect(estimateFoalingDate('2026-01-01', DEFAULT_GESTATION_LENGTH_DAYS)).toBe('2026-12-07');
   });
 
   it('handles year boundary crossing', () => {
     // 2026-03-01 + 340 days = 2027-02-04
-    expect(estimateFoalingDate('2026-03-01')).toBe('2027-02-04');
+    expect(estimateFoalingDate('2026-03-01', DEFAULT_GESTATION_LENGTH_DAYS)).toBe('2027-02-04');
   });
 
   it('handles leap year crossing', () => {
     // 2027-05-01 + 340 days = 2028-04-05 (2028 is a leap year)
-    expect(estimateFoalingDate('2027-05-01')).toBe('2028-04-05');
+    expect(estimateFoalingDate('2027-05-01', DEFAULT_GESTATION_LENGTH_DAYS)).toBe('2028-04-05');
+  });
+
+  it('supports mare-specific gestation lengths', () => {
+    expect(estimateFoalingDate('2026-03-01', 320)).toBe('2027-01-15');
   });
 });
 
@@ -229,7 +234,13 @@ describe('buildPregnancyInfoForCheck', () => {
     const breedingRecord = makeBreedingRecord({ date: '2026-05-10' });
 
     expect(
-      buildPregnancyInfoForCheck(check, dailyLogs, breedingRecord, '2026-06-01')
+      buildPregnancyInfoForCheck(
+        check,
+        dailyLogs,
+        breedingRecord,
+        '2026-06-01',
+        DEFAULT_GESTATION_LENGTH_DAYS,
+      )
     ).toEqual({
       daysPostOvulation: 14,
       estimatedDueDate: '2027-04-15',
@@ -241,7 +252,13 @@ describe('buildPregnancyInfoForCheck', () => {
     const dailyLogs = [makeDailyLog({ date: '2026-05-18', ovulationDetected: true })];
 
     expect(
-      buildPregnancyInfoForCheck(check, dailyLogs, null, '2026-06-01')
+      buildPregnancyInfoForCheck(
+        check,
+        dailyLogs,
+        null,
+        '2026-06-01',
+        DEFAULT_GESTATION_LENGTH_DAYS,
+      )
     ).toEqual({
       daysPostOvulation: 14,
       estimatedDueDate: null,

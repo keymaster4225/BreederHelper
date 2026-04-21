@@ -72,7 +72,13 @@ export async function seedPreviewData(): Promise<SeedPreviewDataResult> {
   insertedAny =
     (await ensureRecordExists(
       () => getMareById(previewIds.mareBella),
-      () => createMare({ id: previewIds.mareBella, name: 'Bella Star', breed: 'Quarter Horse', dateOfBirth: '2018-04-12' }),
+      () => createMare({
+        id: previewIds.mareBella,
+        name: 'Bella Star',
+        breed: 'Quarter Horse',
+        gestationLengthDays: 340,
+        dateOfBirth: '2018-04-12',
+      }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
@@ -123,7 +129,13 @@ export async function seedPreviewData(): Promise<SeedPreviewDataResult> {
   insertedAny =
     (await ensureRecordExists(
       () => getMareById(previewIds.mareDesertRose),
-      () => createMare({ id: previewIds.mareDesertRose, name: 'Desert Rose', breed: 'Arabian', dateOfBirth: '2016-05-03' }),
+      () => createMare({
+        id: previewIds.mareDesertRose,
+        name: 'Desert Rose',
+        breed: 'Arabian',
+        gestationLengthDays: 340,
+        dateOfBirth: '2016-05-03',
+      }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
@@ -172,7 +184,14 @@ export async function seedPreviewData(): Promise<SeedPreviewDataResult> {
   insertedAny =
     (await ensureRecordExists(
       () => getMareById(previewIds.mareClover),
-      () => createMare({ id: previewIds.mareClover, name: 'Clover', breed: 'Warmblood', dateOfBirth: '2020-03-28', notes: 'Maiden mare, first breeding season' }),
+      () => createMare({
+        id: previewIds.mareClover,
+        name: 'Clover',
+        breed: 'Warmblood',
+        gestationLengthDays: 340,
+        dateOfBirth: '2020-03-28',
+        notes: 'Maiden mare, first breeding season',
+      }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(

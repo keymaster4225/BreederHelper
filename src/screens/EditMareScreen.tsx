@@ -5,6 +5,11 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormAutocompleteInput, FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
 import { useRecordForm } from '@/hooks/useRecordForm';
+import {
+  DEFAULT_GESTATION_LENGTH_DAYS,
+  MAX_GESTATION_LENGTH_DAYS,
+  MIN_GESTATION_LENGTH_DAYS,
+} from '@/models/types';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { createMare, getMareById, softDeleteMare, updateMare } from '@/storage/repositories';
@@ -12,13 +17,20 @@ import { colors } from '@/theme';
 import { confirmDelete } from '@/utils/confirmDelete';
 import { getBreedSuggestions, HORSE_BREEDS } from '@/utils/horseBreeds';
 import { newId } from '@/utils/id';
-import { normalizeLocalDate, validateLocalDate, validateRequired } from '@/utils/validation';
+import {
+  normalizeLocalDate,
+  parseOptionalInteger,
+  validateIntegerRange,
+  validateLocalDate,
+  validateRequired,
+} from '@/utils/validation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditMare'>;
 
 type FormErrors = {
   name?: string;
   breed?: string;
+  gestationLengthDays?: string;
   dateOfBirth?: string;
 };
 
@@ -28,6 +40,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
 
   const [name, setName] = useState('');
   const [breed, setBreed] = useState('');
+  const [gestationLengthDays, setGestationLengthDays] = useState(String(DEFAULT_GESTATION_LENGTH_DAYS));
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [notes, setNotes] = useState('');
@@ -59,6 +72,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
 
         setName(mare.name);
         setBreed(mare.breed);
+        setGestationLengthDays(String(mare.gestationLengthDays));
         setDateOfBirth(mare.dateOfBirth ?? '');
         setRegistrationNumber(mare.registrationNumber ?? '');
         setNotes(mare.notes ?? '');
@@ -74,18 +88,38 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
   }, [mareId, navigation, runLoad, setIsLoading]);
 
   const validate = (): boolean => {
+    const parsedGestationLengthDays = parseOptionalInteger(gestationLengthDays);
     const nextErrors: FormErrors = {
       name: validateRequired(name, 'Name') ?? undefined,
       breed: validateRequired(breed, 'Breed') ?? undefined,
+      gestationLengthDays:
+        (validateRequired(gestationLengthDays, 'Gestation length') ??
+          validateIntegerRange(
+            parsedGestationLengthDays,
+            'Gestation length',
+            MIN_GESTATION_LENGTH_DAYS,
+            MAX_GESTATION_LENGTH_DAYS,
+          )) ??
+        undefined,
       dateOfBirth: validateLocalDate(dateOfBirth, 'Date of birth', false) ?? undefined,
     };
 
     setErrors(nextErrors);
-    return !nextErrors.name && !nextErrors.breed && !nextErrors.dateOfBirth;
+    return (
+      !nextErrors.name &&
+      !nextErrors.breed &&
+      !nextErrors.gestationLengthDays &&
+      !nextErrors.dateOfBirth
+    );
   };
 
   const onSave = async (): Promise<void> => {
     if (!validate()) {
+      return;
+    }
+
+    const parsedGestationLengthDays = parseOptionalInteger(gestationLengthDays);
+    if (parsedGestationLengthDays === null || Number.isNaN(parsedGestationLengthDays)) {
       return;
     }
 
@@ -95,6 +129,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
           await updateMare(mareId, {
             name: name.trim(),
             breed: breed.trim(),
+            gestationLengthDays: parsedGestationLengthDays,
             dateOfBirth: normalizeLocalDate(dateOfBirth),
             registrationNumber: registrationNumber.trim() || null,
             notes: notes.trim() || null,
@@ -104,6 +139,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
             id: newId(),
             name: name.trim(),
             breed: breed.trim(),
+            gestationLengthDays: parsedGestationLengthDays,
             dateOfBirth: normalizeLocalDate(dateOfBirth),
             registrationNumber: registrationNumber.trim() || null,
             notes: notes.trim() || null,
@@ -171,6 +207,15 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
             placeholder="Type or select breed"
             autoCapitalize="words"
             autoCorrect={false}
+          />
+        </FormField>
+
+        <FormField label="Gestation Length (days)" required error={errors.gestationLengthDays}>
+          <FormTextInput
+            value={gestationLengthDays}
+            onChangeText={setGestationLengthDays}
+            placeholder={String(DEFAULT_GESTATION_LENGTH_DAYS)}
+            keyboardType="number-pad"
           />
         </FormField>
 

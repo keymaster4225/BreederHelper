@@ -19,6 +19,25 @@ describe('validateBackup', () => {
     expect(result.preview.onboardingComplete).toBe(true);
   });
 
+  it('accepts v1 backups without gestation length on mare rows', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      schemaVersion: 1,
+      tables: {
+        ...backup.tables,
+        mares: backup.tables.mares.map(({ gestation_length_days: _gestationLengthDays, ...row }) => row),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected backup to validate');
+    }
+
+    expect(result.preview.schemaVersion).toBe(1);
+  });
+
   it('rejects impossible calendar dates', () => {
     const backup = cloneBackupFixture();
     const result = validateBackup({
@@ -211,7 +230,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
 
     const result = validateBackupJson(jsonText);

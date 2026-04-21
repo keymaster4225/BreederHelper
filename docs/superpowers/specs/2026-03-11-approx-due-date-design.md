@@ -20,9 +20,9 @@ Heartbeat status does not affect visibility — early pregnancy checks (14-16 da
 
 ## Calculation
 
-Breeding date + 340 days (standard equine gestation average).
+Breeding date + the mare's saved gestation length, defaulting to 340 days when the mare uses the standard value.
 
-Reuses the existing `estimateFoalingDate(breedingDate: LocalDate): LocalDate` function in `src/models/types.ts`, which already adds 340 days to the breeding date.
+Reuses the existing `estimateFoalingDate(breedingDate: LocalDate, gestationLengthDays: number): LocalDate` function in `src/models/types.ts`, which adds the mare's gestation length to the breeding date.
 
 ## Display Format
 
@@ -41,7 +41,7 @@ Uses the app's existing `MM-DD-YYYY` display format convention (via `formatLocal
 - Place the row directly below the "Days post breeding" row in the existing info view
 
 ### Tests
-- Unit test for `estimateFoalingDate` (if not already covered) verifying correct 340-day addition
+- Unit test for `estimateFoalingDate` (if not already covered) verifying correct mare-specific gestation-length addition
 - Test edge cases: leap year crossing, year boundary crossing
 
 ## What This Does NOT Include
