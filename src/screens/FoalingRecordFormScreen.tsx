@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { useRecordForm } from '@/hooks/useRecordForm';
+import { FOAL_SEX_OPTIONS, FOALING_OUTCOME_OPTIONS } from '@/models/enums';
 import { Screen } from '@/components/Screen';
 import { FoalSex, FoalingOutcome } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -26,17 +27,6 @@ type Props = NativeStackScreenProps<RootStackParamList, 'FoalingRecordForm'>;
 type FormErrors = {
   date?: string;
 };
-
-const OUTCOME_OPTIONS: { label: string; value: FoalingOutcome }[] = [
-  { label: 'Live Foal', value: 'liveFoal' },
-  { label: 'Stillbirth', value: 'stillbirth' },
-  { label: 'Aborted', value: 'aborted' },
-];
-
-const SEX_OPTIONS: { label: string; value: FoalSex }[] = [
-  { label: 'Colt', value: 'colt' },
-  { label: 'Filly', value: 'filly' },
-];
 
 export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Element {
   const mareId = route.params.mareId;
@@ -207,11 +197,11 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
         </FormField>
 
         <FormField label="Outcome" required>
-          <OptionSelector value={outcome} onChange={setOutcome} options={OUTCOME_OPTIONS} />
+          <OptionSelector value={outcome} onChange={setOutcome} options={FOALING_OUTCOME_OPTIONS} />
         </FormField>
 
         <FormField label="Foal Sex">
-          <OptionSelector value={foalSex} onChange={(v) => setFoalSex(v)} options={SEX_OPTIONS} />
+          <OptionSelector value={foalSex} onChange={(v) => setFoalSex(v)} options={FOAL_SEX_OPTIONS} />
         </FormField>
 
         <FormField label="Complications">

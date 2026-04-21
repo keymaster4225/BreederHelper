@@ -1,46 +1,38 @@
 import {
+  BREEDING_METHOD_VALUES,
+  DOSE_EVENT_TYPE_VALUES,
+  FOAL_COLOR_VALUES,
+  FOAL_MILESTONE_KEYS as FOAL_MILESTONE_VALUE_KEYS,
+  FOAL_SEX_VALUES,
+  FOALING_OUTCOME_VALUES,
+  MEDICATION_ROUTE_VALUES,
+  PREGNANCY_RESULT_VALUES,
+} from '@/models/enums';
+import {
+  BACKUP_SCHEMA_VERSION_CURRENT,
   BACKUP_SCHEMA_VERSION_V1,
+  BACKUP_SCHEMA_VERSION_V2,
   type BackupBreedingRecordRow,
-  type BackupEnvelopeV1,
+  type BackupEnvelope,
   type BackupFoalingRecordRow,
   type BackupPreviewSummary,
   type BackupSemenCollectionRow,
   type BackupSettings,
   type BackupTableName,
   type BackupTablesV1,
+  type BackupTablesV2,
   type ValidateBackupError,
   type ValidateBackupResult,
 } from './types';
 
-const BREEDING_METHODS = new Set(['liveCover', 'freshAI', 'shippedCooledAI', 'frozenAI']);
-const PREGNANCY_RESULTS = new Set(['positive', 'negative']);
-const FOALING_OUTCOMES = new Set(['liveFoal', 'stillbirth', 'aborted', 'unknown']);
-const FOAL_SEXES = new Set(['colt', 'filly', 'unknown']);
-const FOAL_COLORS = new Set([
-  'bay',
-  'chestnut',
-  'black',
-  'gray',
-  'palomino',
-  'buckskin',
-  'roan',
-  'pintoPaint',
-  'sorrel',
-  'dun',
-  'cremello',
-  'other',
-]);
-const MEDICATION_ROUTES = new Set(['oral', 'IM', 'IV', 'intrauterine', 'SQ']);
-const COLLECTION_EVENT_TYPES = new Set(['shipped', 'usedOnSite']);
-const FOAL_MILESTONE_KEYS = new Set([
-  'stood',
-  'nursed',
-  'passedMeconium',
-  'iggTested',
-  'enemaGiven',
-  'umbilicalTreated',
-  'firstVetCheck',
-]);
+const BREEDING_METHODS = new Set(BREEDING_METHOD_VALUES);
+const PREGNANCY_RESULTS = new Set(PREGNANCY_RESULT_VALUES);
+const FOALING_OUTCOMES = new Set(FOALING_OUTCOME_VALUES);
+const FOAL_SEXES = new Set(FOAL_SEX_VALUES);
+const FOAL_COLORS = new Set(FOAL_COLOR_VALUES);
+const MEDICATION_ROUTES = new Set(MEDICATION_ROUTE_VALUES);
+const COLLECTION_EVENT_TYPES = new Set(DOSE_EVENT_TYPE_VALUES);
+const FOAL_MILESTONE_KEYS: ReadonlySet<string> = new Set(FOAL_MILESTONE_VALUE_KEYS);
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;
@@ -71,13 +63,16 @@ export function validateBackup(input: unknown): ValidateBackupResult {
   if (typeof schemaVersion !== 'number') {
     return validationFailure('missing_key', 'Backup is missing schemaVersion.');
   }
-  if (schemaVersion > BACKUP_SCHEMA_VERSION_V1) {
+  if (schemaVersion > BACKUP_SCHEMA_VERSION_CURRENT) {
     return validationFailure(
       'unsupported_schema_version',
       'This backup was created with a newer version of BreedWise. Please update the app.',
     );
   }
-  if (schemaVersion !== BACKUP_SCHEMA_VERSION_V1) {
+  if (
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V1 &&
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V2
+  ) {
     return validationFailure(
       'unsupported_schema_version',
       `Backup schemaVersion ${String(schemaVersion)} is not supported by this build.`,
@@ -112,18 +107,30 @@ export function validateBackup(input: unknown): ValidateBackupResult {
     return tableArrays.error;
   }
 
-  const backup: BackupEnvelopeV1 = {
-    schemaVersion: BACKUP_SCHEMA_VERSION_V1,
-    createdAt: input.createdAt,
-    app: {
-      name: 'BreedWise',
-      version: input.app.version,
-    },
-    settings: input.settings as BackupSettings,
-    tables: tableArrays.tables,
-  };
+  const backup: BackupEnvelope =
+    schemaVersion === BACKUP_SCHEMA_VERSION_V1
+      ? {
+          schemaVersion: BACKUP_SCHEMA_VERSION_V1,
+          createdAt: input.createdAt,
+          app: {
+            name: 'BreedWise',
+            version: input.app.version,
+          },
+          settings: input.settings as BackupSettings,
+          tables: tableArrays.tables as BackupTablesV1,
+        }
+      : {
+          schemaVersion: BACKUP_SCHEMA_VERSION_V2,
+          createdAt: input.createdAt,
+          app: {
+            name: 'BreedWise',
+            version: input.app.version,
+          },
+          settings: input.settings as BackupSettings,
+          tables: tableArrays.tables as BackupTablesV2,
+        };
 
-  const rowError = validateRows(backup.tables);
+  const rowError = validateRows(backup.tables, schemaVersion);
   if (rowError) {
     return rowError;
   }
@@ -141,7 +148,7 @@ export function validateBackup(input: unknown): ValidateBackupResult {
   };
 }
 
-export function buildBackupPreview(backup: BackupEnvelopeV1): BackupPreviewSummary {
+export function buildBackupPreview(backup: BackupEnvelope): BackupPreviewSummary {
   return {
     createdAt: backup.createdAt,
     mareCount: backup.tables.mares.length,
@@ -164,7 +171,7 @@ function validateSettings(settings: Record<string, unknown>): ValidateBackupResu
 
 function getTableArrays(
   tables: Record<string, unknown>,
-): { ok: true; tables: BackupTablesV1 } | { ok: false; error: ValidateBackupResult } {
+): { ok: true; tables: BackupTablesV1 | BackupTablesV2 } | { ok: false; error: ValidateBackupResult } {
   const requiredTables: BackupTableName[] = [
     'mares',
     'stallions',
@@ -193,9 +200,12 @@ function getTableArrays(
   };
 }
 
-function validateRows(tables: BackupTablesV1): ValidateBackupResult | null {
+function validateRows(
+  tables: BackupTablesV1 | BackupTablesV2,
+  schemaVersion: number,
+): ValidateBackupResult | null {
   for (let index = 0; index < tables.mares.length; index += 1) {
-    const error = validateMareRow(tables.mares[index], index);
+    const error = validateMareRow(tables.mares[index], index, schemaVersion);
     if (error) return error;
   }
   for (let index = 0; index < tables.stallions.length; index += 1) {
@@ -238,7 +248,11 @@ function validateRows(tables: BackupTablesV1): ValidateBackupResult | null {
   return null;
 }
 
-function validateMareRow(row: unknown, rowIndex: number): ValidateBackupResult | null {
+function validateMareRow(
+  row: unknown,
+  rowIndex: number,
+  schemaVersion: number,
+): ValidateBackupResult | null {
   if (!isRecord(row)) {
     return rowFailure('mares', rowIndex, 'row', 'must be an object');
   }
@@ -254,6 +268,20 @@ function validateMareRow(row: unknown, rowIndex: number): ValidateBackupResult |
   }
   if (!isNullableString(row.notes)) {
     return rowFailure('mares', rowIndex, 'notes', 'must be a string or null');
+  }
+  if (
+    schemaVersion >= BACKUP_SCHEMA_VERSION_V2 &&
+    !(typeof row.gestation_length_days === 'number' &&
+      Number.isInteger(row.gestation_length_days) &&
+      row.gestation_length_days >= 300 &&
+      row.gestation_length_days <= 420)
+  ) {
+    return rowFailure(
+      'mares',
+      rowIndex,
+      'gestation_length_days',
+      'must be an integer between 300 and 420',
+    );
   }
   if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
     return rowFailure('mares', rowIndex, 'timestamps', 'created_at and updated_at are required');
@@ -588,9 +616,7 @@ function validateFoalMilestonesJson(value: string, rowIndex: number): ValidateBa
   }
 
   for (const [key, entry] of Object.entries(parsed)) {
-    if (!FOAL_MILESTONE_KEYS.has(key)) {
-      return rowFailure('foals', rowIndex, 'milestones', `contains unsupported milestone key "${key}"`);
-    }
+    if (!FOAL_MILESTONE_KEYS.has(key)) continue;
     if (!isRecord(entry) || typeof entry.done !== 'boolean') {
       return rowFailure('foals', rowIndex, 'milestones', `milestone "${key}" is invalid`);
     }
@@ -617,6 +643,17 @@ function validateIggTestsJson(value: string, rowIndex: number): ValidateBackupRe
 
   for (const entry of parsed) {
     if (!isRecord(entry)) {
+      return rowFailure('foals', rowIndex, 'igg_tests', 'contains an invalid test entry');
+    }
+    const hasCurrentFields = 'date' in entry || 'valueMgDl' in entry;
+    const hasRecordedAt = 'recordedAt' in entry;
+    const isFutureCompatibleOpaqueEntry =
+      hasRecordedAt &&
+      !hasCurrentFields &&
+      isNonEmptyString(entry.recordedAt) &&
+      Object.keys(entry).some((key) => key !== 'recordedAt');
+    if (isFutureCompatibleOpaqueEntry) continue;
+    if (!hasCurrentFields && !hasRecordedAt) {
       return rowFailure('foals', rowIndex, 'igg_tests', 'contains an invalid test entry');
     }
     if (!isLocalDate(entry.date)) {

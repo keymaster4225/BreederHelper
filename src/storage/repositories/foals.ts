@@ -1,7 +1,12 @@
 import { Foal, FoalColor, FoalMilestones, FoalSex, IggTest } from '@/models/types';
 import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
-import { parseFoalMilestones, parseIggTests } from '@/storage/repositories/internal/foalCodecs';
+import {
+  parseFoalMilestones,
+  parseIggTests,
+  serializeFoalMilestonesForSave,
+  serializeIggTestsForSave,
+} from '@/storage/repositories/internal/foalCodecs';
 import { getFoalingRecordById } from './foalingRecords';
 
 type FoalRow = {
@@ -87,8 +92,8 @@ export async function createFoal(input: {
       input.color ?? null,
       input.markings ?? null,
       input.birthWeightLbs ?? null,
-      JSON.stringify(input.milestones),
-      JSON.stringify(input.iggTests ?? []),
+      serializeFoalMilestonesForSave(undefined, input.milestones),
+      serializeIggTestsForSave(undefined, input.iggTests),
       input.notes ?? null,
       now,
       now,
@@ -111,6 +116,14 @@ export async function updateFoal(
   },
 ): Promise<void> {
   const db = await getDb();
+  const existingRow = await db.getFirstAsync<Pick<FoalRow, 'milestones' | 'igg_tests'>>(
+    `
+    SELECT milestones, igg_tests
+    FROM foals
+    WHERE id = ?;
+    `,
+    [id],
+  );
 
   await db.runAsync(
     `
@@ -133,8 +146,8 @@ export async function updateFoal(
       input.color ?? null,
       input.markings ?? null,
       input.birthWeightLbs ?? null,
-      JSON.stringify(input.milestones),
-      JSON.stringify(input.iggTests ?? []),
+      serializeFoalMilestonesForSave(existingRow?.milestones, input.milestones),
+      serializeIggTestsForSave(existingRow?.igg_tests, input.iggTests),
       input.notes ?? null,
       new Date().toISOString(),
       id,

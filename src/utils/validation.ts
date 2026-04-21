@@ -63,6 +63,27 @@ export function validateNumberRange(
   return null;
 }
 
+export function validateIntegerRange(
+  value: number | null,
+  label: string,
+  min: number,
+  max: number
+): string | null {
+  if (value === null) {
+    return null;
+  }
+
+  if (Number.isNaN(value)) {
+    return `${label} must be a whole number.`;
+  }
+
+  if (value < min || value > max) {
+    return `${label} must be between ${min} and ${max}.`;
+  }
+
+  return null;
+}
+
 export function normalizeLocalDate(value: string): LocalDate | null {
   const trimmed = value.trim();
   return trimmed ? (trimmed as LocalDate) : null;

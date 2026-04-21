@@ -6,13 +6,21 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { useRecordForm } from '@/hooks/useRecordForm';
+import { PREGNANCY_RESULT_OPTIONS } from '@/models/enums';
 import { Screen } from '@/components/Screen';
-import { BreedingRecord, calculateDaysPostBreeding, estimateFoalingDate } from '@/models/types';
+import {
+  BreedingRecord,
+  DEFAULT_GESTATION_LENGTH_DAYS,
+  PregnancyResult,
+  calculateDaysPostBreeding,
+  estimateFoalingDate,
+} from '@/models/types';
 import { formatLocalDate } from '@/utils/dates';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
   createPregnancyCheck,
   deletePregnancyCheck,
+  getMareById,
   getPregnancyCheckById,
   listBreedingRecordsByMare,
   updatePregnancyCheck,
@@ -24,18 +32,13 @@ import { validateLocalDate, validateLocalDateNotInFuture, validateRequired } fro
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PregnancyCheckForm'>;
 
-type ResultOption = 'positive' | 'negative';
+type ResultOption = PregnancyResult;
 type YesNo = 'yes' | 'no';
 
 type FormErrors = {
   breedingRecordId?: string;
   date?: string;
 };
-
-const RESULT_OPTIONS: { label: string; value: ResultOption }[] = [
-  { label: 'Positive', value: 'positive' },
-  { label: 'Negative', value: 'negative' },
-];
 
 const YES_NO_OPTIONS: { label: string; value: YesNo }[] = [
   { label: 'Yes', value: 'yes' },
@@ -48,6 +51,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
   const isEdit = Boolean(pregnancyCheckId);
 
   const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
+  const [gestationLengthDays, setGestationLengthDays] = useState(DEFAULT_GESTATION_LENGTH_DAYS);
   const [breedingRecordId, setBreedingRecordId] = useState('');
   const [date, setDate] = useState('');
   const [result, setResult] = useState<ResultOption>('positive');
@@ -66,16 +70,23 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
   useEffect(() => {
     void runLoad(
       async () => {
-        const [records, existing] = await Promise.all([
+        const [mare, records, existing] = await Promise.all([
+          getMareById(mareId),
           listBreedingRecordsByMare(mareId),
           pregnancyCheckId ? getPregnancyCheckById(pregnancyCheckId) : Promise.resolve(null),
         ]);
+        if (!mare) {
+          Alert.alert('Mare not found', 'This mare no longer exists.');
+          navigation.goBack();
+          return;
+        }
         if (pregnancyCheckId && !existing) {
           Alert.alert('Record not found', 'This pregnancy check no longer exists.');
           navigation.goBack();
           return;
         }
 
+        setGestationLengthDays(mare.gestationLengthDays);
         setBreedingRecords(records);
 
         if (existing) {
@@ -125,8 +136,8 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
     if (!selectedBreedingRecord) {
       return null;
     }
-    return estimateFoalingDate(selectedBreedingRecord.date);
-  }, [selectedBreedingRecord]);
+    return estimateFoalingDate(selectedBreedingRecord.date, gestationLengthDays);
+  }, [gestationLengthDays, selectedBreedingRecord]);
 
   const validate = (): boolean => {
     const dateError = validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date);
@@ -238,7 +249,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
         </FormField>
 
         <FormField label="Result" required>
-          <OptionSelector value={result} onChange={setResult} options={RESULT_OPTIONS} />
+          <OptionSelector value={result} onChange={setResult} options={PREGNANCY_RESULT_OPTIONS} />
         </FormField>
 
         <FormField label="Heartbeat Detected">

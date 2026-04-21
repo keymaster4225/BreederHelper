@@ -11,13 +11,21 @@ import { colors, spacing } from '@/theme';
 
 type Props = {
   mareId: string;
+  gestationLengthDays: number;
   pregnancyChecks: readonly PregnancyCheck[];
   breedingById: Readonly<Record<string, BreedingRecord>>;
   dailyLogs: DailyLog[];
   navigation: NativeStackNavigationProp<RootStackParamList, 'MareDetail'>;
 };
 
-export function PregnancyTab({ mareId, pregnancyChecks, breedingById, dailyLogs, navigation }: Props): JSX.Element {
+export function PregnancyTab({
+  mareId,
+  gestationLengthDays,
+  pregnancyChecks,
+  breedingById,
+  dailyLogs,
+  navigation,
+}: Props): JSX.Element {
   return (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -35,7 +43,7 @@ export function PregnancyTab({ mareId, pregnancyChecks, breedingById, dailyLogs,
             ? calculateDaysPostBreeding(check.date, ovulationDate)
             : null;
           const dueDate = breeding && check.result === 'positive'
-            ? estimateFoalingDate(breeding.date)
+            ? estimateFoalingDate(breeding.date, gestationLengthDays)
             : null;
 
           return (

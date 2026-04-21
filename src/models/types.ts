@@ -1,20 +1,31 @@
-﻿export type UUID = string;
+﻿import {
+  BREEDING_METHOD_VALUES,
+  DOSE_EVENT_TYPE_VALUES,
+  FOAL_COLOR_VALUES,
+  FOAL_MILESTONE_KEYS,
+  FOAL_SEX_VALUES,
+  FOALING_OUTCOME_VALUES,
+  MEDICATION_ROUTE_VALUES,
+  PREGNANCY_RESULT_VALUES,
+} from './enums';
+
+export type UUID = string;
 export type LocalDate = string; // YYYY-MM-DD
 export type ISODateTime = string; // ISO-8601
 
-export type BreedingMethod =
-  | 'liveCover'
-  | 'freshAI'
-  | 'shippedCooledAI'
-  | 'frozenAI';
+export const DEFAULT_GESTATION_LENGTH_DAYS = 340;
+export const MIN_GESTATION_LENGTH_DAYS = 300;
+export const MAX_GESTATION_LENGTH_DAYS = 420;
 
-export type PregnancyResult = 'positive' | 'negative';
+export type BreedingMethod = (typeof BREEDING_METHOD_VALUES)[number];
 
-export type FoalingOutcome = 'liveFoal' | 'stillbirth' | 'aborted' | 'unknown';
+export type PregnancyResult = (typeof PREGNANCY_RESULT_VALUES)[number];
 
-export type FoalSex = 'colt' | 'filly' | 'unknown';
+export type FoalingOutcome = (typeof FOALING_OUTCOME_VALUES)[number];
 
-export type MedicationRoute = 'oral' | 'IM' | 'IV' | 'intrauterine' | 'SQ';
+export type FoalSex = (typeof FOAL_SEX_VALUES)[number];
+
+export type MedicationRoute = (typeof MEDICATION_ROUTE_VALUES)[number];
 
 export interface MedicationLog {
   id: UUID;
@@ -28,28 +39,9 @@ export interface MedicationLog {
   updatedAt: ISODateTime;
 }
 
-export type FoalColor =
-  | 'bay'
-  | 'chestnut'
-  | 'black'
-  | 'gray'
-  | 'palomino'
-  | 'buckskin'
-  | 'roan'
-  | 'pintoPaint'
-  | 'sorrel'
-  | 'dun'
-  | 'cremello'
-  | 'other';
+export type FoalColor = (typeof FOAL_COLOR_VALUES)[number];
 
-export type FoalMilestoneKey =
-  | 'stood'
-  | 'nursed'
-  | 'passedMeconium'
-  | 'iggTested'
-  | 'enemaGiven'
-  | 'umbilicalTreated'
-  | 'firstVetCheck';
+export type FoalMilestoneKey = (typeof FOAL_MILESTONE_KEYS)[number];
 
 export interface FoalMilestoneEntry {
   done: boolean;
@@ -85,6 +77,7 @@ export interface Mare {
   id: UUID;
   name: string;
   breed: string;
+  gestationLengthDays: number;
   dateOfBirth?: LocalDate | null;
   registrationNumber?: string | null;
   notes?: string | null;
@@ -112,7 +105,7 @@ export interface Stallion {
   deletedAt?: ISODateTime | null;
 }
 
-export type DoseEventType = 'shipped' | 'usedOnSite';
+export type DoseEventType = (typeof DOSE_EVENT_TYPE_VALUES)[number];
 
 export interface CollectionDoseEvent {
   id: UUID;
@@ -238,9 +231,12 @@ export function calculateDaysPostBreeding(
   return Math.floor((check.getTime() - breeding.getTime()) / msPerDay);
 }
 
-export function estimateFoalingDate(breedingDate: LocalDate): LocalDate {
+export function estimateFoalingDate(
+  breedingDate: LocalDate,
+  gestationLengthDays: number
+): LocalDate {
   const base = new Date(`${breedingDate}T00:00:00Z`);
-  base.setUTCDate(base.getUTCDate() + 340);
+  base.setUTCDate(base.getUTCDate() + gestationLengthDays);
   return base.toISOString().slice(0, 10);
 }
 
@@ -292,12 +288,15 @@ export function buildPregnancyInfoForCheck(
   check: PregnancyCheck,
   dailyLogs: DailyLog[],
   breedingRecord: BreedingRecord | null,
-  today: LocalDate
+  today: LocalDate,
+  gestationLengthDays: number
 ): PregnancyInfo {
   const ovulationDate = findMostRecentOvulationDate(dailyLogs, check.date);
 
   return {
     daysPostOvulation: ovulationDate ? calculateDaysPostBreeding(today, ovulationDate) : null,
-    estimatedDueDate: breedingRecord ? estimateFoalingDate(breedingRecord.date) : null,
+    estimatedDueDate: breedingRecord
+      ? estimateFoalingDate(breedingRecord.date, gestationLengthDays)
+      : null,
   };
 }

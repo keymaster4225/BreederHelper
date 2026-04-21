@@ -32,6 +32,7 @@ it('loads an existing mare and saves updates', async () => {
     id: 'mare-1',
     name: 'Nova',
     breed: 'Warmblood',
+    gestationLengthDays: 345,
     dateOfBirth: '2016-02-14',
     registrationNumber: 'REG-123',
     notes: 'Steady temperament',
@@ -61,6 +62,7 @@ it('loads an existing mare and saves updates', async () => {
       expect.objectContaining({
         name: 'Nova',
         breed: 'Warmblood',
+        gestationLengthDays: 345,
       }),
     );
     expect(navigation.goBack).toHaveBeenCalled();
@@ -88,6 +90,7 @@ it('filters breed suggestions and saves a selected breed on create', async () =>
       expect.objectContaining({
         name: 'Luna',
         breed: 'Warmblood',
+        gestationLengthDays: 340,
       }),
     );
     expect(navigation.goBack).toHaveBeenCalled();
@@ -114,6 +117,7 @@ it('saves a custom typed breed for a mare', async () => {
       expect.objectContaining({
         name: 'Nova',
         breed: 'Spanish Barb Cross',
+        gestationLengthDays: 340,
       }),
     );
   });
@@ -134,4 +138,23 @@ it('requires a breed for mares', () => {
 
   expect(createMare).not.toHaveBeenCalled();
   expect(screen.getByText('Breed is required.')).toBeTruthy();
+});
+
+it('requires gestation length to stay within the supported whole-number range', () => {
+  const navigation = createNavigation();
+
+  const screen = render(
+    <EditMareScreen
+      navigation={navigation as never}
+      route={{ key: 'EditMare', name: 'EditMare', params: undefined } as never}
+    />,
+  );
+
+  fireEvent.changeText(screen.getByPlaceholderText('Mare name'), 'Nova');
+  fireEvent.changeText(screen.getByPlaceholderText('Type or select breed'), 'Warmblood');
+  fireEvent.changeText(screen.getByDisplayValue('340'), '299');
+  fireEvent.press(screen.getByText('Save'));
+
+  expect(createMare).not.toHaveBeenCalled();
+  expect(screen.getByText('Gestation length must be between 300 and 420.')).toBeTruthy();
 });

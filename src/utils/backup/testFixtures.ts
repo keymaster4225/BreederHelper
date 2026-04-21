@@ -1,10 +1,10 @@
-import type { BackupEnvelopeV1 } from './types';
+import type { BackupEnvelopeV2 } from './types';
 
 const BASE_TIMESTAMP = '2026-04-16T12:00:00.000Z';
 
-export function createBackupFixture(): BackupEnvelopeV1 {
+export function createBackupFixture(): BackupEnvelopeV2 {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -19,6 +19,7 @@ export function createBackupFixture(): BackupEnvelopeV1 {
           id: 'mare-1',
           name: 'Maple',
           breed: 'Quarter Horse',
+          gestation_length_days: 345,
           date_of_birth: '2018-02-02',
           registration_number: null,
           notes: null,
@@ -185,6 +186,6 @@ export function createBackupFixture(): BackupEnvelopeV1 {
   };
 }
 
-export function cloneBackupFixture(): BackupEnvelopeV1 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV1;
+export function cloneBackupFixture(): BackupEnvelopeV2 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV2;
 }

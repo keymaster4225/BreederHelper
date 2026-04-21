@@ -1,4 +1,10 @@
+import {
+  MEDICATION_ROUTE_LABELS,
+  MEDICATION_ROUTE_OPTIONS,
+} from '@/models/enums';
 import type { MedicationRoute } from '@/models/types';
+
+export { MEDICATION_ROUTE_OPTIONS };
 
 export const PREDEFINED_MEDICATIONS = [
   'Regumate',
@@ -10,18 +16,6 @@ export const PREDEFINED_MEDICATIONS = [
   'Gentamicin',
 ] as const;
 
-export const MEDICATION_ROUTE_OPTIONS: readonly { readonly label: string; readonly value: MedicationRoute }[] = [
-  { label: 'Oral', value: 'oral' },
-  { label: 'IM', value: 'IM' },
-  { label: 'IV', value: 'IV' },
-  { label: 'Intrauterine', value: 'intrauterine' },
-  { label: 'SQ', value: 'SQ' },
-];
-
-export function formatRoute(route: MedicationRoute): string {
-  switch (route) {
-    case 'oral': return 'Oral';
-    case 'intrauterine': return 'Intrauterine';
-    default: return route; // IM, IV, SQ already uppercase
-  }
+export function formatRoute(route: MedicationRoute | string): string {
+  return MEDICATION_ROUTE_LABELS[route as MedicationRoute] ?? route;
 }

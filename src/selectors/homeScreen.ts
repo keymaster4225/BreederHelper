@@ -65,6 +65,7 @@ export function buildPregnantInfoMap(
         logsByMare.get(mare.id) ?? [],
         breedingById.get(currentCheck.breedingRecordId) ?? null,
         today,
+        mare.gestationLengthDays,
       ),
     );
   }

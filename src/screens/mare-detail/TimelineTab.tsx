@@ -22,6 +22,7 @@ import { colors, spacing, typography } from '@/theme';
 
 type Props = {
   readonly mareId: string;
+  readonly gestationLengthDays: number;
   readonly dailyLogs: readonly DailyLog[];
   readonly breedingRecords: readonly BreedingRecord[];
   readonly pregnancyChecks: readonly PregnancyCheck[];
@@ -127,17 +128,21 @@ function PregCheckCard({
   event,
   navigation,
   mareId,
+  gestationLengthDays,
   breedingById,
 }: {
   event: TimelineEvent;
   navigation: Props['navigation'];
   mareId: string;
+  gestationLengthDays: number;
   breedingById: Readonly<Record<string, BreedingRecord>>;
 }): JSX.Element {
   const check = event.data as PregnancyCheck;
   const breeding = breedingById[check.breedingRecordId];
   const daysPost = breeding ? calculateDaysPostBreeding(check.date, breeding.date) : null;
-  const dueDate = breeding && check.result === 'positive' ? estimateFoalingDate(breeding.date) : null;
+  const dueDate = breeding && check.result === 'positive'
+    ? estimateFoalingDate(breeding.date, gestationLengthDays)
+    : null;
 
   return (
     <View style={cardStyles.card}>
@@ -224,6 +229,7 @@ function TimelineCard({
   event,
   navigation,
   mareId,
+  gestationLengthDays,
   stallionNameById,
   breedingById,
   foalByFoalingRecordId,
@@ -231,6 +237,7 @@ function TimelineCard({
   event: TimelineEvent;
   navigation: Props['navigation'];
   mareId: string;
+  gestationLengthDays: number;
   stallionNameById: Readonly<Record<string, string>>;
   breedingById: Readonly<Record<string, BreedingRecord>>;
   foalByFoalingRecordId: Readonly<Record<string, Foal>>;
@@ -243,7 +250,15 @@ function TimelineCard({
     case 'breeding':
       return <BreedingCard event={event} navigation={navigation} mareId={mareId} stallionNameById={stallionNameById} />;
     case 'pregnancyCheck':
-      return <PregCheckCard event={event} navigation={navigation} mareId={mareId} breedingById={breedingById} />;
+      return (
+        <PregCheckCard
+          event={event}
+          navigation={navigation}
+          mareId={mareId}
+          gestationLengthDays={gestationLengthDays}
+          breedingById={breedingById}
+        />
+      );
     case 'foaling':
       return <FoalingCard event={event} navigation={navigation} mareId={mareId} foalByFoalingRecordId={foalByFoalingRecordId} />;
     case 'medication':
@@ -253,6 +268,7 @@ function TimelineCard({
 
 export function TimelineTab({
   mareId,
+  gestationLengthDays,
   dailyLogs,
   breedingRecords,
   pregnancyChecks,
@@ -279,6 +295,7 @@ export function TimelineTab({
             event={event}
             navigation={navigation}
             mareId={mareId}
+            gestationLengthDays={gestationLengthDays}
             stallionNameById={stallionNameById}
             breedingById={breedingById}
             foalByFoalingRecordId={foalByFoalingRecordId}

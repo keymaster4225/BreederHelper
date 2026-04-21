@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView } 
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
-import { FormCheckbox, FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { useRecordForm } from '@/hooks/useRecordForm';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -16,6 +16,7 @@ import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validat
 type Props = NativeStackScreenProps<RootStackParamList, 'DailyLogForm'>;
 
 type ScoreOption = '' | '0' | '1' | '2' | '3' | '4' | '5';
+type OvulationOption = 'unknown' | 'no' | 'yes';
 
 type FormErrors = {
   date?: string;
@@ -31,6 +32,36 @@ const SCORE_OPTIONS: { label: string; value: ScoreOption }[] = [
   { label: '5', value: '5' },
 ];
 
+const OVULATION_OPTIONS: { label: string; value: OvulationOption }[] = [
+  { label: 'Unknown', value: 'unknown' },
+  { label: 'No', value: 'no' },
+  { label: 'Yes', value: 'yes' },
+];
+
+function toOvulationOption(value: boolean | null | undefined): OvulationOption {
+  if (value === true) {
+    return 'yes';
+  }
+
+  if (value === false) {
+    return 'no';
+  }
+
+  return 'unknown';
+}
+
+function fromOvulationOption(value: OvulationOption): boolean | null {
+  if (value === 'yes') {
+    return true;
+  }
+
+  if (value === 'no') {
+    return false;
+  }
+
+  return null;
+}
+
 export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
   const mareId = route.params.mareId;
   const logId = route.params.logId;
@@ -40,7 +71,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
   const [teasingScore, setTeasingScore] = useState<ScoreOption>('');
   const [rightOvary, setRightOvary] = useState('');
   const [leftOvary, setLeftOvary] = useState('');
-  const [ovulationDetected, setOvulationDetected] = useState(false);
+  const [ovulationStatus, setOvulationStatus] = useState<OvulationOption>('unknown');
   const [edema, setEdema] = useState<ScoreOption>('');
   const [uterineTone, setUterineTone] = useState('');
   const [uterineCysts, setUterineCysts] = useState('');
@@ -73,7 +104,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
         setTeasingScore(record.teasingScore == null ? '' : String(record.teasingScore) as ScoreOption);
         setRightOvary(record.rightOvary ?? '');
         setLeftOvary(record.leftOvary ?? '');
-        setOvulationDetected(record.ovulationDetected ?? false);
+        setOvulationStatus(toOvulationOption(record.ovulationDetected));
         setEdema(record.edema == null ? '' : String(record.edema) as ScoreOption);
         setUterineTone(record.uterineTone ?? '');
         setUterineCysts(record.uterineCysts ?? '');
@@ -81,9 +112,9 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
       },
       {
         onError: (err: unknown) => {
-        const message = err instanceof Error ? err.message : 'Unable to load daily log.';
-        Alert.alert('Load error', message);
-        navigation.goBack();
+          const message = err instanceof Error ? err.message : 'Unable to load daily log.';
+          Alert.alert('Load error', message);
+          navigation.goBack();
         },
       },
     );
@@ -110,7 +141,7 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
           teasingScore: teasingScore === '' ? null : Number(teasingScore),
           rightOvary: rightOvary.trim() || null,
           leftOvary: leftOvary.trim() || null,
-          ovulationDetected: ovulationDetected || null,
+          ovulationDetected: fromOvulationOption(ovulationStatus),
           edema: edema === '' ? null : Number(edema),
           uterineTone: uterineTone.trim() || null,
           uterineCysts: uterineCysts.trim() || null,
@@ -174,59 +205,57 @@ export function DailyLogFormScreen({ navigation, route }: Props): JSX.Element {
   return (
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
-        <FormField label="Date" required error={errors.date}>
-          <FormDateInput value={date} onChange={setDate} placeholder="Select date" maximumDate={today} />
-        </FormField>
+        <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
+          <FormField label="Date" required error={errors.date}>
+            <FormDateInput value={date} onChange={setDate} placeholder="Select date" maximumDate={today} />
+          </FormField>
 
-        <FormField label="Teasing Score (0-5)">
-          <OptionSelector value={teasingScore} onChange={setTeasingScore} options={SCORE_OPTIONS} />
-        </FormField>
+          <FormField label="Teasing Score (0-5)">
+            <OptionSelector value={teasingScore} onChange={setTeasingScore} options={SCORE_OPTIONS} />
+          </FormField>
 
-        <FormField label="Right Ovary">
-          <FormTextInput value={rightOvary} onChangeText={setRightOvary} placeholder="(ie:35mm, MSF, AHF, CL, no findings)" />
-        </FormField>
+          <FormField label="Right Ovary">
+            <FormTextInput value={rightOvary} onChangeText={setRightOvary} placeholder="(ie:35mm, MSF, AHF, CL, no findings)" />
+          </FormField>
 
-        <FormField label="Left Ovary">
-          <FormTextInput value={leftOvary} onChangeText={setLeftOvary} placeholder="(ie: 35mm, MSF, AHF, CL, no findings)" />
-        </FormField>
+          <FormField label="Left Ovary">
+            <FormTextInput value={leftOvary} onChangeText={setLeftOvary} placeholder="(ie: 35mm, MSF, AHF, CL, no findings)" />
+          </FormField>
 
-        <FormCheckbox
-          label="Ovulated"
-          value={ovulationDetected}
-          onChange={setOvulationDetected}
-        />
+          <FormField label="Ovulated">
+            <OptionSelector value={ovulationStatus} onChange={setOvulationStatus} options={OVULATION_OPTIONS} />
+          </FormField>
 
-        <FormField label="Uterine Edema (0-5)">
-          <OptionSelector value={edema} onChange={setEdema} options={SCORE_OPTIONS} />
-        </FormField>
+          <FormField label="Uterine Edema (0-5)">
+            <OptionSelector value={edema} onChange={setEdema} options={SCORE_OPTIONS} />
+          </FormField>
 
-        <FormField label="Uterine Tone">
-          <FormTextInput value={uterineTone} onChangeText={setUterineTone} placeholder="Optional" />
-        </FormField>
+          <FormField label="Uterine Tone">
+            <FormTextInput value={uterineTone} onChangeText={setUterineTone} placeholder="Optional" />
+          </FormField>
 
-        <FormField label="Uterine Cysts">
-          <FormTextInput value={uterineCysts} onChangeText={setUterineCysts} placeholder="(ie: 2cm cyst at left horn base)" />
-        </FormField>
+          <FormField label="Uterine Cysts">
+            <FormTextInput value={uterineCysts} onChangeText={setUterineCysts} placeholder="(ie: 2cm cyst at left horn base)" />
+          </FormField>
 
-        <FormField label="Notes">
-          <FormTextInput value={notes} onChangeText={setNotes} multiline />
-        </FormField>
+          <FormField label="Notes">
+            <FormTextInput value={notes} onChangeText={setNotes} multiline />
+          </FormField>
 
-        <PrimaryButton
-          label={isSaving ? 'Saving...' : 'Save'}
-          onPress={onSave}
-          disabled={isSaving || isDeleting}
-        />
-
-        {isEdit ? (
-          <DeleteButton
-            label={isDeleting ? 'Deleting...' : 'Delete'}
-            onPress={onDelete}
+          <PrimaryButton
+            label={isSaving ? 'Saving...' : 'Save'}
+            onPress={onSave}
             disabled={isSaving || isDeleting}
           />
-        ) : null}
-      </ScrollView>
+
+          {isEdit ? (
+            <DeleteButton
+              label={isDeleting ? 'Deleting...' : 'Delete'}
+              onPress={onDelete}
+              disabled={isSaving || isDeleting}
+            />
+          ) : null}
+        </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   );

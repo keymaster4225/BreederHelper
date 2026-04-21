@@ -102,7 +102,15 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           >
             <DailyLogsTab key="0" mareId={mareId} dailyLogs={dailyLogs} navigation={navigation} />
             <BreedingTab key="1" mareId={mareId} breedingRecords={breedingRecords} stallionNameById={stallionNameById} navigation={navigation} />
-            <PregnancyTab key="2" mareId={mareId} pregnancyChecks={pregnancyChecks} breedingById={breedingById} dailyLogs={dailyLogs} navigation={navigation} />
+            <PregnancyTab
+              key="2"
+              mareId={mareId}
+              gestationLengthDays={mare.gestationLengthDays}
+              pregnancyChecks={pregnancyChecks}
+              breedingById={breedingById}
+              dailyLogs={dailyLogs}
+              navigation={navigation}
+            />
             <FoalingTab key="3" mareId={mareId} foalingRecords={foalingRecords} foalByFoalingRecordId={foalByFoalingRecordId} navigation={navigation} />
             <MedicationsTab key="4" mareId={mareId} medicationLogs={medicationLogs} navigation={navigation} />
           </PagerView>

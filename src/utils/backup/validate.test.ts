@@ -19,6 +19,25 @@ describe('validateBackup', () => {
     expect(result.preview.onboardingComplete).toBe(true);
   });
 
+  it('accepts v1 backups without gestation length on mare rows', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      schemaVersion: 1,
+      tables: {
+        ...backup.tables,
+        mares: backup.tables.mares.map(({ gestation_length_days: _gestationLengthDays, ...row }) => row),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected backup to validate');
+    }
+
+    expect(result.preview.schemaVersion).toBe(1);
+  });
+
   it('rejects impossible calendar dates', () => {
     const backup = cloneBackupFixture();
     const result = validateBackup({
@@ -85,6 +104,99 @@ describe('validateBackup', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('accepts forward-compatible foal milestone keys and extra igg test properties', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        foals: backup.tables.foals.map((row, index) =>
+          index === 0
+            ? {
+                ...row,
+                milestones: JSON.stringify({
+                  stood: { done: true, recordedAt: '2026-04-16T12:00:00.000Z' },
+                  futureMilestone: { done: true, windowHours: 6 },
+                }),
+                igg_tests: JSON.stringify([
+                  {
+                    date: '2027-03-11',
+                    valueMgDl: 900,
+                    recordedAt: '2027-03-11T08:00:00.000Z',
+                    lab: 'North Lab',
+                  },
+                ]),
+              }
+            : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('accepts preserved future-format foal igg entries that do not match the current schema', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        foals: backup.tables.foals.map((row, index) =>
+          index === 0
+            ? {
+                ...row,
+                igg_tests: JSON.stringify([
+                  {
+                    date: '2027-03-11',
+                    valueMgDl: 900,
+                    recordedAt: '2027-03-11T08:00:00.000Z',
+                    lab: 'North Lab',
+                  },
+                  {
+                    recordedAt: '2027-03-11T08:15:00.000Z',
+                    panel: 'future-format',
+                    externalId: 'lab-7',
+                  },
+                ]),
+              }
+            : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('still rejects invalid known foal milestone fields', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        foals: backup.tables.foals.map((row, index) =>
+          index === 0
+            ? {
+                ...row,
+                milestones: JSON.stringify({
+                  stood: { done: 'yes', recordedAt: '2026-04-16T12:00:00.000Z' },
+                  futureMilestone: { done: true, windowHours: 6 },
+                }),
+              }
+            : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('foals');
+    expect(result.error.field).toBe('milestones');
+    expect(result.error.message).toContain('milestone "stood" is invalid');
+  });
+
   it('rejects malformed foal igg test JSON with row-specific detail', () => {
     const backup = cloneBackupFixture();
     const result = validateBackup({
@@ -118,7 +230,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 2,
+      schemaVersion: 3,
     });
 
     const result = validateBackupJson(jsonText);

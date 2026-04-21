@@ -5,6 +5,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormPickerInput, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { useRecordForm } from '@/hooks/useRecordForm';
+import { AI_BREEDING_METHOD_OPTIONS } from '@/models/enums';
 import { Screen } from '@/components/Screen';
 import { BreedingMethod, SemenCollection, Stallion } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -51,13 +52,7 @@ const COVERAGE_OPTIONS: { label: string; value: CoverageType }[] = [
   { label: 'AI', value: 'ai' },
 ];
 
-type AIMethod = 'freshAI' | 'shippedCooledAI' | 'frozenAI';
-
-const AI_METHOD_OPTIONS: { label: string; value: AIMethod }[] = [
-  { label: 'Fresh', value: 'freshAI' },
-  { label: 'Shipped Cooled', value: 'shippedCooledAI' },
-  { label: 'Frozen', value: 'frozenAI' },
-];
+type AIMethod = Exclude<BreedingMethod, 'liveCover'>;
 
 const OTHER_STALLION = '__other__';
 const NO_COLLECTION = '__none__';
@@ -132,7 +127,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         setConcentrationMPerMl(record.concentrationMPerMl == null ? '' : String(record.concentrationMPerMl));
         setMotilityPercent(record.motilityPercent == null ? '' : String(record.motilityPercent));
         setNumberOfStraws(record.numberOfStraws == null ? '' : String(record.numberOfStraws));
-        setStrawVolumeMl(record.strawVolumeMl == null ? '' : String(Math.trunc(record.strawVolumeMl)));
+        setStrawVolumeMl(record.strawVolumeMl == null ? '' : String(record.strawVolumeMl));
         setStrawDetails(record.strawDetails ?? '');
         setCollectionDate(record.collectionDate ?? '');
         setNotes(record.notes ?? '');
@@ -241,7 +236,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     const parsedConcentration = parseOptionalNumber(concentrationMPerMl);
     const parsedMotility = parseOptionalNumber(motilityPercent);
     const parsedStraws = parseOptionalInteger(numberOfStraws);
-    const parsedStrawVolume = parseOptionalInteger(strawVolumeMl);
+    const parsedStrawVolume = parseOptionalNumber(strawVolumeMl);
 
     const nextErrors: FormErrors = {
       date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
@@ -354,10 +349,6 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     });
   };
 
-  const onChangeStrawVolumeMl = (value: string): void => {
-    setStrawVolumeMl(value.replace(/\D/g, '').slice(0, 2));
-  };
-
   if (isLoading) {
     return (
       <Screen>
@@ -369,7 +360,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   return (
     <Screen style={{ paddingTop: 0 }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Date" required error={errors.date}>
           <FormDateInput value={date} onChange={setDate} placeholder="Select breeding date" maximumDate={today} />
         </FormField>
@@ -396,7 +387,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         <FormField label="Breeding Method" required>
           <OptionSelector value={coverageType} onChange={onCoverageChange} options={COVERAGE_OPTIONS} />
           {method !== 'liveCover' ? (
-            <OptionSelector value={method as AIMethod} onChange={setMethod} options={AI_METHOD_OPTIONS} />
+            <OptionSelector value={method as AIMethod} onChange={setMethod} options={AI_BREEDING_METHOD_OPTIONS} />
           ) : null}
         </FormField>
 
@@ -435,12 +426,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
             </FormField>
 
             <FormField label="Straw Volume (mL)" error={errors.strawVolumeMl}>
-              <FormTextInput
-                value={strawVolumeMl}
-                onChangeText={onChangeStrawVolumeMl}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
+              <FormTextInput value={strawVolumeMl} onChangeText={setStrawVolumeMl} keyboardType="decimal-pad" />
             </FormField>
 
             <FormField label="Straw Details">
@@ -478,7 +464,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
             disabled={isSaving || isDeleting}
           />
         ) : null}
-      </ScrollView>
+        </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   );

@@ -18,6 +18,7 @@ import {
   OptionSelector,
   formStyles,
 } from '@/components/FormControls';
+import { DOSE_EVENT_TYPE_OPTIONS } from '@/models/enums';
 import {
   CollectionDoseEvent,
   CreateCollectionDoseEventInput,
@@ -47,11 +48,6 @@ type FormErrors = {
   eventDate?: string;
   doseCount?: string;
 };
-
-const EVENT_TYPE_OPTIONS: Array<{ label: string; value: DoseEventType }> = [
-  { label: 'Shipped', value: 'shipped' },
-  { label: 'Used on site', value: 'usedOnSite' },
-];
 
 export function DoseEventModal({
   visible,
@@ -157,7 +153,7 @@ export function DoseEventModal({
               bounces={false}
             >
               <FormField label="Event Type" required>
-                <OptionSelector value={eventType} onChange={setEventType} options={EVENT_TYPE_OPTIONS} />
+                <OptionSelector value={eventType} onChange={setEventType} options={DOSE_EVENT_TYPE_OPTIONS} />
               </FormField>
 
               <FormField label={recipientLabel} required error={errors.recipient}>

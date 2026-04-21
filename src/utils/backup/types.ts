@@ -1,4 +1,16 @@
+import type {
+  BreedingMethod,
+  DoseEventType,
+  FoalColor,
+  FoalSex,
+  FoalingOutcome,
+  MedicationRoute,
+  PregnancyResult,
+} from '@/models/types';
+
 export const BACKUP_SCHEMA_VERSION_V1 = 1 as const;
+export const BACKUP_SCHEMA_VERSION_V2 = 2 as const;
+export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V2;
 
 export const BACKUP_TABLE_NAMES = [
   'mares',
@@ -53,7 +65,7 @@ export type BackupSettings = {
   readonly onboardingComplete: boolean;
 };
 
-export type BackupMareRow = {
+export type BackupMareRowV1 = {
   readonly id: string;
   readonly name: string;
   readonly breed: string;
@@ -64,6 +76,12 @@ export type BackupMareRow = {
   readonly updated_at: BackupIsoDateTime;
   readonly deleted_at: BackupIsoDateTime | null;
 };
+
+export type BackupMareRowV2 = BackupMareRowV1 & {
+  readonly gestation_length_days: number;
+};
+
+export type BackupMareRow = BackupMareRowV2;
 
 export type BackupStallionRow = {
   readonly id: string;
@@ -107,7 +125,7 @@ export type BackupBreedingRecordRow = {
   readonly stallion_name: string | null;
   readonly collection_id: string | null;
   readonly date: BackupLocalDate;
-  readonly method: 'liveCover' | 'freshAI' | 'shippedCooledAI' | 'frozenAI';
+  readonly method: BreedingMethod;
   readonly notes: string | null;
   readonly volume_ml: number | null;
   readonly concentration_m_per_ml: number | null;
@@ -125,7 +143,7 @@ export type BackupPregnancyCheckRow = {
   readonly mare_id: string;
   readonly breeding_record_id: string;
   readonly date: BackupLocalDate;
-  readonly result: 'positive' | 'negative';
+  readonly result: PregnancyResult;
   readonly heartbeat_detected: 0 | 1 | null;
   readonly notes: string | null;
   readonly created_at: BackupIsoDateTime;
@@ -137,8 +155,8 @@ export type BackupFoalingRecordRow = {
   readonly mare_id: string;
   readonly breeding_record_id: string | null;
   readonly date: BackupLocalDate;
-  readonly outcome: 'liveFoal' | 'stillbirth' | 'aborted' | 'unknown';
-  readonly foal_sex: 'colt' | 'filly' | 'unknown' | null;
+  readonly outcome: FoalingOutcome;
+  readonly foal_sex: FoalSex | null;
   readonly complications: string | null;
   readonly notes: string | null;
   readonly created_at: BackupIsoDateTime;
@@ -149,21 +167,8 @@ export type BackupFoalRow = {
   readonly id: string;
   readonly foaling_record_id: string;
   readonly name: string | null;
-  readonly sex: 'colt' | 'filly' | 'unknown' | null;
-  readonly color:
-    | 'bay'
-    | 'chestnut'
-    | 'black'
-    | 'gray'
-    | 'palomino'
-    | 'buckskin'
-    | 'roan'
-    | 'pintoPaint'
-    | 'sorrel'
-    | 'dun'
-    | 'cremello'
-    | 'other'
-    | null;
+  readonly sex: FoalSex | null;
+  readonly color: FoalColor | null;
   readonly markings: string | null;
   readonly birth_weight_lbs: number | null;
   readonly milestones: string;
@@ -179,7 +184,7 @@ export type BackupMedicationLogRow = {
   readonly date: BackupLocalDate;
   readonly medication_name: string;
   readonly dose: string | null;
-  readonly route: 'oral' | 'IM' | 'IV' | 'intrauterine' | 'SQ' | null;
+  readonly route: MedicationRoute | null;
   readonly notes: string | null;
   readonly created_at: BackupIsoDateTime;
   readonly updated_at: BackupIsoDateTime;
@@ -205,7 +210,7 @@ export type BackupSemenCollectionRow = {
 export type BackupCollectionDoseEventRow = {
   readonly id: string;
   readonly collection_id: string;
-  readonly event_type: 'shipped' | 'usedOnSite';
+  readonly event_type: DoseEventType;
   readonly recipient: string;
   readonly dose_count: number | null;
   readonly event_date: BackupLocalDate | null;
@@ -215,7 +220,20 @@ export type BackupCollectionDoseEventRow = {
 };
 
 export type BackupTablesV1 = {
-  readonly mares: readonly BackupMareRow[];
+  readonly mares: readonly BackupMareRowV1[];
+  readonly stallions: readonly BackupStallionRow[];
+  readonly daily_logs: readonly BackupDailyLogRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
+  readonly foaling_records: readonly BackupFoalingRecordRow[];
+  readonly foals: readonly BackupFoalRow[];
+  readonly medication_logs: readonly BackupMedicationLogRow[];
+  readonly semen_collections: readonly BackupSemenCollectionRow[];
+  readonly collection_dose_events: readonly BackupCollectionDoseEventRow[];
+};
+
+export type BackupTablesV2 = {
+  readonly mares: readonly BackupMareRowV2[];
   readonly stallions: readonly BackupStallionRow[];
   readonly daily_logs: readonly BackupDailyLogRow[];
   readonly breeding_records: readonly BackupBreedingRecordRow[];
@@ -234,6 +252,16 @@ export type BackupEnvelopeV1 = {
   readonly settings: BackupSettings;
   readonly tables: BackupTablesV1;
 };
+
+export type BackupEnvelopeV2 = {
+  readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V2;
+  readonly createdAt: BackupIsoDateTime;
+  readonly app: BackupAppMetadata;
+  readonly settings: BackupSettings;
+  readonly tables: BackupTablesV2;
+};
+
+export type BackupEnvelope = BackupEnvelopeV1 | BackupEnvelopeV2;
 
 export type BackupPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;
@@ -261,7 +289,7 @@ export type ValidateBackupError = {
 export type ValidateBackupResult =
   | {
       readonly ok: true;
-      readonly backup: BackupEnvelopeV1;
+      readonly backup: BackupEnvelope;
       readonly preview: BackupPreviewSummary;
     }
   | {

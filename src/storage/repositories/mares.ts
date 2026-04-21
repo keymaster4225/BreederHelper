@@ -1,4 +1,4 @@
-﻿import { LocalDate, Mare } from '@/models/types';
+﻿import { DEFAULT_GESTATION_LENGTH_DAYS, LocalDate, Mare } from '@/models/types';
 import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 
@@ -12,6 +12,7 @@ export async function listMares(includeDeleted = false): Promise<Mare[]> {
       id,
       name,
       breed,
+      gestation_length_days,
       date_of_birth,
       registration_number,
       notes,
@@ -33,6 +34,7 @@ export async function getMareById(id: string): Promise<Mare | null> {
       id,
       name,
       breed,
+      gestation_length_days,
       date_of_birth,
       registration_number,
       notes,
@@ -52,6 +54,7 @@ export async function createMare(input: {
   id: string;
   name: string;
   breed: string;
+  gestationLengthDays?: number;
   dateOfBirth?: LocalDate | null;
   registrationNumber?: string | null;
   notes?: string | null;
@@ -65,18 +68,20 @@ export async function createMare(input: {
       id,
       name,
       breed,
+      gestation_length_days,
       date_of_birth,
       registration_number,
       notes,
       created_at,
       updated_at,
       deleted_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);
     `,
     [
       input.id,
       input.name,
       input.breed,
+      input.gestationLengthDays ?? DEFAULT_GESTATION_LENGTH_DAYS,
       input.dateOfBirth ?? null,
       input.registrationNumber ?? null,
       input.notes ?? null,
@@ -92,6 +97,7 @@ export async function updateMare(
   input: {
     name: string;
     breed: string;
+    gestationLengthDays: number;
     dateOfBirth?: LocalDate | null;
     registrationNumber?: string | null;
     notes?: string | null;
@@ -105,6 +111,7 @@ export async function updateMare(
     SET
       name = ?,
       breed = ?,
+      gestation_length_days = ?,
       date_of_birth = ?,
       registration_number = ?,
       notes = ?,
@@ -114,6 +121,7 @@ export async function updateMare(
     [
       input.name,
       input.breed,
+      input.gestationLengthDays,
       input.dateOfBirth ?? null,
       input.registrationNumber ?? null,
       input.notes ?? null,
@@ -142,6 +150,7 @@ type MareRow = {
   id: string;
   name: string;
   breed: string;
+  gestation_length_days: number;
   date_of_birth: string | null;
   registration_number: string | null;
   notes: string | null;
@@ -155,6 +164,7 @@ function mapMareRow(row: MareRow): Mare {
     id: row.id,
     name: row.name,
     breed: row.breed,
+    gestationLengthDays: row.gestation_length_days,
     dateOfBirth: row.date_of_birth,
     registrationNumber: row.registration_number,
     notes: row.notes,

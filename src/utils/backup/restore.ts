@@ -1,5 +1,6 @@
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { getDb } from '@/storage/db';
+import { DEFAULT_GESTATION_LENGTH_DAYS } from '@/models/types';
 import { setOnboardingCompleteValue } from '@/utils/onboarding';
 
 import { createSafetySnapshot } from './safetyBackups';
@@ -7,10 +8,11 @@ import type {
   BackupBreedingRecordRow,
   BackupCollectionDoseEventRow,
   BackupDailyLogRow,
-  BackupEnvelopeV1,
+  BackupEnvelope,
   BackupFoalingRecordRow,
   BackupFoalRow,
-  BackupMareRow,
+  BackupMareRowV1,
+  BackupMareRowV2,
   BackupMedicationLogRow,
   BackupPregnancyCheckRow,
   BackupSemenCollectionRow,
@@ -25,7 +27,7 @@ type RestoreOptions = {
 };
 
 export async function restoreBackup(
-  candidate: string | BackupEnvelopeV1 | unknown,
+  candidate: string | BackupEnvelope | unknown,
   options: RestoreOptions = {},
 ): Promise<RestoreBackupResult> {
   options.onStepChange?.('Validating backup...');
@@ -94,7 +96,7 @@ async function deleteManagedTables(db: Awaited<ReturnType<typeof getDb>>): Promi
 
 async function insertManagedTables(
   db: Awaited<ReturnType<typeof getDb>>,
-  backup: BackupEnvelopeV1,
+  backup: BackupEnvelope,
 ): Promise<void> {
   for (const row of backup.tables.mares) {
     await insertMare(db, row);
@@ -128,25 +130,32 @@ async function insertManagedTables(
   }
 }
 
-async function insertMare(db: Awaited<ReturnType<typeof getDb>>, row: BackupMareRow): Promise<void> {
+async function insertMare(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupMareRowV1 | BackupMareRowV2,
+): Promise<void> {
   await db.runAsync(
     `
     INSERT INTO mares (
       id,
       name,
       breed,
+      gestation_length_days,
       date_of_birth,
       registration_number,
       notes,
       created_at,
       updated_at,
       deleted_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
       row.name,
       row.breed,
+      'gestation_length_days' in row
+        ? row.gestation_length_days
+        : DEFAULT_GESTATION_LENGTH_DAYS,
       row.date_of_birth,
       row.registration_number,
       row.notes,

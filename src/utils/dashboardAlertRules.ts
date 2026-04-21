@@ -29,7 +29,7 @@ function checkApproachingDueDate(
   const breeding = ctx.breedingRecords.find((record) => record.id === currentCheck.breedingRecordId);
   if (!breeding) return null;
 
-  const dueDate = estimateFoalingDate(breeding.date);
+  const dueDate = estimateFoalingDate(breeding.date, ctx.mare.gestationLengthDays);
   const daysUntilDue = daysBetween(dueDate, today);
   if (daysUntilDue > DUE_DATE_ALERT_WINDOW_DAYS) return null;
 

@@ -217,7 +217,7 @@ Validation:
 ## Calculated Features
 
 - Days post-breeding: auto-calculate on pregnancy checks using selected breeding record date.
-- Estimated foaling date: for positive checks, calculate approximately 340 days from associated breeding date.
+- Estimated foaling date: for positive checks, calculate using the mare's gestation length from the associated breeding date. Default to 340 days unless the mare record has a different value saved.
 - Derived age: if date of birth exists, show current age on mare list/detail.
 
 ---
@@ -295,4 +295,4 @@ Build incrementally in this order:
 | Shipped cooled AI | AI with semen collected elsewhere and shipped cooled |
 | Frozen AI | AI with cryopreserved semen straws |
 | Motility | Percentage of sperm actively moving |
-| Gestation | Approximately 340 days in horses |
+| Gestation | Mare-specific gestation length, defaulting to 340 days in horses |

@@ -30,6 +30,7 @@ function makeMare(overrides: Partial<Mare> = {}): Mare {
     id: 'mare-1',
     name: 'Star',
     breed: 'Thoroughbred',
+    gestationLengthDays: 340,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     ...overrides,
@@ -169,6 +170,29 @@ describe('generateDashboardAlerts', () => {
       expect(dueAlerts[0].mareId).toBe('mare-1');
       expect(dueAlerts[0].priority).toBe('high');
       expect(dueAlerts[0].title).toMatch(/Due in \d+ days/);
+    });
+
+    it('uses the mare-specific gestation length for due-date alerts', () => {
+      const mare = makeMare({ gestationLengthDays: 320 });
+      const breeding = makeBreeding({ date: '2025-04-30' });
+      const check = makePregnancyCheck({
+        breedingRecordId: 'br-1',
+        date: '2025-05-15',
+        result: 'positive',
+      });
+
+      const result = generateDashboardAlerts(
+        makeInput({
+          mares: [mare],
+          breedingRecords: [breeding],
+          pregnancyChecks: [check],
+        })
+      );
+
+      const dueAlerts = result.filter((a) => a.kind === 'approachingDueDate');
+      expect(dueAlerts).toHaveLength(1);
+      expect(dueAlerts[0].subtitle).toBe('Est. due 03-16-2026');
+      expect(dueAlerts[0].title).toBe('Overdue by 10 days');
     });
 
     it('does not generate alert when due date is beyond window', () => {

@@ -3,6 +3,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 jest.mock('@/storage/repositories', () => ({
   createPregnancyCheck: jest.fn(),
   deletePregnancyCheck: jest.fn(),
+  getMareById: jest.fn(),
   getPregnancyCheckById: jest.fn(),
   listBreedingRecordsByMare: jest.fn(),
   updatePregnancyCheck: jest.fn(),
@@ -10,10 +11,12 @@ jest.mock('@/storage/repositories', () => ({
 
 const { PregnancyCheckFormScreen } = require('@/screens/PregnancyCheckFormScreen') as typeof import('@/screens/PregnancyCheckFormScreen');
 const {
+  getMareById,
   getPregnancyCheckById,
   listBreedingRecordsByMare,
   updatePregnancyCheck,
 } = jest.requireMock('@/storage/repositories') as {
+  getMareById: jest.Mock;
   getPregnancyCheckById: jest.Mock;
   listBreedingRecordsByMare: jest.Mock;
   updatePregnancyCheck: jest.Mock;
@@ -33,6 +36,14 @@ beforeEach(() => {
 
 it('loads an existing pregnancy check and saves updates', async () => {
   const navigation = createNavigation();
+  getMareById.mockResolvedValue({
+    id: 'mare-1',
+    name: 'Nova',
+    breed: 'Warmblood',
+    gestationLengthDays: 320,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  });
   listBreedingRecordsByMare.mockResolvedValue([
     {
       id: 'br-1',
@@ -70,10 +81,12 @@ it('loads an existing pregnancy check and saves updates', async () => {
   );
 
   await waitFor(() => {
+    expect(getMareById).toHaveBeenCalledWith('mare-1');
     expect(listBreedingRecordsByMare).toHaveBeenCalledWith('mare-1');
     expect(getPregnancyCheckById).toHaveBeenCalledWith('pc-1');
   });
 
+  expect(screen.getByText('Approx. due date: 02-03-2027')).toBeTruthy();
   fireEvent.press(screen.getByText('Save'));
 
   await waitFor(() => {

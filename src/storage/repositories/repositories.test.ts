@@ -22,18 +22,22 @@ import {
   getFoalingRecordById,
   getPregnancyCheckById,
   listFoalsByMare,
+  parseIggTests,
   parseFoalMilestones,
+  updateBreedingRecord,
   updateFoalingRecord,
   updatePregnancyCheck,
   updateDailyLog,
   updateFoal,
 } from '@/storage/repositories/queries';
+import { serializeIggTestsForSave } from '@/storage/repositories/internal/foalCodecs';
 import { createMare, getMareById, listMares, softDeleteMare, updateMare } from '@/storage/repositories/mares';
 
 type MareRow = {
   id: string;
   name: string;
   breed: string;
+  gestation_length_days: number;
   date_of_birth: string | null;
   registration_number: string | null;
   notes: string | null;
@@ -76,6 +80,7 @@ type BreedingRecordRow = {
   mare_id: string;
   stallion_id: string | null;
   stallion_name: string | null;
+  collection_id: string | null;
   date: string;
   method: string;
   notes: string | null;
@@ -155,10 +160,11 @@ function createFakeDb(): FakeDb {
       const stmt = normalized(sql);
 
       if (stmt.startsWith('insert into mares')) {
-        const [id, name, breed, dateOfBirth, registrationNumber, notes, createdAt, updatedAt] = params as [
+        const [id, name, breed, gestationLengthDays, dateOfBirth, registrationNumber, notes, createdAt, updatedAt] = params as [
           string,
           string,
           string,
+          number,
           string | null,
           string | null,
           string | null,
@@ -169,6 +175,7 @@ function createFakeDb(): FakeDb {
           id,
           name,
           breed,
+          gestation_length_days: gestationLengthDays,
           date_of_birth: dateOfBirth,
           registration_number: registrationNumber,
           notes,
@@ -180,9 +187,10 @@ function createFakeDb(): FakeDb {
       }
 
       if (stmt.startsWith('update mares set name =')) {
-        const [name, breed, dateOfBirth, registrationNumber, notes, updatedAt, id] = params as [
+        const [name, breed, gestationLengthDays, dateOfBirth, registrationNumber, notes, updatedAt, id] = params as [
           string,
           string,
+          number,
           string | null,
           string | null,
           string | null,
@@ -195,6 +203,7 @@ function createFakeDb(): FakeDb {
           ...existing,
           name,
           breed,
+          gestation_length_days: gestationLengthDays,
           date_of_birth: dateOfBirth,
           registration_number: registrationNumber,
           notes,
@@ -342,6 +351,7 @@ function createFakeDb(): FakeDb {
           mareId,
           stallionId,
           stallionName,
+          collectionId,
           date,
           method,
           notes,
@@ -357,6 +367,7 @@ function createFakeDb(): FakeDb {
         ] = params as [
           string,
           string,
+          string | null,
           string | null,
           string | null,
           string,
@@ -377,6 +388,7 @@ function createFakeDb(): FakeDb {
           mare_id: mareId,
           stallion_id: stallionId,
           stallion_name: stallionName,
+          collection_id: collectionId,
           date,
           method,
           notes,
@@ -388,6 +400,62 @@ function createFakeDb(): FakeDb {
           straw_details: strawDetails,
           collection_date: collectionDate,
           created_at: createdAt,
+          updated_at: updatedAt,
+        });
+        return;
+      }
+
+      if (stmt.startsWith('update breeding_records set')) {
+        const [
+          stallionId,
+          stallionName,
+          collectionId,
+          date,
+          method,
+          notes,
+          volumeMl,
+          concentration,
+          motility,
+          numberOfStraws,
+          strawVolumeMl,
+          strawDetails,
+          collectionDate,
+          updatedAt,
+          id,
+        ] = params as [
+          string | null,
+          string | null,
+          string | null,
+          string,
+          string,
+          string | null,
+          number | null,
+          number | null,
+          number | null,
+          number | null,
+          number | null,
+          string | null,
+          string | null,
+          string,
+          string,
+        ];
+        const existing = breedingRecords.get(id);
+        if (!existing) return;
+        breedingRecords.set(id, {
+          ...existing,
+          stallion_id: stallionId,
+          stallion_name: stallionName,
+          collection_id: collectionId,
+          date,
+          method,
+          notes,
+          volume_ml: volumeMl,
+          concentration_m_per_ml: concentration,
+          motility_percent: motility,
+          number_of_straws: numberOfStraws,
+          straw_volume_ml: strawVolumeMl,
+          straw_details: strawDetails,
+          collection_date: collectionDate,
           updated_at: updatedAt,
         });
         return;
@@ -638,6 +706,7 @@ describe('repository smoke tests', () => {
       id: 'mare-1',
       name: 'Astra',
       breed: 'Thoroughbred',
+      gestationLengthDays: 340,
       dateOfBirth: '2018-03-01',
       registrationNumber: 'REG-1',
       notes: 'Initial',
@@ -646,10 +715,12 @@ describe('repository smoke tests', () => {
     const created = await getMareById('mare-1');
     expect(created?.name).toBe('Astra');
     expect(created?.breed).toBe('Thoroughbred');
+    expect(created?.gestationLengthDays).toBe(340);
 
     await updateMare('mare-1', {
       name: 'Astra Prime',
       breed: 'Arabian',
+      gestationLengthDays: 345,
       dateOfBirth: '2018-03-01',
       registrationNumber: 'REG-2',
       notes: 'Updated',
@@ -658,6 +729,7 @@ describe('repository smoke tests', () => {
     const updated = await getMareById('mare-1');
     expect(updated?.name).toBe('Astra Prime');
     expect(updated?.registrationNumber).toBe('REG-2');
+    expect(updated?.gestationLengthDays).toBe(345);
 
     const listedBeforeDelete = await listMares();
     expect(listedBeforeDelete).toHaveLength(1);
@@ -882,6 +954,34 @@ describe('repository smoke tests', () => {
     expect(record?.stallionName).toBe('Outside Stallion');
   });
 
+  it('preserves decimal straw volume values across breeding record create and update', async () => {
+    await createMare({ id: 'mare-straw-decimal', name: 'Delta', breed: 'Warmblood' });
+    await createStallion({ id: 'stallion-straw-decimal', name: 'North Star' });
+    await createBreedingRecord({
+      id: 'breed-straw-decimal',
+      mareId: 'mare-straw-decimal',
+      stallionId: 'stallion-straw-decimal',
+      date: '2026-06-01',
+      method: 'frozenAI',
+      numberOfStraws: 2,
+      strawVolumeMl: 0.5,
+    });
+
+    let record = await getBreedingRecordById('breed-straw-decimal');
+    expect(record?.strawVolumeMl).toBe(0.5);
+
+    await updateBreedingRecord('breed-straw-decimal', {
+      stallionId: 'stallion-straw-decimal',
+      date: '2026-06-02',
+      method: 'frozenAI',
+      numberOfStraws: 2,
+      strawVolumeMl: 0.75,
+    });
+
+    record = await getBreedingRecordById('breed-straw-decimal');
+    expect(record?.strawVolumeMl).toBe(0.75);
+  });
+
   it('daily log with ovulationDetected true reads back as true', async () => {
     await createMare({ id: 'mare-ov1', name: 'Sunny', breed: 'Thoroughbred' });
     await createDailyLog({
@@ -1064,19 +1164,152 @@ describe('repository smoke tests', () => {
     expect(parseFoalMilestones('[]')).toEqual({});
   });
 
-  it('parseFoalMilestones ignores unknown keys and malformed entries', () => {
+  it('parseFoalMilestones preserves unknown keys and extra entry properties while filtering malformed known entries', () => {
     const input = JSON.stringify({
-      stood: { done: true, recordedAt: '2026-04-01T02:00:00Z' },
-      unknownKey: { done: true },
+      stood: { done: true, recordedAt: '2026-04-01T02:00:00Z', source: 'nurse note' },
+      unknownKey: { done: true, windowHours: 6 },
       nursed: { done: 'yes' },
       iggTested: { done: false },
     });
-    const result = parseFoalMilestones(input);
-    expect(result.stood?.done).toBe(true);
-    expect(result.stood?.recordedAt).toBe('2026-04-01T02:00:00Z');
-    expect(result).not.toHaveProperty('unknownKey');
+    const result = parseFoalMilestones(input) as Record<string, unknown>;
+    const stood = result.stood as { done?: unknown; recordedAt?: unknown } | undefined;
+    const iggTested = result.iggTested as { done?: unknown } | undefined;
+    expect(stood?.done).toBe(true);
+    expect(stood?.recordedAt).toBe('2026-04-01T02:00:00Z');
+    expect((result.stood as Record<string, unknown>).source).toBe('nurse note');
+    expect(result.unknownKey).toEqual({ done: true, windowHours: 6 });
     expect(result).not.toHaveProperty('nursed');
-    expect(result.iggTested?.done).toBe(false);
+    expect(iggTested?.done).toBe(false);
+  });
+
+  it('parseIggTests preserves unknown properties on valid tests', () => {
+    const result = parseIggTests(
+      JSON.stringify([
+        {
+          date: '2026-04-01',
+          valueMgDl: 900,
+          recordedAt: '2026-04-01T08:00:00Z',
+          lab: 'North Lab',
+        },
+      ]),
+    ) as unknown as Array<Record<string, unknown>>;
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.valueMgDl).toBe(900);
+    expect(result[0]?.lab).toBe('North Lab');
+  });
+
+  it('updateFoal preserves forward-compatible milestone keys and igg properties when saving known fields', async () => {
+    await createMare({ id: 'mare-foal-forward', name: 'Juniper', breed: 'Warmblood' });
+    await createFoalingRecord({
+      id: 'fr-foal-forward',
+      mareId: 'mare-foal-forward',
+      date: '2026-08-01',
+      outcome: 'liveFoal',
+    });
+
+    await createFoal({
+      id: 'foal-forward',
+      foalingRecordId: 'fr-foal-forward',
+      milestones: {
+        stood: {
+          done: true,
+          recordedAt: '2026-08-01T02:00:00Z',
+          source: 'initial observation',
+        } as never,
+        futureMilestone: {
+          done: true,
+          windowHours: 6,
+        } as never,
+      } as never,
+      iggTests: [
+        {
+          date: '2026-08-02',
+          valueMgDl: 800,
+          recordedAt: '2026-08-02T09:00:00Z',
+          lab: 'North Lab',
+        } as never,
+      ],
+    });
+
+    await updateFoal('foal-forward', {
+      milestones: {
+        stood: {
+          done: false,
+          recordedAt: '2026-08-01T02:00:00Z',
+        },
+      },
+      iggTests: [
+        {
+          date: '2026-08-02',
+          valueMgDl: 950,
+          recordedAt: '2026-08-02T09:00:00Z',
+        },
+      ],
+    });
+
+    const updated = await getFoalById('foal-forward');
+    expect(updated).not.toBeNull();
+
+    const milestones = updated?.milestones as Record<string, unknown>;
+    expect(updated?.milestones.stood?.done).toBe(false);
+    expect((milestones.stood as Record<string, unknown>).source).toBe('initial observation');
+    expect(milestones.futureMilestone).toEqual({ done: true, windowHours: 6 });
+
+    const iggTest = updated?.iggTests[0] as unknown as Record<string, unknown>;
+    expect(updated?.iggTests[0]?.valueMgDl).toBe(950);
+    expect(iggTest.lab).toBe('North Lab');
+  });
+
+  it('serializeIggTestsForSave preserves hidden raw igg entries without reordering visible tests', () => {
+    const rawTests = JSON.parse(
+      serializeIggTestsForSave(
+        JSON.stringify([
+          {
+            date: '2026-09-02',
+            valueMgDl: 800,
+            recordedAt: '2026-09-02T09:00:00Z',
+            lab: 'North Lab',
+          },
+          {
+            recordedAt: '2026-09-04T09:00:00Z',
+            panel: 'future-format',
+            externalId: 'lab-7',
+          },
+        ]),
+        [
+          {
+            date: '2026-09-03',
+            valueMgDl: 700,
+            recordedAt: '2026-09-03T09:00:00Z',
+          } as never,
+          {
+            date: '2026-09-02',
+            valueMgDl: 950,
+            recordedAt: '2026-09-02T09:00:00Z',
+          } as never,
+        ],
+      ),
+    ) as Array<string | Record<string, unknown>>;
+
+    expect(rawTests).toEqual([
+      {
+        date: '2026-09-03',
+        valueMgDl: 700,
+        recordedAt: '2026-09-03T09:00:00Z',
+      },
+      {
+        date: '2026-09-02',
+        valueMgDl: 950,
+        recordedAt: '2026-09-02T09:00:00Z',
+        lab: 'North Lab',
+      },
+      {
+        recordedAt: '2026-09-04T09:00:00Z',
+        panel: 'future-format',
+        externalId: 'lab-7',
+      },
+    ]);
   });
 
   it('foal with null name reads back as null', async () => {

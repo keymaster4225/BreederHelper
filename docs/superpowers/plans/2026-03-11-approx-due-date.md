@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Display an approximate due date (breeding date + 340 days) on the Pregnancy Check form when the result is positive.
+**Goal:** Display an approximate due date (breeding date + the mare's saved gestation length, default 340 days) on the Pregnancy Check form when the result is positive.
 
 **Architecture:** Reuse the existing `estimateFoalingDate` function from `src/models/types.ts`. Add a conditional `useMemo` + info row in `PregnancyCheckFormScreen`. Add unit tests for `estimateFoalingDate`.
 
@@ -24,7 +24,7 @@ import { describe, expect, it } from 'vitest';
 import { estimateFoalingDate } from './types';
 
 describe('estimateFoalingDate', () => {
-  it('adds 340 days to the breeding date', () => {
+  it('adds the mare gestation length to the breeding date', () => {
     // 2026-01-01 + 340 days = 2026-12-07
     expect(estimateFoalingDate('2026-01-01')).toBe('2026-12-07');
   });

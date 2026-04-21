@@ -19,6 +19,7 @@ import {
 function makeMare(overrides: Partial<Mare> & { id: string; name: string }): Mare {
   return {
     breed: 'Warmblood',
+    gestationLengthDays: 340,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     ...overrides,
@@ -69,7 +70,7 @@ function makeFoalingRecord(
 
 describe('buildPregnantInfoMap', () => {
   it('returns pregnancy info for mares with active positive checks', () => {
-    const mare = makeMare({ id: 'mare-1', name: 'Nova' });
+    const mare = makeMare({ id: 'mare-1', name: 'Nova', gestationLengthDays: 320 });
     const breeding = makeBreedingRecord({ id: 'br-1', mareId: mare.id, date: '2025-04-15' });
     const check = makePregnancyCheck({
       id: 'pc-1',
@@ -88,7 +89,7 @@ describe('buildPregnantInfoMap', () => {
     expect(result.size).toBe(1);
     expect(result.get(mare.id)).toEqual({
       daysPostOvulation: 12,
-      estimatedDueDate: estimateFoalingDate('2025-04-15'),
+      estimatedDueDate: estimateFoalingDate('2025-04-15', 320),
     });
   });
 
