@@ -8,7 +8,7 @@
 
 ## Summary
 
-Rework the collection wizard on stallion detail around a more honest physical model: each dose is an independent package with its own semen + extender composition, not a uniform slice of an averaged pool. The wizard becomes a 4-step flow — **Basics → Processing Calculator → Dose Allocation → Review** — with the calculator pre-filling per-dose defaults that can be overridden per row. The saved-record edit screen stays a single-page form with the same new fields and a read-only derived panel.
+Rework the collection wizard on stallion detail around a more honest physical model: each dose is an independent package with its own semen + extender composition, not a uniform slice of an averaged pool. The wizard becomes a 4-step flow — **Basics → Processing Calculator → Dose Allocation → Review** — with the calculator pre-filling per-dose defaults that can be overridden per row. The saved-record edit screen stays a single-page form with the same new fields and a read-only derived panel. Wizard-created on-farm allocations stay editable through their linked mare-side breeding records, with a synchronized companion `usedOnSite` event behind the scenes.
 
 This is a breaking schema change: four dropped columns on `semen_collections`, two new targets on `semen_collections`, two new per-dose volume columns on `collection_dose_events`, and a backup schema bump to v3.
 
@@ -79,10 +79,39 @@ All decisions below were reached through explicit brainstorming on 2026-04-21 an
 - Shows a **read-only derived panel** below inputs using the same calculator pure function (per-dose semen, per-dose extender, dose volume, max doses).
 - No dose-event editing on this screen. Dose events continue to be edited on `CollectionsTab` / `DoseEventModal`.
 
+### On-farm lifecycle after save
+
+- Each wizard-created on-farm allocation is represented by:
+  - one `breeding_records` row with `method = 'freshAI'` and `collection_id` set
+  - one companion `collection_dose_events` row with `event_type = 'usedOnSite'` and `breeding_record_id` pointing at that breeding record
+- After creation, the **mare-side breeding record** is the editable surface for that allocation.
+- `DoseEventModal` continues to reject direct editing of `usedOnSite` rows.
+- When a linked on-farm breeding record is edited, the companion `usedOnSite` event is updated in the same transaction:
+  - `breeding_records.date` -> `collection_dose_events.event_date`
+  - `breeding_records.volume_ml` -> `collection_dose_events.dose_semen_volume_ml`
+  - `breeding_records.notes` -> `collection_dose_events.notes`
+- Clearing `breeding_records.volume_ml` is allowed and writes `NULL` to `dose_semen_volume_ml`.
+- `dose_extender_volume_ml` always stays `NULL` for `usedOnSite` rows.
+- `dose_count` always stays `1` for `usedOnSite` rows and is never user-editable after creation.
+- If a breeding record has a companion `usedOnSite` event, the following edits are blocked:
+  - changing `method` away from `freshAI`
+  - clearing `collection_id`
+  - switching `collection_id` to a different collection
+- The `recipient` field on the companion `usedOnSite` event remains a mare-name snapshot taken at creation time. It is not live-synced to later mare-name edits.
+- Deleting a linked on-farm breeding record deletes its companion `usedOnSite` event through the existing `breeding_record_id` cascade.
+
 ### Migration for existing data
 
 - Lossy but clean: drop the four removed columns outright. User has explicitly accepted losing old values in those columns.
-- Pre-existing dose events get `doseSemenVolumeMl` / `doseExtenderVolumeMl` NULL.
+- Pre-existing `shipped` dose events get `doseSemenVolumeMl` / `doseExtenderVolumeMl` NULL.
+- Pre-existing `usedOnSite` dose events are canonicalized to the new invariant:
+  - `dose_count = 1`
+  - `dose_extender_volume_ml = NULL`
+  - `dose_semen_volume_ml = NULL`
+- If a legacy `usedOnSite` row had `dose_count > 1`, append exactly one sentence to `notes`:
+  - `Legacy on-farm dose count {N} collapsed to 1 during volume-model migration.`
+- If `notes` was empty, the migration note becomes the entire note.
+- If `notes` already had content, append the migration note after a blank line.
 - Pre-existing collections get `targetMotileSpermMillionsPerDose` / `targetPostExtensionConcentrationMillionsPerMl` NULL.
 - Migration must work identically on fresh installs and upgraded installs (per the data-storage-hardening canonical-migration rule).
 
@@ -309,8 +338,16 @@ Pattern (SQLite needs "new table + copy + drop + rename" for column drops, a dan
 1. Create `semen_collections_new` with the final target schema (unchanged columns + target fields, minus dropped columns). Include all existing CHECK constraints on unchanged columns and the canonical constraints introduced by `016`.
 2. `INSERT INTO semen_collections_new SELECT <unchanged columns>, NULL, NULL FROM semen_collections`.
 3. Drop old `semen_collections`, rename `semen_collections_new` → `semen_collections`.
-4. Recreate indexes and foreign key references (`breeding_records.collection_id`, `collection_dose_events.collection_id` — both `ON DELETE CASCADE` / as currently declared).
+4. Recreate indexes and foreign key references with current intended semantics:
+   - `breeding_records.collection_id` -> `semen_collections(id)` uses `ON UPDATE CASCADE ON DELETE RESTRICT`
+   - `collection_dose_events.collection_id` -> `semen_collections(id)` uses `ON DELETE CASCADE`
+   - `collection_dose_events.breeding_record_id` -> `breeding_records(id)` uses `ON DELETE CASCADE`
 5. On `collection_dose_events`: two `ALTER TABLE ADD COLUMN` statements for `dose_semen_volume_ml` and `dose_extender_volume_ml` (additive, safe; both `REAL NULLABLE`). Add CHECK constraints `dose_semen_volume_ml IS NULL OR dose_semen_volume_ml >= 0` and `dose_extender_volume_ml IS NULL OR dose_extender_volume_ml >= 0`.
+6. Normalize legacy `usedOnSite` rows during the migration so every one ends in canonical shape:
+   - force `dose_count = 1`
+   - force `dose_extender_volume_ml = NULL`
+   - leave `dose_semen_volume_ml = NULL`
+   - append the legacy-collapse note when the previous `dose_count > 1`
 
 Guards consistent with other migrations in the file:
 - `requiresForeignKeysOff: true` (table rebuild).
@@ -331,6 +368,24 @@ Unchanged from the original plan at a structural level; the diff is the payload 
 
 After commit, emit invalidation for `semenCollections`, `collectionDoseEvents`, `breedingRecords`.
 
+### On-farm create-time field mapping
+
+For each on-farm row, the created `freshAI` breeding record stores:
+
+- `volume_ml = doseSemenVolumeMl`
+- `concentration_m_per_ml = semen_collections.concentration_millions_per_ml` snapshot at create time
+- `motility_percent = semen_collections.progressive_motility_percent` snapshot at create time
+- `collection_date = semen_collections.collection_date`
+- `notes = on-farm row notes`
+
+The companion `usedOnSite` event stores:
+
+- `dose_semen_volume_ml = doseSemenVolumeMl`
+- `dose_extender_volume_ml = NULL`
+- `dose_count = 1`
+- `event_date = breeding_records.date`
+- `notes = breeding_records.notes`
+
 ### Allocation invariants (updated)
 
 Enforced in shared repo/service logic, not only UI:
@@ -339,6 +394,7 @@ Enforced in shared repo/service logic, not only UI:
 - A collection with `raw_volume_ml = NULL` cannot be capped. Rows may still be added, but there's no cap check.
 - Lowering a saved collection's `raw_volume_ml` below already-allocated volume must fail.
 - Editing a saved dose event recomputes totals with the current event excluded before applying the new value.
+- Editing `breeding_records.volume_ml` for a linked on-farm allocation reruns the same collection allocation cap check, excluding the current companion event during recompute.
 - Any failure during wizard save rolls back the entire transaction.
 - **`usedOnSite` events always have `dose_extender_volume_ml = NULL` and `dose_count = 1`.** Enforce at repo layer — reject attempts to write extender volume or non-1 dose count on a `usedOnSite` event. Mirror as backup validation rule.
 - **`shipped` events must have non-null `dose_semen_volume_ml` and non-null `dose_extender_volume_ml` when the event is saved.** (Null values are legal in the DB only for historical pre-migration rows and on-farm rows.)
@@ -349,7 +405,7 @@ Enforced in shared repo/service logic, not only UI:
 
 ```ts
 export interface CollectionInputs {
-  totalVolumeMl: number | null;
+  rawVolumeMl: number | null;
   concentrationMillionsPerMl: number | null;
   progressiveMotilityPercent: number | null;  // 0..100
   targetMotileSpermMillionsPerDose: number | null;
@@ -419,8 +475,13 @@ No change. `src/utils/carrierServices.ts` and `src/utils/containerTypes.ts` cont
 ### Restore (`restore.ts`)
 
 - Accepts v2: during restore, strip removed fields (`extended_volume_ml`, `extender_volume_ml`, `dose_count`, `dose_size_millions`) and insert new fields as NULL.
+- During v2 -> v3 restore, apply the same canonicalization as migration `019` for legacy `usedOnSite` rows:
+  - force `dose_count = 1`
+  - force `dose_extender_volume_ml = NULL`
+  - leave `dose_semen_volume_ml = NULL`
+  - append the same legacy-collapse note when the previous `dose_count > 1`
 - Accepts v3: direct.
-- Any unknown keys on v3 continue to be preserved (forward-compat rule from data-storage-hardening).
+- Unknown keys on v3 may be ignored during restore validation, but they are **not** preserved through restore/serialize round trips because only known columns are stored in SQLite.
 
 ### Validate (`validate.ts`)
 
@@ -481,18 +542,25 @@ No change. `src/utils/carrierServices.ts` and `src/utils/containerTypes.ts` cont
   - transactional save with mixed shipped + on-farm rows carrying volumes
   - in-transaction cap check fires
   - lowering collection `rawVolumeMl` below already-allocated sum fails
+  - on-farm create-time breeding record uses row `doseSemenVolumeMl`, not collection `rawVolumeMl`
+- `src/storage/repositories/breedingRecords.test.ts`
+  - editing linked on-farm breeding record syncs companion `usedOnSite` event date, semen volume, and notes
+  - changing linked on-farm method away from `freshAI` is blocked
+  - clearing or switching linked `collection_id` is blocked
+  - cap check runs when linked on-farm `volume_ml` changes
 - `src/storage/repositories/repositories.test.ts` — surface the new volume-based cap
 - `src/storage/migrations/index.test.ts`
   - migration `019` adds/drops expected columns
   - fresh install path: final schema correct, no data migration needed
   - upgrade install path: data preserved for unchanged columns, target fields NULL, dose-event volume fields NULL
+  - upgrade install path: legacy `usedOnSite` rows are collapsed to `dose_count = 1` and receive the migration note when needed
   - canonical migration repair still clean
 - `src/utils/backup/validate.test.ts` — new volume-based cap; reject backups exceeding it
 - `src/utils/backup/serialize.test.ts` — emits v3 with new fields
 - `src/utils/backup/restore.test.ts`
   - v2 → v3 migration path during restore
   - v3 direct restore
-  - fields with unknown keys on v3 preserved (forward-compat)
+  - legacy `usedOnSite` rows are canonicalized during v2 restore
 - `src/utils/backup/safetyBackups.test.ts` — new schema reflected
 
 ### Regression cautions
@@ -517,7 +585,7 @@ No change. `src/utils/carrierServices.ts` and `src/utils/containerTypes.ts` cont
 - Carrier/service and container type remain required on shipped rows.
 - On-farm companion events are linked via `breeding_record_id` and edited through breeding-record flows, not as free-form shipment rows.
 - Wizard remains stallion-detail driven; mare-side breeding entry is still a separate flow and untouched by this design.
-- No changes to the `breeding_records` table.
+- No schema changes to the `breeding_records` table.
 - No new DB enums for carrier or container — both remain free-form strings with suggested values.
 
 ## Out of scope
