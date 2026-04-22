@@ -1,22 +1,4 @@
-ability to change what due date is based off of (240, 245, etc). 
-
-cyst mapping
-
-fluid tracking (need more detail)
-
-photos (mares? foals? U/S screen?)
-
-prompts/notifications based on recorded actions (ie fluid detected: remind user to flush/infuse) - need to think on this
-
-able to set reminders in-app (ie next scan, next meds dose, etc)
-
-calendar at a glance for all mares, need to think on visual design
-
-stallion fertility trends
-
-mare ovulation trends
-
-workflow wizard for new scans
+ability to change what due date is based off of (240, 245, etc).
 
 new screen for freezing semen, not just inseminating
 
@@ -26,4 +8,24 @@ frozen semen: decrement straws-remaining when straws are used in a breeding (con
 
 frozen semen: dashboard alerts for low frozen inventory
 
+workflow wizard for new scans
+
+fluid tracking (need more detail)
+
+calendar at a glance for all mares, need to think on visual design
+
 frozen semen: bulk-edit / multi-batch operations
+
+stallion fertility trends
+
+mare ovulation trends
+
+photos (mares? foals? U/S screen?)
+
+able to set reminders in-app (ie next scan, next meds dose, etc)
+
+prompts/notifications based on recorded actions (ie fluid detected: remind user to flush/infuse) - need to think on this
+
+auto-schedule events based on recorded actions (eg mare bred on day X → automatically add 14-day and 30-day pregnancy checks to the calendar; ovulation detected → schedule next scan; foal born → schedule IgG test, first vet check, etc)
+
+cyst mapping
