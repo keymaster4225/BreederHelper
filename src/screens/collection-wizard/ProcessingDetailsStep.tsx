@@ -2,8 +2,8 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import { CardRow, cardStyles } from '@/components/RecordCardParts';
 import {
-  FormAutocompleteInput,
   FormField,
+  FormSelectInput,
   FormTextInput,
   OptionSelector,
 } from '@/components/FormControls';
@@ -21,7 +21,7 @@ import {
   getTargetPostExtensionModeHelperText,
   getTargetPostExtensionRangeHelperText,
 } from '@/utils/collectionCalculatorCopy';
-import { EXTENDER_TYPES, getExtenderTypeSuggestions } from '@/utils/extenderTypes';
+import { EXTENDER_TYPES } from '@/utils/extenderTypes';
 
 type Props = {
   rawVolumeMl: number | null;
@@ -33,8 +33,10 @@ type Props = {
   setTargetSpermMillionsPerDose: (value: string) => void;
   targetPostExtensionConcentrationMillionsPerMl: string;
   setTargetPostExtensionConcentrationMillionsPerMl: (value: string) => void;
-  extenderType: string;
-  setExtenderType: (value: string) => void;
+  extenderOption: string;
+  setExtenderOption: (value: string) => void;
+  extenderCustom: string;
+  setExtenderCustom: (value: string) => void;
   notes: string;
   setNotes: (value: string) => void;
   derivedMath: CollectionMathDerived;
@@ -62,8 +64,10 @@ export function ProcessingDetailsStep({
   setTargetSpermMillionsPerDose,
   targetPostExtensionConcentrationMillionsPerMl,
   setTargetPostExtensionConcentrationMillionsPerMl,
-  extenderType,
-  setExtenderType,
+  extenderOption,
+  setExtenderOption,
+  extenderCustom,
+  setExtenderCustom,
   notes,
   setNotes,
   derivedMath,
@@ -155,16 +159,26 @@ export function ProcessingDetailsStep({
       </View>
 
       <FormField label="Extender Type">
-        <FormAutocompleteInput
-          value={extenderType}
-          onChangeText={setExtenderType}
+        <FormSelectInput
+          value={extenderOption}
+          onChange={setExtenderOption}
           options={EXTENDER_TYPES}
-          getSuggestions={getExtenderTypeSuggestions}
-          placeholder="Type or select extender (optional)"
-          autoCapitalize="words"
-          autoCorrect={false}
+          placeholder="Select extender (optional)"
+          clearable
         />
       </FormField>
+
+      {extenderOption === 'Other' ? (
+        <FormField label="Custom Extender">
+          <FormTextInput
+            value={extenderCustom}
+            onChangeText={setExtenderCustom}
+            placeholder="Enter extender name"
+            autoCapitalize="words"
+            autoCorrect={false}
+          />
+        </FormField>
+      ) : null}
 
       <FormField label="Notes">
         <FormTextInput

@@ -77,8 +77,10 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
               setTargetSpermMillionsPerDose={wizard.setTargetSpermMillionsPerDose}
               targetPostExtensionConcentrationMillionsPerMl={wizard.targetPostExtensionConcentrationMillionsPerMl}
               setTargetPostExtensionConcentrationMillionsPerMl={wizard.setTargetPostExtensionConcentrationMillionsPerMl}
-              extenderType={wizard.extenderType}
-              setExtenderType={wizard.setExtenderType}
+              extenderOption={wizard.extenderOption}
+              setExtenderOption={wizard.setExtenderOption}
+              extenderCustom={wizard.extenderCustom}
+              setExtenderCustom={wizard.setExtenderCustom}
               notes={wizard.notes}
               setNotes={wizard.setNotes}
               derivedMath={wizard.derivedMath}

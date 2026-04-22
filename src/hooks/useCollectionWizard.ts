@@ -120,7 +120,8 @@ export function useCollectionWizard({
     targetPostExtensionConcentrationMillionsPerMl,
     setTargetPostExtensionConcentrationMillionsPerMl,
   ] = useState('');
-  const [extenderType, setExtenderType] = useState('');
+  const [extenderOption, setExtenderOption] = useState('');
+  const [extenderCustom, setExtenderCustom] = useState('');
   const [notes, setNotes] = useState('');
 
   const [allocationRows, setAllocationRows] = useState<CollectionWizardAllocationRow[]>([]);
@@ -170,6 +171,12 @@ export function useCollectionWizard({
   const parsedTargetPostExtensionConcentrationMillionsPerMl = useMemo(
     () => parseOptionalNumber(targetPostExtensionConcentrationMillionsPerMl),
     [targetPostExtensionConcentrationMillionsPerMl],
+  );
+
+  const extenderType = useMemo(
+    () =>
+      (extenderOption === 'Other' ? extenderCustom : extenderOption).trim(),
+    [extenderOption, extenderCustom],
   );
 
   const shippedRows = useMemo(
@@ -482,7 +489,7 @@ export function useCollectionWizard({
           stallionId,
           collectionDate,
           rawVolumeMl: parsedRawVolumeMl,
-          extenderType: extenderType.trim() || null,
+          extenderType: extenderType || null,
           concentrationMillionsPerMl: parsedConcentrationMillionsPerMl,
           progressiveMotilityPercent: parsedProgressiveMotilityPercent,
           targetMode: getPersistedCollectionTargetMode({
@@ -526,7 +533,10 @@ export function useCollectionWizard({
     targetPostExtensionConcentrationMillionsPerMl,
     setTargetPostExtensionConcentrationMillionsPerMl,
     extenderType,
-    setExtenderType,
+    extenderOption,
+    setExtenderOption,
+    extenderCustom,
+    setExtenderCustom,
     notes,
     setNotes,
     parsedRawVolumeMl,
