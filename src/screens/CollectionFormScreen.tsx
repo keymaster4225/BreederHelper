@@ -13,7 +13,10 @@ import {
   updateSemenCollection,
 } from '@/storage/repositories';
 import { colors } from '@/theme';
-import { deriveCollectionMath } from '@/utils/collectionCalculator';
+import {
+  convertMotileToTotalConcentrationMillionsPerMl,
+  deriveCollectionMath,
+} from '@/utils/collectionCalculator';
 import { EXTENDER_TYPES, getExtenderTypeSuggestions } from '@/utils/extenderTypes';
 import {
   parseOptionalInteger,
@@ -146,6 +149,26 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
       parsedTargetPostExtensionConcentrationMillionsPerMl,
     ],
   );
+  const externalTotalSpermEquivalent = useMemo(() => {
+    if (parsedProgressiveMotilityPercent == null) {
+      return null;
+    }
+
+    const concentration = convertMotileToTotalConcentrationMillionsPerMl(
+      parsedTargetPostExtensionConcentrationMillionsPerMl,
+      parsedProgressiveMotilityPercent,
+    );
+
+    return concentration == null
+      ? null
+      : {
+          concentration,
+          motilityPercent: parsedProgressiveMotilityPercent,
+        };
+  }, [
+    parsedProgressiveMotilityPercent,
+    parsedTargetPostExtensionConcentrationMillionsPerMl,
+  ]);
 
   const validate = (): FormErrors => {
     const errs: FormErrors = {};
@@ -271,29 +294,44 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
             />
           </FormField>
 
-          <FormField
-            label="Target motile sperm / dose (M)"
-            error={errors.targetMotileSpermMillionsPerDose}
-          >
-            <FormTextInput
-              value={targetMotileSpermMillionsPerDose}
-              onChangeText={setTargetMotileSpermMillionsPerDose}
-              placeholder="Optional"
-              keyboardType="numeric"
-            />
-          </FormField>
+          <View style={styles.fieldSection}>
+            <FormField
+              label="Target motile sperm / dose (M)"
+              error={errors.targetMotileSpermMillionsPerDose}
+            >
+              <FormTextInput
+                value={targetMotileSpermMillionsPerDose}
+                onChangeText={setTargetMotileSpermMillionsPerDose}
+                placeholder="Optional"
+                keyboardType="numeric"
+              />
+            </FormField>
+            <Text style={styles.helperText}>
+              BreedWise stores this target in millions. Example: 1 billion sperm/dose = 1000 M.
+            </Text>
+          </View>
 
-          <FormField
-            label="Target post-extension concentration (M motile/mL)"
-            error={errors.targetPostExtensionConcentrationMillionsPerMl}
-          >
-            <FormTextInput
-              value={targetPostExtensionConcentrationMillionsPerMl}
-              onChangeText={setTargetPostExtensionConcentrationMillionsPerMl}
-              placeholder="Optional"
-              keyboardType="numeric"
-            />
-          </FormField>
+          <View style={styles.fieldSection}>
+            <FormField
+              label="Target post-extension concentration (M motile/mL)"
+              error={errors.targetPostExtensionConcentrationMillionsPerMl}
+            >
+              <FormTextInput
+                value={targetPostExtensionConcentrationMillionsPerMl}
+                onChangeText={setTargetPostExtensionConcentrationMillionsPerMl}
+                placeholder="Optional"
+                keyboardType="numeric"
+              />
+            </FormField>
+            <Text style={styles.helperText}>
+              BreedWise uses motile sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: motile = total x (motility / 100).
+            </Text>
+            {externalTotalSpermEquivalent ? (
+              <Text style={styles.helperText}>
+                {`At ${externalTotalSpermEquivalent.motilityPercent}% motility, this target equals ${externalTotalSpermEquivalent.concentration.toFixed(2)} M total/mL in calculators that use total sperm/mL.`}
+              </Text>
+            ) : null}
+          </View>
 
           <FormField label="Extender Type">
             <FormAutocompleteInput
@@ -324,6 +362,12 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
             <CardRow label="Semen Per Dose" value={formatMl(derivedMath.semenPerDoseMl)} />
             <CardRow label="Extender Per Dose" value={formatMl(derivedMath.extenderPerDoseMl)} />
             <CardRow label="Dose Volume" value={formatMl(derivedMath.doseVolumeMl)} />
+            {externalTotalSpermEquivalent ? (
+              <CardRow
+                label="External Total-Sperm Equivalent"
+                value={`${externalTotalSpermEquivalent.concentration.toFixed(2)} M/mL at ${externalTotalSpermEquivalent.motilityPercent}% motility`}
+              />
+            ) : null}
             <CardRow
               label="Max Doses"
               value={derivedMath.maxDoses == null ? '-' : `~${derivedMath.maxDoses.toFixed(1)}`}
@@ -357,6 +401,13 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
 }
 
 const styles = StyleSheet.create({
+  fieldSection: {
+    gap: 4,
+  },
+  helperText: {
+    color: colors.onSurfaceVariant,
+    fontSize: 12,
+  },
   sectionTitle: {
     color: colors.onSurface,
     fontSize: 14,

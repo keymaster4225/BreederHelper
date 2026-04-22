@@ -17,50 +17,76 @@ export interface CollectionMathDerived {
   warnings: readonly CollectionMathWarning[];
 }
 
+function isPositiveFiniteNumber(value: number | null | undefined): value is number {
+  return value != null && Number.isFinite(value) && value > 0;
+}
+
+export function convertTotalToMotileConcentrationMillionsPerMl(
+  totalConcentrationMillionsPerMl: number | null,
+  progressiveMotilityPercent: number | null,
+): number | null {
+  if (
+    !isPositiveFiniteNumber(totalConcentrationMillionsPerMl) ||
+    !isPositiveFiniteNumber(progressiveMotilityPercent)
+  ) {
+    return null;
+  }
+
+  return totalConcentrationMillionsPerMl * (progressiveMotilityPercent / 100);
+}
+
+export function convertMotileToTotalConcentrationMillionsPerMl(
+  motileConcentrationMillionsPerMl: number | null,
+  progressiveMotilityPercent: number | null,
+): number | null {
+  if (
+    !isPositiveFiniteNumber(motileConcentrationMillionsPerMl) ||
+    !isPositiveFiniteNumber(progressiveMotilityPercent)
+  ) {
+    return null;
+  }
+
+  return motileConcentrationMillionsPerMl / (progressiveMotilityPercent / 100);
+}
+
 export function deriveCollectionMath(
   input: CollectionMathInputs,
 ): CollectionMathDerived {
   const warnings: CollectionMathWarning[] = [];
 
-  const hasRawConcentration =
-    input.concentrationMillionsPerMl != null &&
-    Number.isFinite(input.concentrationMillionsPerMl) &&
-    input.concentrationMillionsPerMl > 0;
-  const hasMotility =
-    input.progressiveMotilityPercent != null &&
-    Number.isFinite(input.progressiveMotilityPercent) &&
-    input.progressiveMotilityPercent > 0;
-  const hasTargetMotile =
-    input.targetMotileSpermMillionsPerDose != null &&
-    Number.isFinite(input.targetMotileSpermMillionsPerDose) &&
-    input.targetMotileSpermMillionsPerDose > 0;
-  const hasTargetPostExtension =
-    input.targetPostExtensionConcentrationMillionsPerMl != null &&
-    Number.isFinite(input.targetPostExtensionConcentrationMillionsPerMl) &&
-    input.targetPostExtensionConcentrationMillionsPerMl > 0;
-  const hasRawVolume =
-    input.rawVolumeMl != null &&
-    Number.isFinite(input.rawVolumeMl) &&
-    input.rawVolumeMl > 0;
+  const hasTargetMotile = isPositiveFiniteNumber(
+    input.targetMotileSpermMillionsPerDose,
+  );
+  const hasTargetPostExtension = isPositiveFiniteNumber(
+    input.targetPostExtensionConcentrationMillionsPerMl,
+  );
+  const hasRawVolume = isPositiveFiniteNumber(input.rawVolumeMl);
+  const targetMotileSpermMillionsPerDose = hasTargetMotile
+    ? input.targetMotileSpermMillionsPerDose
+    : null;
+  const targetPostExtensionConcentrationMillionsPerMl = hasTargetPostExtension
+    ? input.targetPostExtensionConcentrationMillionsPerMl
+    : null;
+  const rawVolumeMl = hasRawVolume ? input.rawVolumeMl : null;
 
   const rawMotileConcentrationMillionsPerMl =
-    hasRawConcentration && hasMotility
-      ? (input.concentrationMillionsPerMl as number) *
-        ((input.progressiveMotilityPercent as number) / 100)
-      : null;
+    convertTotalToMotileConcentrationMillionsPerMl(
+      input.concentrationMillionsPerMl,
+      input.progressiveMotilityPercent,
+    );
 
   const semenPerDoseMl =
     rawMotileConcentrationMillionsPerMl != null &&
     rawMotileConcentrationMillionsPerMl > 0 &&
-    hasTargetMotile
-      ? (input.targetMotileSpermMillionsPerDose as number) /
-        rawMotileConcentrationMillionsPerMl
+    targetMotileSpermMillionsPerDose != null
+      ? targetMotileSpermMillionsPerDose / rawMotileConcentrationMillionsPerMl
       : null;
 
   const doseVolumeMl =
-    hasTargetMotile && hasTargetPostExtension
-      ? (input.targetMotileSpermMillionsPerDose as number) /
-        (input.targetPostExtensionConcentrationMillionsPerMl as number)
+    targetMotileSpermMillionsPerDose != null &&
+    targetPostExtensionConcentrationMillionsPerMl != null
+      ? targetMotileSpermMillionsPerDose /
+        targetPostExtensionConcentrationMillionsPerMl
       : null;
 
   const extenderPerDoseMl =
@@ -69,8 +95,8 @@ export function deriveCollectionMath(
       : null;
 
   const maxDoses =
-    hasRawVolume && semenPerDoseMl != null && semenPerDoseMl > 0
-      ? (input.rawVolumeMl as number) / semenPerDoseMl
+    rawVolumeMl != null && semenPerDoseMl != null && semenPerDoseMl > 0
+      ? rawVolumeMl / semenPerDoseMl
       : null;
 
   if (extenderPerDoseMl != null && extenderPerDoseMl < 0) {

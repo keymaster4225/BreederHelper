@@ -60,9 +60,21 @@ it('renders updated collection fields and derived plan panel', async () => {
     expect(
       screen.getByText('Target post-extension concentration (M motile/mL)'),
     ).toBeTruthy();
+    expect(
+      screen.getByText(
+        'BreedWise stores this target in millions. Example: 1 billion sperm/dose = 1000 M.',
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        'BreedWise uses motile sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: motile = total x (motility / 100).',
+      ),
+    ).toBeTruthy();
     expect(screen.getByText('Derived Plan')).toBeTruthy();
     expect(screen.getByText('Semen Per Dose')).toBeTruthy();
     expect(screen.getByText('Extender Per Dose')).toBeTruthy();
+    expect(screen.getByText('External Total-Sperm Equivalent')).toBeTruthy();
+    expect(screen.getByText('200.00 M/mL at 50% motility')).toBeTruthy();
   });
 });
 

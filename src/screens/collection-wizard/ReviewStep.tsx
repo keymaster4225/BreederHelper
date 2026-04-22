@@ -5,7 +5,10 @@ import { CardRow, cardStyles } from '@/components/RecordCardParts';
 import { CollectionWizardAllocationRow } from '@/hooks/useCollectionWizard';
 import { colors, spacing, typography } from '@/theme';
 import type { AllocationSummary } from '@/utils/collectionAllocation';
-import type { CollectionMathDerived } from '@/utils/collectionCalculator';
+import {
+  convertMotileToTotalConcentrationMillionsPerMl,
+  type CollectionMathDerived,
+} from '@/utils/collectionCalculator';
 import { formatLocalDate } from '@/utils/dates';
 
 type Props = {
@@ -45,6 +48,10 @@ export function ReviewStep({
   remainingApproxDoses,
   onJumpToStep,
 }: Props): JSX.Element {
+  const externalTotalSpermEquivalent = convertMotileToTotalConcentrationMillionsPerMl(
+    targetPostExtensionConcentrationMillionsPerMl,
+    progressiveMotilityPercent,
+  );
   const shippedRows = allocationRows.filter(
     (row): row is Extract<CollectionWizardAllocationRow, { kind: 'shipped' }> =>
       row.kind === 'shipped',
@@ -95,6 +102,12 @@ export function ReviewStep({
               : `${targetPostExtensionConcentrationMillionsPerMl.toFixed(2)} M motile/mL`
           }
         />
+        {externalTotalSpermEquivalent != null && progressiveMotilityPercent != null ? (
+          <CardRow
+            label="External Total-Sperm Equivalent"
+            value={`${externalTotalSpermEquivalent.toFixed(2)} M/mL at ${progressiveMotilityPercent}% motility`}
+          />
+        ) : null}
         <CardRow label="Extender Type" value={extenderType || '-'} />
         <CardRow label="Notes" value={notes || '-'} />
         <CardRow label="Semen Per Dose" value={formatMl(derivedMath.semenPerDoseMl)} />

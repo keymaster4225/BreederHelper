@@ -3,8 +3,12 @@ import { StyleSheet, Text, View } from 'react-native';
 import { CardRow, cardStyles } from '@/components/RecordCardParts';
 import { FormAutocompleteInput, FormField, FormTextInput } from '@/components/FormControls';
 import { colors, spacing, typography } from '@/theme';
+import {
+  convertMotileToTotalConcentrationMillionsPerMl,
+  type CollectionMathDerived,
+} from '@/utils/collectionCalculator';
 import { EXTENDER_TYPES, getExtenderTypeSuggestions } from '@/utils/extenderTypes';
-import type { CollectionMathDerived } from '@/utils/collectionCalculator';
+import { parseOptionalNumber } from '@/utils/validation';
 
 type Props = {
   rawVolumeMl: number | null;
@@ -48,6 +52,10 @@ export function ProcessingDetailsStep({
   derivedMath,
   errors,
 }: Props): JSX.Element {
+  const externalTotalSpermEquivalent = convertMotileToTotalConcentrationMillionsPerMl(
+    parseOptionalNumber(targetPostExtensionConcentrationMillionsPerMl),
+    progressiveMotilityPercent,
+  );
   const hasDerivedValues =
     derivedMath.semenPerDoseMl != null ||
     derivedMath.extenderPerDoseMl != null ||
@@ -82,29 +90,44 @@ export function ProcessingDetailsStep({
         </View>
       </View>
 
-      <FormField
-        label="Target motile sperm / dose (M)"
-        error={errors.targetMotileSpermMillionsPerDose}
-      >
-        <FormTextInput
-          value={targetMotileSpermMillionsPerDose}
-          onChangeText={setTargetMotileSpermMillionsPerDose}
-          placeholder="Optional"
-          keyboardType="numeric"
-        />
-      </FormField>
+      <View style={styles.fieldSection}>
+        <FormField
+          label="Target motile sperm / dose (M)"
+          error={errors.targetMotileSpermMillionsPerDose}
+        >
+          <FormTextInput
+            value={targetMotileSpermMillionsPerDose}
+            onChangeText={setTargetMotileSpermMillionsPerDose}
+            placeholder="Optional"
+            keyboardType="numeric"
+          />
+        </FormField>
+        <Text style={styles.helperText}>
+          BreedWise stores this target in millions. Example: 1 billion sperm/dose = 1000 M.
+        </Text>
+      </View>
 
-      <FormField
-        label="Target post-extension concentration (M motile/mL)"
-        error={errors.targetPostExtensionConcentrationMillionsPerMl}
-      >
-        <FormTextInput
-          value={targetPostExtensionConcentrationMillionsPerMl}
-          onChangeText={setTargetPostExtensionConcentrationMillionsPerMl}
-          placeholder="Optional"
-          keyboardType="numeric"
-        />
-      </FormField>
+      <View style={styles.fieldSection}>
+        <FormField
+          label="Target post-extension concentration (M motile/mL)"
+          error={errors.targetPostExtensionConcentrationMillionsPerMl}
+        >
+          <FormTextInput
+            value={targetPostExtensionConcentrationMillionsPerMl}
+            onChangeText={setTargetPostExtensionConcentrationMillionsPerMl}
+            placeholder="Optional"
+            keyboardType="numeric"
+          />
+        </FormField>
+        <Text style={styles.helperText}>
+          BreedWise uses motile sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: motile = total x (motility / 100).
+        </Text>
+        {externalTotalSpermEquivalent != null && progressiveMotilityPercent != null ? (
+          <Text style={styles.helperText}>
+            {`At ${progressiveMotilityPercent}% motility, this target equals ${externalTotalSpermEquivalent.toFixed(2)} M total/mL in calculators that use total sperm/mL.`}
+          </Text>
+        ) : null}
+      </View>
 
       <FormField label="Extender Type">
         <FormAutocompleteInput
@@ -159,6 +182,9 @@ const styles = StyleSheet.create({
   chipSection: {
     gap: spacing.sm,
   },
+  fieldSection: {
+    gap: spacing.xs,
+  },
   sectionTitle: {
     ...typography.titleSmall,
     color: colors.onSurface,
@@ -184,6 +210,10 @@ const styles = StyleSheet.create({
     color: colors.onSurface,
   },
   infoText: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+  },
+  helperText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
   },

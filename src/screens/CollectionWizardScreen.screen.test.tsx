@@ -239,6 +239,21 @@ it('prefills shipped dose volumes from calculator targets', async () => {
 
   typeText(screen, 'Target motile sperm / dose (M)', '500');
   typeText(screen, 'Target post-extension concentration (M motile/mL)', '100');
+  expect(
+    screen.getByText(
+      'BreedWise stores this target in millions. Example: 1 billion sperm/dose = 1000 M.',
+    ),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(
+      'BreedWise uses motile sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: motile = total x (motility / 100).',
+    ),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(
+      'At 50% motility, this target equals 200.00 M total/mL in calculators that use total sperm/mL.',
+    ),
+  ).toBeTruthy();
 
   fireEvent.press(screen.getByText('Next'));
   await waitFor(() => expect(screen.getByText(/Dose allocation/i)).toBeTruthy());
@@ -286,6 +301,29 @@ it('prefills shipped dose volumes from calculator targets', async () => {
       ],
     }),
   );
+});
+
+it('shows the external total-sperm equivalent on review', async () => {
+  const screen = renderWizard();
+
+  typeDate(screen, 'Collection Date', '2026-04-21');
+  typeText(screen, 'Total Volume (mL)', '100');
+  typeText(screen, 'Concentration (M/mL, raw)', '200');
+  typeText(screen, 'Progressive Motility (%)', '50');
+  fireEvent.press(screen.getByText('Next'));
+  await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
+
+  typeText(screen, 'Target motile sperm / dose (M)', '500');
+  typeText(screen, 'Target post-extension concentration (M motile/mL)', '100');
+
+  fireEvent.press(screen.getByText('Next'));
+  await waitFor(() => expect(screen.getByText(/Dose allocation/i)).toBeTruthy());
+
+  fireEvent.press(screen.getByText('Next'));
+  await waitFor(() => expect(screen.getByText('Review')).toBeTruthy());
+
+  expect(screen.getByText('External Total-Sperm Equivalent')).toBeTruthy();
+  expect(screen.getByText('200.00 M/mL at 50% motility')).toBeTruthy();
 });
 
 it('prevents selecting the same mare twice', async () => {
