@@ -54,7 +54,8 @@ const makeCollection = (id: string, date: string, overrides?: Record<string, unk
   extenderType: 'INRA 96',
   concentrationMillionsPerMl: 200,
   progressiveMotilityPercent: 75,
-  targetMotileSpermMillionsPerDose: 500,
+  targetMode: 'progressive',
+  targetSpermMillionsPerDose: 500,
   targetPostExtensionConcentrationMillionsPerMl: 100,
   notes: null,
   createdAt: '2026-01-01T00:00:00.000Z',
@@ -128,6 +129,22 @@ it('shows collection cards when collections exist', async () => {
   expect(screen.getByText('75%')).toBeTruthy();
   expect(screen.getByText('500 M')).toBeTruthy();
   expect(screen.getByText('100 M/mL')).toBeTruthy();
+});
+
+it('shows total-mode target labels on collection cards', async () => {
+  repositories.listSemenCollectionsByStallion.mockResolvedValue([
+    makeCollection('col-1', '2026-04-01', {
+      targetMode: 'total',
+      targetSpermMillionsPerDose: 500,
+    }),
+  ]);
+  repositories.listDoseEventsByCollectionIds.mockResolvedValue({
+    'col-1': [],
+  });
+
+  const screen = renderScreen();
+  await waitFor(() => expect(screen.getByText('Target Total / Dose')).toBeTruthy());
+  expect(screen.getByText('Target Post-Ext Total Concentration')).toBeTruthy();
 });
 
 it('shows shipped and on-farm volume details in allocation rows', async () => {

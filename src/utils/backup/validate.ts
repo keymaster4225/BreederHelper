@@ -1,5 +1,6 @@
 import {
   BREEDING_METHOD_VALUES,
+  COLLECTION_TARGET_MODE_VALUES,
   DOSE_EVENT_TYPE_VALUES,
   FOAL_COLOR_VALUES,
   FOAL_MILESTONE_KEYS as FOAL_MILESTONE_VALUE_KEYS,
@@ -36,6 +37,7 @@ const FOAL_SEXES = new Set(FOAL_SEX_VALUES);
 const FOAL_COLORS = new Set(FOAL_COLOR_VALUES);
 const MEDICATION_ROUTES = new Set(MEDICATION_ROUTE_VALUES);
 const COLLECTION_EVENT_TYPES = new Set(DOSE_EVENT_TYPE_VALUES);
+const COLLECTION_TARGET_MODES = new Set(COLLECTION_TARGET_MODE_VALUES);
 const FOAL_MILESTONE_KEYS: ReadonlySet<string> = new Set(FOAL_MILESTONE_VALUE_KEYS);
 
 type ValidationIndexes = {
@@ -579,6 +581,17 @@ function validateSemenCollectionRow(
   }
 
   if (schemaVersion >= BACKUP_SCHEMA_VERSION_V3) {
+    if (
+      'target_mode' in row &&
+      !isNullableStringEnum(row.target_mode, COLLECTION_TARGET_MODES)
+    ) {
+      return rowFailure(
+        'semen_collections',
+        rowIndex,
+        'target_mode',
+        'must be progressive, total, or null',
+      );
+    }
     if (!('target_motile_sperm_millions_per_dose' in row)) {
       return rowFailure(
         'semen_collections',

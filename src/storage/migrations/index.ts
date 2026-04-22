@@ -780,6 +780,21 @@ SET
 WHERE event_type = 'usedOnSite';
 `;
 
+const migration020 = `
+ALTER TABLE semen_collections
+  ADD COLUMN target_mode TEXT
+  CHECK (target_mode IS NULL OR target_mode IN ('progressive', 'total'));
+
+UPDATE semen_collections
+SET target_mode = CASE
+  WHEN target_motile_sperm_millions_per_dose IS NOT NULL
+    OR target_post_extension_concentration_millions_per_ml IS NOT NULL
+  THEN 'progressive'
+  ELSE NULL
+END
+WHERE target_mode IS NULL;
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -919,6 +934,12 @@ const migrations: Migration[] = [
       (await hasColumn(db, 'semen_collections', 'target_motile_sperm_millions_per_dose')) &&
       (await hasColumn(db, 'collection_dose_events', 'dose_semen_volume_ml')) &&
       (await hasColumn(db, 'collection_dose_events', 'dose_extender_volume_ml')),
+  },
+  {
+    id: 20,
+    name: '020_collection_target_mode',
+    statements: splitStatements(migration020),
+    shouldSkip: async (db) => hasColumn(db, 'semen_collections', 'target_mode'),
   },
 ];
 

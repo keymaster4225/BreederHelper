@@ -1,21 +1,36 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { CardRow, cardStyles } from '@/components/RecordCardParts';
-import { FormAutocompleteInput, FormField, FormTextInput } from '@/components/FormControls';
-import { colors, spacing, typography } from '@/theme';
 import {
-  convertMotileToTotalConcentrationMillionsPerMl,
-  type CollectionMathDerived,
-} from '@/utils/collectionCalculator';
+  FormAutocompleteInput,
+  FormField,
+  FormTextInput,
+  OptionSelector,
+} from '@/components/FormControls';
+import { COLLECTION_TARGET_MODE_OPTIONS } from '@/models/enums';
+import type { CollectionTargetMode } from '@/models/types';
+import { colors, spacing, typography } from '@/theme';
+import { type CollectionMathDerived } from '@/utils/collectionCalculator';
+import {
+  TARGET_SPERM_HELPER_TEXT,
+  TOTAL_MODE_MISSING_MOTILITY_WARNING_TEXT,
+  formatCollectionEquivalentHelperText,
+  getCollectionRawConcentrationLabel,
+  getCollectionTargetPostExtensionLabel,
+  getCollectionTargetSpermLabel,
+  getTargetPostExtensionModeHelperText,
+  getTargetPostExtensionRangeHelperText,
+} from '@/utils/collectionCalculatorCopy';
 import { EXTENDER_TYPES, getExtenderTypeSuggestions } from '@/utils/extenderTypes';
-import { parseOptionalNumber } from '@/utils/validation';
 
 type Props = {
   rawVolumeMl: number | null;
   concentrationMillionsPerMl: number | null;
   progressiveMotilityPercent: number | null;
-  targetMotileSpermMillionsPerDose: string;
-  setTargetMotileSpermMillionsPerDose: (value: string) => void;
+  targetMode: CollectionTargetMode;
+  setTargetMode: (value: CollectionTargetMode) => void;
+  targetSpermMillionsPerDose: string;
+  setTargetSpermMillionsPerDose: (value: string) => void;
   targetPostExtensionConcentrationMillionsPerMl: string;
   setTargetPostExtensionConcentrationMillionsPerMl: (value: string) => void;
   extenderType: string;
@@ -24,7 +39,7 @@ type Props = {
   setNotes: (value: string) => void;
   derivedMath: CollectionMathDerived;
   errors: {
-    targetMotileSpermMillionsPerDose?: string;
+    targetSpermMillionsPerDose?: string;
     targetPostExtensionConcentrationMillionsPerMl?: string;
   };
 };
@@ -41,8 +56,10 @@ export function ProcessingDetailsStep({
   rawVolumeMl,
   concentrationMillionsPerMl,
   progressiveMotilityPercent,
-  targetMotileSpermMillionsPerDose,
-  setTargetMotileSpermMillionsPerDose,
+  targetMode,
+  setTargetMode,
+  targetSpermMillionsPerDose,
+  setTargetSpermMillionsPerDose,
   targetPostExtensionConcentrationMillionsPerMl,
   setTargetPostExtensionConcentrationMillionsPerMl,
   extenderType,
@@ -52,10 +69,15 @@ export function ProcessingDetailsStep({
   derivedMath,
   errors,
 }: Props): JSX.Element {
-  const externalTotalSpermEquivalent = convertMotileToTotalConcentrationMillionsPerMl(
-    parseOptionalNumber(targetPostExtensionConcentrationMillionsPerMl),
+  const equivalentHelperText = formatCollectionEquivalentHelperText({
+    targetMode,
+    equivalentConcentrationMillionsPerMl:
+      targetMode === 'total'
+        ? derivedMath.targetPostExtensionProgressiveEquivalentMillionsPerMl
+        : derivedMath.targetPostExtensionTotalEquivalentMillionsPerMl,
     progressiveMotilityPercent,
-  );
+  });
+  const rangeHelperText = getTargetPostExtensionRangeHelperText(targetMode);
   const hasDerivedValues =
     derivedMath.semenPerDoseMl != null ||
     derivedMath.extenderPerDoseMl != null ||
@@ -90,42 +112,45 @@ export function ProcessingDetailsStep({
         </View>
       </View>
 
+      <FormField label="Target Mode">
+        <OptionSelector
+          value={targetMode}
+          onChange={setTargetMode}
+          options={COLLECTION_TARGET_MODE_OPTIONS}
+        />
+      </FormField>
+
       <View style={styles.fieldSection}>
         <FormField
-          label="Target motile sperm / dose (M)"
-          error={errors.targetMotileSpermMillionsPerDose}
+          label={getCollectionTargetSpermLabel(targetMode)}
+          error={errors.targetSpermMillionsPerDose}
         >
           <FormTextInput
-            value={targetMotileSpermMillionsPerDose}
-            onChangeText={setTargetMotileSpermMillionsPerDose}
-            placeholder="Optional"
+            value={targetSpermMillionsPerDose}
+            onChangeText={setTargetSpermMillionsPerDose}
             keyboardType="numeric"
           />
         </FormField>
-        <Text style={styles.helperText}>
-          BreedWise stores this target in millions. Example: 1 billion sperm/dose = 1000 M.
-        </Text>
+        <Text style={styles.helperText}>{TARGET_SPERM_HELPER_TEXT}</Text>
       </View>
 
       <View style={styles.fieldSection}>
         <FormField
-          label="Target post-extension concentration (M motile/mL)"
+          label={getCollectionTargetPostExtensionLabel(targetMode)}
           error={errors.targetPostExtensionConcentrationMillionsPerMl}
         >
           <FormTextInput
             value={targetPostExtensionConcentrationMillionsPerMl}
             onChangeText={setTargetPostExtensionConcentrationMillionsPerMl}
-            placeholder="Optional"
             keyboardType="numeric"
           />
         </FormField>
+        {rangeHelperText ? <Text style={styles.helperText}>{rangeHelperText}</Text> : null}
         <Text style={styles.helperText}>
-          BreedWise uses motile sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: motile = total x (motility / 100).
+          {getTargetPostExtensionModeHelperText(targetMode)}
         </Text>
-        {externalTotalSpermEquivalent != null && progressiveMotilityPercent != null ? (
-          <Text style={styles.helperText}>
-            {`At ${progressiveMotilityPercent}% motility, this target equals ${externalTotalSpermEquivalent.toFixed(2)} M total/mL in calculators that use total sperm/mL.`}
-          </Text>
+        {equivalentHelperText ? (
+          <Text style={styles.helperText}>{equivalentHelperText}</Text>
         ) : null}
       </View>
 
@@ -165,7 +190,12 @@ export function ProcessingDetailsStep({
 
         {derivedMath.warnings.includes('negative-extender') ? (
           <Text style={styles.warningText}>
-            Extender amount is negative. Target concentration is at or above raw motile concentration.
+            {`Extender amount is negative. Target concentration is at or above the ${getCollectionRawConcentrationLabel(targetMode).toLowerCase()}.`}
+          </Text>
+        ) : null}
+        {derivedMath.warnings.includes('total-mode-missing-motility') ? (
+          <Text style={styles.warningText}>
+            {TOTAL_MODE_MISSING_MOTILITY_WARNING_TEXT}
           </Text>
         ) : null}
         {derivedMath.warnings.includes('target-exceeds-capacity') ? (

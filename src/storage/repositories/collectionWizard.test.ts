@@ -35,6 +35,7 @@ type CollectionRow = {
   extender_type: string | null;
   concentration_millions_per_ml: number | null;
   progressive_motility_percent: number | null;
+  target_mode: 'progressive' | 'total' | null;
   target_motile_sperm_millions_per_dose: number | null;
   target_post_extension_concentration_millions_per_ml: number | null;
   notes: string | null;
@@ -107,7 +108,8 @@ function createFakeDb() {
           extenderType,
           concentrationMillionsPerMl,
           progressiveMotilityPercent,
-          targetMotileSpermMillionsPerDose,
+          targetMode,
+          targetSpermMillionsPerDose,
           targetPostExtensionConcentrationMillionsPerMl,
           notes,
           createdAt,
@@ -120,6 +122,7 @@ function createFakeDb() {
           string | null,
           number | null,
           number | null,
+          'progressive' | 'total' | null,
           number | null,
           number | null,
           string | null,
@@ -134,7 +137,8 @@ function createFakeDb() {
           extender_type: extenderType,
           concentration_millions_per_ml: concentrationMillionsPerMl,
           progressive_motility_percent: progressiveMotilityPercent,
-          target_motile_sperm_millions_per_dose: targetMotileSpermMillionsPerDose,
+          target_mode: targetMode,
+          target_motile_sperm_millions_per_dose: targetSpermMillionsPerDose,
           target_post_extension_concentration_millions_per_ml:
             targetPostExtensionConcentrationMillionsPerMl,
           notes,
@@ -332,7 +336,8 @@ describe('collection wizard repository', () => {
         rawVolumeMl: 50,
         concentrationMillionsPerMl: 200,
         progressiveMotilityPercent: 75,
-        targetMotileSpermMillionsPerDose: 500,
+        targetMode: 'progressive',
+        targetSpermMillionsPerDose: 500,
         targetPostExtensionConcentrationMillionsPerMl: 180,
       },
       shippedRows: [
@@ -370,6 +375,7 @@ describe('collection wizard repository', () => {
     expect(fakeDb.collections.size).toBe(1);
     expect(fakeDb.breedingRecords.size).toBe(1);
     expect(fakeDb.doseEvents.size).toBe(2);
+    expect(fakeDb.collections.get('collection-1')?.target_mode).toBe('progressive');
 
     const breedingRecord = fakeDb.breedingRecords.get('breeding-1');
     expect(breedingRecord?.collection_id).toBe('collection-1');

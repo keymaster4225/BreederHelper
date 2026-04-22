@@ -17,7 +17,8 @@ type CollectionDraftInput = {
   extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
   progressiveMotilityPercent?: number | null;
-  targetMotileSpermMillionsPerDose?: number | null;
+  targetMode?: 'progressive' | 'total' | null;
+  targetSpermMillionsPerDose?: number | null;
   targetPostExtensionConcentrationMillionsPerMl?: number | null;
   notes?: string | null;
 };
@@ -182,12 +183,13 @@ async function insertCollection(
       extender_type,
       concentration_millions_per_ml,
       progressive_motility_percent,
+      target_mode,
       target_motile_sperm_millions_per_dose,
       target_post_extension_concentration_millions_per_ml,
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       collectionId,
@@ -197,7 +199,8 @@ async function insertCollection(
       normalizeOptionalText(input.extenderType),
       input.concentrationMillionsPerMl ?? null,
       input.progressiveMotilityPercent ?? null,
-      input.targetMotileSpermMillionsPerDose ?? null,
+      input.targetMode ?? null,
+      input.targetSpermMillionsPerDose ?? null,
       input.targetPostExtensionConcentrationMillionsPerMl ?? null,
       normalizeOptionalText(input.notes),
       now,

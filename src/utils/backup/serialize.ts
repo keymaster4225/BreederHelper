@@ -206,6 +206,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV3> {
         extender_type,
         concentration_millions_per_ml,
         progressive_motility_percent,
+        target_mode,
         target_motile_sperm_millions_per_dose,
         target_post_extension_concentration_millions_per_ml,
         notes,

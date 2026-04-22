@@ -420,6 +420,47 @@ describe('applyMigrations', () => {
     expect(runCalls.some(({ params }) => params[0] === 19)).toBe(true);
   });
 
+  it('adds target_mode and backfills legacy collection targets to progressive in migration020', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 19 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY
+        )
+      `,
+      semenCollectionsColumns: [
+        'id',
+        'stallion_id',
+        'collection_date',
+        'raw_volume_ml',
+        'extender_type',
+        'concentration_millions_per_ml',
+        'progressive_motility_percent',
+        'target_motile_sperm_millions_per_dose',
+        'target_post_extension_concentration_millions_per_ml',
+        'notes',
+        'created_at',
+        'updated_at',
+      ],
+    });
+
+    await applyMigrations(db as never);
+
+    expect(
+      execCalls.some((sql) =>
+        /ALTER TABLE semen_collections\s+ADD COLUMN target_mode TEXT\s+CHECK \(target_mode IS NULL OR target_mode IN \('progressive', 'total'\)\)/.test(
+          sql,
+        ),
+      ),
+    ).toBe(true);
+    const backfillSql = execCalls.find((sql) => sql.startsWith('UPDATE semen_collections'));
+    expect(backfillSql).toContain('WHEN target_motile_sperm_millions_per_dose IS NOT NULL');
+    expect(backfillSql).toContain('OR target_post_extension_concentration_millions_per_ml IS NOT NULL');
+    expect(backfillSql).toContain("THEN 'progressive'");
+    expect(backfillSql).toContain('ELSE NULL');
+    expect(runCalls.some(({ params }) => params[0] === 20)).toBe(true);
+  });
+
   it('skips migration019 when target and dose volume columns already exist', async () => {
     const { db, execCalls, runCalls } = createFakeDb({
       appliedMigrationIds: Array.from({ length: 18 }, (_, index) => index + 1),
@@ -436,6 +477,7 @@ describe('applyMigrations', () => {
         'extender_type',
         'concentration_millions_per_ml',
         'progressive_motility_percent',
+        'target_mode',
         'target_motile_sperm_millions_per_dose',
         'target_post_extension_concentration_millions_per_ml',
         'notes',
@@ -469,7 +511,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([19]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20]);
   });
 
   it('skips the repair migration when breeding_records already references semen_collections', async () => {
@@ -508,7 +550,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20]);
   });
 
   it('runs the repair migration when the legacy table still exists even if breeding_records already looks correct', async () => {
@@ -649,7 +691,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20]);
   });
 
   it('rebuilds stallions and semen_collections when canonical constraint checks are missing', async () => {
@@ -751,7 +793,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE stallions_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20]);
   });
 
   it('fails the canonical repair migration with a targeted error when legacy stallion rows are invalid', async () => {

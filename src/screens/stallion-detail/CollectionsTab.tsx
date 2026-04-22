@@ -8,6 +8,10 @@ import { BreedingRecord, CollectionDoseEvent, SemenCollection, Stallion } from '
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { deleteDoseEvent } from '@/storage/repositories';
 import { colors, spacing, typography } from '@/theme';
+import {
+  getCollectionCardTargetPostExtensionLabel,
+  getCollectionCardTargetSpermLabel,
+} from '@/utils/collectionCalculatorCopy';
 import { formatLocalDate } from '@/utils/dates';
 import { DOSE_EVENT_TYPE_LABELS } from '@/utils/outcomeDisplay';
 import { DoseEventModal } from './DoseEventModal';
@@ -175,15 +179,15 @@ export function CollectionsTab({
                     }
                   />
                   <CardRow
-                    label="Target Motile / Dose"
+                    label={getCollectionCardTargetSpermLabel(collection.targetMode)}
                     value={
-                      collection.targetMotileSpermMillionsPerDose != null
-                        ? `${collection.targetMotileSpermMillionsPerDose} M`
+                      collection.targetSpermMillionsPerDose != null
+                        ? `${collection.targetSpermMillionsPerDose} M`
                         : null
                     }
                   />
                   <CardRow
-                    label="Target Post-Ext Concentration"
+                    label={getCollectionCardTargetPostExtensionLabel(collection.targetMode)}
                     value={
                       collection.targetPostExtensionConcentrationMillionsPerMl != null
                         ? `${collection.targetPostExtensionConcentrationMillionsPerMl} M/mL`

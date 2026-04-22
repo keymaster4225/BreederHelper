@@ -3,12 +3,18 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SecondaryButton } from '@/components/Buttons';
 import { CardRow, cardStyles } from '@/components/RecordCardParts';
 import { CollectionWizardAllocationRow } from '@/hooks/useCollectionWizard';
+import type { CollectionTargetMode } from '@/models/types';
 import { colors, spacing, typography } from '@/theme';
 import type { AllocationSummary } from '@/utils/collectionAllocation';
+import { type CollectionMathDerived } from '@/utils/collectionCalculator';
 import {
-  convertMotileToTotalConcentrationMillionsPerMl,
-  type CollectionMathDerived,
-} from '@/utils/collectionCalculator';
+  TOTAL_MODE_MISSING_MOTILITY_WARNING_TEXT,
+  formatCollectionEquivalentValue,
+  getCollectionEquivalentLabel,
+  getCollectionRawConcentrationLabel,
+  getCollectionTargetPostExtensionLabel,
+  getCollectionTargetSpermLabel,
+} from '@/utils/collectionCalculatorCopy';
 import { formatLocalDate } from '@/utils/dates';
 
 type Props = {
@@ -16,7 +22,8 @@ type Props = {
   rawVolumeMl: number | null;
   concentrationMillionsPerMl: number | null;
   progressiveMotilityPercent: number | null;
-  targetMotileSpermMillionsPerDose: number | null;
+  targetMode: CollectionTargetMode;
+  targetSpermMillionsPerDose: number | null;
   targetPostExtensionConcentrationMillionsPerMl: number | null;
   extenderType: string;
   notes: string;
@@ -37,7 +44,8 @@ export function ReviewStep({
   rawVolumeMl,
   concentrationMillionsPerMl,
   progressiveMotilityPercent,
-  targetMotileSpermMillionsPerDose,
+  targetMode,
+  targetSpermMillionsPerDose,
   targetPostExtensionConcentrationMillionsPerMl,
   extenderType,
   notes,
@@ -48,10 +56,13 @@ export function ReviewStep({
   remainingApproxDoses,
   onJumpToStep,
 }: Props): JSX.Element {
-  const externalTotalSpermEquivalent = convertMotileToTotalConcentrationMillionsPerMl(
-    targetPostExtensionConcentrationMillionsPerMl,
+  const equivalentValue = formatCollectionEquivalentValue({
+    equivalentConcentrationMillionsPerMl:
+      targetMode === 'total'
+        ? derivedMath.targetPostExtensionProgressiveEquivalentMillionsPerMl
+        : derivedMath.targetPostExtensionTotalEquivalentMillionsPerMl,
     progressiveMotilityPercent,
-  );
+  });
   const shippedRows = allocationRows.filter(
     (row): row is Extract<CollectionWizardAllocationRow, { kind: 'shipped' }> =>
       row.kind === 'shipped',
@@ -87,25 +98,33 @@ export function ReviewStep({
       <View style={cardStyles.card}>
         <Text style={styles.sectionTitle}>Processing Plan</Text>
         <CardRow
-          label="Target Motile Sperm / Dose"
+          label={getCollectionTargetSpermLabel(targetMode)}
           value={
-            targetMotileSpermMillionsPerDose == null
+            targetSpermMillionsPerDose == null
               ? '-'
-              : `${targetMotileSpermMillionsPerDose.toFixed(2)} M`
+              : `${targetSpermMillionsPerDose.toFixed(2)} M`
           }
         />
         <CardRow
-          label="Target Post-Extension Concentration"
+          label={getCollectionTargetPostExtensionLabel(targetMode)}
           value={
             targetPostExtensionConcentrationMillionsPerMl == null
               ? '-'
-              : `${targetPostExtensionConcentrationMillionsPerMl.toFixed(2)} M motile/mL`
+              : `${targetPostExtensionConcentrationMillionsPerMl.toFixed(2)} M/mL`
           }
         />
-        {externalTotalSpermEquivalent != null && progressiveMotilityPercent != null ? (
+        <CardRow
+          label={getCollectionRawConcentrationLabel(targetMode)}
+          value={
+            derivedMath.rawModeConcentrationMillionsPerMl == null
+              ? '-'
+              : `${derivedMath.rawModeConcentrationMillionsPerMl.toFixed(2)} M/mL`
+          }
+        />
+        {equivalentValue ? (
           <CardRow
-            label="External Total-Sperm Equivalent"
-            value={`${externalTotalSpermEquivalent.toFixed(2)} M/mL at ${progressiveMotilityPercent}% motility`}
+            label={getCollectionEquivalentLabel(targetMode)}
+            value={equivalentValue}
           />
         ) : null}
         <CardRow label="Extender Type" value={extenderType || '-'} />
@@ -117,6 +136,11 @@ export function ReviewStep({
           label="Max Doses"
           value={derivedMath.maxDoses == null ? '-' : `~${derivedMath.maxDoses.toFixed(1)}`}
         />
+        {derivedMath.warnings.includes('total-mode-missing-motility') ? (
+          <Text style={styles.warningText}>
+            {TOTAL_MODE_MISSING_MOTILITY_WARNING_TEXT}
+          </Text>
+        ) : null}
         <SecondaryButton label="Edit Processing" onPress={() => onJumpToStep(1)} />
       </View>
 

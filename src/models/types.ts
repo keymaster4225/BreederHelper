@@ -1,5 +1,6 @@
 ﻿import {
   BREEDING_METHOD_VALUES,
+  COLLECTION_TARGET_MODE_VALUES,
   DOSE_EVENT_TYPE_VALUES,
   FOAL_COLOR_VALUES,
   FOAL_MILESTONE_KEYS,
@@ -107,6 +108,8 @@ export interface Stallion {
 
 export type DoseEventType = (typeof DOSE_EVENT_TYPE_VALUES)[number];
 
+export type CollectionTargetMode = (typeof COLLECTION_TARGET_MODE_VALUES)[number];
+
 export interface CollectionDoseEvent {
   id: UUID;
   collectionId: UUID;
@@ -162,7 +165,8 @@ export interface SemenCollection {
   extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
   progressiveMotilityPercent?: number | null;
-  targetMotileSpermMillionsPerDose?: number | null;
+  targetMode?: CollectionTargetMode | null;
+  targetSpermMillionsPerDose?: number | null;
   targetPostExtensionConcentrationMillionsPerMl?: number | null;
   notes?: string | null;
   createdAt: ISODateTime;

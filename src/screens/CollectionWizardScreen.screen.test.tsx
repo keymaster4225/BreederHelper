@@ -1,4 +1,4 @@
-import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor, within } from '@testing-library/react-native';
 
 import { CollectionWizardScreen } from '@/screens/CollectionWizardScreen';
 
@@ -216,7 +216,8 @@ it('saves a collection with no allocation rows', async () => {
       rawVolumeMl: null,
       concentrationMillionsPerMl: null,
       progressiveMotilityPercent: null,
-      targetMotileSpermMillionsPerDose: null,
+      targetMode: null,
+      targetSpermMillionsPerDose: null,
       targetPostExtensionConcentrationMillionsPerMl: null,
       extenderType: null,
       notes: null,
@@ -237,8 +238,8 @@ it('prefills shipped dose volumes from calculator targets', async () => {
   fireEvent.press(screen.getByText('Next'));
   await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
 
-  typeText(screen, 'Target motile sperm / dose (M)', '500');
-  typeText(screen, 'Target post-extension concentration (M motile/mL)', '100');
+  typeText(screen, 'Target Progressive Sperm / Dose (M)', '500');
+  typeText(screen, 'Target Post-Extension Progressive Concentration (M/mL)', '100');
   expect(
     screen.getByText(
       'BreedWise stores this target in millions. Example: 1 billion sperm/dose = 1000 M.',
@@ -246,7 +247,7 @@ it('prefills shipped dose volumes from calculator targets', async () => {
   ).toBeTruthy();
   expect(
     screen.getByText(
-      'BreedWise uses motile sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: motile = total x (motility / 100).',
+      'BreedWise uses progressive sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: progressive = total x (motility / 100).',
     ),
   ).toBeTruthy();
   expect(
@@ -290,6 +291,10 @@ it('prefills shipped dose volumes from calculator targets', async () => {
   await waitFor(() => expect(repositories.createCollectionWithAllocations).toHaveBeenCalledTimes(1));
   expect(repositories.createCollectionWithAllocations).toHaveBeenCalledWith(
     expect.objectContaining({
+      collection: expect.objectContaining({
+        targetMode: 'progressive',
+        targetSpermMillionsPerDose: 500,
+      }),
       shippedRows: [
         expect.objectContaining({
           recipient: 'Blue Sky Farm',
@@ -303,6 +308,25 @@ it('prefills shipped dose volumes from calculator targets', async () => {
   );
 });
 
+it('removes Optional placeholders from the Step 2 target fields', async () => {
+  const screen = renderWizard();
+
+  typeDate(screen, 'Collection Date', '2026-04-21');
+  fireEvent.press(screen.getByText('Next'));
+  await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
+
+  expect(
+    within(getField(screen, 'Target Progressive Sperm / Dose (M)')).queryByPlaceholderText(
+      'Optional',
+    ),
+  ).toBeNull();
+  expect(
+    within(
+      getField(screen, 'Target Post-Extension Progressive Concentration (M/mL)'),
+    ).queryByPlaceholderText('Optional'),
+  ).toBeNull();
+});
+
 it('shows the external total-sperm equivalent on review', async () => {
   const screen = renderWizard();
 
@@ -313,8 +337,8 @@ it('shows the external total-sperm equivalent on review', async () => {
   fireEvent.press(screen.getByText('Next'));
   await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
 
-  typeText(screen, 'Target motile sperm / dose (M)', '500');
-  typeText(screen, 'Target post-extension concentration (M motile/mL)', '100');
+  typeText(screen, 'Target Progressive Sperm / Dose (M)', '500');
+  typeText(screen, 'Target Post-Extension Progressive Concentration (M/mL)', '100');
 
   fireEvent.press(screen.getByText('Next'));
   await waitFor(() => expect(screen.getByText(/Dose allocation/i)).toBeTruthy());
@@ -324,6 +348,113 @@ it('shows the external total-sperm equivalent on review', async () => {
 
   expect(screen.getByText('External Total-Sperm Equivalent')).toBeTruthy();
   expect(screen.getByText('200.00 M/mL at 50% motility')).toBeTruthy();
+});
+
+it('toggles labels and equivalents when switched to total mode', async () => {
+  const screen = renderWizard();
+
+  typeDate(screen, 'Collection Date', '2026-04-21');
+  typeText(screen, 'Total Volume (mL)', '100');
+  typeText(screen, 'Concentration (M/mL, raw)', '200');
+  typeText(screen, 'Progressive Motility (%)', '50');
+  fireEvent.press(screen.getByText('Next'));
+  await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
+
+  fireEvent.press(screen.getByText('Total'));
+
+  expect(screen.getByText('Target Total Sperm / Dose (M)')).toBeTruthy();
+  expect(screen.getByText('Target Post-Extension Total Concentration (M/mL)')).toBeTruthy();
+  expect(
+    screen.getByText(
+      'Common shipped-cooled target: 35 M/mL. Typical planning range is 25-50 M/mL unless you are centrifuging.',
+    ),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(
+      'BreedWise uses total sperm/mL here. If motility is recorded, BreedWise will also show the progressive equivalent for comparison.',
+    ),
+  ).toBeTruthy();
+
+  typeText(screen, 'Target Total Sperm / Dose (M)', '500');
+  typeText(screen, 'Target Post-Extension Total Concentration (M/mL)', '100');
+
+  expect(
+    screen.getByText('At 50% motility, this target equals 50.00 M progressive/mL.'),
+  ).toBeTruthy();
+
+  fireEvent.press(screen.getByText('Next'));
+  await waitFor(() => expect(screen.getByText(/Dose allocation/i)).toBeTruthy());
+  fireEvent.press(screen.getByText('Next'));
+  await waitFor(() => expect(screen.getByText('Review')).toBeTruthy());
+
+  expect(screen.getByText('Target Total Sperm / Dose (M)')).toBeTruthy();
+  expect(screen.getByText('Target Post-Extension Total Concentration (M/mL)')).toBeTruthy();
+  expect(screen.getByText('Progressive Equivalent')).toBeTruthy();
+  expect(screen.getByText('50.00 M/mL at 50% motility')).toBeTruthy();
+
+  fireEvent.press(screen.getByText('Save'));
+  await waitFor(() =>
+    expect(repositories.createCollectionWithAllocations).toHaveBeenCalledWith(
+      expect.objectContaining({
+        collection: expect.objectContaining({
+          targetMode: 'total',
+          targetSpermMillionsPerDose: 500,
+        }),
+      }),
+    ),
+  );
+});
+
+it('shows the total-mode missing-motility warning without blocking planning', async () => {
+  const screen = renderWizard();
+
+  typeDate(screen, 'Collection Date', '2026-04-21');
+  typeText(screen, 'Total Volume (mL)', '100');
+  typeText(screen, 'Concentration (M/mL, raw)', '200');
+  fireEvent.press(screen.getByText('Next'));
+  await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
+
+  fireEvent.press(screen.getByText('Total'));
+  typeText(screen, 'Target Total Sperm / Dose (M)', '1000');
+  typeText(screen, 'Target Post-Extension Total Concentration (M/mL)', '35');
+
+  expect(
+    screen.getByText(
+      'Progressive motility is blank. Total-mode planning still works, but BreedWise cannot show progressive equivalents yet.',
+    ),
+  ).toBeTruthy();
+});
+
+it('uses the header back arrow to move between wizard steps after step 1', async () => {
+  const screen = renderWizard();
+
+  await waitFor(() =>
+    expect(screen.navigation.setOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ headerLeft: undefined }),
+    ),
+  );
+
+  typeDate(screen, 'Collection Date', '2026-04-21');
+  fireEvent.press(screen.getByText('Next'));
+  await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
+
+  await waitFor(() => {
+    const options =
+      screen.navigation.setOptions.mock.calls[screen.navigation.setOptions.mock.calls.length - 1][0];
+    expect(options.headerLeft).toEqual(expect.any(Function));
+  });
+
+  const options =
+    screen.navigation.setOptions.mock.calls[screen.navigation.setOptions.mock.calls.length - 1][0];
+  const headerLeft = options.headerLeft as (props?: Record<string, unknown>) => JSX.Element;
+  const headerButton = headerLeft({});
+
+  await act(async () => {
+    headerButton.props.onPress();
+  });
+
+  await waitFor(() => expect(screen.getByText(/Collection basics/i)).toBeTruthy());
+  expect(screen.navigation.goBack).not.toHaveBeenCalled();
 });
 
 it('prevents selecting the same mare twice', async () => {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 
-import { Mare } from '@/models/types';
+import { Mare, type CollectionTargetMode } from '@/models/types';
 import {
   createCollectionWithAllocations,
   CreateCollectionWizardOnFarmRowInput,
@@ -9,6 +9,7 @@ import {
   listMares,
 } from '@/storage/repositories';
 import { deriveCollectionMath } from '@/utils/collectionCalculator';
+import { getPersistedCollectionTargetMode } from '@/utils/collectionTargetMode';
 import { computeAllocationSummary } from '@/utils/collectionAllocation';
 import { newId } from '@/utils/id';
 import {
@@ -60,7 +61,7 @@ type StepFieldErrors = {
   rawVolumeMl?: string;
   concentrationMillionsPerMl?: string;
   progressiveMotilityPercent?: string;
-  targetMotileSpermMillionsPerDose?: string;
+  targetSpermMillionsPerDose?: string;
   targetPostExtensionConcentrationMillionsPerMl?: string;
   allocation?: string;
 };
@@ -112,8 +113,9 @@ export function useCollectionWizard({
   const [rawVolumeMl, setRawVolumeMl] = useState('');
   const [concentrationMillionsPerMl, setConcentrationMillionsPerMl] = useState('');
   const [progressiveMotilityPercent, setProgressiveMotilityPercent] = useState('');
+  const [targetMode, setTargetMode] = useState<CollectionTargetMode>('progressive');
 
-  const [targetMotileSpermMillionsPerDose, setTargetMotileSpermMillionsPerDose] = useState('');
+  const [targetSpermMillionsPerDose, setTargetSpermMillionsPerDose] = useState('');
   const [
     targetPostExtensionConcentrationMillionsPerMl,
     setTargetPostExtensionConcentrationMillionsPerMl,
@@ -161,9 +163,9 @@ export function useCollectionWizard({
     () => parseOptionalInteger(progressiveMotilityPercent),
     [progressiveMotilityPercent],
   );
-  const parsedTargetMotileSpermMillionsPerDose = useMemo(
-    () => parseOptionalNumber(targetMotileSpermMillionsPerDose),
-    [targetMotileSpermMillionsPerDose],
+  const parsedTargetSpermMillionsPerDose = useMemo(
+    () => parseOptionalNumber(targetSpermMillionsPerDose),
+    [targetSpermMillionsPerDose],
   );
   const parsedTargetPostExtensionConcentrationMillionsPerMl = useMemo(
     () => parseOptionalNumber(targetPostExtensionConcentrationMillionsPerMl),
@@ -191,7 +193,8 @@ export function useCollectionWizard({
         rawVolumeMl: parsedRawVolumeMl,
         concentrationMillionsPerMl: parsedConcentrationMillionsPerMl,
         progressiveMotilityPercent: parsedProgressiveMotilityPercent,
-        targetMotileSpermMillionsPerDose: parsedTargetMotileSpermMillionsPerDose,
+        targetMode,
+        targetSpermMillionsPerDose: parsedTargetSpermMillionsPerDose,
         targetPostExtensionConcentrationMillionsPerMl:
           parsedTargetPostExtensionConcentrationMillionsPerMl,
       }),
@@ -199,8 +202,9 @@ export function useCollectionWizard({
       parsedConcentrationMillionsPerMl,
       parsedProgressiveMotilityPercent,
       parsedRawVolumeMl,
-      parsedTargetMotileSpermMillionsPerDose,
+      parsedTargetSpermMillionsPerDose,
       parsedTargetPostExtensionConcentrationMillionsPerMl,
+      targetMode,
     ],
   );
 
@@ -280,9 +284,9 @@ export function useCollectionWizard({
 
   const validateProcessingStep = (): boolean => {
     const nextErrors: StepFieldErrors = {
-      targetMotileSpermMillionsPerDose: validatePositiveOptionalNumber(
-        targetMotileSpermMillionsPerDose,
-        'Target motile sperm per dose',
+      targetSpermMillionsPerDose: validatePositiveOptionalNumber(
+        targetSpermMillionsPerDose,
+        'Target sperm per dose',
         100000,
       ),
       targetPostExtensionConcentrationMillionsPerMl: validatePositiveOptionalNumber(
@@ -466,7 +470,13 @@ export function useCollectionWizard({
           extenderType: extenderType.trim() || null,
           concentrationMillionsPerMl: parsedConcentrationMillionsPerMl,
           progressiveMotilityPercent: parsedProgressiveMotilityPercent,
-          targetMotileSpermMillionsPerDose: parsedTargetMotileSpermMillionsPerDose,
+          targetMode: getPersistedCollectionTargetMode({
+            targetMode,
+            targetSpermMillionsPerDose: parsedTargetSpermMillionsPerDose,
+            targetPostExtensionConcentrationMillionsPerMl:
+              parsedTargetPostExtensionConcentrationMillionsPerMl,
+          }),
+          targetSpermMillionsPerDose: parsedTargetSpermMillionsPerDose,
           targetPostExtensionConcentrationMillionsPerMl:
             parsedTargetPostExtensionConcentrationMillionsPerMl,
           notes: notes.trim() || null,
@@ -494,8 +504,10 @@ export function useCollectionWizard({
     setConcentrationMillionsPerMl,
     progressiveMotilityPercent,
     setProgressiveMotilityPercent,
-    targetMotileSpermMillionsPerDose,
-    setTargetMotileSpermMillionsPerDose,
+    targetMode,
+    setTargetMode,
+    targetSpermMillionsPerDose,
+    setTargetSpermMillionsPerDose,
     targetPostExtensionConcentrationMillionsPerMl,
     setTargetPostExtensionConcentrationMillionsPerMl,
     extenderType,
@@ -505,7 +517,7 @@ export function useCollectionWizard({
     parsedRawVolumeMl,
     parsedConcentrationMillionsPerMl,
     parsedProgressiveMotilityPercent,
-    parsedTargetMotileSpermMillionsPerDose,
+    parsedTargetSpermMillionsPerDose,
     parsedTargetPostExtensionConcentrationMillionsPerMl,
     derivedMath,
     allocationRows,

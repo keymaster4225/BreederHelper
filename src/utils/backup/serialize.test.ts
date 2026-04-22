@@ -152,6 +152,7 @@ describe('serializeBackup', () => {
               extender_type: 'INRA 96',
               concentration_millions_per_ml: 200,
               progressive_motility_percent: 70,
+              target_mode: 'progressive',
               target_motile_sperm_millions_per_dose: 500,
               target_post_extension_concentration_millions_per_ml: 100,
               notes: null,
@@ -210,6 +211,7 @@ describe('serializeBackup', () => {
     expect(backup.tables.collection_dose_events[0]?.breeding_record_id).toBe('breed-1');
     expect(backup.tables.collection_dose_events[0]?.dose_semen_volume_ml).toBe(50);
     expect(backup.tables.collection_dose_events[0]?.dose_extender_volume_ml).toBeNull();
+    expect(backup.tables.semen_collections[0]?.target_mode).toBe('progressive');
     expect(
       backup.tables.semen_collections[0]?.target_motile_sperm_millions_per_dose,
     ).toBe(500);

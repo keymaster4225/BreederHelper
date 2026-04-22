@@ -160,6 +160,7 @@ export function createBackupFixture(): BackupEnvelopeV3 {
           extender_type: 'INRA 96',
           concentration_millions_per_ml: 200,
           progressive_motility_percent: 70,
+          target_mode: 'progressive',
           target_motile_sperm_millions_per_dose: 500,
           target_post_extension_concentration_millions_per_ml: 100,
           notes: null,

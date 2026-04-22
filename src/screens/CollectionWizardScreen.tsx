@@ -1,4 +1,6 @@
+import { useLayoutEffect } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { HeaderBackButton } from '@react-navigation/elements';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { PrimaryButton, SecondaryButton } from '@/components/Buttons';
@@ -19,6 +21,15 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
     stallionId: route.params.stallionId,
     onSaved: () => navigation.goBack(),
   });
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft:
+        wizard.currentStepIndex > 0
+          ? (props) => <HeaderBackButton {...props} onPress={wizard.goBack} />
+          : undefined,
+    });
+  }, [navigation, wizard.currentStepIndex, wizard.goBack]);
 
   return (
     <Screen>
@@ -48,8 +59,10 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
               rawVolumeMl={wizard.parsedRawVolumeMl}
               concentrationMillionsPerMl={wizard.parsedConcentrationMillionsPerMl}
               progressiveMotilityPercent={wizard.parsedProgressiveMotilityPercent}
-              targetMotileSpermMillionsPerDose={wizard.targetMotileSpermMillionsPerDose}
-              setTargetMotileSpermMillionsPerDose={wizard.setTargetMotileSpermMillionsPerDose}
+              targetMode={wizard.targetMode}
+              setTargetMode={wizard.setTargetMode}
+              targetSpermMillionsPerDose={wizard.targetSpermMillionsPerDose}
+              setTargetSpermMillionsPerDose={wizard.setTargetSpermMillionsPerDose}
               targetPostExtensionConcentrationMillionsPerMl={wizard.targetPostExtensionConcentrationMillionsPerMl}
               setTargetPostExtensionConcentrationMillionsPerMl={wizard.setTargetPostExtensionConcentrationMillionsPerMl}
               extenderType={wizard.extenderType}
@@ -87,7 +100,8 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
               rawVolumeMl={wizard.parsedRawVolumeMl}
               concentrationMillionsPerMl={wizard.parsedConcentrationMillionsPerMl}
               progressiveMotilityPercent={wizard.parsedProgressiveMotilityPercent}
-              targetMotileSpermMillionsPerDose={wizard.parsedTargetMotileSpermMillionsPerDose}
+              targetMode={wizard.targetMode}
+              targetSpermMillionsPerDose={wizard.parsedTargetSpermMillionsPerDose}
               targetPostExtensionConcentrationMillionsPerMl={wizard.parsedTargetPostExtensionConcentrationMillionsPerMl}
               extenderType={wizard.extenderType}
               notes={wizard.notes}

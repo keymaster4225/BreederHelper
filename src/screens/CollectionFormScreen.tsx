@@ -4,7 +4,16 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { CardRow, cardStyles } from '@/components/RecordCardParts';
-import { FormAutocompleteInput, FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
+import {
+  FormAutocompleteInput,
+  FormDateInput,
+  FormField,
+  FormTextInput,
+  OptionSelector,
+  formStyles,
+} from '@/components/FormControls';
+import { COLLECTION_TARGET_MODE_OPTIONS } from '@/models/enums';
+import type { CollectionTargetMode } from '@/models/types';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import {
@@ -13,10 +22,23 @@ import {
   updateSemenCollection,
 } from '@/storage/repositories';
 import { colors } from '@/theme';
+import { deriveCollectionMath } from '@/utils/collectionCalculator';
 import {
-  convertMotileToTotalConcentrationMillionsPerMl,
-  deriveCollectionMath,
-} from '@/utils/collectionCalculator';
+  TARGET_SPERM_HELPER_TEXT,
+  TOTAL_MODE_MISSING_MOTILITY_WARNING_TEXT,
+  formatCollectionEquivalentHelperText,
+  formatCollectionEquivalentValue,
+  getCollectionEquivalentLabel,
+  getCollectionRawConcentrationLabel,
+  getCollectionTargetPostExtensionLabel,
+  getCollectionTargetSpermLabel,
+  getTargetPostExtensionModeHelperText,
+  getTargetPostExtensionRangeHelperText,
+} from '@/utils/collectionCalculatorCopy';
+import {
+  getEffectiveCollectionTargetMode,
+  getPersistedCollectionTargetMode,
+} from '@/utils/collectionTargetMode';
 import { EXTENDER_TYPES, getExtenderTypeSuggestions } from '@/utils/extenderTypes';
 import {
   parseOptionalInteger,
@@ -33,7 +55,7 @@ type FormErrors = {
   rawVolumeMl?: string;
   concentrationMillionsPerMl?: string;
   progressiveMotilityPercent?: string;
-  targetMotileSpermMillionsPerDose?: string;
+  targetSpermMillionsPerDose?: string;
   targetPostExtensionConcentrationMillionsPerMl?: string;
 };
 
@@ -67,7 +89,8 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
   const [extenderType, setExtenderType] = useState('');
   const [concentrationMillionsPerMl, setConcentrationMillionsPerMl] = useState('');
   const [progressiveMotilityPercent, setProgressiveMotilityPercent] = useState('');
-  const [targetMotileSpermMillionsPerDose, setTargetMotileSpermMillionsPerDose] = useState('');
+  const [targetMode, setTargetMode] = useState<CollectionTargetMode>('progressive');
+  const [targetSpermMillionsPerDose, setTargetSpermMillionsPerDose] = useState('');
   const [
     targetPostExtensionConcentrationMillionsPerMl,
     setTargetPostExtensionConcentrationMillionsPerMl,
@@ -100,9 +123,10 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
               ? String(record.progressiveMotilityPercent)
               : '',
           );
-          setTargetMotileSpermMillionsPerDose(
-            record.targetMotileSpermMillionsPerDose != null
-              ? String(record.targetMotileSpermMillionsPerDose)
+          setTargetMode(getEffectiveCollectionTargetMode(record.targetMode));
+          setTargetSpermMillionsPerDose(
+            record.targetSpermMillionsPerDose != null
+              ? String(record.targetSpermMillionsPerDose)
               : '',
           );
           setTargetPostExtensionConcentrationMillionsPerMl(
@@ -124,8 +148,8 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
   const parsedRawVolumeMl = parseOptionalNumber(rawVolumeMl);
   const parsedConcentrationMillionsPerMl = parseOptionalNumber(concentrationMillionsPerMl);
   const parsedProgressiveMotilityPercent = parseOptionalInteger(progressiveMotilityPercent);
-  const parsedTargetMotileSpermMillionsPerDose = parseOptionalNumber(
-    targetMotileSpermMillionsPerDose,
+  const parsedTargetSpermMillionsPerDose = parseOptionalNumber(
+    targetSpermMillionsPerDose,
   );
   const parsedTargetPostExtensionConcentrationMillionsPerMl = parseOptionalNumber(
     targetPostExtensionConcentrationMillionsPerMl,
@@ -137,7 +161,8 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
         rawVolumeMl: parsedRawVolumeMl,
         concentrationMillionsPerMl: parsedConcentrationMillionsPerMl,
         progressiveMotilityPercent: parsedProgressiveMotilityPercent,
-        targetMotileSpermMillionsPerDose: parsedTargetMotileSpermMillionsPerDose,
+        targetMode,
+        targetSpermMillionsPerDose: parsedTargetSpermMillionsPerDose,
         targetPostExtensionConcentrationMillionsPerMl:
           parsedTargetPostExtensionConcentrationMillionsPerMl,
       }),
@@ -145,30 +170,35 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
       parsedConcentrationMillionsPerMl,
       parsedProgressiveMotilityPercent,
       parsedRawVolumeMl,
-      parsedTargetMotileSpermMillionsPerDose,
+      parsedTargetSpermMillionsPerDose,
       parsedTargetPostExtensionConcentrationMillionsPerMl,
+      targetMode,
     ],
   );
-  const externalTotalSpermEquivalent = useMemo(() => {
-    if (parsedProgressiveMotilityPercent == null) {
-      return null;
-    }
-
-    const concentration = convertMotileToTotalConcentrationMillionsPerMl(
-      parsedTargetPostExtensionConcentrationMillionsPerMl,
-      parsedProgressiveMotilityPercent,
-    );
-
-    return concentration == null
-      ? null
-      : {
-          concentration,
-          motilityPercent: parsedProgressiveMotilityPercent,
-        };
-  }, [
-    parsedProgressiveMotilityPercent,
-    parsedTargetPostExtensionConcentrationMillionsPerMl,
-  ]);
+  const equivalentHelperText = useMemo(
+    () =>
+      formatCollectionEquivalentHelperText({
+        targetMode,
+        equivalentConcentrationMillionsPerMl:
+          targetMode === 'total'
+            ? derivedMath.targetPostExtensionProgressiveEquivalentMillionsPerMl
+            : derivedMath.targetPostExtensionTotalEquivalentMillionsPerMl,
+        progressiveMotilityPercent: parsedProgressiveMotilityPercent,
+      }),
+    [derivedMath, parsedProgressiveMotilityPercent, targetMode],
+  );
+  const equivalentValue = useMemo(
+    () =>
+      formatCollectionEquivalentValue({
+        equivalentConcentrationMillionsPerMl:
+          targetMode === 'total'
+            ? derivedMath.targetPostExtensionProgressiveEquivalentMillionsPerMl
+            : derivedMath.targetPostExtensionTotalEquivalentMillionsPerMl,
+        progressiveMotilityPercent: parsedProgressiveMotilityPercent,
+      }),
+    [derivedMath, parsedProgressiveMotilityPercent, targetMode],
+  );
+  const rangeHelperText = getTargetPostExtensionRangeHelperText(targetMode);
 
   const validate = (): FormErrors => {
     const errs: FormErrors = {};
@@ -189,9 +219,9 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
         0,
         100,
       ) ?? undefined;
-    errs.targetMotileSpermMillionsPerDose = validatePositiveOptionalNumber(
-      targetMotileSpermMillionsPerDose,
-      'Target motile sperm per dose',
+    errs.targetSpermMillionsPerDose = validatePositiveOptionalNumber(
+      targetSpermMillionsPerDose,
+      'Target sperm per dose',
       100000,
     );
     errs.targetPostExtensionConcentrationMillionsPerMl = validatePositiveOptionalNumber(
@@ -215,7 +245,13 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
         extenderType: extenderType.trim() || null,
         concentrationMillionsPerMl: parsedConcentrationMillionsPerMl,
         progressiveMotilityPercent: parsedProgressiveMotilityPercent,
-        targetMotileSpermMillionsPerDose: parsedTargetMotileSpermMillionsPerDose,
+        targetMode: getPersistedCollectionTargetMode({
+          targetMode,
+          targetSpermMillionsPerDose: parsedTargetSpermMillionsPerDose,
+          targetPostExtensionConcentrationMillionsPerMl:
+            parsedTargetPostExtensionConcentrationMillionsPerMl,
+        }),
+        targetSpermMillionsPerDose: parsedTargetSpermMillionsPerDose,
         targetPostExtensionConcentrationMillionsPerMl:
           parsedTargetPostExtensionConcentrationMillionsPerMl,
         notes: notes.trim() || null,
@@ -294,26 +330,32 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
             />
           </FormField>
 
+          <FormField label="Target Mode">
+            <OptionSelector
+              value={targetMode}
+              onChange={setTargetMode}
+              options={COLLECTION_TARGET_MODE_OPTIONS}
+            />
+          </FormField>
+
           <View style={styles.fieldSection}>
             <FormField
-              label="Target motile sperm / dose (M)"
-              error={errors.targetMotileSpermMillionsPerDose}
+              label={getCollectionTargetSpermLabel(targetMode)}
+              error={errors.targetSpermMillionsPerDose}
             >
               <FormTextInput
-                value={targetMotileSpermMillionsPerDose}
-                onChangeText={setTargetMotileSpermMillionsPerDose}
+                value={targetSpermMillionsPerDose}
+                onChangeText={setTargetSpermMillionsPerDose}
                 placeholder="Optional"
                 keyboardType="numeric"
               />
             </FormField>
-            <Text style={styles.helperText}>
-              BreedWise stores this target in millions. Example: 1 billion sperm/dose = 1000 M.
-            </Text>
+            <Text style={styles.helperText}>{TARGET_SPERM_HELPER_TEXT}</Text>
           </View>
 
           <View style={styles.fieldSection}>
             <FormField
-              label="Target post-extension concentration (M motile/mL)"
+              label={getCollectionTargetPostExtensionLabel(targetMode)}
               error={errors.targetPostExtensionConcentrationMillionsPerMl}
             >
               <FormTextInput
@@ -323,13 +365,12 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
                 keyboardType="numeric"
               />
             </FormField>
+            {rangeHelperText ? <Text style={styles.helperText}>{rangeHelperText}</Text> : null}
             <Text style={styles.helperText}>
-              BreedWise uses motile sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: motile = total x (motility / 100).
+              {getTargetPostExtensionModeHelperText(targetMode)}
             </Text>
-            {externalTotalSpermEquivalent ? (
-              <Text style={styles.helperText}>
-                {`At ${externalTotalSpermEquivalent.motilityPercent}% motility, this target equals ${externalTotalSpermEquivalent.concentration.toFixed(2)} M total/mL in calculators that use total sperm/mL.`}
-              </Text>
+            {equivalentHelperText ? (
+              <Text style={styles.helperText}>{equivalentHelperText}</Text>
             ) : null}
           </View>
 
@@ -352,20 +393,20 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
           <View style={cardStyles.card}>
             <Text style={styles.sectionTitle}>Derived Plan</Text>
             <CardRow
-              label="Raw Motile Concentration"
+              label={getCollectionRawConcentrationLabel(targetMode)}
               value={
-                derivedMath.rawMotileConcentrationMillionsPerMl == null
+                derivedMath.rawModeConcentrationMillionsPerMl == null
                   ? '-'
-                  : `${derivedMath.rawMotileConcentrationMillionsPerMl.toFixed(2)} M/mL`
+                  : `${derivedMath.rawModeConcentrationMillionsPerMl.toFixed(2)} M/mL`
               }
             />
             <CardRow label="Semen Per Dose" value={formatMl(derivedMath.semenPerDoseMl)} />
             <CardRow label="Extender Per Dose" value={formatMl(derivedMath.extenderPerDoseMl)} />
             <CardRow label="Dose Volume" value={formatMl(derivedMath.doseVolumeMl)} />
-            {externalTotalSpermEquivalent ? (
+            {equivalentValue ? (
               <CardRow
-                label="External Total-Sperm Equivalent"
-                value={`${externalTotalSpermEquivalent.concentration.toFixed(2)} M/mL at ${externalTotalSpermEquivalent.motilityPercent}% motility`}
+                label={getCollectionEquivalentLabel(targetMode)}
+                value={equivalentValue}
               />
             ) : null}
             <CardRow
@@ -374,7 +415,12 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
             />
             {derivedMath.warnings.includes('negative-extender') ? (
               <Text style={styles.warningText}>
-                Extender amount is negative. Target concentration is at or above raw motile concentration.
+                {`Extender amount is negative. Target concentration is at or above the ${getCollectionRawConcentrationLabel(targetMode).toLowerCase()}.`}
+              </Text>
+            ) : null}
+            {derivedMath.warnings.includes('total-mode-missing-motility') ? (
+              <Text style={styles.warningText}>
+                {TOTAL_MODE_MISSING_MOTILITY_WARNING_TEXT}
               </Text>
             ) : null}
             {derivedMath.warnings.includes('target-exceeds-capacity') ? (

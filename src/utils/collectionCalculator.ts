@@ -1,15 +1,27 @@
-export type CollectionMathWarning = 'negative-extender' | 'target-exceeds-capacity';
+import type { CollectionTargetMode } from '@/models/types';
+import { getEffectiveCollectionTargetMode } from './collectionTargetMode';
+
+export type CollectionMathWarning =
+  | 'negative-extender'
+  | 'target-exceeds-capacity'
+  | 'total-mode-missing-motility';
 
 export interface CollectionMathInputs {
   rawVolumeMl: number | null;
   concentrationMillionsPerMl: number | null;
   progressiveMotilityPercent: number | null;
-  targetMotileSpermMillionsPerDose: number | null;
+  targetMode: CollectionTargetMode | null;
+  targetSpermMillionsPerDose: number | null;
   targetPostExtensionConcentrationMillionsPerMl: number | null;
 }
 
 export interface CollectionMathDerived {
-  rawMotileConcentrationMillionsPerMl: number | null;
+  activeTargetMode: CollectionTargetMode;
+  rawModeConcentrationMillionsPerMl: number | null;
+  rawProgressiveConcentrationMillionsPerMl: number | null;
+  rawTotalConcentrationMillionsPerMl: number | null;
+  targetPostExtensionProgressiveEquivalentMillionsPerMl: number | null;
+  targetPostExtensionTotalEquivalentMillionsPerMl: number | null;
   semenPerDoseMl: number | null;
   doseVolumeMl: number | null;
   extenderPerDoseMl: number | null;
@@ -25,6 +37,16 @@ export function convertTotalToMotileConcentrationMillionsPerMl(
   totalConcentrationMillionsPerMl: number | null,
   progressiveMotilityPercent: number | null,
 ): number | null {
+  return convertTotalToProgressiveConcentrationMillionsPerMl(
+    totalConcentrationMillionsPerMl,
+    progressiveMotilityPercent,
+  );
+}
+
+export function convertTotalToProgressiveConcentrationMillionsPerMl(
+  totalConcentrationMillionsPerMl: number | null,
+  progressiveMotilityPercent: number | null,
+): number | null {
   if (
     !isPositiveFiniteNumber(totalConcentrationMillionsPerMl) ||
     !isPositiveFiniteNumber(progressiveMotilityPercent)
@@ -36,56 +58,85 @@ export function convertTotalToMotileConcentrationMillionsPerMl(
 }
 
 export function convertMotileToTotalConcentrationMillionsPerMl(
-  motileConcentrationMillionsPerMl: number | null,
+  progressiveConcentrationMillionsPerMl: number | null,
+  progressiveMotilityPercent: number | null,
+): number | null {
+  return convertProgressiveToTotalConcentrationMillionsPerMl(
+    progressiveConcentrationMillionsPerMl,
+    progressiveMotilityPercent,
+  );
+}
+
+export function convertProgressiveToTotalConcentrationMillionsPerMl(
+  progressiveConcentrationMillionsPerMl: number | null,
   progressiveMotilityPercent: number | null,
 ): number | null {
   if (
-    !isPositiveFiniteNumber(motileConcentrationMillionsPerMl) ||
+    !isPositiveFiniteNumber(progressiveConcentrationMillionsPerMl) ||
     !isPositiveFiniteNumber(progressiveMotilityPercent)
   ) {
     return null;
   }
 
-  return motileConcentrationMillionsPerMl / (progressiveMotilityPercent / 100);
+  return progressiveConcentrationMillionsPerMl / (progressiveMotilityPercent / 100);
 }
 
 export function deriveCollectionMath(
   input: CollectionMathInputs,
 ): CollectionMathDerived {
   const warnings: CollectionMathWarning[] = [];
+  const activeTargetMode = getEffectiveCollectionTargetMode(input.targetMode);
 
-  const hasTargetMotile = isPositiveFiniteNumber(
-    input.targetMotileSpermMillionsPerDose,
+  const hasTargetSperm = isPositiveFiniteNumber(
+    input.targetSpermMillionsPerDose,
   );
   const hasTargetPostExtension = isPositiveFiniteNumber(
     input.targetPostExtensionConcentrationMillionsPerMl,
   );
+  const hasRawConcentration = isPositiveFiniteNumber(input.concentrationMillionsPerMl);
   const hasRawVolume = isPositiveFiniteNumber(input.rawVolumeMl);
-  const targetMotileSpermMillionsPerDose = hasTargetMotile
-    ? input.targetMotileSpermMillionsPerDose
+  const targetSpermMillionsPerDose = hasTargetSperm
+    ? input.targetSpermMillionsPerDose
     : null;
   const targetPostExtensionConcentrationMillionsPerMl = hasTargetPostExtension
     ? input.targetPostExtensionConcentrationMillionsPerMl
     : null;
   const rawVolumeMl = hasRawVolume ? input.rawVolumeMl : null;
+  const rawTotalConcentrationMillionsPerMl = hasRawConcentration
+    ? input.concentrationMillionsPerMl
+    : null;
 
-  const rawMotileConcentrationMillionsPerMl =
-    convertTotalToMotileConcentrationMillionsPerMl(
-      input.concentrationMillionsPerMl,
+  const rawProgressiveConcentrationMillionsPerMl =
+    convertTotalToProgressiveConcentrationMillionsPerMl(
+      rawTotalConcentrationMillionsPerMl,
+      input.progressiveMotilityPercent,
+    );
+  const rawModeConcentrationMillionsPerMl =
+    activeTargetMode === 'total'
+      ? rawTotalConcentrationMillionsPerMl
+      : rawProgressiveConcentrationMillionsPerMl;
+  const targetPostExtensionProgressiveEquivalentMillionsPerMl =
+    convertTotalToProgressiveConcentrationMillionsPerMl(
+      targetPostExtensionConcentrationMillionsPerMl,
+      input.progressiveMotilityPercent,
+    );
+  const targetPostExtensionTotalEquivalentMillionsPerMl =
+    convertProgressiveToTotalConcentrationMillionsPerMl(
+      targetPostExtensionConcentrationMillionsPerMl,
       input.progressiveMotilityPercent,
     );
 
   const semenPerDoseMl =
-    rawMotileConcentrationMillionsPerMl != null &&
-    rawMotileConcentrationMillionsPerMl > 0 &&
-    targetMotileSpermMillionsPerDose != null
-      ? targetMotileSpermMillionsPerDose / rawMotileConcentrationMillionsPerMl
+    rawModeConcentrationMillionsPerMl != null &&
+    rawModeConcentrationMillionsPerMl > 0 &&
+    targetSpermMillionsPerDose != null
+      ? targetSpermMillionsPerDose / rawModeConcentrationMillionsPerMl
       : null;
 
   const doseVolumeMl =
-    targetMotileSpermMillionsPerDose != null &&
+    targetSpermMillionsPerDose != null &&
     targetPostExtensionConcentrationMillionsPerMl != null
-      ? targetMotileSpermMillionsPerDose /
+      ? targetSpermMillionsPerDose /
         targetPostExtensionConcentrationMillionsPerMl
       : null;
 
@@ -107,8 +158,17 @@ export function deriveCollectionMath(
     warnings.push('target-exceeds-capacity');
   }
 
+  if (activeTargetMode === 'total' && input.progressiveMotilityPercent == null) {
+    warnings.push('total-mode-missing-motility');
+  }
+
   return {
-    rawMotileConcentrationMillionsPerMl,
+    activeTargetMode,
+    rawModeConcentrationMillionsPerMl,
+    rawProgressiveConcentrationMillionsPerMl,
+    rawTotalConcentrationMillionsPerMl,
+    targetPostExtensionProgressiveEquivalentMillionsPerMl,
+    targetPostExtensionTotalEquivalentMillionsPerMl,
     semenPerDoseMl,
     doseVolumeMl,
     extenderPerDoseMl,

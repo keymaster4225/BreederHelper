@@ -1,5 +1,6 @@
 import type {
   BreedingMethod,
+  CollectionTargetMode,
   DoseEventType,
   FoalColor,
   FoalSex,
@@ -216,6 +217,7 @@ export type BackupSemenCollectionRowV3 = {
   readonly extender_type: string | null;
   readonly concentration_millions_per_ml: number | null;
   readonly progressive_motility_percent: number | null;
+  readonly target_mode?: CollectionTargetMode | null;
   readonly target_motile_sperm_millions_per_dose: number | null;
   readonly target_post_extension_concentration_millions_per_ml: number | null;
   readonly notes: string | null;

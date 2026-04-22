@@ -192,3 +192,18 @@ export const DOSE_EVENT_TYPE_OPTIONS = buildOptions(
   DOSE_EVENT_TYPE_VALUES,
   DOSE_EVENT_TYPE_LABELS,
 );
+
+export const COLLECTION_TARGET_MODE_VALUES = ['progressive', 'total'] as const;
+type CollectionTargetModeValue = (typeof COLLECTION_TARGET_MODE_VALUES)[number];
+
+export const COLLECTION_TARGET_MODE_LABELS: Readonly<
+  Record<CollectionTargetModeValue, string>
+> = {
+  progressive: 'Progressive',
+  total: 'Total',
+};
+
+export const COLLECTION_TARGET_MODE_OPTIONS = buildOptions(
+  COLLECTION_TARGET_MODE_VALUES,
+  COLLECTION_TARGET_MODE_LABELS,
+);

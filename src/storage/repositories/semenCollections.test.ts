@@ -53,6 +53,7 @@ type CollectionRow = {
   extender_type: string | null;
   concentration_millions_per_ml: number | null;
   progressive_motility_percent: number | null;
+  target_mode: 'progressive' | 'total' | null;
   target_motile_sperm_millions_per_dose: number | null;
   target_post_extension_concentration_millions_per_ml: number | null;
   notes: string | null;
@@ -143,6 +144,7 @@ function createFakeDb() {
           extenderType,
           conc,
           motility,
+          targetMode,
           targetMotile,
           targetPostExtension,
           notes,
@@ -156,6 +158,7 @@ function createFakeDb() {
           string | null,
           number | null,
           number | null,
+          'progressive' | 'total' | null,
           number | null,
           number | null,
           string | null,
@@ -166,6 +169,7 @@ function createFakeDb() {
           id, stallion_id: stallionId, collection_date: collectionDate,
           raw_volume_ml: rawVol, extender_type: extenderType,
           concentration_millions_per_ml: conc, progressive_motility_percent: motility,
+          target_mode: targetMode,
           target_motile_sperm_millions_per_dose: targetMotile,
           target_post_extension_concentration_millions_per_ml: targetPostExtension,
           notes,
@@ -181,6 +185,7 @@ function createFakeDb() {
           extenderType,
           conc,
           motility,
+          targetMode,
           targetMotile,
           targetPostExtension,
           notes,
@@ -192,6 +197,7 @@ function createFakeDb() {
           string | null,
           number | null,
           number | null,
+          'progressive' | 'total' | null,
           number | null,
           number | null,
           string | null,
@@ -204,6 +210,7 @@ function createFakeDb() {
             ...existing, collection_date: collectionDate,
             raw_volume_ml: rawVol, extender_type: extenderType,
             concentration_millions_per_ml: conc, progressive_motility_percent: motility,
+            target_mode: targetMode,
             target_motile_sperm_millions_per_dose: targetMotile,
             target_post_extension_concentration_millions_per_ml: targetPostExtension,
             notes, updated_at: updatedAt,
@@ -388,7 +395,8 @@ describe('semen collection repository', () => {
       rawVolumeMl: 50,
       extenderType: 'INRA 96',
       progressiveMotilityPercent: 75,
-      targetMotileSpermMillionsPerDose: 500,
+      targetMode: 'progressive',
+      targetSpermMillionsPerDose: 500,
       targetPostExtensionConcentrationMillionsPerMl: 200,
     });
 
@@ -398,7 +406,8 @@ describe('semen collection repository', () => {
     expect(fetched?.rawVolumeMl).toBe(50);
     expect(fetched?.extenderType).toBe('INRA 96');
     expect(fetched?.progressiveMotilityPercent).toBe(75);
-    expect(fetched?.targetMotileSpermMillionsPerDose).toBe(500);
+    expect(fetched?.targetMode).toBe('progressive');
+    expect(fetched?.targetSpermMillionsPerDose).toBe(500);
     expect(fetched?.targetPostExtensionConcentrationMillionsPerMl).toBe(200);
 
     await updateSemenCollection('col-1', {
@@ -406,7 +415,8 @@ describe('semen collection repository', () => {
       rawVolumeMl: 55,
       extenderType: 'BotuSemen',
       progressiveMotilityPercent: 80,
-      targetMotileSpermMillionsPerDose: 550,
+      targetMode: 'total',
+      targetSpermMillionsPerDose: 550,
       targetPostExtensionConcentrationMillionsPerMl: 220,
     });
 
@@ -414,7 +424,8 @@ describe('semen collection repository', () => {
     expect(updated?.collectionDate).toBe('2026-04-02');
     expect(updated?.rawVolumeMl).toBe(55);
     expect(updated?.extenderType).toBe('BotuSemen');
-    expect(updated?.targetMotileSpermMillionsPerDose).toBe(550);
+    expect(updated?.targetMode).toBe('total');
+    expect(updated?.targetSpermMillionsPerDose).toBe(550);
     expect(updated?.targetPostExtensionConcentrationMillionsPerMl).toBe(220);
 
     await deleteSemenCollection('col-1');
@@ -441,12 +452,14 @@ describe('semen collection repository', () => {
       stallionId: 'st-3',
       collectionDate: '2026-04-01',
       extenderType: 'INRA 96',
-      targetMotileSpermMillionsPerDose: 450,
+      targetMode: 'total',
+      targetSpermMillionsPerDose: 450,
       targetPostExtensionConcentrationMillionsPerMl: 150,
     });
 
     const fetched = await getSemenCollectionById('col-ship');
-    expect(fetched?.targetMotileSpermMillionsPerDose).toBe(450);
+    expect(fetched?.targetMode).toBe('total');
+    expect(fetched?.targetSpermMillionsPerDose).toBe(450);
     expect(fetched?.targetPostExtensionConcentrationMillionsPerMl).toBe(150);
     expect(fetched?.extenderType).toBe('INRA 96');
   });

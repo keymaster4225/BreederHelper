@@ -102,6 +102,9 @@ describe('restoreBackup', () => {
     expect(mareInsertParams[3]).toBe(345);
     expect(sqlCalls[11]).toContain('INSERT INTO stallions');
     expect(sqlCalls[12]).toContain('INSERT INTO semen_collections');
+    const semenCollectionInsertCall = db.runAsync.mock.calls[12] as unknown[] | undefined;
+    const semenCollectionInsertParams = (semenCollectionInsertCall?.[1] ?? []) as unknown[];
+    expect(semenCollectionInsertParams[7]).toBe('progressive');
     expect(sqlCalls[13]).toContain('INSERT INTO breeding_records');
     const breedingInsertCall = db.runAsync.mock.calls[13] as unknown[] | undefined;
     const breedingInsertParams = (breedingInsertCall?.[1] ?? []) as unknown[];
