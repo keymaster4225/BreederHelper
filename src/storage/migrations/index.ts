@@ -693,6 +693,93 @@ CREATE INDEX IF NOT EXISTS idx_collection_dose_events_breeding_record_id
   ON collection_dose_events(breeding_record_id);
 `;
 
+const migration019 = `
+CREATE TABLE semen_collections_new (
+  id TEXT PRIMARY KEY,
+  stallion_id TEXT NOT NULL,
+  collection_date TEXT NOT NULL,
+  raw_volume_ml REAL,
+  extender_type TEXT,
+  concentration_millions_per_ml REAL,
+  progressive_motility_percent INTEGER,
+  target_motile_sperm_millions_per_dose REAL,
+  target_post_extension_concentration_millions_per_ml REAL,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (collection_date GLOB '????-??-??'),
+  CHECK (raw_volume_ml IS NULL OR raw_volume_ml >= 0),
+  CHECK (extender_type IS NULL OR typeof(extender_type) = 'text'),
+  CHECK (concentration_millions_per_ml IS NULL OR concentration_millions_per_ml >= 0),
+  CHECK (progressive_motility_percent IS NULL OR progressive_motility_percent BETWEEN 0 AND 100),
+  CHECK (target_motile_sperm_millions_per_dose IS NULL OR target_motile_sperm_millions_per_dose >= 0),
+  CHECK (
+    target_post_extension_concentration_millions_per_ml IS NULL
+    OR target_post_extension_concentration_millions_per_ml >= 0
+  )
+);
+
+INSERT INTO semen_collections_new (
+  id,
+  stallion_id,
+  collection_date,
+  raw_volume_ml,
+  extender_type,
+  concentration_millions_per_ml,
+  progressive_motility_percent,
+  target_motile_sperm_millions_per_dose,
+  target_post_extension_concentration_millions_per_ml,
+  notes,
+  created_at,
+  updated_at
+)
+SELECT
+  id,
+  stallion_id,
+  collection_date,
+  raw_volume_ml,
+  extender_type,
+  concentration_millions_per_ml,
+  progressive_motility_percent,
+  NULL,
+  NULL,
+  notes,
+  created_at,
+  updated_at
+FROM semen_collections;
+
+DROP TABLE semen_collections;
+
+ALTER TABLE semen_collections_new RENAME TO semen_collections;
+
+CREATE INDEX IF NOT EXISTS idx_semen_collections_stallion_date
+  ON semen_collections (stallion_id, collection_date DESC);
+
+ALTER TABLE collection_dose_events
+  ADD COLUMN dose_semen_volume_ml REAL CHECK (dose_semen_volume_ml IS NULL OR dose_semen_volume_ml >= 0);
+
+ALTER TABLE collection_dose_events
+  ADD COLUMN dose_extender_volume_ml REAL CHECK (dose_extender_volume_ml IS NULL OR dose_extender_volume_ml >= 0);
+
+UPDATE collection_dose_events
+SET
+  notes = CASE
+    WHEN dose_count > 1 THEN
+      CASE
+        WHEN notes IS NULL OR TRIM(notes) = '' THEN
+          'Legacy migration: collapsed used-on-site dose count to 1 during collection volume rework.'
+        ELSE
+          notes || '\nLegacy migration: collapsed used-on-site dose count to 1 during collection volume rework.'
+      END
+    ELSE notes
+  END,
+  dose_count = 1,
+  dose_semen_volume_ml = NULL,
+  dose_extender_volume_ml = NULL
+WHERE event_type = 'usedOnSite';
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -822,6 +909,16 @@ const migrations: Migration[] = [
     name: '018_collection_dose_event_shipping_details',
     statements: splitStatements(migration018),
     shouldSkip: async (db) => hasColumn(db, 'collection_dose_events', 'breeding_record_id'),
+  },
+  {
+    id: 19,
+    name: '019_collection_wizard_volume_rework',
+    statements: splitStatements(migration019),
+    requiresForeignKeysOff: true,
+    shouldSkip: async (db) =>
+      (await hasColumn(db, 'semen_collections', 'target_motile_sperm_millions_per_dose')) &&
+      (await hasColumn(db, 'collection_dose_events', 'dose_semen_volume_ml')) &&
+      (await hasColumn(db, 'collection_dose_events', 'dose_extender_volume_ml')),
   },
 ];
 

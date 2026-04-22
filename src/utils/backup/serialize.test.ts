@@ -143,7 +143,22 @@ describe('serializeBackup', () => {
         }
 
         if (sql.includes('FROM semen_collections')) {
-          return [];
+          return [
+            {
+              id: 'collection-1',
+              stallion_id: 'stallion-1',
+              collection_date: '2026-04-01',
+              raw_volume_ml: 100,
+              extender_type: 'INRA 96',
+              concentration_millions_per_ml: 200,
+              progressive_motility_percent: 70,
+              target_motile_sperm_millions_per_dose: 500,
+              target_post_extension_concentration_millions_per_ml: 100,
+              notes: null,
+              created_at: '2026-04-01T00:00:00.000Z',
+              updated_at: '2026-04-01T00:00:00.000Z',
+            },
+          ];
         }
 
         if (sql.includes('FROM collection_dose_events')) {
@@ -162,6 +177,8 @@ describe('serializeBackup', () => {
               container_type: 'Thermos',
               tracking_number: 'TRACK-123',
               breeding_record_id: 'breed-1',
+              dose_semen_volume_ml: 50,
+              dose_extender_volume_ml: null,
               dose_count: 1,
               event_date: '2026-04-02',
               notes: null,
@@ -181,7 +198,7 @@ describe('serializeBackup', () => {
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(2);
+    expect(backup.schemaVersion).toBe(3);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
     expect(backup.tables.mares[0]?.gestation_length_days).toBe(345);
@@ -191,6 +208,11 @@ describe('serializeBackup', () => {
     expect(backup.tables.foals[0]?.igg_tests).toContain('"valueMgDl":900');
     expect(backup.tables.collection_dose_events[0]?.recipient_phone).toBe('555-0101');
     expect(backup.tables.collection_dose_events[0]?.breeding_record_id).toBe('breed-1');
+    expect(backup.tables.collection_dose_events[0]?.dose_semen_volume_ml).toBe(50);
+    expect(backup.tables.collection_dose_events[0]?.dose_extender_volume_ml).toBeNull();
+    expect(
+      backup.tables.semen_collections[0]?.target_motile_sperm_millions_per_dose,
+    ).toBe(500);
     expect(db.getAllAsync).toHaveBeenCalledTimes(10);
   });
 });

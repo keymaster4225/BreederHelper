@@ -24,6 +24,14 @@ type Props = {
   readonly navigation: NativeStackNavigationProp<RootStackParamList, 'StallionDetail'>;
 };
 
+function formatMl(value: number | null | undefined): string | null {
+  if (value == null) {
+    return null;
+  }
+
+  return `${value.toFixed(2)} mL`;
+}
+
 function hasAnyAvPref(s: Stallion): boolean {
   return (
     s.avTemperatureF != null ||
@@ -130,28 +138,55 @@ export function CollectionsTab({
 
         {collections.length > 0 ? (
           <View style={cardStyles.listWrap}>
-            {collections.map((c) => {
-              const events = doseEventsByCollectionId[c.id] ?? [];
+            {collections.map((collection) => {
+              const events = doseEventsByCollectionId[collection.id] ?? [];
 
               return (
-                <View key={c.id} style={cardStyles.card}>
+                <View key={collection.id} style={cardStyles.card}>
                   <View style={cardStyles.cardHeader}>
-                    <Text style={cardStyles.cardTitle}>{formatLocalDate(c.collectionDate, 'MM-DD-YYYY')}</Text>
-                    <EditIconButton onPress={() => navigation.navigate('CollectionForm', { stallionId, collectionId: c.id })} />
+                    <Text style={cardStyles.cardTitle}>
+                      {formatLocalDate(collection.collectionDate, 'MM-DD-YYYY')}
+                    </Text>
+                    <EditIconButton
+                      onPress={() =>
+                        navigation.navigate('CollectionForm', {
+                          stallionId,
+                          collectionId: collection.id,
+                        })
+                      }
+                    />
                   </View>
-                  <CardRow label="Raw Volume" value={c.rawVolumeMl != null ? `${c.rawVolumeMl} mL` : null} />
-                  <CardRow label="Total Volume" value={c.totalVolumeMl != null ? `${c.totalVolumeMl} mL` : null} />
-                  <CardRow label="Extender Volume" value={c.extenderVolumeMl != null ? `${c.extenderVolumeMl} mL` : null} />
-                  <CardRow label="Extender Type" value={c.extenderType} />
-                  <CardRow label="Concentration" value={c.concentrationMillionsPerMl != null ? `${c.concentrationMillionsPerMl} M/mL` : null} />
-                  <CardRow label="Motility" value={c.progressiveMotilityPercent != null ? `${c.progressiveMotilityPercent}%` : null} />
+                  <CardRow label="Raw Volume" value={formatMl(collection.rawVolumeMl)} />
+                  <CardRow label="Extender Type" value={collection.extenderType} />
                   <CardRow
-                    label="Doses"
+                    label="Concentration"
                     value={
-                      c.doseCount != null
-                        ? c.doseSizeMillions != null
-                          ? `${c.doseCount} x ${c.doseSizeMillions}M`
-                          : String(c.doseCount)
+                      collection.concentrationMillionsPerMl != null
+                        ? `${collection.concentrationMillionsPerMl} M/mL`
+                        : null
+                    }
+                  />
+                  <CardRow
+                    label="Motility"
+                    value={
+                      collection.progressiveMotilityPercent != null
+                        ? `${collection.progressiveMotilityPercent}%`
+                        : null
+                    }
+                  />
+                  <CardRow
+                    label="Target Motile / Dose"
+                    value={
+                      collection.targetMotileSpermMillionsPerDose != null
+                        ? `${collection.targetMotileSpermMillionsPerDose} M`
+                        : null
+                    }
+                  />
+                  <CardRow
+                    label="Target Post-Ext Concentration"
+                    value={
+                      collection.targetPostExtensionConcentrationMillionsPerMl != null
+                        ? `${collection.targetPostExtensionConcentrationMillionsPerMl} M/mL`
                         : null
                     }
                   />
@@ -160,7 +195,7 @@ export function CollectionsTab({
                     <View style={styles.doseSectionHeader}>
                       <Text style={styles.sectionTitle}>Allocations</Text>
                       {!isDeleted ? (
-                        <SecondaryButton label="Add Shipment" onPress={() => handleAddEvent(c.id)} />
+                        <SecondaryButton label="Add Shipment" onPress={() => handleAddEvent(collection.id)} />
                       ) : null}
                     </View>
 
@@ -181,14 +216,24 @@ export function CollectionsTab({
                                 event.doseCount != null ? `${event.doseCount} doses` : null,
                                 event.eventDate ? formatLocalDate(event.eventDate, 'MM-DD-YYYY') : null,
                                 'Fresh AI',
-                              ].filter(Boolean).join(' • ')
+                              ].filter(Boolean).join(' | ')
                             : [
                                 event.doseCount != null ? `${event.doseCount} doses` : null,
                                 event.eventDate ? formatLocalDate(event.eventDate, 'MM-DD-YYYY') : null,
                                 event.carrierService ?? null,
                                 event.containerType ?? null,
-                              ].filter(Boolean).join(' • ');
+                              ].filter(Boolean).join(' | ');
                           const titleLabel = `${DOSE_EVENT_TYPE_LABELS[event.eventType]}: ${linkedMareName}`;
+                          const shippedSemenPerDose = formatMl(event.doseSemenVolumeMl);
+                          const shippedExtenderPerDose = formatMl(event.doseExtenderVolumeMl);
+                          const shippedTotalSemen =
+                            event.doseCount != null && event.doseSemenVolumeMl != null
+                              ? formatMl(event.doseSemenVolumeMl * event.doseCount)
+                              : null;
+                          const shippedTotalExtender =
+                            event.doseCount != null && event.doseExtenderVolumeMl != null
+                              ? formatMl(event.doseExtenderVolumeMl * event.doseCount)
+                              : null;
                           const content = (
                             <>
                               <View style={styles.eventContent}>
@@ -197,6 +242,26 @@ export function CollectionsTab({
                                 {!isUsedOnSite && event.recipientCity && event.recipientState ? (
                                   <Text style={styles.eventMeta}>{`${event.recipientCity}, ${event.recipientState}`}</Text>
                                 ) : null}
+                                {isUsedOnSite ? (
+                                  <Text style={styles.eventMeta}>
+                                    {event.doseSemenVolumeMl == null
+                                      ? 'Semen used: not recorded'
+                                      : `Semen used: ${event.doseSemenVolumeMl.toFixed(2)} mL`}
+                                  </Text>
+                                ) : (
+                                  <>
+                                    <Text style={styles.eventMeta}>
+                                      {shippedSemenPerDose != null && shippedExtenderPerDose != null
+                                        ? `Semen/Extender per dose: ${shippedSemenPerDose} + ${shippedExtenderPerDose}`
+                                        : 'Semen/Extender per dose: not recorded'}
+                                    </Text>
+                                    <Text style={styles.eventMeta}>
+                                      {shippedTotalSemen != null && shippedTotalExtender != null
+                                        ? `Total semen/extender: ${shippedTotalSemen} + ${shippedTotalExtender}`
+                                        : 'Total semen/extender: not recorded'}
+                                    </Text>
+                                  </>
+                                )}
                                 {event.notes ? <Text style={styles.eventNote}>{event.notes}</Text> : null}
                               </View>
                               {!isDeleted && !isUsedOnSite ? (

@@ -1,10 +1,10 @@
-import type { BackupEnvelopeV2 } from './types';
+import type { BackupEnvelopeV2, BackupEnvelopeV3 } from './types';
 
 const BASE_TIMESTAMP = '2026-04-16T12:00:00.000Z';
 
-export function createBackupFixture(): BackupEnvelopeV2 {
+export function createBackupFixture(): BackupEnvelopeV3 {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -157,6 +157,63 @@ export function createBackupFixture(): BackupEnvelopeV2 {
           stallion_id: 'stallion-1',
           collection_date: '2026-04-01',
           raw_volume_ml: 100,
+          extender_type: 'INRA 96',
+          concentration_millions_per_ml: 200,
+          progressive_motility_percent: 70,
+          target_motile_sperm_millions_per_dose: 500,
+          target_post_extension_concentration_millions_per_ml: 100,
+          notes: null,
+          created_at: BASE_TIMESTAMP,
+          updated_at: BASE_TIMESTAMP,
+        },
+      ],
+      collection_dose_events: [
+        {
+          id: 'event-1',
+          collection_id: 'collection-1',
+          event_type: 'usedOnSite',
+          recipient: 'Maple',
+          recipient_phone: null,
+          recipient_street: null,
+          recipient_city: null,
+          recipient_state: null,
+          recipient_zip: null,
+          carrier_service: null,
+          container_type: null,
+          tracking_number: null,
+          breeding_record_id: 'breed-1',
+          dose_semen_volume_ml: 50,
+          dose_extender_volume_ml: null,
+          dose_count: 1,
+          event_date: '2026-04-02',
+          notes: null,
+          created_at: BASE_TIMESTAMP,
+          updated_at: BASE_TIMESTAMP,
+        },
+      ],
+    },
+  };
+}
+
+export function cloneBackupFixture(): BackupEnvelopeV3 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV3;
+}
+
+export function createBackupFixtureV2(): BackupEnvelopeV2 {
+  const backupV3 = createBackupFixture();
+  return {
+    schemaVersion: 2,
+    createdAt: backupV3.createdAt,
+    app: backupV3.app,
+    settings: backupV3.settings,
+    tables: {
+      ...backupV3.tables,
+      semen_collections: [
+        {
+          id: 'collection-1',
+          stallion_id: 'stallion-1',
+          collection_date: '2026-04-01',
+          raw_volume_ml: 100,
           extended_volume_ml: 500,
           extender_volume_ml: 400,
           extender_type: 'INRA 96',
@@ -193,8 +250,4 @@ export function createBackupFixture(): BackupEnvelopeV2 {
       ],
     },
   };
-}
-
-export function cloneBackupFixture(): BackupEnvelopeV2 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV2;
 }

@@ -6,10 +6,12 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 
 import { PrimaryButton, SecondaryButton } from '@/components/Buttons';
+import { CardRow, cardStyles } from '@/components/RecordCardParts';
 import {
   FormDateInput,
   FormField,
@@ -17,11 +19,14 @@ import {
   FormTextInput,
   formStyles,
 } from '@/components/FormControls';
-import { CollectionWizardOnFarmRow } from '@/hooks/useCollectionWizard';
-import { Mare } from '@/models/types';
-import { borderRadius, colors, spacing } from '@/theme';
 import {
-  parseOptionalInteger,
+  CollectionWizardOnFarmRow,
+  CollectionWizardOnFarmRowInput,
+} from '@/hooks/useCollectionWizard';
+import { Mare } from '@/models/types';
+import { borderRadius, colors, spacing, typography } from '@/theme';
+import {
+  parseOptionalNumber,
   validateLocalDate,
   validateLocalDateNotInFuture,
   validateNumberRange,
@@ -31,28 +36,38 @@ type Props = {
   visible: boolean;
   initialValue?: CollectionWizardOnFarmRow;
   defaultDate: string;
+  defaultDoseSemenVolumeMl?: number | null;
   availableMares: readonly Mare[];
-  onSave: (value: CollectionWizardOnFarmRow) => void;
+  onSave: (value: CollectionWizardOnFarmRowInput) => void;
   onClose: () => void;
 };
 
 type FormErrors = {
   mareId?: string;
   eventDate?: string;
-  doseCount?: string;
+  doseSemenVolumeMl?: string;
 };
+
+function formatMlInput(value: number | null | undefined): string {
+  if (value == null) {
+    return '';
+  }
+
+  return Number(value.toFixed(2)).toString();
+}
 
 export function OnFarmMareRowEditor({
   visible,
   initialValue,
   defaultDate,
+  defaultDoseSemenVolumeMl,
   availableMares,
   onSave,
   onClose,
 }: Props): JSX.Element {
   const [mareId, setMareId] = useState('');
   const [eventDate, setEventDate] = useState('');
-  const [doseCount, setDoseCount] = useState('');
+  const [doseSemenVolumeMl, setDoseSemenVolumeMl] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -63,36 +78,55 @@ export function OnFarmMareRowEditor({
 
     setMareId(initialValue?.mareId ?? '');
     setEventDate(initialValue?.eventDate ?? defaultDate);
-    setDoseCount(initialValue?.doseCount != null ? String(initialValue.doseCount) : '');
+    setDoseSemenVolumeMl(
+      initialValue
+        ? formatMlInput(initialValue.doseSemenVolumeMl)
+        : formatMlInput(defaultDoseSemenVolumeMl),
+    );
     setNotes(initialValue?.notes ?? '');
     setErrors({});
-  }, [defaultDate, initialValue, visible]);
+  }, [defaultDate, defaultDoseSemenVolumeMl, initialValue, visible]);
 
   const mareOptions = useMemo(
     () => availableMares.map((mare) => ({ label: mare.name, value: mare.id })),
     [availableMares],
   );
 
+  const parsedDoseSemenVolumeMl = useMemo(
+    () => parseOptionalNumber(doseSemenVolumeMl),
+    [doseSemenVolumeMl],
+  );
+
   const handleSave = (): void => {
-    const parsedDoseCount = parseOptionalInteger(doseCount);
     const nextErrors: FormErrors = {
       mareId: mareId ? undefined : 'Please select a mare.',
       eventDate:
         validateLocalDate(eventDate, 'Breeding date', true) ??
         validateLocalDateNotInFuture(eventDate) ??
         undefined,
-      doseCount: validateNumberRange(parsedDoseCount, 'Dose Count', 1, 1000) ?? undefined,
+      doseSemenVolumeMl:
+        validateNumberRange(
+          parsedDoseSemenVolumeMl,
+          'Dose semen volume',
+          0,
+          10000,
+        ) ?? undefined,
     };
 
+    if (parsedDoseSemenVolumeMl === 0) {
+      nextErrors.doseSemenVolumeMl = 'Dose semen volume must be greater than 0 when entered.';
+    }
+
     setErrors(nextErrors);
-    if (Object.values(nextErrors).some(Boolean) || parsedDoseCount == null) {
+    if (Object.values(nextErrors).some(Boolean)) {
       return;
     }
 
     onSave({
       mareId,
       eventDate,
-      doseCount: parsedDoseCount,
+      doseSemenVolumeMl: parsedDoseSemenVolumeMl,
+      doseCount: 1,
       notes: notes.trim() || null,
     });
   };
@@ -115,7 +149,9 @@ export function OnFarmMareRowEditor({
                   value={mareId}
                   onChange={setMareId}
                   options={mareOptions}
-                  placeholder={availableMares.length === 0 ? 'No mares available' : 'Select mare'}
+                  placeholder={
+                    availableMares.length === 0 ? 'No mares available' : 'Select mare'
+                  }
                 />
               </FormField>
 
@@ -128,12 +164,34 @@ export function OnFarmMareRowEditor({
                 />
               </FormField>
 
-              <FormField label="Dose Count" required error={errors.doseCount}>
-                <FormTextInput value={doseCount} onChangeText={setDoseCount} keyboardType="numeric" />
+              <FormField label="Dose Semen Volume (mL)" error={errors.doseSemenVolumeMl}>
+                <FormTextInput
+                  value={doseSemenVolumeMl}
+                  onChangeText={setDoseSemenVolumeMl}
+                  keyboardType="numeric"
+                  placeholder="Optional"
+                />
               </FormField>
 
+              <View style={cardStyles.card}>
+                <Text style={styles.summaryTitle}>On-Farm Summary</Text>
+                {parsedDoseSemenVolumeMl == null || Number.isNaN(parsedDoseSemenVolumeMl) ? (
+                  <Text style={styles.emptyText}>Semen volume not recorded.</Text>
+                ) : (
+                  <CardRow
+                    label="Semen Used"
+                    value={`${parsedDoseSemenVolumeMl.toFixed(2)} mL`}
+                  />
+                )}
+              </View>
+
               <FormField label="Notes">
-                <FormTextInput value={notes} onChangeText={setNotes} multiline placeholder="Optional" />
+                <FormTextInput
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                  placeholder="Optional"
+                />
               </FormField>
 
               <View style={styles.actions}>
@@ -169,6 +227,14 @@ const styles = StyleSheet.create({
   },
   formContent: {
     paddingBottom: spacing.sm,
+  },
+  summaryTitle: {
+    ...typography.labelLarge,
+    color: colors.onSurface,
+  },
+  emptyText: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   actions: {
     gap: spacing.sm,

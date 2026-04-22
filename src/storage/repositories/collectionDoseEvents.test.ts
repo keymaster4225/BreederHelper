@@ -20,7 +20,7 @@ import {
 
 type CollectionRow = {
   id: string;
-  dose_count: number | null;
+  raw_volume_ml: number | null;
 };
 
 type DoseEventRow = {
@@ -37,6 +37,8 @@ type DoseEventRow = {
   container_type: string | null;
   tracking_number: string | null;
   breeding_record_id: string | null;
+  dose_semen_volume_ml: number | null;
+  dose_extender_volume_ml: number | null;
   dose_count: number | null;
   event_date: string | null;
   notes: string | null;
@@ -50,9 +52,9 @@ function normalized(sql: string): string {
 
 function createFakeDb() {
   const collections = new Map<string, CollectionRow>([
-    ['col-1', { id: 'col-1', dose_count: 10 }],
-    ['col-2', { id: 'col-2', dose_count: 12 }],
-    ['col-no-dose', { id: 'col-no-dose', dose_count: null }],
+    ['col-1', { id: 'col-1', raw_volume_ml: 50 }],
+    ['col-2', { id: 'col-2', raw_volume_ml: 80 }],
+    ['col-no-cap', { id: 'col-no-cap', raw_volume_ml: null }],
   ]);
   const doseEvents = new Map<string, DoseEventRow>();
 
@@ -75,6 +77,8 @@ function createFakeDb() {
           containerType,
           trackingNumber,
           breedingRecordId,
+          doseSemenVolumeMl,
+          doseExtenderVolumeMl,
           doseCount,
           eventDate,
           notes,
@@ -95,6 +99,8 @@ function createFakeDb() {
           string | null,
           string | null,
           number | null,
+          number | null,
+          number | null,
           string | null,
           string | null,
           string,
@@ -114,6 +120,8 @@ function createFakeDb() {
           container_type: containerType,
           tracking_number: trackingNumber,
           breeding_record_id: breedingRecordId,
+          dose_semen_volume_ml: doseSemenVolumeMl,
+          dose_extender_volume_ml: doseExtenderVolumeMl,
           dose_count: doseCount,
           event_date: eventDate,
           notes,
@@ -136,6 +144,8 @@ function createFakeDb() {
           containerType,
           trackingNumber,
           breedingRecordId,
+          doseSemenVolumeMl,
+          doseExtenderVolumeMl,
           doseCount,
           eventDate,
           notes,
@@ -153,6 +163,8 @@ function createFakeDb() {
           string | null,
           string | null,
           string | null,
+          number | null,
+          number | null,
           number | null,
           string | null,
           string | null,
@@ -176,6 +188,8 @@ function createFakeDb() {
           container_type: containerType,
           tracking_number: trackingNumber,
           breeding_record_id: breedingRecordId,
+          dose_semen_volume_ml: doseSemenVolumeMl,
+          dose_extender_volume_ml: doseExtenderVolumeMl,
           dose_count: doseCount,
           event_date: eventDate,
           notes,
@@ -193,17 +207,20 @@ function createFakeDb() {
     async getFirstAsync<T>(sql: string, params: unknown[] = []): Promise<T | null> {
       const stmt = normalized(sql);
 
-      if (stmt.includes('select dose_count from semen_collections where id = ?')) {
+      if (stmt.includes('select raw_volume_ml from semen_collections where id = ?')) {
         const [id] = params as [string];
         return (collections.get(id) as T | undefined) ?? null;
       }
 
-      if (stmt.includes('allocated_dose_count') && stmt.includes('from collection_dose_events')) {
+      if (stmt.includes('allocated_semen_volume_ml') && stmt.includes('from collection_dose_events')) {
         const [collectionId, excludeId] = params as [string, string?];
-        const allocatedDoseCount = Array.from(doseEvents.values())
+        const allocatedSemenVolume = Array.from(doseEvents.values())
           .filter((event) => event.collection_id === collectionId && (!excludeId || event.id !== excludeId))
-          .reduce((total, event) => total + (event.dose_count ?? 0), 0);
-        return { allocated_dose_count: allocatedDoseCount } as T;
+          .reduce(
+            (total, event) => total + (event.dose_semen_volume_ml ?? 0) * (event.dose_count ?? 0),
+            0,
+          );
+        return { allocated_semen_volume_ml: allocatedSemenVolume } as T;
       }
 
       if (stmt.includes('from collection_dose_events') && stmt.includes('where id = ?')) {
@@ -255,6 +272,8 @@ describe('collection dose event repository', () => {
       carrierService: 'FedEx Priority Overnight',
       containerType: 'Equitainer',
       trackingNumber: 'TRACK-1',
+      doseSemenVolumeMl: 4,
+      doseExtenderVolumeMl: 6,
       doseCount: 8,
       eventDate: '2026-04-01',
       notes: 'Handled cold chain',
@@ -286,6 +305,8 @@ describe('collection dose event repository', () => {
       recipientZip: '40511',
       carrierService: 'FedEx Priority Overnight',
       containerType: 'Equitainer',
+      doseSemenVolumeMl: 4,
+      doseExtenderVolumeMl: 6,
       doseCount: 4,
       eventDate: '2026-04-01',
     });
@@ -300,6 +321,8 @@ describe('collection dose event repository', () => {
       recipientZip: '34470',
       carrierService: 'UPS Next Day Air',
       containerType: 'Equine Express II',
+      doseSemenVolumeMl: 3,
+      doseExtenderVolumeMl: 2,
       doseCount: 3,
       eventDate: '2026-04-02',
     });
@@ -322,6 +345,8 @@ describe('collection dose event repository', () => {
       recipientZip: '40511',
       carrierService: 'FedEx Priority Overnight',
       containerType: 'Equitainer',
+      doseSemenVolumeMl: 4,
+      doseExtenderVolumeMl: 2,
       doseCount: 6,
       eventDate: '2026-04-01',
     });
@@ -336,6 +361,8 @@ describe('collection dose event repository', () => {
       carrierService: 'UPS Next Day Air',
       containerType: 'Equine Express II',
       trackingNumber: 'TRACK-99',
+      doseSemenVolumeMl: 3.5,
+      doseExtenderVolumeMl: 1.5,
       doseCount: 4,
       eventDate: '2026-04-02',
       notes: 'Split shipment',
@@ -349,7 +376,7 @@ describe('collection dose event repository', () => {
     expect(events).toHaveLength(0);
   });
 
-  it('blocks over-allocation against the parent collection dose count', async () => {
+  it('blocks over-allocation against the parent collection raw volume', async () => {
     await createDoseEvent({
       collectionId: 'col-1',
       eventType: 'shipped',
@@ -361,6 +388,8 @@ describe('collection dose event repository', () => {
       recipientZip: '40511',
       carrierService: 'FedEx Priority Overnight',
       containerType: 'Equitainer',
+      doseSemenVolumeMl: 6,
+      doseExtenderVolumeMl: 2,
       doseCount: 8,
       eventDate: '2026-04-01',
     });
@@ -379,16 +408,18 @@ describe('collection dose event repository', () => {
         recipientZip: '34470',
         carrierService: 'UPS Next Day Air',
         containerType: 'Equine Express II',
+        doseSemenVolumeMl: 2,
+        doseExtenderVolumeMl: 2,
         doseCount: 3,
         eventDate: '2026-04-02',
       }),
-    ).rejects.toThrow('Allocated doses cannot exceed the collection dose count.');
+    ).rejects.toThrow('Allocated semen volume cannot exceed the collection total volume.');
   });
 
-  it('blocks shipment events when the parent collection has no dose count', async () => {
+  it('allows shipment events when parent collection total volume is blank', async () => {
     await expect(
       createDoseEvent({
-        collectionId: 'col-no-dose',
+        collectionId: 'col-no-cap',
         eventType: 'shipped',
         recipient: 'Farm ABC',
         recipientPhone: '555-0100',
@@ -398,10 +429,12 @@ describe('collection dose event repository', () => {
         recipientZip: '40511',
         carrierService: 'FedEx Priority Overnight',
         containerType: 'Equitainer',
+        doseSemenVolumeMl: 2,
+        doseExtenderVolumeMl: 1,
         doseCount: 2,
         eventDate: '2026-04-01',
       }),
-    ).rejects.toThrow('Dose count is required on the collection before allocating doses.');
+    ).resolves.toMatchObject({ collectionId: 'col-no-cap' });
   });
 
   it('rejects usedOnSite events from the standalone dose event repository', async () => {
@@ -410,9 +443,30 @@ describe('collection dose event repository', () => {
         collectionId: 'col-1',
         eventType: 'usedOnSite',
         recipient: 'Maple',
+        doseSemenVolumeMl: 2,
+        doseExtenderVolumeMl: 0,
         doseCount: 1,
         eventDate: '2026-04-01',
       }),
     ).rejects.toThrow('On-farm allocations must be created through the collection wizard.');
+  });
+
+  it('requires per-dose semen and extender volumes for shipped rows', async () => {
+    await expect(
+      createDoseEvent({
+        collectionId: 'col-1',
+        eventType: 'shipped',
+        recipient: 'Farm ABC',
+        recipientPhone: '555-0100',
+        recipientStreet: '100 Main St',
+        recipientCity: 'Lexington',
+        recipientState: 'KY',
+        recipientZip: '40511',
+        carrierService: 'FedEx Priority Overnight',
+        containerType: 'Equitainer',
+        doseCount: 1,
+        eventDate: '2026-04-01',
+      }),
+    ).rejects.toThrow('Dose semen volume is required.');
   });
 });

@@ -12,7 +12,7 @@ import { getDb } from '@/storage/db';
 import { newId } from '@/utils/id';
 import {
   createCollectionWithAllocations,
-  getAllocatedDoseCountForCollection,
+  getAllocatedSemenVolumeForCollection,
 } from './collectionWizard';
 
 type StallionRow = {
@@ -32,13 +32,11 @@ type CollectionRow = {
   stallion_id: string;
   collection_date: string;
   raw_volume_ml: number | null;
-  extended_volume_ml: number | null;
-  extender_volume_ml: number | null;
   extender_type: string | null;
   concentration_millions_per_ml: number | null;
   progressive_motility_percent: number | null;
-  dose_count: number | null;
-  dose_size_millions: number | null;
+  target_motile_sperm_millions_per_dose: number | null;
+  target_post_extension_concentration_millions_per_ml: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -64,6 +62,8 @@ type DoseEventRow = {
   event_type: 'shipped' | 'usedOnSite';
   recipient: string;
   breeding_record_id: string | null;
+  dose_semen_volume_ml: number | null;
+  dose_extender_volume_ml: number | null;
   dose_count: number | null;
   event_date: string | null;
   notes: string | null;
@@ -104,13 +104,11 @@ function createFakeDb() {
           stallionId,
           collectionDate,
           rawVolumeMl,
-          totalVolumeMl,
-          extenderVolumeMl,
           extenderType,
           concentrationMillionsPerMl,
           progressiveMotilityPercent,
-          doseCount,
-          doseSizeMillions,
+          targetMotileSpermMillionsPerDose,
+          targetPostExtensionConcentrationMillionsPerMl,
           notes,
           createdAt,
           updatedAt,
@@ -118,8 +116,6 @@ function createFakeDb() {
           string,
           string,
           string,
-          number | null,
-          number | null,
           number | null,
           string | null,
           number | null,
@@ -135,13 +131,12 @@ function createFakeDb() {
           stallion_id: stallionId,
           collection_date: collectionDate,
           raw_volume_ml: rawVolumeMl,
-          extended_volume_ml: totalVolumeMl,
-          extender_volume_ml: extenderVolumeMl,
           extender_type: extenderType,
           concentration_millions_per_ml: concentrationMillionsPerMl,
           progressive_motility_percent: progressiveMotilityPercent,
-          dose_count: doseCount,
-          dose_size_millions: doseSizeMillions,
+          target_motile_sperm_millions_per_dose: targetMotileSpermMillionsPerDose,
+          target_post_extension_concentration_millions_per_ml:
+            targetPostExtensionConcentrationMillionsPerMl,
           notes,
           created_at: createdAt,
           updated_at: updatedAt,
@@ -216,6 +211,8 @@ function createFakeDb() {
           containerType,
           ,
           breedingRecordId,
+          doseSemenVolumeMl,
+          doseExtenderVolumeMl,
           doseCount,
           eventDate,
           notes,
@@ -234,6 +231,8 @@ function createFakeDb() {
           string | null,
           string | null,
           number | null,
+          number | null,
+          number | null,
           string | null,
           string | null,
           string,
@@ -245,6 +244,8 @@ function createFakeDb() {
           event_type: eventType,
           recipient,
           breeding_record_id: breedingRecordId,
+          dose_semen_volume_ml: doseSemenVolumeMl,
+          dose_extender_volume_ml: doseExtenderVolumeMl,
           dose_count: doseCount,
           event_date: eventDate,
           notes,
@@ -266,18 +267,21 @@ function createFakeDb() {
         return (mares.get(mareId) as T | undefined) ?? null;
       }
 
-      if (stmt.includes('select dose_count from semen_collections where id = ?')) {
+      if (stmt.includes('select raw_volume_ml from semen_collections where id = ?')) {
         const [collectionId] = params as [string];
         const collection = collections.get(collectionId);
-        return collection ? ({ dose_count: collection.dose_count } as T) : null;
+        return collection ? ({ raw_volume_ml: collection.raw_volume_ml } as T) : null;
       }
 
-      if (stmt.includes('allocated_dose_count') && stmt.includes('from collection_dose_events')) {
+      if (stmt.includes('allocated_semen_volume_ml') && stmt.includes('from collection_dose_events')) {
         const [collectionId, excludeId] = params as [string, string?];
-        const allocatedDoseCount = Array.from(doseEvents.values())
+        const allocatedSemenVolume = Array.from(doseEvents.values())
           .filter((event) => event.collection_id === collectionId && (!excludeId || event.id !== excludeId))
-          .reduce((total, event) => total + (event.dose_count ?? 0), 0);
-        return { allocated_dose_count: allocatedDoseCount } as T;
+          .reduce(
+            (total, event) => total + (event.dose_semen_volume_ml ?? 0) * (event.dose_count ?? 0),
+            0,
+          );
+        return { allocated_semen_volume_ml: allocatedSemenVolume } as T;
       }
 
       return null;
@@ -328,7 +332,8 @@ describe('collection wizard repository', () => {
         rawVolumeMl: 50,
         concentrationMillionsPerMl: 200,
         progressiveMotilityPercent: 75,
-        doseCount: 10,
+        targetMotileSpermMillionsPerDose: 500,
+        targetPostExtensionConcentrationMillionsPerMl: 180,
       },
       shippedRows: [
         {
@@ -340,6 +345,8 @@ describe('collection wizard repository', () => {
           recipientZip: '40511',
           carrierService: 'FedEx Priority Overnight',
           containerType: 'Equitainer',
+          doseSemenVolumeMl: 4,
+          doseExtenderVolumeMl: 3,
           doseCount: 4,
           eventDate: '2026-04-01',
           notes: 'Cold chain',
@@ -349,7 +356,7 @@ describe('collection wizard repository', () => {
         {
           mareId: 'mare-1',
           eventDate: '2026-04-02',
-          doseCount: 2,
+          doseSemenVolumeMl: 5,
           notes: 'Bred in barn 2',
         },
       ],
@@ -367,7 +374,7 @@ describe('collection wizard repository', () => {
     const breedingRecord = fakeDb.breedingRecords.get('breeding-1');
     expect(breedingRecord?.collection_id).toBe('collection-1');
     expect(breedingRecord?.method).toBe('freshAI');
-    expect(breedingRecord?.volume_ml).toBe(50);
+    expect(breedingRecord?.volume_ml).toBe(5);
     expect(breedingRecord?.concentration_m_per_ml).toBe(200);
     expect(breedingRecord?.motility_percent).toBe(75);
     expect(breedingRecord?.collection_date).toBe('2026-04-01');
@@ -377,7 +384,7 @@ describe('collection wizard repository', () => {
     expect(usedOnSiteEvent?.recipient).toBe('Maple');
   });
 
-  it('returns allocated dose totals for a collection', async () => {
+  it('returns allocated semen volume totals for a collection', async () => {
     vi.mocked(newId)
       .mockReturnValueOnce('collection-1')
       .mockReturnValueOnce('event-1')
@@ -387,7 +394,7 @@ describe('collection wizard repository', () => {
       collection: {
         stallionId: 'st-1',
         collectionDate: '2026-04-01',
-        doseCount: 10,
+        rawVolumeMl: 100,
       },
       shippedRows: [
         {
@@ -399,6 +406,8 @@ describe('collection wizard repository', () => {
           recipientZip: '40511',
           carrierService: 'FedEx Priority Overnight',
           containerType: 'Equitainer',
+          doseSemenVolumeMl: 3,
+          doseExtenderVolumeMl: 1,
           doseCount: 3,
           eventDate: '2026-04-01',
         },
@@ -411,6 +420,8 @@ describe('collection wizard repository', () => {
           recipientZip: '34470',
           carrierService: 'UPS Next Day Air',
           containerType: 'Equine Express II',
+          doseSemenVolumeMl: 2,
+          doseExtenderVolumeMl: 1,
           doseCount: 2,
           eventDate: '2026-04-02',
         },
@@ -418,7 +429,7 @@ describe('collection wizard repository', () => {
       onFarmRows: [],
     });
 
-    await expect(getAllocatedDoseCountForCollection('collection-1')).resolves.toBe(5);
+    await expect(getAllocatedSemenVolumeForCollection('collection-1')).resolves.toBe(13);
   });
 
   it('rejects duplicate on-farm mares in one wizard session', async () => {
@@ -429,12 +440,12 @@ describe('collection wizard repository', () => {
         collection: {
           stallionId: 'st-1',
           collectionDate: '2026-04-01',
-          doseCount: 10,
+          rawVolumeMl: 20,
         },
         shippedRows: [],
         onFarmRows: [
-          { mareId: 'mare-1', eventDate: '2026-04-02', doseCount: 1 },
-          { mareId: 'mare-1', eventDate: '2026-04-03', doseCount: 1 },
+          { mareId: 'mare-1', eventDate: '2026-04-02', doseSemenVolumeMl: 4 },
+          { mareId: 'mare-1', eventDate: '2026-04-03', doseSemenVolumeMl: 4 },
         ],
       }),
     ).rejects.toThrow('A mare can only be selected once per collection wizard.');
@@ -451,7 +462,7 @@ describe('collection wizard repository', () => {
         collection: {
           stallionId: 'st-1',
           collectionDate: '2026-04-01',
-          doseCount: 10,
+          rawVolumeMl: 20,
         },
         shippedRows: [
           {
@@ -463,6 +474,8 @@ describe('collection wizard repository', () => {
             recipientZip: '40511',
             carrierService: 'FedEx Priority Overnight',
             containerType: 'Equitainer',
+            doseSemenVolumeMl: 2,
+            doseExtenderVolumeMl: 1,
             doseCount: 2,
             eventDate: '2026-04-01',
           },
@@ -471,7 +484,7 @@ describe('collection wizard repository', () => {
           {
             mareId: 'mare-missing',
             eventDate: '2026-04-02',
-            doseCount: 1,
+            doseSemenVolumeMl: 3,
           },
         ],
       }),
@@ -482,5 +495,59 @@ describe('collection wizard repository', () => {
     expect(fakeDb.collections.size).toBe(0);
     expect(fakeDb.breedingRecords.size).toBe(0);
     expect(fakeDb.doseEvents.size).toBe(0);
+  });
+
+  it('rejects allocations that exceed the collection total volume', async () => {
+    vi.mocked(newId).mockReturnValue('collection-1');
+
+    await expect(
+      createCollectionWithAllocations({
+        collection: {
+          stallionId: 'st-1',
+          collectionDate: '2026-04-01',
+          rawVolumeMl: 10,
+        },
+        shippedRows: [
+          {
+            recipient: 'Farm ABC',
+            recipientPhone: '555-0100',
+            recipientStreet: '100 Main St',
+            recipientCity: 'Lexington',
+            recipientState: 'KY',
+            recipientZip: '40511',
+            carrierService: 'FedEx Priority Overnight',
+            containerType: 'Equitainer',
+            doseSemenVolumeMl: 4,
+            doseExtenderVolumeMl: 2,
+            doseCount: 3,
+            eventDate: '2026-04-01',
+          },
+        ],
+        onFarmRows: [],
+      }),
+    ).rejects.toThrow('Allocated semen volume cannot exceed the collection total volume.');
+  });
+
+  it('rejects on-farm rows with dose count values other than one', async () => {
+    vi.mocked(newId).mockReturnValue('collection-1');
+
+    await expect(
+      createCollectionWithAllocations({
+        collection: {
+          stallionId: 'st-1',
+          collectionDate: '2026-04-01',
+          rawVolumeMl: 20,
+        },
+        shippedRows: [],
+        onFarmRows: [
+          {
+            mareId: 'mare-1',
+            eventDate: '2026-04-02',
+            doseSemenVolumeMl: 4,
+            doseCount: 2,
+          },
+        ],
+      }),
+    ).rejects.toThrow('On-farm allocations must always use a dose count of 1.');
   });
 });

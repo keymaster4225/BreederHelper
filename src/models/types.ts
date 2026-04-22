@@ -121,6 +121,8 @@ export interface CollectionDoseEvent {
   containerType?: string | null;
   trackingNumber?: string | null;
   breedingRecordId?: UUID | null;
+  doseSemenVolumeMl?: number | null;
+  doseExtenderVolumeMl?: number | null;
   doseCount: number | null;
   eventDate: LocalDate | null;
   notes: string | null;
@@ -141,6 +143,8 @@ export interface CreateCollectionDoseEventInput {
   containerType?: string | null;
   trackingNumber?: string | null;
   breedingRecordId?: UUID | null;
+  doseSemenVolumeMl?: number | null;
+  doseExtenderVolumeMl?: number | null;
   doseCount?: number | null;
   eventDate?: LocalDate | null;
   notes?: string | null;
@@ -155,13 +159,11 @@ export interface SemenCollection {
   stallionId: UUID;
   collectionDate: LocalDate;
   rawVolumeMl?: number | null;
-  totalVolumeMl?: number | null;
-  extenderVolumeMl?: number | null;
   extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
   progressiveMotilityPercent?: number | null;
-  doseCount?: number | null;
-  doseSizeMillions?: number | null;
+  targetMotileSpermMillionsPerDose?: number | null;
+  targetPostExtensionConcentrationMillionsPerMl?: number | null;
   notes?: string | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;

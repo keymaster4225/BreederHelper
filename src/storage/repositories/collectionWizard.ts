@@ -2,23 +2,23 @@ import type * as SQLite from 'expo-sqlite';
 
 import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
+import { computeAllocationSummary } from '@/utils/collectionAllocation';
 import { newId } from '@/utils/id';
-import type { AllocatedDoseCountOptions } from './internal/collectionAllocation';
+import type { AllocatedSemenVolumeOptions } from './internal/collectionAllocation';
 import {
-  getAllocatedDoseCountForCollectionDb,
+  assertCollectionSemenVolumeWithinCap,
+  getAllocatedSemenVolumeForCollectionDb,
 } from './internal/collectionAllocation';
 
 type CollectionDraftInput = {
   stallionId: string;
   collectionDate: string;
   rawVolumeMl?: number | null;
-  totalVolumeMl?: number | null;
-  extenderVolumeMl?: number | null;
   extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
   progressiveMotilityPercent?: number | null;
-  doseCount?: number | null;
-  doseSizeMillions?: number | null;
+  targetMotileSpermMillionsPerDose?: number | null;
+  targetPostExtensionConcentrationMillionsPerMl?: number | null;
   notes?: string | null;
 };
 
@@ -33,6 +33,8 @@ export type CreateCollectionWizardShippedRowInput = {
   containerType: string;
   trackingNumber?: string | null;
   eventDate: string;
+  doseSemenVolumeMl: number;
+  doseExtenderVolumeMl: number;
   doseCount: number;
   notes?: string | null;
 };
@@ -40,8 +42,9 @@ export type CreateCollectionWizardShippedRowInput = {
 export type CreateCollectionWizardOnFarmRowInput = {
   mareId: string;
   eventDate: string;
-  doseCount: number;
+  doseSemenVolumeMl?: number | null;
   notes?: string | null;
+  doseCount?: number;
 };
 
 export type CreateCollectionWithAllocationsInput = {
@@ -70,33 +73,48 @@ function normalizeOptionalText(value?: string | null): string | null {
   return trimmed ? trimmed : null;
 }
 
-function getAllocatedDoseCountFromInput(
-  input: CreateCollectionWithAllocationsInput,
-): number {
-  const shippedDoseCount = input.shippedRows.reduce((total, row) => total + row.doseCount, 0);
-  const onFarmDoseCount = input.onFarmRows.reduce((total, row) => total + row.doseCount, 0);
-  return shippedDoseCount + onFarmDoseCount;
-}
-
 function validateWizardInput(input: CreateCollectionWithAllocationsInput): void {
-  const hasAllocations = input.shippedRows.length > 0 || input.onFarmRows.length > 0;
-  const collectionDoseCount = input.collection.doseCount ?? null;
-  const allocatedDoseCount = getAllocatedDoseCountFromInput(input);
-
-  if (hasAllocations && (collectionDoseCount == null || collectionDoseCount <= 0)) {
-    throw new Error('Dose count is required before saving allocations.');
-  }
-
-  if (collectionDoseCount != null && allocatedDoseCount > collectionDoseCount) {
-    throw new Error('Allocated doses cannot exceed the collection dose count.');
-  }
-
   const seenMareIds = new Set<string>();
+  const allocationRows = [
+    ...input.shippedRows.map((row) => ({
+      doseSemenVolumeMl: row.doseSemenVolumeMl,
+      doseCount: row.doseCount,
+    })),
+    ...input.onFarmRows.map((row) => ({
+      doseSemenVolumeMl: row.doseSemenVolumeMl ?? null,
+      doseCount: 1,
+    })),
+  ];
+
+  for (const row of input.shippedRows) {
+    if (row.doseCount <= 0) {
+      throw new Error('Dose count is required.');
+    }
+    if (row.doseSemenVolumeMl == null || row.doseSemenVolumeMl <= 0) {
+      throw new Error('Dose semen volume is required.');
+    }
+    if (row.doseExtenderVolumeMl == null || row.doseExtenderVolumeMl < 0) {
+      throw new Error('Dose extender volume is required.');
+    }
+  }
+
   for (const row of input.onFarmRows) {
     if (seenMareIds.has(row.mareId)) {
       throw new Error('A mare can only be selected once per collection wizard.');
     }
     seenMareIds.add(row.mareId);
+
+    if (row.doseCount != null && row.doseCount !== 1) {
+      throw new Error('On-farm allocations must always use a dose count of 1.');
+    }
+    if (row.doseSemenVolumeMl != null && row.doseSemenVolumeMl <= 0) {
+      throw new Error('Dose semen volume must be greater than zero when provided.');
+    }
+  }
+
+  const summary = computeAllocationSummary(allocationRows, input.collection.rawVolumeMl ?? null);
+  if (!summary.isWithinCap) {
+    throw new Error('Allocated semen volume cannot exceed the collection total volume.');
   }
 }
 
@@ -161,30 +179,26 @@ async function insertCollection(
       stallion_id,
       collection_date,
       raw_volume_ml,
-      extended_volume_ml,
-      extender_volume_ml,
       extender_type,
       concentration_millions_per_ml,
       progressive_motility_percent,
-      dose_count,
-      dose_size_millions,
+      target_motile_sperm_millions_per_dose,
+      target_post_extension_concentration_millions_per_ml,
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       collectionId,
       input.stallionId,
       input.collectionDate,
       input.rawVolumeMl ?? null,
-      input.totalVolumeMl ?? null,
-      input.extenderVolumeMl ?? null,
       normalizeOptionalText(input.extenderType),
       input.concentrationMillionsPerMl ?? null,
       input.progressiveMotilityPercent ?? null,
-      input.doseCount ?? null,
-      input.doseSizeMillions ?? null,
+      input.targetMotileSpermMillionsPerDose ?? null,
+      input.targetPostExtensionConcentrationMillionsPerMl ?? null,
       normalizeOptionalText(input.notes),
       now,
       now,
@@ -214,12 +228,14 @@ async function insertShippedDoseEvent(
       container_type,
       tracking_number,
       breeding_record_id,
+      dose_semen_volume_ml,
+      dose_extender_volume_ml,
       dose_count,
       event_date,
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       newId(),
@@ -235,6 +251,8 @@ async function insertShippedDoseEvent(
       row.containerType.trim(),
       normalizeOptionalText(row.trackingNumber),
       null,
+      row.doseSemenVolumeMl,
+      row.doseExtenderVolumeMl,
       row.doseCount,
       row.eventDate,
       normalizeOptionalText(row.notes),
@@ -285,7 +303,7 @@ async function insertOnFarmAllocation(
       row.eventDate,
       'freshAI',
       normalizeOptionalText(row.notes),
-      collection.rawVolumeMl ?? null,
+      row.doseSemenVolumeMl ?? null,
       collection.concentrationMillionsPerMl ?? null,
       collection.progressiveMotilityPercent ?? null,
       null,
@@ -313,12 +331,14 @@ async function insertOnFarmAllocation(
       container_type,
       tracking_number,
       breeding_record_id,
+      dose_semen_volume_ml,
+      dose_extender_volume_ml,
       dose_count,
       event_date,
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       newId(),
@@ -334,7 +354,9 @@ async function insertOnFarmAllocation(
       null,
       null,
       breedingRecordId,
-      row.doseCount,
+      row.doseSemenVolumeMl ?? null,
+      null,
+      1,
       row.eventDate,
       normalizeOptionalText(row.notes),
       now,
@@ -374,6 +396,8 @@ export async function createCollectionWithAllocations(
       );
       breedingRecordIds.push(breedingRecordId);
     }
+
+    await assertCollectionSemenVolumeWithinCap(db, collectionId);
   });
 
   emitDataInvalidation('semenCollections');
@@ -386,10 +410,10 @@ export async function createCollectionWithAllocations(
   };
 }
 
-export async function getAllocatedDoseCountForCollection(
+export async function getAllocatedSemenVolumeForCollection(
   collectionId: string,
-  options?: AllocatedDoseCountOptions,
+  options?: AllocatedSemenVolumeOptions,
 ): Promise<number> {
   const db = await getDb();
-  return getAllocatedDoseCountForCollectionDb(db, collectionId, options);
+  return getAllocatedSemenVolumeForCollectionDb(db, collectionId, options);
 }

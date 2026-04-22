@@ -1,7 +1,7 @@
 import { SemenCollection } from '@/models/types';
 import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
-import { assertCollectionDoseCountCanBeUpdated } from './internal/collectionAllocation';
+import { assertCollectionRawVolumeCanBeUpdated } from './internal/collectionAllocation';
 import { getStallionById } from './stallions';
 
 type SemenCollectionRow = {
@@ -9,13 +9,11 @@ type SemenCollectionRow = {
   stallion_id: string;
   collection_date: string;
   raw_volume_ml: number | null;
-  extended_volume_ml: number | null;
-  extender_volume_ml: number | null;
   extender_type: string | null;
   concentration_millions_per_ml: number | null;
   progressive_motility_percent: number | null;
-  dose_count: number | null;
-  dose_size_millions: number | null;
+  target_motile_sperm_millions_per_dose: number | null;
+  target_post_extension_concentration_millions_per_ml: number | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -27,13 +25,12 @@ function mapRow(row: SemenCollectionRow): SemenCollection {
     stallionId: row.stallion_id,
     collectionDate: row.collection_date,
     rawVolumeMl: row.raw_volume_ml,
-    totalVolumeMl: row.extended_volume_ml,
-    extenderVolumeMl: row.extender_volume_ml,
     extenderType: row.extender_type,
     concentrationMillionsPerMl: row.concentration_millions_per_ml,
     progressiveMotilityPercent: row.progressive_motility_percent,
-    doseCount: row.dose_count,
-    doseSizeMillions: row.dose_size_millions,
+    targetMotileSpermMillionsPerDose: row.target_motile_sperm_millions_per_dose,
+    targetPostExtensionConcentrationMillionsPerMl:
+      row.target_post_extension_concentration_millions_per_ml,
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -72,13 +69,11 @@ export async function createSemenCollection(input: {
   stallionId: string;
   collectionDate: string;
   rawVolumeMl?: number | null;
-  totalVolumeMl?: number | null;
-  extenderVolumeMl?: number | null;
   extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
   progressiveMotilityPercent?: number | null;
-  doseCount?: number | null;
-  doseSizeMillions?: number | null;
+  targetMotileSpermMillionsPerDose?: number | null;
+  targetPostExtensionConcentrationMillionsPerMl?: number | null;
   notes?: string | null;
 }): Promise<void> {
   const stallion = await getStallionById(input.stallionId);
@@ -95,22 +90,21 @@ export async function createSemenCollection(input: {
   await db.runAsync(
     `INSERT INTO semen_collections (
       id, stallion_id, collection_date,
-      raw_volume_ml, extended_volume_ml, extender_volume_ml, extender_type, concentration_millions_per_ml,
-      progressive_motility_percent, dose_count, dose_size_millions,
+      raw_volume_ml, extender_type, concentration_millions_per_ml,
+      progressive_motility_percent, target_motile_sperm_millions_per_dose,
+      target_post_extension_concentration_millions_per_ml,
       notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     [
       input.id,
       input.stallionId,
       input.collectionDate,
       input.rawVolumeMl ?? null,
-      input.totalVolumeMl ?? null,
-      input.extenderVolumeMl ?? null,
       input.extenderType ?? null,
       input.concentrationMillionsPerMl ?? null,
       input.progressiveMotilityPercent ?? null,
-      input.doseCount ?? null,
-      input.doseSizeMillions ?? null,
+      input.targetMotileSpermMillionsPerDose ?? null,
+      input.targetPostExtensionConcentrationMillionsPerMl ?? null,
       input.notes ?? null,
       now,
       now,
@@ -124,44 +118,38 @@ export async function updateSemenCollection(
   input: {
     collectionDate: string;
     rawVolumeMl?: number | null;
-    totalVolumeMl?: number | null;
-    extenderVolumeMl?: number | null;
     extenderType?: string | null;
     concentrationMillionsPerMl?: number | null;
     progressiveMotilityPercent?: number | null;
-    doseCount?: number | null;
-    doseSizeMillions?: number | null;
+    targetMotileSpermMillionsPerDose?: number | null;
+    targetPostExtensionConcentrationMillionsPerMl?: number | null;
     notes?: string | null;
   },
 ): Promise<void> {
   const db = await getDb();
-  await assertCollectionDoseCountCanBeUpdated(db, id, input.doseCount ?? null);
+  await assertCollectionRawVolumeCanBeUpdated(db, id, input.rawVolumeMl ?? null);
 
   await db.runAsync(
     `UPDATE semen_collections
      SET
        collection_date = ?,
        raw_volume_ml = ?,
-       extended_volume_ml = ?,
-       extender_volume_ml = ?,
        extender_type = ?,
        concentration_millions_per_ml = ?,
        progressive_motility_percent = ?,
-       dose_count = ?,
-       dose_size_millions = ?,
+       target_motile_sperm_millions_per_dose = ?,
+       target_post_extension_concentration_millions_per_ml = ?,
         notes = ?,
         updated_at = ?
      WHERE id = ?;`,
     [
       input.collectionDate,
       input.rawVolumeMl ?? null,
-      input.totalVolumeMl ?? null,
-      input.extenderVolumeMl ?? null,
       input.extenderType ?? null,
       input.concentrationMillionsPerMl ?? null,
       input.progressiveMotilityPercent ?? null,
-      input.doseCount ?? null,
-      input.doseSizeMillions ?? null,
+      input.targetMotileSpermMillionsPerDose ?? null,
+      input.targetPostExtensionConcentrationMillionsPerMl ?? null,
       input.notes ?? null,
       new Date().toISOString(),
       id,

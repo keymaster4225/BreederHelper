@@ -4,15 +4,15 @@ import { getOnboardingComplete } from '@/utils/onboarding';
 import {
   BACKUP_SCHEMA_VERSION_CURRENT,
   type BackupBreedingRecordRow,
-  type BackupCollectionDoseEventRow,
+  type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV2,
+  type BackupEnvelopeV3,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
   type BackupMareRow,
   type BackupMedicationLogRow,
   type BackupPregnancyCheckRow,
-  type BackupSemenCollectionRow,
+  type BackupSemenCollectionRowV3,
   type BackupStallionRow,
 } from './types';
 
@@ -28,7 +28,7 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV2> {
+export async function serializeBackup(): Promise<BackupEnvelopeV3> {
   const db = await getDb();
 
   const [
@@ -196,20 +196,18 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
       ORDER BY date DESC, id ASC;
       `,
     ),
-    db.getAllAsync<BackupSemenCollectionRow>(
+    db.getAllAsync<BackupSemenCollectionRowV3>(
       `
       SELECT
         id,
         stallion_id,
         collection_date,
         raw_volume_ml,
-        extended_volume_ml,
-        extender_volume_ml,
         extender_type,
         concentration_millions_per_ml,
         progressive_motility_percent,
-        dose_count,
-        dose_size_millions,
+        target_motile_sperm_millions_per_dose,
+        target_post_extension_concentration_millions_per_ml,
         notes,
         created_at,
         updated_at
@@ -217,7 +215,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
       ORDER BY collection_date DESC, id ASC;
       `,
     ),
-    db.getAllAsync<BackupCollectionDoseEventRow>(
+    db.getAllAsync<BackupCollectionDoseEventRowV3>(
       `
       SELECT
         id,
@@ -233,6 +231,8 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
         container_type,
         tracking_number,
         breeding_record_id,
+        dose_semen_volume_ml,
+        dose_extender_volume_ml,
         dose_count,
         event_date,
         notes,

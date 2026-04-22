@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cloneBackupFixture } from './testFixtures';
+import { cloneBackupFixture, createBackupFixtureV2 } from './testFixtures';
 import { validateBackup, validateBackupJson } from './validate';
 
 describe('validateBackup', () => {
@@ -136,7 +136,7 @@ describe('validateBackup', () => {
   });
 
   it('accepts v2 collection dose events without the new optional shipping fields', () => {
-    const backup = cloneBackupFixture();
+    const backup = createBackupFixtureV2();
     const result = validateBackup({
       ...backup,
       tables: {
@@ -182,20 +182,24 @@ describe('validateBackup', () => {
     expect(result.error.message).toContain('references missing breeding record');
   });
 
-  it('rejects collection dose totals that exceed the semen collection dose count', () => {
+  it('rejects collection allocations that exceed collection raw volume using semen-volume math', () => {
     const backup = cloneBackupFixture();
     const result = validateBackup({
       ...backup,
       tables: {
         ...backup.tables,
         semen_collections: backup.tables.semen_collections.map((row, index) =>
-          index === 0 ? { ...row, dose_count: 1 } : row,
+          index === 0 ? { ...row, raw_volume_ml: 75 } : row,
         ),
         collection_dose_events: [
           ...backup.tables.collection_dose_events,
           {
             ...backup.tables.collection_dose_events[0]!,
             id: 'event-2',
+            event_type: 'shipped',
+            recipient: 'Farm ABC',
+            dose_semen_volume_ml: 30,
+            dose_extender_volume_ml: 10,
             dose_count: 1,
           },
         ],
@@ -208,8 +212,67 @@ describe('validateBackup', () => {
     }
 
     expect(result.error.table).toBe('semen_collections');
+    expect(result.error.field).toBe('raw_volume_ml');
+    expect(result.error.message).toContain('linked allocated semen volume');
+  });
+
+  it('rejects v3 usedOnSite rows when dose_count is not 1', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        collection_dose_events: backup.tables.collection_dose_events.map((row, index) =>
+          index === 0 ? { ...row, dose_count: 2 } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('collection_dose_events');
     expect(result.error.field).toBe('dose_count');
-    expect(result.error.message).toContain('sum of linked dose events');
+    expect(result.error.message).toContain('must be 1 for usedOnSite rows');
+  });
+
+  it('rejects v3 usedOnSite rows when extender volume is present', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        collection_dose_events: backup.tables.collection_dose_events.map((row, index) =>
+          index === 0 ? { ...row, dose_extender_volume_ml: 1 } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('collection_dose_events');
+    expect(result.error.field).toBe('dose_extender_volume_ml');
+    expect(result.error.message).toContain('must be null for usedOnSite rows');
+  });
+
+  it('accepts v2 usedOnSite rows with legacy dose_count values for restore canonicalization', () => {
+    const backup = createBackupFixtureV2();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        collection_dose_events: backup.tables.collection_dose_events.map((row, index) =>
+          index === 0 ? { ...row, dose_count: 3 } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(true);
   });
 
   it('accepts preserved future-format foal igg entries that do not match the current schema', () => {
@@ -307,7 +370,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 3,
+      schemaVersion: 4,
     });
 
     const result = validateBackupJson(jsonText);

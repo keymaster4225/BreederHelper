@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -7,6 +7,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 
@@ -25,11 +26,12 @@ import {
   UUID,
 } from '@/models/types';
 import { createDoseEvent, updateDoseEvent } from '@/storage/repositories';
-import { borderRadius, colors, spacing } from '@/theme';
+import { borderRadius, colors, spacing, typography } from '@/theme';
 import { CARRIER_SERVICES, getCarrierServiceSuggestions } from '@/utils/carrierServices';
 import { CONTAINER_TYPES, getContainerTypeSuggestions } from '@/utils/containerTypes';
 import {
   parseOptionalInteger,
+  parseOptionalNumber,
   validateLocalDate,
   validateLocalDateNotInFuture,
   validateNumberRange,
@@ -55,7 +57,17 @@ type FormErrors = {
   containerType?: string;
   eventDate?: string;
   doseCount?: string;
+  doseSemenVolumeMl?: string;
+  doseExtenderVolumeMl?: string;
 };
+
+function isFiniteNumber(value: number | null): value is number {
+  return value != null && Number.isFinite(value);
+}
+
+function formatMl(value: number | null): string {
+  return value == null ? 'Enter values to calculate' : `${value.toFixed(2)} mL`;
+}
 
 export function DoseEventModal({
   visible,
@@ -76,6 +88,8 @@ export function DoseEventModal({
   const [trackingNumber, setTrackingNumber] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [doseCount, setDoseCount] = useState('');
+  const [doseSemenVolumeMl, setDoseSemenVolumeMl] = useState('');
+  const [doseExtenderVolumeMl, setDoseExtenderVolumeMl] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
@@ -96,13 +110,48 @@ export function DoseEventModal({
     setTrackingNumber(event?.trackingNumber ?? '');
     setEventDate(event?.eventDate ?? '');
     setDoseCount(event?.doseCount != null ? String(event.doseCount) : '');
+    setDoseSemenVolumeMl(
+      event?.doseSemenVolumeMl != null ? String(event.doseSemenVolumeMl) : '',
+    );
+    setDoseExtenderVolumeMl(
+      event?.doseExtenderVolumeMl != null ? String(event.doseExtenderVolumeMl) : '',
+    );
     setNotes(event?.notes ?? '');
     setErrors({});
     setIsSaving(false);
   }, [event, visible]);
 
+  const totalPerDoseMl = useMemo(() => {
+    const semen = parseOptionalNumber(doseSemenVolumeMl);
+    const extender = parseOptionalNumber(doseExtenderVolumeMl);
+    if (!isFiniteNumber(semen) || !isFiniteNumber(extender)) {
+      return null;
+    }
+    return semen + extender;
+  }, [doseExtenderVolumeMl, doseSemenVolumeMl]);
+
+  const totalSemenUsedMl = useMemo(() => {
+    const semen = parseOptionalNumber(doseSemenVolumeMl);
+    const count = parseOptionalInteger(doseCount);
+    if (!isFiniteNumber(semen) || !isFiniteNumber(count)) {
+      return null;
+    }
+    return semen * count;
+  }, [doseCount, doseSemenVolumeMl]);
+
+  const totalExtenderUsedMl = useMemo(() => {
+    const extender = parseOptionalNumber(doseExtenderVolumeMl);
+    const count = parseOptionalInteger(doseCount);
+    if (!isFiniteNumber(extender) || !isFiniteNumber(count)) {
+      return null;
+    }
+    return extender * count;
+  }, [doseCount, doseExtenderVolumeMl]);
+
   const validate = (): FormErrors => {
     const parsedDoseCount = parseOptionalInteger(doseCount);
+    const parsedDoseSemenVolumeMl = parseOptionalNumber(doseSemenVolumeMl);
+    const parsedDoseExtenderVolumeMl = parseOptionalNumber(doseExtenderVolumeMl);
 
     return {
       recipient: validateRequired(recipient, 'Recipient name') ?? undefined,
@@ -117,7 +166,28 @@ export function DoseEventModal({
         validateLocalDate(eventDate, 'Ship date', true) ??
         validateLocalDateNotInFuture(eventDate) ??
         undefined,
-      doseCount: validateNumberRange(parsedDoseCount, 'Dose Count', 1, 1000) ?? undefined,
+      doseCount:
+        parsedDoseCount == null
+          ? 'Dose Count is required.'
+          : validateNumberRange(parsedDoseCount, 'Dose Count', 1, 1000) ?? undefined,
+      doseSemenVolumeMl:
+        parsedDoseSemenVolumeMl == null
+          ? 'Dose Semen Volume (mL) is required.'
+          : validateNumberRange(
+              parsedDoseSemenVolumeMl,
+              'Dose Semen Volume (mL)',
+              0.01,
+              1000,
+            ) ?? undefined,
+      doseExtenderVolumeMl:
+        parsedDoseExtenderVolumeMl == null
+          ? 'Dose Extender Volume (mL) is required.'
+          : validateNumberRange(
+              parsedDoseExtenderVolumeMl,
+              'Dose Extender Volume (mL)',
+              0,
+              1000,
+            ) ?? undefined,
     };
   };
 
@@ -126,6 +196,19 @@ export function DoseEventModal({
     setErrors(nextErrors);
 
     if (Object.values(nextErrors).some(Boolean)) {
+      return;
+    }
+
+    const parsedDoseCount = parseOptionalInteger(doseCount);
+    const parsedDoseSemenVolumeMl = parseOptionalNumber(doseSemenVolumeMl);
+    const parsedDoseExtenderVolumeMl = parseOptionalNumber(doseExtenderVolumeMl);
+
+    if (
+      !isFiniteNumber(parsedDoseCount) ||
+      !isFiniteNumber(parsedDoseSemenVolumeMl) ||
+      !isFiniteNumber(parsedDoseExtenderVolumeMl)
+    ) {
+      Alert.alert('Save error', 'Shipment dose values are invalid.');
       return;
     }
 
@@ -143,7 +226,9 @@ export function DoseEventModal({
         carrierService: carrierService.trim(),
         containerType: containerType.trim(),
         trackingNumber: trackingNumber.trim() || null,
-        doseCount: parseOptionalInteger(doseCount),
+        doseCount: parsedDoseCount,
+        doseSemenVolumeMl: parsedDoseSemenVolumeMl,
+        doseExtenderVolumeMl: parsedDoseExtenderVolumeMl,
         eventDate: eventDate.trim(),
         notes: notes.trim() || null,
       };
@@ -162,6 +247,8 @@ export function DoseEventModal({
           containerType: createInput.containerType,
           trackingNumber: createInput.trackingNumber,
           doseCount: createInput.doseCount,
+          doseSemenVolumeMl: createInput.doseSemenVolumeMl,
+          doseExtenderVolumeMl: createInput.doseExtenderVolumeMl,
           eventDate: createInput.eventDate,
           notes: createInput.notes,
         };
@@ -258,6 +345,29 @@ export function DoseEventModal({
                 <FormTextInput value={doseCount} onChangeText={setDoseCount} keyboardType="numeric" />
               </FormField>
 
+              <FormField label="Dose Semen Volume (mL)" required error={errors.doseSemenVolumeMl}>
+                <FormTextInput
+                  value={doseSemenVolumeMl}
+                  onChangeText={setDoseSemenVolumeMl}
+                  keyboardType="decimal-pad"
+                />
+              </FormField>
+
+              <FormField label="Dose Extender Volume (mL)" required error={errors.doseExtenderVolumeMl}>
+                <FormTextInput
+                  value={doseExtenderVolumeMl}
+                  onChangeText={setDoseExtenderVolumeMl}
+                  keyboardType="decimal-pad"
+                />
+              </FormField>
+
+              <View style={styles.totalsCard}>
+                <Text style={styles.totalsHeading}>Shipment Totals</Text>
+                <Text style={styles.totalsLine}>{`Per-dose total: ${formatMl(totalPerDoseMl)}`}</Text>
+                <Text style={styles.totalsLine}>{`Total semen used: ${formatMl(totalSemenUsedMl)}`}</Text>
+                <Text style={styles.totalsLine}>{`Total extender used: ${formatMl(totalExtenderUsedMl)}`}</Text>
+              </View>
+
               <FormField label="Notes">
                 <FormTextInput value={notes} onChangeText={setNotes} multiline placeholder="Optional" />
               </FormField>
@@ -298,6 +408,20 @@ const styles = StyleSheet.create({
   },
   formContent: {
     paddingBottom: spacing.sm,
+  },
+  totalsCard: {
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  totalsHeading: {
+    ...typography.labelLarge,
+    color: colors.onSurface,
+  },
+  totalsLine: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   actions: {
     gap: spacing.sm,

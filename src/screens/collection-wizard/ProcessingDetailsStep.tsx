@@ -1,67 +1,106 @@
+import { StyleSheet, Text, View } from 'react-native';
+
+import { CardRow, cardStyles } from '@/components/RecordCardParts';
 import { FormAutocompleteInput, FormField, FormTextInput } from '@/components/FormControls';
+import { colors, spacing, typography } from '@/theme';
 import { EXTENDER_TYPES, getExtenderTypeSuggestions } from '@/utils/extenderTypes';
+import type { CollectionMathDerived } from '@/utils/collectionCalculator';
 
 type Props = {
-  rawVolumeMl: string;
-  setRawVolumeMl: (value: string) => void;
-  totalVolumeMl: string;
-  setTotalVolumeMl: (value: string) => void;
-  extenderVolumeMl: string;
-  setExtenderVolumeMl: (value: string) => void;
+  rawVolumeMl: number | null;
+  concentrationMillionsPerMl: number | null;
+  progressiveMotilityPercent: number | null;
+  targetMotileSpermMillionsPerDose: string;
+  setTargetMotileSpermMillionsPerDose: (value: string) => void;
+  targetPostExtensionConcentrationMillionsPerMl: string;
+  setTargetPostExtensionConcentrationMillionsPerMl: (value: string) => void;
   extenderType: string;
   setExtenderType: (value: string) => void;
-  concentrationMillionsPerMl: string;
-  setConcentrationMillionsPerMl: (value: string) => void;
-  progressiveMotilityPercent: string;
-  setProgressiveMotilityPercent: (value: string) => void;
+  notes: string;
+  setNotes: (value: string) => void;
+  derivedMath: CollectionMathDerived;
   errors: {
-    rawVolumeMl?: string;
-    totalVolumeMl?: string;
-    extenderVolumeMl?: string;
-    concentrationMillionsPerMl?: string;
-    progressiveMotilityPercent?: string;
+    targetMotileSpermMillionsPerDose?: string;
+    targetPostExtensionConcentrationMillionsPerMl?: string;
   };
 };
 
+function formatMl(value: number | null): string {
+  return value == null ? '-' : `${value.toFixed(2)} mL`;
+}
+
+function formatApprox(value: number | null): string {
+  return value == null ? '-' : `~${value.toFixed(1)}`;
+}
+
 export function ProcessingDetailsStep({
   rawVolumeMl,
-  setRawVolumeMl,
-  totalVolumeMl,
-  setTotalVolumeMl,
-  extenderVolumeMl,
-  setExtenderVolumeMl,
+  concentrationMillionsPerMl,
+  progressiveMotilityPercent,
+  targetMotileSpermMillionsPerDose,
+  setTargetMotileSpermMillionsPerDose,
+  targetPostExtensionConcentrationMillionsPerMl,
+  setTargetPostExtensionConcentrationMillionsPerMl,
   extenderType,
   setExtenderType,
-  concentrationMillionsPerMl,
-  setConcentrationMillionsPerMl,
-  progressiveMotilityPercent,
-  setProgressiveMotilityPercent,
+  notes,
+  setNotes,
+  derivedMath,
   errors,
 }: Props): JSX.Element {
+  const hasDerivedValues =
+    derivedMath.semenPerDoseMl != null ||
+    derivedMath.extenderPerDoseMl != null ||
+    derivedMath.doseVolumeMl != null ||
+    derivedMath.maxDoses != null;
+
   return (
     <>
-      <FormField label="Raw Volume (mL)" error={errors.rawVolumeMl}>
+      <View style={styles.chipSection}>
+        <Text style={styles.sectionTitle}>Pinned Inputs</Text>
+        <View style={styles.chipWrap}>
+          <View style={styles.chip}>
+            <Text style={styles.chipLabel}>Total Volume</Text>
+            <Text style={styles.chipValue}>
+              {rawVolumeMl == null ? '-' : `${rawVolumeMl.toFixed(2)} mL`}
+            </Text>
+          </View>
+          <View style={styles.chip}>
+            <Text style={styles.chipLabel}>Concentration</Text>
+            <Text style={styles.chipValue}>
+              {concentrationMillionsPerMl == null
+                ? '-'
+                : `${concentrationMillionsPerMl.toFixed(2)} M/mL`}
+            </Text>
+          </View>
+          <View style={styles.chip}>
+            <Text style={styles.chipLabel}>Motility</Text>
+            <Text style={styles.chipValue}>
+              {progressiveMotilityPercent == null ? '-' : `${progressiveMotilityPercent}%`}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <FormField
+        label="Target motile sperm / dose (M)"
+        error={errors.targetMotileSpermMillionsPerDose}
+      >
         <FormTextInput
-          value={rawVolumeMl}
-          onChangeText={setRawVolumeMl}
+          value={targetMotileSpermMillionsPerDose}
+          onChangeText={setTargetMotileSpermMillionsPerDose}
           placeholder="Optional"
           keyboardType="numeric"
         />
       </FormField>
 
-      <FormField label="Total Volume (mL)" error={errors.totalVolumeMl}>
+      <FormField
+        label="Target post-extension concentration (M motile/mL)"
+        error={errors.targetPostExtensionConcentrationMillionsPerMl}
+      >
         <FormTextInput
-          value={totalVolumeMl}
-          onChangeText={setTotalVolumeMl}
-          placeholder="Optional"
-          keyboardType="numeric"
-        />
-      </FormField>
-
-      <FormField label="Extender Volume (mL)" error={errors.extenderVolumeMl}>
-        <FormTextInput
-          value={extenderVolumeMl}
-          onChangeText={setExtenderVolumeMl}
+          value={targetPostExtensionConcentrationMillionsPerMl}
+          onChangeText={setTargetPostExtensionConcentrationMillionsPerMl}
           placeholder="Optional"
           keyboardType="numeric"
         />
@@ -79,23 +118,77 @@ export function ProcessingDetailsStep({
         />
       </FormField>
 
-      <FormField label="Concentration (M/mL)" error={errors.concentrationMillionsPerMl}>
+      <FormField label="Notes">
         <FormTextInput
-          value={concentrationMillionsPerMl}
-          onChangeText={setConcentrationMillionsPerMl}
+          value={notes}
+          onChangeText={setNotes}
+          multiline
           placeholder="Optional"
-          keyboardType="numeric"
         />
       </FormField>
 
-      <FormField label="Progressive Motility (%)" error={errors.progressiveMotilityPercent}>
-        <FormTextInput
-          value={progressiveMotilityPercent}
-          onChangeText={setProgressiveMotilityPercent}
-          placeholder="Optional"
-          keyboardType="numeric"
-        />
-      </FormField>
+      <View style={cardStyles.card}>
+        <Text style={styles.sectionTitle}>Derived Math</Text>
+        {hasDerivedValues ? (
+          <>
+            <CardRow label="Max Doses Possible" value={formatApprox(derivedMath.maxDoses)} />
+            <CardRow label="Semen Per Dose" value={formatMl(derivedMath.semenPerDoseMl)} />
+            <CardRow label="Extender Per Dose" value={formatMl(derivedMath.extenderPerDoseMl)} />
+            <CardRow label="Dose Volume" value={formatMl(derivedMath.doseVolumeMl)} />
+          </>
+        ) : (
+          <Text style={styles.infoText}>Enter targets to see per-dose math.</Text>
+        )}
+
+        {derivedMath.warnings.includes('negative-extender') ? (
+          <Text style={styles.warningText}>
+            Extender amount is negative. Target concentration is at or above raw motile concentration.
+          </Text>
+        ) : null}
+        {derivedMath.warnings.includes('target-exceeds-capacity') ? (
+          <Text style={styles.warningText}>
+            This target appears to exceed what the current collection can produce.
+          </Text>
+        ) : null}
+      </View>
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  chipSection: {
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    ...typography.titleSmall,
+    color: colors.onSurface,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  chip: {
+    backgroundColor: colors.surfaceVariant,
+    borderRadius: 999,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  chipLabel: {
+    ...typography.labelSmall,
+    color: colors.onSurfaceVariant,
+  },
+  chipValue: {
+    ...typography.labelLarge,
+    color: colors.onSurface,
+  },
+  infoText: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+  },
+  warningText: {
+    ...typography.bodySmall,
+    color: colors.error,
+  },
+});

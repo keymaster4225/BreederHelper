@@ -7,7 +7,6 @@ import { formStyles } from '@/components/FormControls';
 import { useCollectionWizard } from '@/hooks/useCollectionWizard';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { colors, spacing, typography } from '@/theme';
-import { parseOptionalInteger, parseOptionalNumber } from '@/utils/validation';
 import { CollectionBasicsStep } from './collection-wizard/CollectionBasicsStep';
 import { ProcessingDetailsStep } from './collection-wizard/ProcessingDetailsStep';
 import { DoseAllocationStep } from './collection-wizard/DoseAllocationStep';
@@ -34,26 +33,8 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
             <CollectionBasicsStep
               collectionDate={wizard.collectionDate}
               setCollectionDate={wizard.setCollectionDate}
-              doseCount={wizard.doseCount}
-              setDoseCount={wizard.setDoseCount}
-              doseSizeMillions={wizard.doseSizeMillions}
-              setDoseSizeMillions={wizard.setDoseSizeMillions}
-              notes={wizard.notes}
-              setNotes={wizard.setNotes}
-              errors={wizard.errors}
-            />
-          ) : null}
-
-          {wizard.currentStepIndex === 1 ? (
-            <ProcessingDetailsStep
               rawVolumeMl={wizard.rawVolumeMl}
               setRawVolumeMl={wizard.setRawVolumeMl}
-              totalVolumeMl={wizard.totalVolumeMl}
-              setTotalVolumeMl={wizard.setTotalVolumeMl}
-              extenderVolumeMl={wizard.extenderVolumeMl}
-              setExtenderVolumeMl={wizard.setExtenderVolumeMl}
-              extenderType={wizard.extenderType}
-              setExtenderType={wizard.setExtenderType}
               concentrationMillionsPerMl={wizard.concentrationMillionsPerMl}
               setConcentrationMillionsPerMl={wizard.setConcentrationMillionsPerMl}
               progressiveMotilityPercent={wizard.progressiveMotilityPercent}
@@ -62,43 +43,59 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
             />
           ) : null}
 
+          {wizard.currentStepIndex === 1 ? (
+            <ProcessingDetailsStep
+              rawVolumeMl={wizard.parsedRawVolumeMl}
+              concentrationMillionsPerMl={wizard.parsedConcentrationMillionsPerMl}
+              progressiveMotilityPercent={wizard.parsedProgressiveMotilityPercent}
+              targetMotileSpermMillionsPerDose={wizard.targetMotileSpermMillionsPerDose}
+              setTargetMotileSpermMillionsPerDose={wizard.setTargetMotileSpermMillionsPerDose}
+              targetPostExtensionConcentrationMillionsPerMl={wizard.targetPostExtensionConcentrationMillionsPerMl}
+              setTargetPostExtensionConcentrationMillionsPerMl={wizard.setTargetPostExtensionConcentrationMillionsPerMl}
+              extenderType={wizard.extenderType}
+              setExtenderType={wizard.setExtenderType}
+              notes={wizard.notes}
+              setNotes={wizard.setNotes}
+              derivedMath={wizard.derivedMath}
+              errors={wizard.errors}
+            />
+          ) : null}
+
           {wizard.currentStepIndex === 2 ? (
             <DoseAllocationStep
               collectionDate={wizard.collectionDate}
-              totalDoseCount={wizard.parsedDoseCount}
-              allocatedDoseCount={wizard.allocatedDoseCount}
-              remainingDoseCount={wizard.remainingDoseCount}
-              isOverAllocated={wizard.isOverAllocated}
-              shippedRows={wizard.shippedRows}
-              onFarmRows={wizard.onFarmRows}
+              rawVolumeMl={wizard.parsedRawVolumeMl}
+              remainingApproxDoses={wizard.remainingApproxDoses}
+              allocationRows={wizard.allocationRows}
+              allocationSummary={wizard.allocationSummary}
               mares={wizard.mares}
               mareNameById={wizard.mareNameById}
               mareLoadError={wizard.mareLoadError}
               allocationError={wizard.errors.allocation}
+              shippedPrefillDoseSemenVolumeMl={wizard.shippedPrefillDoseSemenVolumeMl}
+              shippedPrefillDoseExtenderVolumeMl={wizard.shippedPrefillDoseExtenderVolumeMl}
+              onFarmPrefillDoseSemenVolumeMl={wizard.onFarmPrefillDoseSemenVolumeMl}
               onSaveShippedRow={wizard.upsertShippedRow}
-              onRemoveShippedRow={wizard.removeShippedRow}
               onSaveOnFarmRow={wizard.upsertOnFarmRow}
-              onRemoveOnFarmRow={wizard.removeOnFarmRow}
+              onRemoveAllocationRow={wizard.removeAllocationRow}
             />
           ) : null}
 
           {wizard.currentStepIndex === 3 ? (
             <ReviewStep
               collectionDate={wizard.collectionDate}
-              doseCount={wizard.parsedDoseCount}
-              doseSizeMillions={parseOptionalNumber(wizard.doseSizeMillions)}
-              notes={wizard.notes}
-              rawVolumeMl={parseOptionalNumber(wizard.rawVolumeMl)}
-              totalVolumeMl={parseOptionalNumber(wizard.totalVolumeMl)}
-              extenderVolumeMl={parseOptionalNumber(wizard.extenderVolumeMl)}
+              rawVolumeMl={wizard.parsedRawVolumeMl}
+              concentrationMillionsPerMl={wizard.parsedConcentrationMillionsPerMl}
+              progressiveMotilityPercent={wizard.parsedProgressiveMotilityPercent}
+              targetMotileSpermMillionsPerDose={wizard.parsedTargetMotileSpermMillionsPerDose}
+              targetPostExtensionConcentrationMillionsPerMl={wizard.parsedTargetPostExtensionConcentrationMillionsPerMl}
               extenderType={wizard.extenderType}
-              concentrationMillionsPerMl={parseOptionalNumber(wizard.concentrationMillionsPerMl)}
-              progressiveMotilityPercent={parseOptionalInteger(wizard.progressiveMotilityPercent)}
-              shippedRows={wizard.shippedRows}
-              onFarmRows={wizard.onFarmRows}
+              notes={wizard.notes}
+              derivedMath={wizard.derivedMath}
+              allocationRows={wizard.allocationRows}
               mareNameById={wizard.mareNameById}
-              allocatedDoseCount={wizard.allocatedDoseCount}
-              remainingDoseCount={wizard.remainingDoseCount}
+              allocationSummary={wizard.allocationSummary}
+              remainingApproxDoses={wizard.remainingApproxDoses}
               onJumpToStep={wizard.goToStep}
             />
           ) : null}
@@ -110,7 +107,13 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
             {wizard.currentStepIndex < 3 ? (
               <PrimaryButton label="Next" onPress={wizard.goNext} disabled={wizard.isSaving} />
             ) : (
-              <PrimaryButton label="Save" onPress={() => { void wizard.save(); }} disabled={wizard.isSaving} />
+              <PrimaryButton
+                label="Save"
+                onPress={() => {
+                  void wizard.save();
+                }}
+                disabled={wizard.isSaveDisabled}
+              />
             )}
           </View>
         </ScrollView>

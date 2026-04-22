@@ -10,7 +10,8 @@ import type {
 
 export const BACKUP_SCHEMA_VERSION_V1 = 1 as const;
 export const BACKUP_SCHEMA_VERSION_V2 = 2 as const;
-export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V2;
+export const BACKUP_SCHEMA_VERSION_V3 = 3 as const;
+export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V3;
 
 export const BACKUP_TABLE_NAMES = [
   'mares',
@@ -190,7 +191,7 @@ export type BackupMedicationLogRow = {
   readonly updated_at: BackupIsoDateTime;
 };
 
-export type BackupSemenCollectionRow = {
+export type BackupSemenCollectionRowV2 = {
   readonly id: string;
   readonly stallion_id: string;
   readonly collection_date: BackupLocalDate;
@@ -207,7 +208,24 @@ export type BackupSemenCollectionRow = {
   readonly updated_at: BackupIsoDateTime;
 };
 
-export type BackupCollectionDoseEventRow = {
+export type BackupSemenCollectionRowV3 = {
+  readonly id: string;
+  readonly stallion_id: string;
+  readonly collection_date: BackupLocalDate;
+  readonly raw_volume_ml: number | null;
+  readonly extender_type: string | null;
+  readonly concentration_millions_per_ml: number | null;
+  readonly progressive_motility_percent: number | null;
+  readonly target_motile_sperm_millions_per_dose: number | null;
+  readonly target_post_extension_concentration_millions_per_ml: number | null;
+  readonly notes: string | null;
+  readonly created_at: BackupIsoDateTime;
+  readonly updated_at: BackupIsoDateTime;
+};
+
+export type BackupSemenCollectionRow = BackupSemenCollectionRowV2 | BackupSemenCollectionRowV3;
+
+export type BackupCollectionDoseEventRowV2 = {
   readonly id: string;
   readonly collection_id: string;
   readonly event_type: DoseEventType;
@@ -228,6 +246,33 @@ export type BackupCollectionDoseEventRow = {
   readonly updated_at: BackupIsoDateTime;
 };
 
+export type BackupCollectionDoseEventRowV3 = {
+  readonly id: string;
+  readonly collection_id: string;
+  readonly event_type: DoseEventType;
+  readonly recipient: string;
+  readonly recipient_phone: string | null;
+  readonly recipient_street: string | null;
+  readonly recipient_city: string | null;
+  readonly recipient_state: string | null;
+  readonly recipient_zip: string | null;
+  readonly carrier_service: string | null;
+  readonly container_type: string | null;
+  readonly tracking_number: string | null;
+  readonly breeding_record_id: string | null;
+  readonly dose_semen_volume_ml: number | null;
+  readonly dose_extender_volume_ml: number | null;
+  readonly dose_count: number | null;
+  readonly event_date: BackupLocalDate | null;
+  readonly notes: string | null;
+  readonly created_at: BackupIsoDateTime;
+  readonly updated_at: BackupIsoDateTime;
+};
+
+export type BackupCollectionDoseEventRow =
+  | BackupCollectionDoseEventRowV2
+  | BackupCollectionDoseEventRowV3;
+
 export type BackupTablesV1 = {
   readonly mares: readonly BackupMareRowV1[];
   readonly stallions: readonly BackupStallionRow[];
@@ -237,8 +282,8 @@ export type BackupTablesV1 = {
   readonly foaling_records: readonly BackupFoalingRecordRow[];
   readonly foals: readonly BackupFoalRow[];
   readonly medication_logs: readonly BackupMedicationLogRow[];
-  readonly semen_collections: readonly BackupSemenCollectionRow[];
-  readonly collection_dose_events: readonly BackupCollectionDoseEventRow[];
+  readonly semen_collections: readonly BackupSemenCollectionRowV2[];
+  readonly collection_dose_events: readonly BackupCollectionDoseEventRowV2[];
 };
 
 export type BackupTablesV2 = {
@@ -250,8 +295,21 @@ export type BackupTablesV2 = {
   readonly foaling_records: readonly BackupFoalingRecordRow[];
   readonly foals: readonly BackupFoalRow[];
   readonly medication_logs: readonly BackupMedicationLogRow[];
-  readonly semen_collections: readonly BackupSemenCollectionRow[];
-  readonly collection_dose_events: readonly BackupCollectionDoseEventRow[];
+  readonly semen_collections: readonly BackupSemenCollectionRowV2[];
+  readonly collection_dose_events: readonly BackupCollectionDoseEventRowV2[];
+};
+
+export type BackupTablesV3 = {
+  readonly mares: readonly BackupMareRowV2[];
+  readonly stallions: readonly BackupStallionRow[];
+  readonly daily_logs: readonly BackupDailyLogRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
+  readonly foaling_records: readonly BackupFoalingRecordRow[];
+  readonly foals: readonly BackupFoalRow[];
+  readonly medication_logs: readonly BackupMedicationLogRow[];
+  readonly semen_collections: readonly BackupSemenCollectionRowV3[];
+  readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
 };
 
 export type BackupEnvelopeV1 = {
@@ -270,7 +328,15 @@ export type BackupEnvelopeV2 = {
   readonly tables: BackupTablesV2;
 };
 
-export type BackupEnvelope = BackupEnvelopeV1 | BackupEnvelopeV2;
+export type BackupEnvelopeV3 = {
+  readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V3;
+  readonly createdAt: BackupIsoDateTime;
+  readonly app: BackupAppMetadata;
+  readonly settings: BackupSettings;
+  readonly tables: BackupTablesV3;
+};
+
+export type BackupEnvelope = BackupEnvelopeV1 | BackupEnvelopeV2 | BackupEnvelopeV3;
 
 export type BackupPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;

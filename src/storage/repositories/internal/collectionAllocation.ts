@@ -1,23 +1,25 @@
 import type * as SQLite from 'expo-sqlite';
 
-type CollectionDoseCountRow = {
-  dose_count: number | null;
+import { computeAllocationSummary } from '@/utils/collectionAllocation';
+
+type CollectionRawVolumeRow = {
+  raw_volume_ml: number | null;
 };
 
-type AllocatedDoseCountRow = {
-  allocated_dose_count: number;
+type AllocatedSemenVolumeRow = {
+  allocated_semen_volume_ml: number;
 };
 
-export type AllocatedDoseCountOptions = {
+export type AllocatedSemenVolumeOptions = {
   excludeDoseEventId?: string;
 };
 
-export async function getCollectionDoseCount(
+export async function getCollectionRawVolumeMl(
   db: SQLite.SQLiteDatabase,
   collectionId: string,
 ): Promise<number | null> {
-  const row = await db.getFirstAsync<CollectionDoseCountRow>(
-    'SELECT dose_count FROM semen_collections WHERE id = ?;',
+  const row = await db.getFirstAsync<CollectionRawVolumeRow>(
+    'SELECT raw_volume_ml FROM semen_collections WHERE id = ?;',
     [collectionId],
   );
 
@@ -25,69 +27,99 @@ export async function getCollectionDoseCount(
     throw new Error('Collection not found.');
   }
 
-  return row.dose_count;
+  return row.raw_volume_ml;
 }
 
-export async function getAllocatedDoseCountForCollectionDb(
+export async function getAllocatedSemenVolumeForCollectionDb(
   db: SQLite.SQLiteDatabase,
   collectionId: string,
-  options?: AllocatedDoseCountOptions,
+  options?: AllocatedSemenVolumeOptions,
 ): Promise<number> {
   const params: string[] = [collectionId];
-  const exclusionClause = options?.excludeDoseEventId
-    ? 'AND id <> ?'
-    : '';
+  const exclusionClause = options?.excludeDoseEventId ? 'AND id <> ?' : '';
 
   if (options?.excludeDoseEventId) {
     params.push(options.excludeDoseEventId);
   }
 
-  const row = await db.getFirstAsync<AllocatedDoseCountRow>(
+  const row = await db.getFirstAsync<AllocatedSemenVolumeRow>(
     `
-    SELECT COALESCE(SUM(COALESCE(dose_count, 0)), 0) AS allocated_dose_count
+    SELECT COALESCE(SUM(dose_semen_volume_ml * COALESCE(dose_count, 0)), 0) AS allocated_semen_volume_ml
     FROM collection_dose_events
     WHERE collection_id = ?
+      AND dose_semen_volume_ml IS NOT NULL
       ${exclusionClause};
     `,
     params,
   );
 
-  return row?.allocated_dose_count ?? 0;
+  return row?.allocated_semen_volume_ml ?? 0;
 }
 
-export async function assertCollectionDoseCountCanSupportAllocations(
+export async function assertCollectionSemenVolumeCanSupportAllocation(
   db: SQLite.SQLiteDatabase,
   collectionId: string,
-  doseCountToAllocate: number,
-  options?: AllocatedDoseCountOptions,
+  doseSemenVolumeMl: number | null,
+  doseCount: number,
+  options?: AllocatedSemenVolumeOptions,
 ): Promise<void> {
-  const collectionDoseCount = await getCollectionDoseCount(db, collectionId);
-
-  if (collectionDoseCount == null) {
-    throw new Error('Dose count is required on the collection before allocating doses.');
-  }
-
-  const allocatedDoseCount = await getAllocatedDoseCountForCollectionDb(db, collectionId, options);
-  if (allocatedDoseCount + doseCountToAllocate > collectionDoseCount) {
-    throw new Error('Allocated doses cannot exceed the collection dose count.');
-  }
-}
-
-export async function assertCollectionDoseCountCanBeUpdated(
-  db: SQLite.SQLiteDatabase,
-  collectionId: string,
-  nextDoseCount: number | null,
-): Promise<void> {
-  const allocatedDoseCount = await getAllocatedDoseCountForCollectionDb(db, collectionId);
-
-  if (nextDoseCount == null) {
-    if (allocatedDoseCount > 0) {
-      throw new Error('Dose count cannot be cleared while allocations exist.');
-    }
+  if (doseSemenVolumeMl == null) {
     return;
   }
 
-  if (allocatedDoseCount > nextDoseCount) {
-    throw new Error('Dose count cannot be lower than the allocated dose total.');
+  const rawVolumeMl = await getCollectionRawVolumeMl(db, collectionId);
+  const allocatedSemenMl = await getAllocatedSemenVolumeForCollectionDb(db, collectionId, options);
+  const summary = computeAllocationSummary(
+    [
+      {
+        doseSemenVolumeMl: allocatedSemenMl,
+        doseCount: 1,
+      },
+      {
+        doseSemenVolumeMl,
+        doseCount,
+      },
+    ],
+    rawVolumeMl,
+  );
+
+  if (!summary.isWithinCap) {
+    throw new Error('Allocated semen volume cannot exceed the collection total volume.');
+  }
+}
+
+export async function assertCollectionRawVolumeCanBeUpdated(
+  db: SQLite.SQLiteDatabase,
+  collectionId: string,
+  nextRawVolumeMl: number | null,
+): Promise<void> {
+  if (nextRawVolumeMl == null) {
+    return;
+  }
+
+  const allocatedSemenMl = await getAllocatedSemenVolumeForCollectionDb(db, collectionId);
+  if (allocatedSemenMl > nextRawVolumeMl) {
+    throw new Error('Total volume cannot be lower than the allocated semen volume.');
+  }
+}
+
+export async function assertCollectionSemenVolumeWithinCap(
+  db: SQLite.SQLiteDatabase,
+  collectionId: string,
+): Promise<void> {
+  const rawVolumeMl = await getCollectionRawVolumeMl(db, collectionId);
+  const allocatedSemenMl = await getAllocatedSemenVolumeForCollectionDb(db, collectionId);
+  const summary = computeAllocationSummary(
+    [
+      {
+        doseSemenVolumeMl: allocatedSemenMl,
+        doseCount: 1,
+      },
+    ],
+    rawVolumeMl,
+  );
+
+  if (!summary.isWithinCap) {
+    throw new Error('Allocated semen volume cannot exceed the collection total volume.');
   }
 }

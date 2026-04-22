@@ -4,95 +4,127 @@ import { Alert, StyleSheet, Text, View } from 'react-native';
 import { IconButton, SecondaryButton } from '@/components/Buttons';
 import { CardRow, cardStyles } from '@/components/RecordCardParts';
 import {
+  CollectionWizardAllocationRow,
   CollectionWizardOnFarmRow,
+  CollectionWizardOnFarmRowInput,
   CollectionWizardShippedRow,
+  CollectionWizardShippedRowInput,
 } from '@/hooks/useCollectionWizard';
 import { Mare } from '@/models/types';
 import { colors, spacing, typography } from '@/theme';
+import type { AllocationSummary } from '@/utils/collectionAllocation';
 import { formatLocalDate } from '@/utils/dates';
 import { OnFarmMareRowEditor } from './OnFarmMareRowEditor';
 import { ShippedDoseRowEditor } from './ShippedDoseRowEditor';
 
 type Props = {
   collectionDate: string;
-  totalDoseCount: number | null;
-  allocatedDoseCount: number;
-  remainingDoseCount: number | null;
-  isOverAllocated: boolean;
-  shippedRows: readonly CollectionWizardShippedRow[];
-  onFarmRows: readonly CollectionWizardOnFarmRow[];
+  rawVolumeMl: number | null;
+  remainingApproxDoses: number | null;
+  allocationRows: readonly CollectionWizardAllocationRow[];
+  allocationSummary: AllocationSummary;
   mares: readonly Mare[];
   mareNameById: Record<string, string>;
   mareLoadError: string | null;
   allocationError?: string;
-  onSaveShippedRow: (row: CollectionWizardShippedRow, index?: number) => void;
-  onRemoveShippedRow: (index: number) => void;
-  onSaveOnFarmRow: (row: CollectionWizardOnFarmRow, index?: number) => string | null;
-  onRemoveOnFarmRow: (index: number) => void;
+  shippedPrefillDoseSemenVolumeMl: number | null;
+  shippedPrefillDoseExtenderVolumeMl: number | null;
+  onFarmPrefillDoseSemenVolumeMl: number | null;
+  onSaveShippedRow: (row: CollectionWizardShippedRowInput, clientId?: string) => void;
+  onSaveOnFarmRow: (row: CollectionWizardOnFarmRowInput, clientId?: string) => string | null;
+  onRemoveAllocationRow: (clientId: string) => void;
 };
+
+function formatMl(value: number): string {
+  return `${value.toFixed(2)} mL`;
+}
 
 export function DoseAllocationStep({
   collectionDate,
-  totalDoseCount,
-  allocatedDoseCount,
-  remainingDoseCount,
-  isOverAllocated,
-  shippedRows,
-  onFarmRows,
+  rawVolumeMl,
+  remainingApproxDoses,
+  allocationRows,
+  allocationSummary,
   mares,
   mareNameById,
   mareLoadError,
   allocationError,
+  shippedPrefillDoseSemenVolumeMl,
+  shippedPrefillDoseExtenderVolumeMl,
+  onFarmPrefillDoseSemenVolumeMl,
   onSaveShippedRow,
-  onRemoveShippedRow,
   onSaveOnFarmRow,
-  onRemoveOnFarmRow,
+  onRemoveAllocationRow,
 }: Props): JSX.Element {
-  const [editingShippedIndex, setEditingShippedIndex] = useState<number | null>(null);
-  const [editingOnFarmIndex, setEditingOnFarmIndex] = useState<number | null>(null);
+  const [editingShippedClientId, setEditingShippedClientId] = useState<string | null>(null);
+  const [editingOnFarmClientId, setEditingOnFarmClientId] = useState<string | null>(null);
   const [isShippedEditorOpen, setIsShippedEditorOpen] = useState(false);
   const [isOnFarmEditorOpen, setIsOnFarmEditorOpen] = useState(false);
 
-  const editingShippedRow = editingShippedIndex == null ? undefined : shippedRows[editingShippedIndex];
-  const editingOnFarmRow = editingOnFarmIndex == null ? undefined : onFarmRows[editingOnFarmIndex];
+  const editingShippedRow = useMemo(() => {
+    if (editingShippedClientId == null) {
+      return undefined;
+    }
+
+    const match = allocationRows.find(
+      (row): row is CollectionWizardShippedRow =>
+        row.kind === 'shipped' && row.clientId === editingShippedClientId,
+    );
+    return match;
+  }, [allocationRows, editingShippedClientId]);
+
+  const editingOnFarmRow = useMemo(() => {
+    if (editingOnFarmClientId == null) {
+      return undefined;
+    }
+
+    const match = allocationRows.find(
+      (row): row is CollectionWizardOnFarmRow =>
+        row.kind === 'usedOnSite' && row.clientId === editingOnFarmClientId,
+    );
+    return match;
+  }, [allocationRows, editingOnFarmClientId]);
 
   const availableMares = useMemo(() => {
     const selectedMareIds = new Set(
-      onFarmRows
-        .filter((_, index) => index !== editingOnFarmIndex)
+      allocationRows
+        .filter(
+          (row): row is CollectionWizardOnFarmRow =>
+            row.kind === 'usedOnSite' && row.clientId !== editingOnFarmClientId,
+        )
         .map((row) => row.mareId),
     );
 
     return mares.filter((mare) => !selectedMareIds.has(mare.id));
-  }, [editingOnFarmIndex, mares, onFarmRows]);
+  }, [allocationRows, editingOnFarmClientId, mares]);
 
   const openNewShippedRow = (): void => {
-    setEditingShippedIndex(null);
+    setEditingShippedClientId(null);
     setIsShippedEditorOpen(true);
   };
 
-  const openEditShippedRow = (index: number): void => {
-    setEditingShippedIndex(index);
+  const openEditShippedRow = (clientId: string): void => {
+    setEditingShippedClientId(clientId);
     setIsShippedEditorOpen(true);
   };
 
   const closeShippedEditor = (): void => {
-    setEditingShippedIndex(null);
+    setEditingShippedClientId(null);
     setIsShippedEditorOpen(false);
   };
 
   const openNewOnFarmRow = (): void => {
-    setEditingOnFarmIndex(null);
+    setEditingOnFarmClientId(null);
     setIsOnFarmEditorOpen(true);
   };
 
-  const openEditOnFarmRow = (index: number): void => {
-    setEditingOnFarmIndex(index);
+  const openEditOnFarmRow = (clientId: string): void => {
+    setEditingOnFarmClientId(clientId);
     setIsOnFarmEditorOpen(true);
   };
 
   const closeOnFarmEditor = (): void => {
-    setEditingOnFarmIndex(null);
+    setEditingOnFarmClientId(null);
     setIsOnFarmEditorOpen(false);
   };
 
@@ -100,78 +132,129 @@ export function DoseAllocationStep({
     <>
       <View style={cardStyles.card}>
         <Text style={styles.sectionTitle}>Allocation Summary</Text>
-        <CardRow label="Total Doses" value={totalDoseCount == null ? '-' : totalDoseCount} />
-        <CardRow label="Allocated" value={allocatedDoseCount} />
-        <CardRow label="Remaining" value={remainingDoseCount == null ? '-' : remainingDoseCount} />
-        {allocationError ? <Text style={styles.errorText}>{allocationError}</Text> : null}
-        {!allocationError && isOverAllocated ? (
-          <Text style={styles.errorText}>Allocated doses cannot exceed the collection dose count.</Text>
-        ) : null}
-      </View>
-
-      <View style={styles.sectionWrap}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Shipped</Text>
-          <SecondaryButton label="Add Shipment" onPress={openNewShippedRow} />
-        </View>
-
-        {shippedRows.length === 0 ? (
-          <Text style={styles.emptyText}>No shipped allocations added.</Text>
-        ) : (
-          <View style={cardStyles.listWrap}>
-            {shippedRows.map((row, index) => (
-              <View key={`shipped-${index}`} style={cardStyles.card}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>{row.recipient}</Text>
-                  <View style={styles.cardActions}>
-                    <IconButton icon={'\u270E'} onPress={() => openEditShippedRow(index)} accessibilityLabel="Edit shipment" />
-                    <IconButton icon={'\u2715'} onPress={() => onRemoveShippedRow(index)} accessibilityLabel="Delete shipment" />
-                  </View>
-                </View>
-                <CardRow label="Ship Date" value={formatLocalDate(row.eventDate, 'MM-DD-YYYY')} />
-                <CardRow label="Dose Count" value={row.doseCount} />
-                <CardRow label="Carrier / Service" value={row.carrierService} />
-                <CardRow label="Container" value={row.containerType} />
-                <CardRow label="Phone" value={row.recipientPhone} />
-                <CardRow
-                  label="Address"
-                  value={`${row.recipientStreet}, ${row.recipientCity}, ${row.recipientState} ${row.recipientZip}`}
-                />
-                {row.trackingNumber ? <CardRow label="Tracking" value={row.trackingNumber} /> : null}
-                {row.notes ? <CardRow label="Notes" value={row.notes} /> : null}
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-
-      <View style={styles.sectionWrap}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>On-Farm</Text>
-          <SecondaryButton
-            label="Add On-Farm"
-            onPress={openNewOnFarmRow}
-            disabled={mares.length === 0}
+        {rawVolumeMl == null ? (
+          <CardRow
+            label="Semen Used"
+            value={formatMl(allocationSummary.totalAllocatedMl)}
           />
+        ) : (
+          <CardRow
+            label="Semen Used"
+            value={`${allocationSummary.totalAllocatedMl.toFixed(2)} / ${rawVolumeMl.toFixed(2)} mL`}
+          />
+        )}
+
+        {allocationSummary.remainingMl == null ? (
+          <Text style={styles.infoText}>Total volume not recorded - allocation not capped.</Text>
+        ) : (
+          <CardRow
+            label="Remaining"
+            value={
+              remainingApproxDoses == null
+                ? `${allocationSummary.remainingMl.toFixed(2)} mL`
+                : `${allocationSummary.remainingMl.toFixed(2)} mL (~${remainingApproxDoses.toFixed(1)} doses)`
+            }
+          />
+        )}
+
+        {allocationSummary.blankVolumeRowCount > 0 ? (
+          <Text style={styles.infoText}>
+            {`${allocationSummary.blankVolumeRowCount} row(s) have no semen volume entered and are not counted toward allocation.`}
+          </Text>
+        ) : null}
+
+        {allocationError ? <Text style={styles.errorText}>{allocationError}</Text> : null}
+      </View>
+
+      <View style={styles.sectionWrap}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Rows</Text>
+          <View style={styles.addActions}>
+            <SecondaryButton label="Add Shipment" onPress={openNewShippedRow} />
+            <SecondaryButton
+              label="Add On-Farm"
+              onPress={openNewOnFarmRow}
+              disabled={mares.length === 0}
+            />
+          </View>
         </View>
 
         {mareLoadError ? <Text style={styles.errorText}>{mareLoadError}</Text> : null}
 
-        {onFarmRows.length === 0 ? (
-          <Text style={styles.emptyText}>No on-farm allocations added.</Text>
+        {allocationRows.length === 0 ? (
+          <Text style={styles.emptyText}>No allocation rows added.</Text>
         ) : (
           <View style={cardStyles.listWrap}>
-            {onFarmRows.map((row, index) => (
-              <View key={`on-farm-${index}`} style={cardStyles.card}>
+            {allocationRows.map((row) => (
+              <View key={row.clientId} style={cardStyles.card}>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>{mareNameById[row.mareId] ?? 'Unknown mare'}</Text>
+                  <Text style={styles.cardTitle}>
+                    {row.kind === 'shipped'
+                      ? `Shipped: ${row.recipient}`
+                      : `On-Farm: ${mareNameById[row.mareId] ?? 'Unknown mare'}`}
+                  </Text>
                   <View style={styles.cardActions}>
-                    <IconButton icon={'\u270E'} onPress={() => openEditOnFarmRow(index)} accessibilityLabel="Edit on-farm allocation" />
-                    <IconButton icon={'\u2715'} onPress={() => onRemoveOnFarmRow(index)} accessibilityLabel="Delete on-farm allocation" />
+                    <IconButton
+                      icon={'\u270E'}
+                      onPress={() =>
+                        row.kind === 'shipped'
+                          ? openEditShippedRow(row.clientId)
+                          : openEditOnFarmRow(row.clientId)
+                      }
+                      accessibilityLabel={
+                        row.kind === 'shipped'
+                          ? 'Edit shipped row'
+                          : 'Edit on-farm row'
+                      }
+                    />
+                    <IconButton
+                      icon={'\u2715'}
+                      onPress={() => onRemoveAllocationRow(row.clientId)}
+                      accessibilityLabel="Delete allocation row"
+                    />
                   </View>
                 </View>
-                <CardRow label="Breeding Date" value={formatLocalDate(row.eventDate, 'MM-DD-YYYY')} />
-                <CardRow label="Dose Count" value={row.doseCount} />
+
+                <CardRow
+                  label={row.kind === 'shipped' ? 'Ship Date' : 'Breeding Date'}
+                  value={formatLocalDate(row.eventDate, 'MM-DD-YYYY')}
+                />
+
+                {row.kind === 'shipped' ? (
+                  <>
+                    <CardRow label="Dose Count" value={row.doseCount} />
+                    <CardRow
+                      label="Semen / Dose"
+                      value={formatMl(row.doseSemenVolumeMl)}
+                    />
+                    <CardRow
+                      label="Extender / Dose"
+                      value={formatMl(row.doseExtenderVolumeMl)}
+                    />
+                    <CardRow
+                      label="Total Per Dose"
+                      value={formatMl(row.doseSemenVolumeMl + row.doseExtenderVolumeMl)}
+                    />
+                    <CardRow
+                      label="Total Semen Used"
+                      value={formatMl(row.doseSemenVolumeMl * row.doseCount)}
+                    />
+                    <CardRow
+                      label="Total Extender Used"
+                      value={formatMl(row.doseExtenderVolumeMl * row.doseCount)}
+                    />
+                  </>
+                ) : (
+                  <CardRow
+                    label="Semen Used"
+                    value={
+                      row.doseSemenVolumeMl == null
+                        ? 'Semen volume not recorded'
+                        : formatMl(row.doseSemenVolumeMl)
+                    }
+                  />
+                )}
+
                 {row.notes ? <CardRow label="Notes" value={row.notes} /> : null}
               </View>
             ))}
@@ -183,9 +266,11 @@ export function DoseAllocationStep({
         visible={isShippedEditorOpen}
         initialValue={editingShippedRow}
         defaultDate={collectionDate}
+        defaultDoseSemenVolumeMl={shippedPrefillDoseSemenVolumeMl}
+        defaultDoseExtenderVolumeMl={shippedPrefillDoseExtenderVolumeMl}
         onClose={closeShippedEditor}
         onSave={(row) => {
-          onSaveShippedRow(row, editingShippedIndex ?? undefined);
+          onSaveShippedRow(row, editingShippedClientId ?? undefined);
           closeShippedEditor();
         }}
       />
@@ -194,10 +279,11 @@ export function DoseAllocationStep({
         visible={isOnFarmEditorOpen}
         initialValue={editingOnFarmRow}
         defaultDate={collectionDate}
+        defaultDoseSemenVolumeMl={onFarmPrefillDoseSemenVolumeMl}
         availableMares={availableMares}
         onClose={closeOnFarmEditor}
         onSave={(row) => {
-          const error = onSaveOnFarmRow(row, editingOnFarmIndex ?? undefined);
+          const error = onSaveOnFarmRow(row, editingOnFarmClientId ?? undefined);
           if (error) {
             Alert.alert('Allocation error', error);
             return;
@@ -214,14 +300,20 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   sectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
     gap: spacing.sm,
-    justifyContent: 'space-between',
+  },
+  addActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
   sectionTitle: {
     ...typography.titleSmall,
     color: colors.onSurface,
+  },
+  infoText: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
   },
   emptyText: {
     ...typography.bodyMedium,

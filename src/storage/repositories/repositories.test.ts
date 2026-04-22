@@ -139,6 +139,7 @@ type FakeDb = {
   runAsync: (sql: string, params?: unknown[]) => Promise<void>;
   getFirstAsync: <T>(sql: string, params?: unknown[]) => Promise<T | null>;
   getAllAsync: <T>(sql: string, params?: unknown[]) => Promise<T[]>;
+  withTransactionAsync: <T>(callback: () => Promise<T>) => Promise<T>;
 };
 
 function normalized(sql: string): string {
@@ -691,6 +692,9 @@ function createFakeDb(): FakeDb {
       }
 
       return [];
+    },
+    async withTransactionAsync<T>(callback: () => Promise<T>): Promise<T> {
+      return callback();
     },
   };
 }

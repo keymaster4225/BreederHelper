@@ -8,7 +8,7 @@ import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { newId } from '@/utils/id';
 import {
-  assertCollectionDoseCountCanSupportAllocations,
+  assertCollectionSemenVolumeCanSupportAllocation,
 } from './internal/collectionAllocation';
 
 type CollectionDoseEventRow = {
@@ -25,6 +25,8 @@ type CollectionDoseEventRow = {
   container_type: string | null;
   tracking_number: string | null;
   breeding_record_id: string | null;
+  dose_semen_volume_ml: number | null;
+  dose_extender_volume_ml: number | null;
   dose_count: number | null;
   event_date: string | null;
   notes: string | null;
@@ -47,6 +49,8 @@ function mapRow(row: CollectionDoseEventRow): CollectionDoseEvent {
     containerType: row.container_type,
     trackingNumber: row.tracking_number,
     breedingRecordId: row.breeding_record_id,
+    doseSemenVolumeMl: row.dose_semen_volume_ml,
+    doseExtenderVolumeMl: row.dose_extender_volume_ml,
     doseCount: row.dose_count,
     eventDate: row.event_date,
     notes: row.notes,
@@ -75,6 +79,26 @@ function normalizeRequiredDoseCount(value: number | null | undefined): number {
   return value;
 }
 
+function normalizeRequiredPositiveNumber(
+  value: number | null | undefined,
+  label: string,
+): number {
+  if (value == null || value <= 0) {
+    throw new Error(`${label} is required.`);
+  }
+  return value;
+}
+
+function normalizeRequiredNonNegativeNumber(
+  value: number | null | undefined,
+  label: string,
+): number {
+  if (value == null || value < 0) {
+    throw new Error(`${label} is required.`);
+  }
+  return value;
+}
+
 function buildCollectionIdPlaceholders(count: number): string {
   return Array.from({ length: count }, () => '?').join(', ');
 }
@@ -99,6 +123,8 @@ export async function listDoseEventsByCollection(
       container_type,
       tracking_number,
       breeding_record_id,
+      dose_semen_volume_ml,
+      dose_extender_volume_ml,
       dose_count,
       event_date,
       notes,
@@ -143,6 +169,8 @@ export async function listDoseEventsByCollectionIds(
       container_type,
       tracking_number,
       breeding_record_id,
+      dose_semen_volume_ml,
+      dose_extender_volume_ml,
       dose_count,
       event_date,
       notes,
@@ -176,7 +204,20 @@ export async function createDoseEvent(
   }
 
   const doseCount = normalizeRequiredDoseCount(input.doseCount);
-  await assertCollectionDoseCountCanSupportAllocations(db, input.collectionId, doseCount);
+  const doseSemenVolumeMl = normalizeRequiredPositiveNumber(
+    input.doseSemenVolumeMl,
+    'Dose semen volume',
+  );
+  const doseExtenderVolumeMl = normalizeRequiredNonNegativeNumber(
+    input.doseExtenderVolumeMl,
+    'Dose extender volume',
+  );
+  await assertCollectionSemenVolumeCanSupportAllocation(
+    db,
+    input.collectionId,
+    doseSemenVolumeMl,
+    doseCount,
+  );
 
   await db.runAsync(
     `
@@ -194,12 +235,14 @@ export async function createDoseEvent(
       container_type,
       tracking_number,
       breeding_record_id,
+      dose_semen_volume_ml,
+      dose_extender_volume_ml,
       dose_count,
       event_date,
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       id,
@@ -215,6 +258,8 @@ export async function createDoseEvent(
       normalizeRequiredText(input.containerType, 'Container type'),
       normalizeOptionalText(input.trackingNumber),
       null,
+      doseSemenVolumeMl,
+      doseExtenderVolumeMl,
       doseCount,
       normalizeRequiredText(input.eventDate, 'Ship date'),
       normalizeOptionalText(input.notes),
@@ -248,9 +293,20 @@ export async function updateDoseEvent(
   const doseCount = normalizeRequiredDoseCount(
     input.doseCount === undefined ? existing.doseCount : input.doseCount,
   );
-  await assertCollectionDoseCountCanSupportAllocations(
+  const doseSemenVolumeMl = normalizeRequiredPositiveNumber(
+    input.doseSemenVolumeMl === undefined ? existing.doseSemenVolumeMl : input.doseSemenVolumeMl,
+    'Dose semen volume',
+  );
+  const doseExtenderVolumeMl = normalizeRequiredNonNegativeNumber(
+    input.doseExtenderVolumeMl === undefined
+      ? existing.doseExtenderVolumeMl
+      : input.doseExtenderVolumeMl,
+    'Dose extender volume',
+  );
+  await assertCollectionSemenVolumeCanSupportAllocation(
     db,
     existing.collectionId,
+    doseSemenVolumeMl,
     doseCount,
     { excludeDoseEventId: id },
   );
@@ -270,6 +326,8 @@ export async function updateDoseEvent(
       container_type = ?,
       tracking_number = ?,
       breeding_record_id = ?,
+      dose_semen_volume_ml = ?,
+      dose_extender_volume_ml = ?,
       dose_count = ?,
       event_date = ?,
       notes = ?,
@@ -288,6 +346,8 @@ export async function updateDoseEvent(
       normalizeRequiredText(input.containerType ?? existing.containerType, 'Container type'),
       normalizeOptionalText(input.trackingNumber === undefined ? existing.trackingNumber : input.trackingNumber),
       existing.breedingRecordId ?? null,
+      doseSemenVolumeMl,
+      doseExtenderVolumeMl,
       doseCount,
       normalizeRequiredText(input.eventDate === undefined ? existing.eventDate : input.eventDate, 'Ship date'),
       normalizeOptionalText(input.notes === undefined ? existing.notes : input.notes),
@@ -328,6 +388,8 @@ async function getDoseEventById(id: UUID): Promise<CollectionDoseEvent | null> {
       container_type,
       tracking_number,
       breeding_record_id,
+      dose_semen_volume_ml,
+      dose_extender_volume_ml,
       dose_count,
       event_date,
       notes,

@@ -3,28 +3,29 @@ import { FormDateInput, FormField, FormTextInput } from '@/components/FormContro
 type Props = {
   collectionDate: string;
   setCollectionDate: (value: string) => void;
-  doseCount: string;
-  setDoseCount: (value: string) => void;
-  doseSizeMillions: string;
-  setDoseSizeMillions: (value: string) => void;
-  notes: string;
-  setNotes: (value: string) => void;
+  rawVolumeMl: string;
+  setRawVolumeMl: (value: string) => void;
+  concentrationMillionsPerMl: string;
+  setConcentrationMillionsPerMl: (value: string) => void;
+  progressiveMotilityPercent: string;
+  setProgressiveMotilityPercent: (value: string) => void;
   errors: {
     collectionDate?: string;
-    doseCount?: string;
-    doseSizeMillions?: string;
+    rawVolumeMl?: string;
+    concentrationMillionsPerMl?: string;
+    progressiveMotilityPercent?: string;
   };
 };
 
 export function CollectionBasicsStep({
   collectionDate,
   setCollectionDate,
-  doseCount,
-  setDoseCount,
-  doseSizeMillions,
-  setDoseSizeMillions,
-  notes,
-  setNotes,
+  rawVolumeMl,
+  setRawVolumeMl,
+  concentrationMillionsPerMl,
+  setConcentrationMillionsPerMl,
+  progressiveMotilityPercent,
+  setProgressiveMotilityPercent,
   errors,
 }: Props): JSX.Element {
   return (
@@ -38,30 +39,36 @@ export function CollectionBasicsStep({
         />
       </FormField>
 
-      <FormField label="Dose Count" error={errors.doseCount}>
+      <FormField label="Total Volume (mL)" error={errors.rawVolumeMl}>
         <FormTextInput
-          value={doseCount}
-          onChangeText={setDoseCount}
-          placeholder="Optional until allocations are added"
-          keyboardType="numeric"
-        />
-      </FormField>
-
-      <FormField label="Dose Size (millions)" error={errors.doseSizeMillions}>
-        <FormTextInput
-          value={doseSizeMillions}
-          onChangeText={setDoseSizeMillions}
+          value={rawVolumeMl}
+          onChangeText={setRawVolumeMl}
           placeholder="Optional"
           keyboardType="numeric"
         />
       </FormField>
 
-      <FormField label="Notes">
+      <FormField
+        label="Concentration (M/mL, raw)"
+        error={errors.concentrationMillionsPerMl}
+      >
         <FormTextInput
-          value={notes}
-          onChangeText={setNotes}
-          multiline
+          value={concentrationMillionsPerMl}
+          onChangeText={setConcentrationMillionsPerMl}
           placeholder="Optional"
+          keyboardType="numeric"
+        />
+      </FormField>
+
+      <FormField
+        label="Progressive Motility (%)"
+        error={errors.progressiveMotilityPercent}
+      >
+        <FormTextInput
+          value={progressiveMotilityPercent}
+          onChangeText={setProgressiveMotilityPercent}
+          placeholder="0-100"
+          keyboardType="numeric"
         />
       </FormField>
     </>

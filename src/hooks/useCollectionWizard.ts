@@ -8,6 +8,9 @@ import {
   CreateCollectionWizardShippedRowInput,
   listMares,
 } from '@/storage/repositories';
+import { deriveCollectionMath } from '@/utils/collectionCalculator';
+import { computeAllocationSummary } from '@/utils/collectionAllocation';
+import { newId } from '@/utils/id';
 import {
   parseOptionalInteger,
   parseOptionalNumber,
@@ -23,18 +26,42 @@ export const COLLECTION_WIZARD_STEPS = [
   'Review',
 ] as const;
 
-export type CollectionWizardShippedRow = CreateCollectionWizardShippedRowInput;
-export type CollectionWizardOnFarmRow = CreateCollectionWizardOnFarmRowInput;
+export type CollectionWizardShippedRow = CreateCollectionWizardShippedRowInput & {
+  clientId: string;
+  kind: 'shipped';
+};
+
+export type CollectionWizardOnFarmRow = {
+  clientId: string;
+  kind: 'usedOnSite';
+  mareId: string;
+  eventDate: string;
+  doseSemenVolumeMl: number | null;
+  doseCount: 1;
+  notes: string | null;
+};
+
+export type CollectionWizardAllocationRow =
+  | CollectionWizardShippedRow
+  | CollectionWizardOnFarmRow;
+
+export type CollectionWizardShippedRowInput = Omit<
+  CollectionWizardShippedRow,
+  'clientId' | 'kind'
+>;
+
+export type CollectionWizardOnFarmRowInput = Omit<
+  CollectionWizardOnFarmRow,
+  'clientId' | 'kind'
+>;
 
 type StepFieldErrors = {
   collectionDate?: string;
-  doseCount?: string;
-  doseSizeMillions?: string;
   rawVolumeMl?: string;
-  totalVolumeMl?: string;
-  extenderVolumeMl?: string;
   concentrationMillionsPerMl?: string;
   progressiveMotilityPercent?: string;
+  targetMotileSpermMillionsPerDose?: string;
+  targetPostExtensionConcentrationMillionsPerMl?: string;
   allocation?: string;
 };
 
@@ -58,23 +85,43 @@ function getDuplicateMareError(
   return null;
 }
 
+function validatePositiveOptionalNumber(
+  value: string,
+  label: string,
+  max: number,
+): string | undefined {
+  const parsed = parseOptionalNumber(value);
+  const rangeError = validateNumberRange(parsed, label, 0, max);
+  if (rangeError) {
+    return rangeError;
+  }
+
+  if (parsed === 0) {
+    return `${label} must be greater than 0.`;
+  }
+
+  return undefined;
+}
+
 export function useCollectionWizard({
   stallionId,
   onSaved,
 }: UseCollectionWizardArgs) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [collectionDate, setCollectionDate] = useState('');
-  const [doseCount, setDoseCount] = useState('');
-  const [doseSizeMillions, setDoseSizeMillions] = useState('');
-  const [notes, setNotes] = useState('');
   const [rawVolumeMl, setRawVolumeMl] = useState('');
-  const [totalVolumeMl, setTotalVolumeMl] = useState('');
-  const [extenderVolumeMl, setExtenderVolumeMl] = useState('');
-  const [extenderType, setExtenderType] = useState('');
   const [concentrationMillionsPerMl, setConcentrationMillionsPerMl] = useState('');
   const [progressiveMotilityPercent, setProgressiveMotilityPercent] = useState('');
-  const [shippedRows, setShippedRows] = useState<CollectionWizardShippedRow[]>([]);
-  const [onFarmRows, setOnFarmRows] = useState<CollectionWizardOnFarmRow[]>([]);
+
+  const [targetMotileSpermMillionsPerDose, setTargetMotileSpermMillionsPerDose] = useState('');
+  const [
+    targetPostExtensionConcentrationMillionsPerMl,
+    setTargetPostExtensionConcentrationMillionsPerMl,
+  ] = useState('');
+  const [extenderType, setExtenderType] = useState('');
+  const [notes, setNotes] = useState('');
+
+  const [allocationRows, setAllocationRows] = useState<CollectionWizardAllocationRow[]>([]);
   const [mares, setMares] = useState<Mare[]>([]);
   const [mareLoadError, setMareLoadError] = useState<string | null>(null);
   const [errors, setErrors] = useState<StepFieldErrors>({});
@@ -105,14 +152,99 @@ export function useCollectionWizard({
     };
   }, []);
 
-  const parsedDoseCount = useMemo(() => parseOptionalInteger(doseCount), [doseCount]);
-  const allocatedDoseCount = useMemo(
-    () => shippedRows.reduce((total, row) => total + row.doseCount, 0) + onFarmRows.reduce((total, row) => total + row.doseCount, 0),
-    [onFarmRows, shippedRows],
+  const parsedRawVolumeMl = useMemo(() => parseOptionalNumber(rawVolumeMl), [rawVolumeMl]);
+  const parsedConcentrationMillionsPerMl = useMemo(
+    () => parseOptionalNumber(concentrationMillionsPerMl),
+    [concentrationMillionsPerMl],
   );
-  const remainingDoseCount = parsedDoseCount == null ? null : parsedDoseCount - allocatedDoseCount;
-  const hasAllocations = shippedRows.length > 0 || onFarmRows.length > 0;
-  const isOverAllocated = remainingDoseCount != null && remainingDoseCount < 0;
+  const parsedProgressiveMotilityPercent = useMemo(
+    () => parseOptionalInteger(progressiveMotilityPercent),
+    [progressiveMotilityPercent],
+  );
+  const parsedTargetMotileSpermMillionsPerDose = useMemo(
+    () => parseOptionalNumber(targetMotileSpermMillionsPerDose),
+    [targetMotileSpermMillionsPerDose],
+  );
+  const parsedTargetPostExtensionConcentrationMillionsPerMl = useMemo(
+    () => parseOptionalNumber(targetPostExtensionConcentrationMillionsPerMl),
+    [targetPostExtensionConcentrationMillionsPerMl],
+  );
+
+  const shippedRows = useMemo(
+    () =>
+      allocationRows.filter(
+        (row): row is CollectionWizardShippedRow => row.kind === 'shipped',
+      ),
+    [allocationRows],
+  );
+  const onFarmRows = useMemo(
+    () =>
+      allocationRows.filter(
+        (row): row is CollectionWizardOnFarmRow => row.kind === 'usedOnSite',
+      ),
+    [allocationRows],
+  );
+
+  const derivedMath = useMemo(
+    () =>
+      deriveCollectionMath({
+        rawVolumeMl: parsedRawVolumeMl,
+        concentrationMillionsPerMl: parsedConcentrationMillionsPerMl,
+        progressiveMotilityPercent: parsedProgressiveMotilityPercent,
+        targetMotileSpermMillionsPerDose: parsedTargetMotileSpermMillionsPerDose,
+        targetPostExtensionConcentrationMillionsPerMl:
+          parsedTargetPostExtensionConcentrationMillionsPerMl,
+      }),
+    [
+      parsedConcentrationMillionsPerMl,
+      parsedProgressiveMotilityPercent,
+      parsedRawVolumeMl,
+      parsedTargetMotileSpermMillionsPerDose,
+      parsedTargetPostExtensionConcentrationMillionsPerMl,
+    ],
+  );
+
+  const allocationSummary = useMemo(
+    () =>
+      computeAllocationSummary(
+        allocationRows.map((row) => ({
+          doseSemenVolumeMl:
+            row.kind === 'shipped' ? row.doseSemenVolumeMl : row.doseSemenVolumeMl ?? null,
+          doseCount: row.doseCount,
+        })),
+        parsedRawVolumeMl,
+      ),
+    [allocationRows, parsedRawVolumeMl],
+  );
+
+  const remainingApproxDoses = useMemo(() => {
+    if (
+      allocationSummary.remainingMl == null ||
+      derivedMath.semenPerDoseMl == null ||
+      derivedMath.semenPerDoseMl <= 0
+    ) {
+      return null;
+    }
+
+    return allocationSummary.remainingMl / derivedMath.semenPerDoseMl;
+  }, [allocationSummary.remainingMl, derivedMath.semenPerDoseMl]);
+
+  const isShippedPrefillValid =
+    derivedMath.semenPerDoseMl != null &&
+    derivedMath.extenderPerDoseMl != null &&
+    derivedMath.extenderPerDoseMl >= 0;
+  const isOnFarmPrefillValid = derivedMath.semenPerDoseMl != null;
+
+  const shippedPrefillDoseSemenVolumeMl = isShippedPrefillValid
+    ? derivedMath.semenPerDoseMl
+    : null;
+  const shippedPrefillDoseExtenderVolumeMl = isShippedPrefillValid
+    ? derivedMath.extenderPerDoseMl
+    : null;
+  const onFarmPrefillDoseSemenVolumeMl = isOnFarmPrefillValid
+    ? derivedMath.semenPerDoseMl
+    : null;
+
   const mareNameById = useMemo(() => {
     const lookup: Record<string, string> = {};
     for (const mare of mares) {
@@ -127,16 +259,20 @@ export function useCollectionWizard({
         validateLocalDate(collectionDate, 'Collection date', true) ??
         validateLocalDateNotInFuture(collectionDate) ??
         undefined,
-      doseCount: hasAllocations
-        ? validateNumberRange(parsedDoseCount, 'Dose Count', 1, 1000) ?? undefined
-        : validateNumberRange(parsedDoseCount, 'Dose Count', 0, 1000) ?? undefined,
-      doseSizeMillions:
-        validateNumberRange(parseOptionalNumber(doseSizeMillions), 'Dose Size', 0, 100000) ?? undefined,
+      rawVolumeMl: validatePositiveOptionalNumber(rawVolumeMl, 'Total Volume', 5000),
+      concentrationMillionsPerMl: validatePositiveOptionalNumber(
+        concentrationMillionsPerMl,
+        'Concentration',
+        100000,
+      ),
+      progressiveMotilityPercent:
+        validateNumberRange(
+          parsedProgressiveMotilityPercent,
+          'Progressive Motility',
+          0,
+          100,
+        ) ?? undefined,
     };
-
-    if (hasAllocations && parsedDoseCount == null) {
-      nextErrors.doseCount = 'Dose Count is required once allocations have been added.';
-    }
 
     setErrors((current) => ({ ...current, ...nextErrors }));
     return Object.values(nextErrors).every((error) => !error);
@@ -144,16 +280,16 @@ export function useCollectionWizard({
 
   const validateProcessingStep = (): boolean => {
     const nextErrors: StepFieldErrors = {
-      rawVolumeMl:
-        validateNumberRange(parseOptionalNumber(rawVolumeMl), 'Raw Volume', 0, 5000) ?? undefined,
-      totalVolumeMl:
-        validateNumberRange(parseOptionalNumber(totalVolumeMl), 'Total Volume', 0, 50000) ?? undefined,
-      extenderVolumeMl:
-        validateNumberRange(parseOptionalNumber(extenderVolumeMl), 'Extender Volume', 0, 50000) ?? undefined,
-      concentrationMillionsPerMl:
-        validateNumberRange(parseOptionalNumber(concentrationMillionsPerMl), 'Concentration', 0, 100000) ?? undefined,
-      progressiveMotilityPercent:
-        validateNumberRange(parseOptionalInteger(progressiveMotilityPercent), 'Motility', 0, 100) ?? undefined,
+      targetMotileSpermMillionsPerDose: validatePositiveOptionalNumber(
+        targetMotileSpermMillionsPerDose,
+        'Target motile sperm per dose',
+        100000,
+      ),
+      targetPostExtensionConcentrationMillionsPerMl: validatePositiveOptionalNumber(
+        targetPostExtensionConcentrationMillionsPerMl,
+        'Target post-extension concentration',
+        100000,
+      ),
     };
 
     setErrors((current) => ({ ...current, ...nextErrors }));
@@ -164,12 +300,8 @@ export function useCollectionWizard({
     const duplicateMareError = getDuplicateMareError(onFarmRows);
     let allocationError = duplicateMareError;
 
-    if (!allocationError && hasAllocations && parsedDoseCount == null) {
-      allocationError = 'Dose Count is required once allocations have been added.';
-    }
-
-    if (!allocationError && isOverAllocated) {
-      allocationError = 'Allocated doses cannot exceed the collection dose count.';
+    if (!allocationError && !allocationSummary.isWithinCap) {
+      allocationError = `Allocated semen volume exceeds collected volume by ${allocationSummary.exceededByMl.toFixed(2)} mL.`;
     }
 
     setErrors((current) => ({ ...current, allocation: allocationError ?? undefined }));
@@ -189,7 +321,9 @@ export function useCollectionWizard({
       return validateAllocationStep();
     }
 
-    return validateBasicsStep() && validateProcessingStep() && validateAllocationStep();
+    return (
+      validateBasicsStep() && validateProcessingStep() && validateAllocationStep()
+    );
   };
 
   const goNext = (): void => {
@@ -197,7 +331,9 @@ export function useCollectionWizard({
       return;
     }
 
-    setCurrentStepIndex((current) => Math.min(current + 1, COLLECTION_WIZARD_STEPS.length - 1));
+    setCurrentStepIndex((current) =>
+      Math.min(current + 1, COLLECTION_WIZARD_STEPS.length - 1),
+    );
   };
 
   const goBack = (): void => {
@@ -208,43 +344,82 @@ export function useCollectionWizard({
     setCurrentStepIndex(stepIndex);
   };
 
-  const upsertShippedRow = (row: CollectionWizardShippedRow, index?: number): void => {
-    setShippedRows((current) => {
-      if (index == null) {
-        return [...current, row];
+  const upsertShippedRow = (
+    row: CollectionWizardShippedRowInput,
+    clientId?: string,
+  ): void => {
+    setAllocationRows((current) => {
+      const buildRow = (nextClientId: string): CollectionWizardShippedRow => ({
+        ...row,
+        clientId: nextClientId,
+        kind: 'shipped',
+      });
+
+      if (clientId == null) {
+        return [...current, buildRow(newId())];
       }
 
-      return current.map((existingRow, existingIndex) => (
-        existingIndex === index ? row : existingRow
-      ));
+      let updated = false;
+      const next = current.map((existingRow) => {
+        if (existingRow.clientId !== clientId) {
+          return existingRow;
+        }
+        updated = true;
+        return buildRow(clientId);
+      });
+
+      return updated ? next : [...next, buildRow(clientId)];
     });
     setErrors((current) => ({ ...current, allocation: undefined }));
   };
 
-  const removeShippedRow = (index: number): void => {
-    setShippedRows((current) => current.filter((_, currentIndex) => currentIndex !== index));
-    setErrors((current) => ({ ...current, allocation: undefined }));
-  };
+  const upsertOnFarmRow = (
+    row: CollectionWizardOnFarmRowInput,
+    clientId?: string,
+  ): string | null => {
+    const nextRow: CollectionWizardOnFarmRow = {
+      ...row,
+      clientId: clientId ?? newId(),
+      kind: 'usedOnSite',
+      doseCount: 1,
+    };
 
-  const upsertOnFarmRow = (row: CollectionWizardOnFarmRow, index?: number): string | null => {
-    const nextRows = index == null
-      ? [...onFarmRows, row]
-      : onFarmRows.map((existingRow, existingIndex) => (
-        existingIndex === index ? row : existingRow
-      ));
+    let nextRows: CollectionWizardAllocationRow[];
+    if (clientId == null) {
+      nextRows = [...allocationRows, nextRow];
+    } else {
+      let updated = false;
+      nextRows = allocationRows.map((existingRow) => {
+        if (existingRow.clientId !== clientId) {
+          return existingRow;
+        }
+        updated = true;
+        return nextRow;
+      });
+      if (!updated) {
+        nextRows = [...nextRows, nextRow];
+      }
+    }
 
-    const duplicateMareError = getDuplicateMareError(nextRows);
+    const duplicateMareError = getDuplicateMareError(
+      nextRows.filter(
+        (existingRow): existingRow is CollectionWizardOnFarmRow =>
+          existingRow.kind === 'usedOnSite',
+      ),
+    );
     if (duplicateMareError) {
       return duplicateMareError;
     }
 
-    setOnFarmRows(nextRows);
+    setAllocationRows(nextRows);
     setErrors((current) => ({ ...current, allocation: undefined }));
     return null;
   };
 
-  const removeOnFarmRow = (index: number): void => {
-    setOnFarmRows((current) => current.filter((_, currentIndex) => currentIndex !== index));
+  const removeAllocationRow = (clientId: string): void => {
+    setAllocationRows((current) =>
+      current.filter((row) => row.clientId !== clientId),
+    );
     setErrors((current) => ({ ...current, allocation: undefined }));
   };
 
@@ -270,22 +445,34 @@ export function useCollectionWizard({
 
     setIsSaving(true);
     try {
+      const shippedPayload: CreateCollectionWizardShippedRowInput[] = shippedRows.map(
+        ({ clientId: _clientId, kind: _kind, ...row }) => row,
+      );
+      const onFarmPayload: CreateCollectionWizardOnFarmRowInput[] = onFarmRows.map(
+        ({ clientId: _clientId, kind: _kind, ...row }) => ({
+          mareId: row.mareId,
+          eventDate: row.eventDate,
+          doseSemenVolumeMl: row.doseSemenVolumeMl,
+          notes: row.notes,
+          doseCount: 1,
+        }),
+      );
+
       await createCollectionWithAllocations({
         collection: {
           stallionId,
           collectionDate,
-          rawVolumeMl: parseOptionalNumber(rawVolumeMl),
-          totalVolumeMl: parseOptionalNumber(totalVolumeMl),
-          extenderVolumeMl: parseOptionalNumber(extenderVolumeMl),
+          rawVolumeMl: parsedRawVolumeMl,
           extenderType: extenderType.trim() || null,
-          concentrationMillionsPerMl: parseOptionalNumber(concentrationMillionsPerMl),
-          progressiveMotilityPercent: parseOptionalInteger(progressiveMotilityPercent),
-          doseCount: parsedDoseCount,
-          doseSizeMillions: parseOptionalNumber(doseSizeMillions),
+          concentrationMillionsPerMl: parsedConcentrationMillionsPerMl,
+          progressiveMotilityPercent: parsedProgressiveMotilityPercent,
+          targetMotileSpermMillionsPerDose: parsedTargetMotileSpermMillionsPerDose,
+          targetPostExtensionConcentrationMillionsPerMl:
+            parsedTargetPostExtensionConcentrationMillionsPerMl,
           notes: notes.trim() || null,
         },
-        shippedRows,
-        onFarmRows,
+        shippedRows: shippedPayload,
+        onFarmRows: onFarmPayload,
       });
       onSaved();
     } catch (error) {
@@ -301,42 +488,46 @@ export function useCollectionWizard({
     currentStepTitle: COLLECTION_WIZARD_STEPS[currentStepIndex],
     collectionDate,
     setCollectionDate,
-    doseCount,
-    setDoseCount,
-    doseSizeMillions,
-    setDoseSizeMillions,
-    notes,
-    setNotes,
     rawVolumeMl,
     setRawVolumeMl,
-    totalVolumeMl,
-    setTotalVolumeMl,
-    extenderVolumeMl,
-    setExtenderVolumeMl,
-    extenderType,
-    setExtenderType,
     concentrationMillionsPerMl,
     setConcentrationMillionsPerMl,
     progressiveMotilityPercent,
     setProgressiveMotilityPercent,
+    targetMotileSpermMillionsPerDose,
+    setTargetMotileSpermMillionsPerDose,
+    targetPostExtensionConcentrationMillionsPerMl,
+    setTargetPostExtensionConcentrationMillionsPerMl,
+    extenderType,
+    setExtenderType,
+    notes,
+    setNotes,
+    parsedRawVolumeMl,
+    parsedConcentrationMillionsPerMl,
+    parsedProgressiveMotilityPercent,
+    parsedTargetMotileSpermMillionsPerDose,
+    parsedTargetPostExtensionConcentrationMillionsPerMl,
+    derivedMath,
+    allocationRows,
     shippedRows,
     onFarmRows,
+    allocationSummary,
+    remainingApproxDoses,
+    shippedPrefillDoseSemenVolumeMl,
+    shippedPrefillDoseExtenderVolumeMl,
+    onFarmPrefillDoseSemenVolumeMl,
     mares,
     mareNameById,
     mareLoadError,
-    allocatedDoseCount,
-    parsedDoseCount,
-    remainingDoseCount,
-    isOverAllocated,
     errors,
     isSaving,
+    isSaveDisabled: isSaving || !allocationSummary.isWithinCap,
     goNext,
     goBack,
     goToStep,
     upsertShippedRow,
-    removeShippedRow,
     upsertOnFarmRow,
-    removeOnFarmRow,
+    removeAllocationRow,
     save,
   };
 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
@@ -6,10 +6,12 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 
 import { PrimaryButton, SecondaryButton } from '@/components/Buttons';
+import { CardRow, cardStyles } from '@/components/RecordCardParts';
 import {
   FormAutocompleteInput,
   FormDateInput,
@@ -17,12 +19,16 @@ import {
   FormTextInput,
   formStyles,
 } from '@/components/FormControls';
-import { CollectionWizardShippedRow } from '@/hooks/useCollectionWizard';
-import { borderRadius, colors, spacing } from '@/theme';
+import {
+  CollectionWizardShippedRow,
+  CollectionWizardShippedRowInput,
+} from '@/hooks/useCollectionWizard';
+import { borderRadius, colors, spacing, typography } from '@/theme';
 import { CARRIER_SERVICES, getCarrierServiceSuggestions } from '@/utils/carrierServices';
 import { CONTAINER_TYPES, getContainerTypeSuggestions } from '@/utils/containerTypes';
 import {
   parseOptionalInteger,
+  parseOptionalNumber,
   validateLocalDate,
   validateLocalDateNotInFuture,
   validateNumberRange,
@@ -33,7 +39,9 @@ type Props = {
   visible: boolean;
   initialValue?: CollectionWizardShippedRow;
   defaultDate: string;
-  onSave: (value: CollectionWizardShippedRow) => void;
+  defaultDoseSemenVolumeMl?: number | null;
+  defaultDoseExtenderVolumeMl?: number | null;
+  onSave: (value: CollectionWizardShippedRowInput) => void;
   onClose: () => void;
 };
 
@@ -47,13 +55,29 @@ type FormErrors = {
   carrierService?: string;
   containerType?: string;
   eventDate?: string;
+  doseSemenVolumeMl?: string;
+  doseExtenderVolumeMl?: string;
   doseCount?: string;
 };
+
+function formatMlInput(value: number | null | undefined): string {
+  if (value == null) {
+    return '';
+  }
+
+  return Number(value.toFixed(2)).toString();
+}
+
+function formatMl(value: number): string {
+  return `${value.toFixed(2)} mL`;
+}
 
 export function ShippedDoseRowEditor({
   visible,
   initialValue,
   defaultDate,
+  defaultDoseSemenVolumeMl,
+  defaultDoseExtenderVolumeMl,
   onSave,
   onClose,
 }: Props): JSX.Element {
@@ -67,7 +91,9 @@ export function ShippedDoseRowEditor({
   const [containerType, setContainerType] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [eventDate, setEventDate] = useState('');
-  const [doseCount, setDoseCount] = useState('');
+  const [doseSemenVolumeMl, setDoseSemenVolumeMl] = useState('');
+  const [doseExtenderVolumeMl, setDoseExtenderVolumeMl] = useState('');
+  const [doseCount, setDoseCount] = useState('1');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
 
@@ -86,13 +112,62 @@ export function ShippedDoseRowEditor({
     setContainerType(initialValue?.containerType ?? '');
     setTrackingNumber(initialValue?.trackingNumber ?? '');
     setEventDate(initialValue?.eventDate ?? defaultDate);
-    setDoseCount(initialValue?.doseCount != null ? String(initialValue.doseCount) : '');
+    setDoseSemenVolumeMl(
+      initialValue
+        ? formatMlInput(initialValue.doseSemenVolumeMl)
+        : formatMlInput(defaultDoseSemenVolumeMl),
+    );
+    setDoseExtenderVolumeMl(
+      initialValue
+        ? formatMlInput(initialValue.doseExtenderVolumeMl)
+        : formatMlInput(defaultDoseExtenderVolumeMl),
+    );
+    setDoseCount(initialValue?.doseCount != null ? String(initialValue.doseCount) : '1');
     setNotes(initialValue?.notes ?? '');
     setErrors({});
-  }, [defaultDate, initialValue, visible]);
+  }, [
+    defaultDate,
+    defaultDoseExtenderVolumeMl,
+    defaultDoseSemenVolumeMl,
+    initialValue,
+    visible,
+  ]);
+
+  const parsedSemenVolume = useMemo(
+    () => parseOptionalNumber(doseSemenVolumeMl),
+    [doseSemenVolumeMl],
+  );
+  const parsedExtenderVolume = useMemo(
+    () => parseOptionalNumber(doseExtenderVolumeMl),
+    [doseExtenderVolumeMl],
+  );
+  const parsedDoseCount = useMemo(() => parseOptionalInteger(doseCount), [doseCount]);
+
+  const totalPerDoseMl =
+    parsedSemenVolume != null &&
+    !Number.isNaN(parsedSemenVolume) &&
+    parsedExtenderVolume != null &&
+    !Number.isNaN(parsedExtenderVolume)
+      ? parsedSemenVolume + parsedExtenderVolume
+      : null;
+  const totalSemenUsedMl =
+    totalPerDoseMl != null &&
+    parsedSemenVolume != null &&
+    !Number.isNaN(parsedSemenVolume) &&
+    parsedDoseCount != null &&
+    !Number.isNaN(parsedDoseCount)
+      ? parsedSemenVolume * parsedDoseCount
+      : null;
+  const totalExtenderUsedMl =
+    totalPerDoseMl != null &&
+    parsedExtenderVolume != null &&
+    !Number.isNaN(parsedExtenderVolume) &&
+    parsedDoseCount != null &&
+    !Number.isNaN(parsedDoseCount)
+      ? parsedExtenderVolume * parsedDoseCount
+      : null;
 
   const handleSave = (): void => {
-    const parsedDoseCount = parseOptionalInteger(doseCount);
     const nextErrors: FormErrors = {
       recipient: validateRequired(recipient, 'Recipient name') ?? undefined,
       recipientPhone: validateRequired(recipientPhone, 'Recipient phone') ?? undefined,
@@ -106,11 +181,26 @@ export function ShippedDoseRowEditor({
         validateLocalDate(eventDate, 'Ship date', true) ??
         validateLocalDateNotInFuture(eventDate) ??
         undefined,
-      doseCount: validateNumberRange(parsedDoseCount, 'Dose Count', 1, 1000) ?? undefined,
+      doseSemenVolumeMl:
+        validateNumberRange(parsedSemenVolume, 'Dose semen volume', 0, 10000) ?? undefined,
+      doseExtenderVolumeMl:
+        validateNumberRange(parsedExtenderVolume, 'Dose extender volume', 0, 10000) ??
+        undefined,
+      doseCount: validateNumberRange(parsedDoseCount, 'Dose count', 1, 1000) ?? undefined,
     };
 
+    if (parsedSemenVolume === 0) {
+      nextErrors.doseSemenVolumeMl = 'Dose semen volume must be greater than 0.';
+    }
+
     setErrors(nextErrors);
-    if (Object.values(nextErrors).some(Boolean) || parsedDoseCount == null) {
+
+    if (
+      Object.values(nextErrors).some(Boolean) ||
+      parsedDoseCount == null ||
+      parsedSemenVolume == null ||
+      parsedExtenderVolume == null
+    ) {
       return;
     }
 
@@ -125,6 +215,8 @@ export function ShippedDoseRowEditor({
       containerType: containerType.trim(),
       trackingNumber: trackingNumber.trim() || null,
       eventDate,
+      doseSemenVolumeMl: parsedSemenVolume,
+      doseExtenderVolumeMl: parsedExtenderVolume,
       doseCount: parsedDoseCount,
       notes: notes.trim() || null,
     });
@@ -144,11 +236,19 @@ export function ShippedDoseRowEditor({
               bounces={false}
             >
               <FormField label="Recipient Name" required error={errors.recipient}>
-                <FormTextInput value={recipient} onChangeText={setRecipient} placeholder="Farm or clinic" />
+                <FormTextInput
+                  value={recipient}
+                  onChangeText={setRecipient}
+                  placeholder="Farm or clinic"
+                />
               </FormField>
 
               <FormField label="Recipient Phone" required error={errors.recipientPhone}>
-                <FormTextInput value={recipientPhone} onChangeText={setRecipientPhone} keyboardType="phone-pad" />
+                <FormTextInput
+                  value={recipientPhone}
+                  onChangeText={setRecipientPhone}
+                  keyboardType="phone-pad"
+                />
               </FormField>
 
               <FormField label="Recipient Street" required error={errors.recipientStreet}>
@@ -160,11 +260,19 @@ export function ShippedDoseRowEditor({
               </FormField>
 
               <FormField label="Recipient State" required error={errors.recipientState}>
-                <FormTextInput value={recipientState} onChangeText={setRecipientState} autoCapitalize="characters" />
+                <FormTextInput
+                  value={recipientState}
+                  onChangeText={setRecipientState}
+                  autoCapitalize="characters"
+                />
               </FormField>
 
               <FormField label="Recipient ZIP" required error={errors.recipientZip}>
-                <FormTextInput value={recipientZip} onChangeText={setRecipientZip} keyboardType="numeric" />
+                <FormTextInput
+                  value={recipientZip}
+                  onChangeText={setRecipientZip}
+                  keyboardType="numeric"
+                />
               </FormField>
 
               <FormField label="Carrier / Service" required error={errors.carrierService}>
@@ -192,7 +300,11 @@ export function ShippedDoseRowEditor({
               </FormField>
 
               <FormField label="Tracking Number">
-                <FormTextInput value={trackingNumber} onChangeText={setTrackingNumber} placeholder="Optional" />
+                <FormTextInput
+                  value={trackingNumber}
+                  onChangeText={setTrackingNumber}
+                  placeholder="Optional"
+                />
               </FormField>
 
               <FormField label="Ship Date" required error={errors.eventDate}>
@@ -204,12 +316,56 @@ export function ShippedDoseRowEditor({
                 />
               </FormField>
 
-              <FormField label="Dose Count" required error={errors.doseCount}>
-                <FormTextInput value={doseCount} onChangeText={setDoseCount} keyboardType="numeric" />
+              <FormField
+                label="Dose Semen Volume (mL)"
+                required
+                error={errors.doseSemenVolumeMl}
+              >
+                <FormTextInput
+                  value={doseSemenVolumeMl}
+                  onChangeText={setDoseSemenVolumeMl}
+                  keyboardType="numeric"
+                />
               </FormField>
 
+              <FormField
+                label="Dose Extender Volume (mL)"
+                required
+                error={errors.doseExtenderVolumeMl}
+              >
+                <FormTextInput
+                  value={doseExtenderVolumeMl}
+                  onChangeText={setDoseExtenderVolumeMl}
+                  keyboardType="numeric"
+                />
+              </FormField>
+
+              <FormField label="Dose Count" required error={errors.doseCount}>
+                <FormTextInput
+                  value={doseCount}
+                  onChangeText={setDoseCount}
+                  keyboardType="numeric"
+                />
+              </FormField>
+
+              {totalPerDoseMl != null &&
+              totalSemenUsedMl != null &&
+              totalExtenderUsedMl != null ? (
+                <View style={cardStyles.card}>
+                  <Text style={styles.summaryTitle}>Row Totals</Text>
+                  <CardRow label="Total Per Dose" value={formatMl(totalPerDoseMl)} />
+                  <CardRow label="Total Semen Used" value={formatMl(totalSemenUsedMl)} />
+                  <CardRow label="Total Extender Used" value={formatMl(totalExtenderUsedMl)} />
+                </View>
+              ) : null}
+
               <FormField label="Notes">
-                <FormTextInput value={notes} onChangeText={setNotes} multiline placeholder="Optional" />
+                <FormTextInput
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                  placeholder="Optional"
+                />
               </FormField>
 
               <View style={styles.actions}>
@@ -245,6 +401,10 @@ const styles = StyleSheet.create({
   },
   formContent: {
     paddingBottom: spacing.sm,
+  },
+  summaryTitle: {
+    ...typography.labelLarge,
+    color: colors.onSurface,
   },
   actions: {
     gap: spacing.sm,

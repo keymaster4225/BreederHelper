@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
+import { CardRow, cardStyles } from '@/components/RecordCardParts';
 import { FormAutocompleteInput, FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -12,6 +13,7 @@ import {
   updateSemenCollection,
 } from '@/storage/repositories';
 import { colors } from '@/theme';
+import { deriveCollectionMath } from '@/utils/collectionCalculator';
 import { EXTENDER_TYPES, getExtenderTypeSuggestions } from '@/utils/extenderTypes';
 import {
   parseOptionalInteger,
@@ -26,26 +28,47 @@ type Props = NativeStackScreenProps<RootStackParamList, 'CollectionForm'>;
 type FormErrors = {
   collectionDate?: string;
   rawVolumeMl?: string;
-  totalVolumeMl?: string;
-  extenderVolumeMl?: string;
   concentrationMillionsPerMl?: string;
   progressiveMotilityPercent?: string;
-  doseCount?: string;
-  doseSizeMillions?: string;
+  targetMotileSpermMillionsPerDose?: string;
+  targetPostExtensionConcentrationMillionsPerMl?: string;
 };
+
+function validatePositiveOptionalNumber(
+  value: string,
+  label: string,
+  max: number,
+): string | undefined {
+  const parsed = parseOptionalNumber(value);
+  const rangeError = validateNumberRange(parsed, label, 0, max);
+  if (rangeError) {
+    return rangeError;
+  }
+
+  if (parsed === 0) {
+    return `${label} must be greater than 0.`;
+  }
+
+  return undefined;
+}
+
+function formatMl(value: number | null): string {
+  return value == null ? '-' : `${value.toFixed(2)} mL`;
+}
 
 export function CollectionFormScreen({ navigation, route }: Props): JSX.Element {
   const collectionId = route.params.collectionId;
 
   const [collectionDate, setCollectionDate] = useState('');
   const [rawVolumeMl, setRawVolumeMl] = useState('');
-  const [totalVolumeMl, setTotalVolumeMl] = useState('');
-  const [extenderVolumeMl, setExtenderVolumeMl] = useState('');
   const [extenderType, setExtenderType] = useState('');
   const [concentrationMillionsPerMl, setConcentrationMillionsPerMl] = useState('');
   const [progressiveMotilityPercent, setProgressiveMotilityPercent] = useState('');
-  const [doseCount, setDoseCount] = useState('');
-  const [doseSizeMillions, setDoseSizeMillions] = useState('');
+  const [targetMotileSpermMillionsPerDose, setTargetMotileSpermMillionsPerDose] = useState('');
+  const [
+    targetPostExtensionConcentrationMillionsPerMl,
+    setTargetPostExtensionConcentrationMillionsPerMl,
+  ] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoadingRecord, setIsLoadingRecord] = useState(true);
@@ -63,13 +86,27 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
         if (record) {
           setCollectionDate(record.collectionDate);
           setRawVolumeMl(record.rawVolumeMl != null ? String(record.rawVolumeMl) : '');
-          setTotalVolumeMl(record.totalVolumeMl != null ? String(record.totalVolumeMl) : '');
-          setExtenderVolumeMl(record.extenderVolumeMl != null ? String(record.extenderVolumeMl) : '');
           setExtenderType(record.extenderType ?? '');
-          setConcentrationMillionsPerMl(record.concentrationMillionsPerMl != null ? String(record.concentrationMillionsPerMl) : '');
-          setProgressiveMotilityPercent(record.progressiveMotilityPercent != null ? String(record.progressiveMotilityPercent) : '');
-          setDoseCount(record.doseCount != null ? String(record.doseCount) : '');
-          setDoseSizeMillions(record.doseSizeMillions != null ? String(record.doseSizeMillions) : '');
+          setConcentrationMillionsPerMl(
+            record.concentrationMillionsPerMl != null
+              ? String(record.concentrationMillionsPerMl)
+              : '',
+          );
+          setProgressiveMotilityPercent(
+            record.progressiveMotilityPercent != null
+              ? String(record.progressiveMotilityPercent)
+              : '',
+          );
+          setTargetMotileSpermMillionsPerDose(
+            record.targetMotileSpermMillionsPerDose != null
+              ? String(record.targetMotileSpermMillionsPerDose)
+              : '',
+          );
+          setTargetPostExtensionConcentrationMillionsPerMl(
+            record.targetPostExtensionConcentrationMillionsPerMl != null
+              ? String(record.targetPostExtensionConcentrationMillionsPerMl)
+              : '',
+          );
           setNotes(record.notes ?? '');
         } else {
           Alert.alert('Collection not found', 'This collection no longer exists.');
@@ -81,19 +118,64 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
     })();
   }, [collectionId, navigation]);
 
+  const parsedRawVolumeMl = parseOptionalNumber(rawVolumeMl);
+  const parsedConcentrationMillionsPerMl = parseOptionalNumber(concentrationMillionsPerMl);
+  const parsedProgressiveMotilityPercent = parseOptionalInteger(progressiveMotilityPercent);
+  const parsedTargetMotileSpermMillionsPerDose = parseOptionalNumber(
+    targetMotileSpermMillionsPerDose,
+  );
+  const parsedTargetPostExtensionConcentrationMillionsPerMl = parseOptionalNumber(
+    targetPostExtensionConcentrationMillionsPerMl,
+  );
+
+  const derivedMath = useMemo(
+    () =>
+      deriveCollectionMath({
+        rawVolumeMl: parsedRawVolumeMl,
+        concentrationMillionsPerMl: parsedConcentrationMillionsPerMl,
+        progressiveMotilityPercent: parsedProgressiveMotilityPercent,
+        targetMotileSpermMillionsPerDose: parsedTargetMotileSpermMillionsPerDose,
+        targetPostExtensionConcentrationMillionsPerMl:
+          parsedTargetPostExtensionConcentrationMillionsPerMl,
+      }),
+    [
+      parsedConcentrationMillionsPerMl,
+      parsedProgressiveMotilityPercent,
+      parsedRawVolumeMl,
+      parsedTargetMotileSpermMillionsPerDose,
+      parsedTargetPostExtensionConcentrationMillionsPerMl,
+    ],
+  );
+
   const validate = (): FormErrors => {
     const errs: FormErrors = {};
     errs.collectionDate =
       validateLocalDate(collectionDate, 'Collection date', true) ??
       validateLocalDateNotInFuture(collectionDate) ??
       undefined;
-    errs.rawVolumeMl = validateNumberRange(parseOptionalNumber(rawVolumeMl), 'Raw Volume', 0, 5000) ?? undefined;
-    errs.totalVolumeMl = validateNumberRange(parseOptionalNumber(totalVolumeMl), 'Total Volume', 0, 50000) ?? undefined;
-    errs.extenderVolumeMl = validateNumberRange(parseOptionalNumber(extenderVolumeMl), 'Extender Volume', 0, 50000) ?? undefined;
-    errs.concentrationMillionsPerMl = validateNumberRange(parseOptionalNumber(concentrationMillionsPerMl), 'Concentration', 0, 100000) ?? undefined;
-    errs.progressiveMotilityPercent = validateNumberRange(parseOptionalInteger(progressiveMotilityPercent), 'Motility', 0, 100) ?? undefined;
-    errs.doseCount = validateNumberRange(parseOptionalInteger(doseCount), 'Dose Count', 0, 1000) ?? undefined;
-    errs.doseSizeMillions = validateNumberRange(parseOptionalNumber(doseSizeMillions), 'Dose Size', 0, 100000) ?? undefined;
+    errs.rawVolumeMl = validatePositiveOptionalNumber(rawVolumeMl, 'Total Volume', 5000);
+    errs.concentrationMillionsPerMl = validatePositiveOptionalNumber(
+      concentrationMillionsPerMl,
+      'Concentration',
+      100000,
+    );
+    errs.progressiveMotilityPercent =
+      validateNumberRange(
+        parsedProgressiveMotilityPercent,
+        'Progressive Motility',
+        0,
+        100,
+      ) ?? undefined;
+    errs.targetMotileSpermMillionsPerDose = validatePositiveOptionalNumber(
+      targetMotileSpermMillionsPerDose,
+      'Target motile sperm per dose',
+      100000,
+    );
+    errs.targetPostExtensionConcentrationMillionsPerMl = validatePositiveOptionalNumber(
+      targetPostExtensionConcentrationMillionsPerMl,
+      'Target post-extension concentration',
+      100000,
+    );
     return errs;
   };
 
@@ -106,14 +188,13 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
     try {
       const payload = {
         collectionDate,
-        rawVolumeMl: parseOptionalNumber(rawVolumeMl),
-        totalVolumeMl: parseOptionalNumber(totalVolumeMl),
-        extenderVolumeMl: parseOptionalNumber(extenderVolumeMl),
+        rawVolumeMl: parsedRawVolumeMl,
         extenderType: extenderType.trim() || null,
-        concentrationMillionsPerMl: parseOptionalNumber(concentrationMillionsPerMl),
-        progressiveMotilityPercent: parseOptionalInteger(progressiveMotilityPercent),
-        doseCount: parseOptionalInteger(doseCount),
-        doseSizeMillions: parseOptionalNumber(doseSizeMillions),
+        concentrationMillionsPerMl: parsedConcentrationMillionsPerMl,
+        progressiveMotilityPercent: parsedProgressiveMotilityPercent,
+        targetMotileSpermMillionsPerDose: parsedTargetMotileSpermMillionsPerDose,
+        targetPostExtensionConcentrationMillionsPerMl:
+          parsedTargetPostExtensionConcentrationMillionsPerMl,
         notes: notes.trim() || null,
       };
 
@@ -168,16 +249,50 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
             <FormDateInput value={collectionDate} onChange={setCollectionDate} maximumDate={today} displayFormat="MM-DD-YYYY" />
           </FormField>
 
-          <FormField label="Raw Volume (mL)" error={errors.rawVolumeMl}>
+          <FormField label="Total Volume (mL)" error={errors.rawVolumeMl}>
             <FormTextInput value={rawVolumeMl} onChangeText={setRawVolumeMl} placeholder="Optional" keyboardType="numeric" />
           </FormField>
 
-          <FormField label="Total Volume (mL)" error={errors.totalVolumeMl}>
-            <FormTextInput value={totalVolumeMl} onChangeText={setTotalVolumeMl} placeholder="Optional" keyboardType="numeric" />
+          <FormField label="Concentration (M/mL, raw)" error={errors.concentrationMillionsPerMl}>
+            <FormTextInput
+              value={concentrationMillionsPerMl}
+              onChangeText={setConcentrationMillionsPerMl}
+              placeholder="Optional"
+              keyboardType="numeric"
+            />
           </FormField>
 
-          <FormField label="Extender Volume (mL)" error={errors.extenderVolumeMl}>
-            <FormTextInput value={extenderVolumeMl} onChangeText={setExtenderVolumeMl} placeholder="Optional" keyboardType="numeric" />
+          <FormField label="Progressive Motility (%)" error={errors.progressiveMotilityPercent}>
+            <FormTextInput
+              value={progressiveMotilityPercent}
+              onChangeText={setProgressiveMotilityPercent}
+              placeholder="0-100"
+              keyboardType="numeric"
+            />
+          </FormField>
+
+          <FormField
+            label="Target motile sperm / dose (M)"
+            error={errors.targetMotileSpermMillionsPerDose}
+          >
+            <FormTextInput
+              value={targetMotileSpermMillionsPerDose}
+              onChangeText={setTargetMotileSpermMillionsPerDose}
+              placeholder="Optional"
+              keyboardType="numeric"
+            />
+          </FormField>
+
+          <FormField
+            label="Target post-extension concentration (M motile/mL)"
+            error={errors.targetPostExtensionConcentrationMillionsPerMl}
+          >
+            <FormTextInput
+              value={targetPostExtensionConcentrationMillionsPerMl}
+              onChangeText={setTargetPostExtensionConcentrationMillionsPerMl}
+              placeholder="Optional"
+              keyboardType="numeric"
+            />
           </FormField>
 
           <FormField label="Extender Type">
@@ -192,30 +307,45 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
             />
           </FormField>
 
-          <FormField label="Concentration (M/mL)" error={errors.concentrationMillionsPerMl}>
-            <FormTextInput value={concentrationMillionsPerMl} onChangeText={setConcentrationMillionsPerMl} placeholder="Optional" keyboardType="numeric" />
-          </FormField>
-
-          <FormField label="Progressive Motility (%)" error={errors.progressiveMotilityPercent}>
-            <FormTextInput value={progressiveMotilityPercent} onChangeText={setProgressiveMotilityPercent} placeholder="0-100" keyboardType="numeric" />
-          </FormField>
-
-          <FormField label="Dose Count" error={errors.doseCount}>
-            <FormTextInput value={doseCount} onChangeText={setDoseCount} placeholder="Optional" keyboardType="numeric" />
-          </FormField>
-
-          <FormField label="Dose Size (millions)" error={errors.doseSizeMillions}>
-            <FormTextInput value={doseSizeMillions} onChangeText={setDoseSizeMillions} placeholder="Optional" keyboardType="numeric" />
-          </FormField>
-
           <FormField label="Notes">
             <FormTextInput value={notes} onChangeText={setNotes} multiline placeholder="Optional" />
           </FormField>
 
+          <View style={cardStyles.card}>
+            <Text style={styles.sectionTitle}>Derived Plan</Text>
+            <CardRow
+              label="Raw Motile Concentration"
+              value={
+                derivedMath.rawMotileConcentrationMillionsPerMl == null
+                  ? '-'
+                  : `${derivedMath.rawMotileConcentrationMillionsPerMl.toFixed(2)} M/mL`
+              }
+            />
+            <CardRow label="Semen Per Dose" value={formatMl(derivedMath.semenPerDoseMl)} />
+            <CardRow label="Extender Per Dose" value={formatMl(derivedMath.extenderPerDoseMl)} />
+            <CardRow label="Dose Volume" value={formatMl(derivedMath.doseVolumeMl)} />
+            <CardRow
+              label="Max Doses"
+              value={derivedMath.maxDoses == null ? '-' : `~${derivedMath.maxDoses.toFixed(1)}`}
+            />
+            {derivedMath.warnings.includes('negative-extender') ? (
+              <Text style={styles.warningText}>
+                Extender amount is negative. Target concentration is at or above raw motile concentration.
+              </Text>
+            ) : null}
+            {derivedMath.warnings.includes('target-exceeds-capacity') ? (
+              <Text style={styles.warningText}>
+                Current targets appear to exceed collection capacity.
+              </Text>
+            ) : null}
+          </View>
+
           <View style={{ gap: 12 }}>
             <PrimaryButton
               label="Update Collection"
-              onPress={() => { void onSave(); }}
+              onPress={() => {
+                void onSave();
+              }}
               disabled={isSaving}
             />
             <DeleteButton label="Delete Collection" onPress={onDelete} disabled={isSaving} />
@@ -225,3 +355,15 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  sectionTitle: {
+    color: colors.onSurface,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  warningText: {
+    color: colors.error,
+    fontSize: 12,
+  },
+});
