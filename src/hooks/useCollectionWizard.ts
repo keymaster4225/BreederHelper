@@ -330,6 +330,21 @@ export function useCollectionWizard({
     );
   };
 
+  const onTargetModeChange = (nextTargetMode: CollectionTargetMode): void => {
+    if (nextTargetMode === targetMode) {
+      return;
+    }
+
+    setTargetMode(nextTargetMode);
+    setTargetSpermMillionsPerDose('');
+    setTargetPostExtensionConcentrationMillionsPerMl('');
+    setErrors((current) => ({
+      ...current,
+      targetSpermMillionsPerDose: undefined,
+      targetPostExtensionConcentrationMillionsPerMl: undefined,
+    }));
+  };
+
   const goNext = (): void => {
     if (!validateStep(currentStepIndex)) {
       return;
@@ -505,7 +520,7 @@ export function useCollectionWizard({
     progressiveMotilityPercent,
     setProgressiveMotilityPercent,
     targetMode,
-    setTargetMode,
+    onTargetModeChange,
     targetSpermMillionsPerDose,
     setTargetSpermMillionsPerDose,
     targetPostExtensionConcentrationMillionsPerMl,

@@ -17,6 +17,9 @@ export function getPersistedCollectionTargetMode(args: {
   targetSpermMillionsPerDose: number | null | undefined;
   targetPostExtensionConcentrationMillionsPerMl: number | null | undefined;
 }): CollectionTargetMode | null {
+  // `null` is only canonical when both target fields are absent. Once either
+  // target exists, the stored mode must be explicit, and legacy rows missing a
+  // mode are normalized to `progressive`.
   const {
     targetMode,
     targetSpermMillionsPerDose,

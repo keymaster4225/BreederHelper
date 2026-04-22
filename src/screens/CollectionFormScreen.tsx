@@ -200,6 +200,21 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
   );
   const rangeHelperText = getTargetPostExtensionRangeHelperText(targetMode);
 
+  const onTargetModeChange = (nextTargetMode: CollectionTargetMode): void => {
+    if (nextTargetMode === targetMode) {
+      return;
+    }
+
+    setTargetMode(nextTargetMode);
+    setTargetSpermMillionsPerDose('');
+    setTargetPostExtensionConcentrationMillionsPerMl('');
+    setErrors((current) => ({
+      ...current,
+      targetSpermMillionsPerDose: undefined,
+      targetPostExtensionConcentrationMillionsPerMl: undefined,
+    }));
+  };
+
   const validate = (): FormErrors => {
     const errs: FormErrors = {};
     errs.collectionDate =
@@ -333,7 +348,7 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
           <FormField label="Target Mode">
             <OptionSelector
               value={targetMode}
-              onChange={setTargetMode}
+              onChange={onTargetModeChange}
               options={COLLECTION_TARGET_MODE_OPTIONS}
             />
           </FormField>

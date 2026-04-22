@@ -72,7 +72,7 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
               concentrationMillionsPerMl={wizard.parsedConcentrationMillionsPerMl}
               progressiveMotilityPercent={wizard.parsedProgressiveMotilityPercent}
               targetMode={wizard.targetMode}
-              setTargetMode={wizard.setTargetMode}
+              onTargetModeChange={wizard.onTargetModeChange}
               targetSpermMillionsPerDose={wizard.targetSpermMillionsPerDose}
               setTargetSpermMillionsPerDose={wizard.setTargetSpermMillionsPerDose}
               targetPostExtensionConcentrationMillionsPerMl={wizard.targetPostExtensionConcentrationMillionsPerMl}

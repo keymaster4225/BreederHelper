@@ -405,6 +405,53 @@ it('toggles labels and equivalents when switched to total mode', async () => {
   );
 });
 
+it('clears both target inputs when switching target mode', async () => {
+  const screen = renderWizard();
+
+  typeDate(screen, 'Collection Date', '2026-04-21');
+  typeText(screen, 'Total Volume (mL)', '100');
+  typeText(screen, 'Concentration (M/mL, raw)', '200');
+  typeText(screen, 'Progressive Motility (%)', '50');
+  fireEvent.press(screen.getByText('Next'));
+  await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
+
+  typeText(screen, 'Target Progressive Sperm / Dose (M)', '500');
+  typeText(screen, 'Target Post-Extension Progressive Concentration (M/mL)', '100');
+
+  expect(
+    within(getField(screen, 'Target Progressive Sperm / Dose (M)')).getByDisplayValue('500'),
+  ).toBeTruthy();
+  expect(
+    within(
+      getField(screen, 'Target Post-Extension Progressive Concentration (M/mL)'),
+    ).getByDisplayValue('100'),
+  ).toBeTruthy();
+
+  fireEvent.press(screen.getByText('Total'));
+
+  expect(screen.getByText('Target Total Sperm / Dose (M)')).toBeTruthy();
+  expect(screen.getByText('Target Post-Extension Total Concentration (M/mL)')).toBeTruthy();
+  expect(
+    screen.getByText(
+      'Common shipped-cooled target: 35 M/mL. Typical planning range is 25-50 M/mL unless you are centrifuging.',
+    ),
+  ).toBeTruthy();
+  expect(
+    screen.getByText(
+      'BreedWise uses total sperm/mL here. If motility is recorded, BreedWise will also show the progressive equivalent for comparison.',
+    ),
+  ).toBeTruthy();
+  expect(
+    within(getField(screen, 'Target Total Sperm / Dose (M)')).getByTestId('form-text-input')
+      .props.value,
+  ).toBe('');
+  expect(
+    within(
+      getField(screen, 'Target Post-Extension Total Concentration (M/mL)'),
+    ).getByTestId('form-text-input').props.value,
+  ).toBe('');
+});
+
 it('shows the total-mode missing-motility warning without blocking planning', async () => {
   const screen = renderWizard();
 

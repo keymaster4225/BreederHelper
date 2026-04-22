@@ -158,6 +158,54 @@ describe('restoreBackup', () => {
     expect(createSafetySnapshot).not.toHaveBeenCalled();
   });
 
+  it('canonicalizes missing v3 collection target mode to progressive when target values exist', async () => {
+    const backup = cloneBackupFixture();
+    const legacyCollectionRow = { ...backup.tables.semen_collections[0] };
+    delete (legacyCollectionRow as { target_mode?: unknown }).target_mode;
+    const legacyBackup = {
+      ...backup,
+      tables: {
+        ...backup.tables,
+        semen_collections: [legacyCollectionRow],
+      },
+    };
+    const db = {
+      runAsync: vi.fn(async () => undefined),
+      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
+        await callback();
+      }),
+    };
+
+    vi.mocked(validateBackup).mockReturnValue({
+      ok: true,
+      backup: legacyBackup,
+      preview: {
+        createdAt: legacyBackup.createdAt,
+        mareCount: 1,
+        stallionCount: 1,
+        dailyLogCount: 1,
+        onboardingComplete: true,
+        schemaVersion: 3,
+      },
+    });
+    vi.mocked(getDb).mockResolvedValue(db as never);
+    vi.mocked(setOnboardingCompleteValue).mockResolvedValue(undefined);
+
+    const result = await restoreBackup(legacyBackup, { skipSafetySnapshot: true });
+
+    expect(result).toEqual({
+      ok: true,
+      safetySnapshotCreated: false,
+    });
+    const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
+    const semenCollectionInsertCall = runCalls.find(([sql]) =>
+      typeof sql === 'string' && sql.includes('INSERT INTO semen_collections'),
+    );
+    expect((semenCollectionInsertCall?.[1] as unknown[] | undefined)?.[7]).toBe(
+      'progressive',
+    );
+  });
+
   it('returns a warning when onboarding persistence fails after the transaction commits', async () => {
     const backup = cloneBackupFixture();
     const db = {

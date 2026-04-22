@@ -1,6 +1,84 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
 
 import { CollectionFormScreen } from '@/screens/CollectionFormScreen';
+
+jest.mock('@/components/FormControls', () => {
+  const { Text, TextInput, View } = require('react-native');
+  const actual = jest.requireActual('@/components/FormControls');
+
+  function FormField({
+    label,
+    required,
+    error,
+    children,
+  }: {
+    label: string;
+    required?: boolean;
+    error?: string | null;
+    children: any;
+  }): JSX.Element {
+    return (
+      <View testID={`field-${label}`}>
+        <Text>
+          {label}
+          {required ? ' *' : ''}
+        </Text>
+        {children}
+        {error ? <Text>{error}</Text> : null}
+      </View>
+    );
+  }
+
+  function FormTextInput(props: Record<string, unknown>): JSX.Element {
+    return <TextInput testID={String(props.testID ?? 'form-text-input')} {...(props as any)} />;
+  }
+
+  function FormDateInput({
+    value,
+    onChange,
+    placeholder = 'Select date',
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+  }): JSX.Element {
+    return (
+      <TextInput
+        testID="form-date-input"
+        placeholder={placeholder}
+        value={value}
+        onChangeText={onChange}
+      />
+    );
+  }
+
+  function FormAutocompleteInput({
+    value,
+    onChangeText,
+    placeholder,
+  }: {
+    value: string;
+    onChangeText: (value: string) => void;
+    placeholder?: string;
+  }): JSX.Element {
+    return (
+      <TextInput
+        testID="form-autocomplete-input"
+        placeholder={placeholder}
+        value={value}
+        onChangeText={onChangeText}
+      />
+    );
+  }
+
+  return {
+    ...actual,
+    FormAutocompleteInput,
+    FormDateInput,
+    FormField,
+    FormTextInput,
+  };
+});
 
 jest.mock('@/storage/repositories', () => ({
   getSemenCollectionById: jest.fn(),
@@ -45,6 +123,10 @@ function renderForm(
       />,
     ),
   };
+}
+
+function getField(screen: ReturnType<typeof renderForm>, label: string) {
+  return screen.getByTestId(`field-${label}`);
 }
 
 it('renders updated collection fields and derived plan panel', async () => {
@@ -124,4 +206,40 @@ it('shows the total-mode missing-motility warning without blocking edit mode', a
       ),
     ).toBeTruthy();
   });
+});
+
+it('clears both target inputs when switching target mode in edit mode', async () => {
+  const screen = renderForm();
+
+  await waitFor(() => {
+    expect(screen.getByText('Target Total Sperm / Dose (M)')).toBeTruthy();
+    expect(
+      within(getField(screen, 'Target Total Sperm / Dose (M)')).getByDisplayValue('500'),
+    ).toBeTruthy();
+    expect(
+      within(
+        getField(screen, 'Target Post-Extension Total Concentration (M/mL)'),
+      ).getByDisplayValue('100'),
+    ).toBeTruthy();
+  });
+
+  fireEvent.press(screen.getByText('Progressive'));
+
+  expect(screen.getByText('Target Progressive Sperm / Dose (M)')).toBeTruthy();
+  expect(screen.getByText('Target Post-Extension Progressive Concentration (M/mL)')).toBeTruthy();
+  expect(
+    screen.getByText(
+      'BreedWise uses progressive sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: progressive = total x (motility / 100).',
+    ),
+  ).toBeTruthy();
+  expect(
+    within(getField(screen, 'Target Progressive Sperm / Dose (M)')).getByTestId(
+      'form-text-input',
+    ).props.value,
+  ).toBe('');
+  expect(
+    within(
+      getField(screen, 'Target Post-Extension Progressive Concentration (M/mL)'),
+    ).getByTestId('form-text-input').props.value,
+  ).toBe('');
 });

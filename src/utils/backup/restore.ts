@@ -242,6 +242,12 @@ async function insertSemenCollection(
   db: Awaited<ReturnType<typeof getDb>>,
   row: BackupSemenCollectionRowV3,
 ): Promise<void> {
+  const hasTargetValues =
+    row.target_motile_sperm_millions_per_dose != null ||
+    row.target_post_extension_concentration_millions_per_ml != null;
+  const normalizedTargetMode =
+    row.target_mode ?? (hasTargetValues ? 'progressive' : null);
+
   await db.runAsync(
     `
     INSERT INTO semen_collections (
@@ -268,7 +274,7 @@ async function insertSemenCollection(
       row.extender_type,
       row.concentration_millions_per_ml,
       row.progressive_motility_percent,
-      row.target_mode ?? null,
+      normalizedTargetMode,
       row.target_motile_sperm_millions_per_dose,
       row.target_post_extension_concentration_millions_per_ml,
       row.notes,

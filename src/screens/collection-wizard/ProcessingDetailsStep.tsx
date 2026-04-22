@@ -28,7 +28,7 @@ type Props = {
   concentrationMillionsPerMl: number | null;
   progressiveMotilityPercent: number | null;
   targetMode: CollectionTargetMode;
-  setTargetMode: (value: CollectionTargetMode) => void;
+  onTargetModeChange: (value: CollectionTargetMode) => void;
   targetSpermMillionsPerDose: string;
   setTargetSpermMillionsPerDose: (value: string) => void;
   targetPostExtensionConcentrationMillionsPerMl: string;
@@ -57,7 +57,7 @@ export function ProcessingDetailsStep({
   concentrationMillionsPerMl,
   progressiveMotilityPercent,
   targetMode,
-  setTargetMode,
+  onTargetModeChange,
   targetSpermMillionsPerDose,
   setTargetSpermMillionsPerDose,
   targetPostExtensionConcentrationMillionsPerMl,
@@ -115,7 +115,7 @@ export function ProcessingDetailsStep({
       <FormField label="Target Mode">
         <OptionSelector
           value={targetMode}
-          onChange={setTargetMode}
+          onChange={onTargetModeChange}
           options={COLLECTION_TARGET_MODE_OPTIONS}
         />
       </FormField>
