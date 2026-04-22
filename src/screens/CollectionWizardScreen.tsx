@@ -1,7 +1,7 @@
 import { useLayoutEffect } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { HeaderBackButton } from '@react-navigation/elements';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { PrimaryButton, SecondaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
@@ -24,9 +24,21 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerBackVisible: wizard.currentStepIndex === 0,
       headerLeft:
         wizard.currentStepIndex > 0
-          ? (props) => <HeaderBackButton {...props} onPress={wizard.goBack} />
+          ? () => (
+              <Pressable
+                accessibilityLabel="Go to previous wizard step"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={wizard.goBack}
+                style={({ pressed }) => [styles.headerBackButton, pressed && styles.headerBackButtonPressed]}
+                testID="collection-wizard-header-back"
+              >
+                <MaterialCommunityIcons name="chevron-left" size={26} color={colors.onSurface} />
+              </Pressable>
+            )
           : undefined,
     });
   }, [navigation, wizard.currentStepIndex, wizard.goBack]);
@@ -152,5 +164,15 @@ const styles = StyleSheet.create({
   actions: {
     gap: spacing.sm,
     paddingBottom: spacing.lg,
+  },
+  headerBackButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: -4,
+    paddingRight: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  headerBackButtonPressed: {
+    opacity: 0.6,
   },
 });

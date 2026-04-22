@@ -430,7 +430,7 @@ it('uses the header back arrow to move between wizard steps after step 1', async
 
   await waitFor(() =>
     expect(screen.navigation.setOptions).toHaveBeenCalledWith(
-      expect.objectContaining({ headerLeft: undefined }),
+      expect.objectContaining({ headerBackVisible: true, headerLeft: undefined }),
     ),
   );
 
@@ -448,9 +448,13 @@ it('uses the header back arrow to move between wizard steps after step 1', async
     screen.navigation.setOptions.mock.calls[screen.navigation.setOptions.mock.calls.length - 1][0];
   const headerLeft = options.headerLeft as (props?: Record<string, unknown>) => JSX.Element;
   const headerButton = headerLeft({});
+  const headerButtonScreen = render(headerButton);
+
+  expect(headerButtonScreen.getByLabelText('Go to previous wizard step')).toBeTruthy();
+  expect(headerButtonScreen.getByText('chevron-left')).toBeTruthy();
 
   await act(async () => {
-    headerButton.props.onPress();
+    fireEvent.press(headerButtonScreen.getByLabelText('Go to previous wizard step'));
   });
 
   await waitFor(() => expect(screen.getByText(/Collection basics/i)).toBeTruthy());
