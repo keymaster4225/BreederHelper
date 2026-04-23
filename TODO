@@ -1,16 +1,12 @@
+setting to change between 12/24h clock
+
 ability to change what due date is based off of (240, 245, etc).
-
-able to mark whether a mare is a recip. should be marked by an icon of some kind on the mare card
-
-new screen for freezing semen, not just inseminating
 
 frozen semen inventory
 
 frozen semen: decrement straws-remaining when straws are used in a breeding (consumption tracking)
 
 frozen semen: dashboard alerts for low frozen inventory
-
-workflow wizard for new scans
 
 able to add multiple checks per day per mare, with prominent timestamp display
 
