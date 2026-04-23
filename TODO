@@ -8,8 +8,6 @@ frozen semen: decrement straws-remaining when straws are used in a breeding (con
 
 frozen semen: dashboard alerts for low frozen inventory
 
-able to add multiple checks per day per mare, with prominent timestamp display
-
 fluid tracking (need more detail)
 
 calendar at a glance for all mares, need to think on visual design
