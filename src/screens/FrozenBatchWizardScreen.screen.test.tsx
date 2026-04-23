@@ -229,6 +229,22 @@ it('uses the header back arrow to move between wizard steps after step 1', async
   expect(screen.navigation.goBack).not.toHaveBeenCalled();
 });
 
+it('supports step-pill navigation with validation gating', async () => {
+  const screen = renderScreen();
+
+  fireEvent.press(screen.getByLabelText('Go to Straws & Extender step'));
+  expect(screen.getByTestId('field-Freeze Date')).toBeTruthy();
+  expect(screen.queryByTestId('field-Straw Count')).toBeNull();
+  expect(screen.getByText('Freeze date is required.')).toBeTruthy();
+
+  typeDate(screen, 'Freeze Date', '2026-04-22');
+  fireEvent.press(screen.getByLabelText('Go to Straws & Extender step'));
+  await waitFor(() => expect(screen.getByTestId('field-Straw Count')).toBeTruthy());
+
+  fireEvent.press(screen.getByLabelText('Go to Basics step'));
+  await waitFor(() => expect(screen.getByTestId('field-Freeze Date')).toBeTruthy());
+});
+
 it('auto-expands centrifuge card and supports collapse with nested cushion fields', () => {
   const screen = renderScreen();
 
