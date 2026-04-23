@@ -8,3 +8,5 @@ export * from './foals';
 export * from './medications';
 export * from './semenCollections';
 export * from './collectionDoseEvents';
+export * from './collectionWizard';
+export * from './frozenSemenBatches';

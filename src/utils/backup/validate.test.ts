@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cloneBackupFixture } from './testFixtures';
+import { cloneBackupFixture, createBackupFixtureV2 } from './testFixtures';
 import { validateBackup, validateBackupJson } from './validate';
 
 describe('validateBackup', () => {
@@ -135,6 +135,146 @@ describe('validateBackup', () => {
     expect(result.ok).toBe(true);
   });
 
+  it('accepts v2 collection dose events without the new optional shipping fields', () => {
+    const backup = createBackupFixtureV2();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        collection_dose_events: backup.tables.collection_dose_events.map((row) => {
+          const legacyRow = { ...row } as Record<string, unknown>;
+          delete legacyRow.recipient_phone;
+          delete legacyRow.recipient_street;
+          delete legacyRow.recipient_city;
+          delete legacyRow.recipient_state;
+          delete legacyRow.recipient_zip;
+          delete legacyRow.carrier_service;
+          delete legacyRow.container_type;
+          delete legacyRow.tracking_number;
+          delete legacyRow.breeding_record_id;
+          return legacyRow;
+        }),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('requires collection dose events to reference an existing breeding record when provided', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        collection_dose_events: backup.tables.collection_dose_events.map((row, index) =>
+          index === 0 ? { ...row, breeding_record_id: 'missing-breed' } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('collection_dose_events');
+    expect(result.error.field).toBe('breeding_record_id');
+    expect(result.error.message).toContain('references missing breeding record');
+  });
+
+  it('rejects collection allocations that exceed collection raw volume using semen-volume math', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        semen_collections: backup.tables.semen_collections.map((row, index) =>
+          index === 0 ? { ...row, raw_volume_ml: 75 } : row,
+        ),
+        collection_dose_events: [
+          ...backup.tables.collection_dose_events,
+          {
+            ...backup.tables.collection_dose_events[0]!,
+            id: 'event-2',
+            event_type: 'shipped',
+            recipient: 'Farm ABC',
+            dose_semen_volume_ml: 30,
+            dose_extender_volume_ml: 10,
+            dose_count: 1,
+          },
+        ],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('semen_collections');
+    expect(result.error.field).toBe('raw_volume_ml');
+    expect(result.error.message).toContain('linked allocated semen volume');
+  });
+
+  it('rejects v3 usedOnSite rows when dose_count is not 1', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        collection_dose_events: backup.tables.collection_dose_events.map((row, index) =>
+          index === 0 ? { ...row, dose_count: 2 } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('collection_dose_events');
+    expect(result.error.field).toBe('dose_count');
+    expect(result.error.message).toContain('must be 1 for usedOnSite rows');
+  });
+
+  it('rejects v3 usedOnSite rows when extender volume is present', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        collection_dose_events: backup.tables.collection_dose_events.map((row, index) =>
+          index === 0 ? { ...row, dose_extender_volume_ml: 1 } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('collection_dose_events');
+    expect(result.error.field).toBe('dose_extender_volume_ml');
+    expect(result.error.message).toContain('must be null for usedOnSite rows');
+  });
+
+  it('accepts v2 usedOnSite rows with legacy dose_count values for restore canonicalization', () => {
+    const backup = createBackupFixtureV2();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        collection_dose_events: backup.tables.collection_dose_events.map((row, index) =>
+          index === 0 ? { ...row, dose_count: 3 } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
   it('accepts preserved future-format foal igg entries that do not match the current schema', () => {
     const backup = cloneBackupFixture();
     const result = validateBackup({
@@ -230,7 +370,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 3,
+      schemaVersion: 5,
     });
 
     const result = validateBackupJson(jsonText);
@@ -241,5 +381,48 @@ describe('validateBackup', () => {
     }
 
     expect(result.error.code).toBe('unsupported_schema_version');
+  });
+
+  it('rejects frozen rows with invalid extender Other pairing', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        frozen_semen_batches: backup.tables.frozen_semen_batches.map((row, index) =>
+          index === 0 ? { ...row, extender: 'Other', extender_other: null } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('frozen_semen_batches');
+    expect(result.error.field).toBe('extender_other');
+  });
+
+  it('rejects frozen rows that reference missing collections', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        frozen_semen_batches: backup.tables.frozen_semen_batches.map((row, index) =>
+          index === 0 ? { ...row, collection_id: 'missing-collection' } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('frozen_semen_batches');
+    expect(result.error.field).toBe('collection_id');
+    expect(result.error.message).toContain('references missing semen collection');
   });
 });

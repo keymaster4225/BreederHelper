@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   AI_BREEDING_METHOD_OPTIONS,
+  COLLECTION_TARGET_MODE_OPTIONS,
   DOSE_EVENT_TYPE_OPTIONS,
   FOAL_COLOR_OPTIONS,
   FOAL_SEX_VALUES,
@@ -9,8 +10,10 @@ import {
   FOAL_SEX_OPTIONS,
   FOALING_OUTCOME_VALUES,
   FOALING_OUTCOME_OPTIONS,
+  FREEZING_EXTENDER_OPTIONS,
   MEDICATION_ROUTE_OPTIONS,
   PREGNANCY_RESULT_OPTIONS,
+  STRAW_COLOR_OPTIONS,
 } from './enums';
 
 describe('shared enum definitions', () => {
@@ -79,7 +82,7 @@ describe('shared enum definitions', () => {
 
     expect(DOSE_EVENT_TYPE_OPTIONS).toEqual([
       { label: 'Shipped', value: 'shipped' },
-      { label: 'Used on site', value: 'usedOnSite' },
+      { label: 'On-farm', value: 'usedOnSite' },
     ]);
 
     expect(FOAL_MILESTONE_KEYS).toEqual([
@@ -90,6 +93,36 @@ describe('shared enum definitions', () => {
       'enemaGiven',
       'umbilicalTreated',
       'firstVetCheck',
+    ]);
+
+    expect(FREEZING_EXTENDER_OPTIONS).toEqual([
+      { label: 'BotuCrio', value: 'BotuCrio' },
+      { label: 'INRA Freeze', value: 'INRA Freeze' },
+      { label: 'Gent', value: 'Gent' },
+      { label: 'HF-20', value: 'HF-20' },
+      { label: 'Equex STM', value: 'Equex STM' },
+      { label: 'Lactose-EDTA-egg-yolk', value: 'Lactose-EDTA-egg-yolk' },
+      { label: 'Skim milk-glycerol', value: 'Skim milk-glycerol' },
+      { label: 'Other', value: 'Other' },
+    ]);
+
+    expect(STRAW_COLOR_OPTIONS).toEqual([
+      { label: 'Yellow', value: 'Yellow' },
+      { label: 'Pink', value: 'Pink' },
+      { label: 'Blue', value: 'Blue' },
+      { label: 'Green', value: 'Green' },
+      { label: 'Red', value: 'Red' },
+      { label: 'Orange', value: 'Orange' },
+      { label: 'Purple', value: 'Purple' },
+      { label: 'White', value: 'White' },
+      { label: 'Black', value: 'Black' },
+      { label: 'Clear', value: 'Clear' },
+      { label: 'Other', value: 'Other' },
+    ]);
+
+    expect(COLLECTION_TARGET_MODE_OPTIONS).toEqual([
+      { label: 'Progressive', value: 'progressive' },
+      { label: 'Total', value: 'total' },
     ]);
   });
 });

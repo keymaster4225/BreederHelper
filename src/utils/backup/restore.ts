@@ -4,18 +4,22 @@ import { DEFAULT_GESTATION_LENGTH_DAYS } from '@/models/types';
 import { setOnboardingCompleteValue } from '@/utils/onboarding';
 
 import { createSafetySnapshot } from './safetyBackups';
+import { BACKUP_SCHEMA_VERSION_V4 } from './types';
 import type {
+  BackupCollectionDoseEventRowV2,
+  BackupCollectionDoseEventRowV3,
   BackupBreedingRecordRow,
-  BackupCollectionDoseEventRow,
   BackupDailyLogRow,
   BackupEnvelope,
   BackupFoalingRecordRow,
   BackupFoalRow,
+  BackupFrozenSemenBatchRow,
   BackupMareRowV1,
   BackupMareRowV2,
   BackupMedicationLogRow,
   BackupPregnancyCheckRow,
-  BackupSemenCollectionRow,
+  BackupSemenCollectionRowV2,
+  BackupSemenCollectionRowV3,
   BackupStallionRow,
   RestoreBackupResult,
 } from './types';
@@ -24,6 +28,28 @@ import { validateBackup, validateBackupJson } from './validate';
 type RestoreOptions = {
   readonly skipSafetySnapshot?: boolean;
   readonly onStepChange?: (stepLabel: string) => void;
+};
+
+const LEGACY_USED_ON_SITE_COLLAPSE_NOTE =
+  'Legacy migration: collapsed used-on-site dose count to 1 during collection volume rework.';
+
+type NormalizedBackupForRestore = {
+  readonly settings: {
+    readonly onboardingComplete: boolean;
+  };
+  readonly tables: {
+    readonly mares: readonly (BackupMareRowV1 | BackupMareRowV2)[];
+    readonly stallions: readonly BackupStallionRow[];
+    readonly semen_collections: readonly BackupSemenCollectionRowV3[];
+    readonly breeding_records: readonly BackupBreedingRecordRow[];
+    readonly daily_logs: readonly BackupDailyLogRow[];
+    readonly medication_logs: readonly BackupMedicationLogRow[];
+    readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
+    readonly foaling_records: readonly BackupFoalingRecordRow[];
+    readonly foals: readonly BackupFoalRow[];
+    readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
+    readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
+  };
 };
 
 export async function restoreBackup(
@@ -42,6 +68,8 @@ export async function restoreBackup(
     };
   }
 
+  const backupForRestore = normalizeBackupForRestore(validation.backup);
+
   try {
     if (!options.skipSafetySnapshot) {
       options.onStepChange?.('Creating safety snapshot...');
@@ -52,14 +80,14 @@ export async function restoreBackup(
     options.onStepChange?.('Restoring data...');
     await db.withTransactionAsync(async () => {
       await deleteManagedTables(db);
-      await insertManagedTables(db, validation.backup);
+      await insertManagedTables(db, backupForRestore);
     });
 
     let warningMessage: string | undefined;
 
     try {
       options.onStepChange?.('Updating app settings...');
-      await setOnboardingCompleteValue(validation.backup.settings.onboardingComplete);
+      await setOnboardingCompleteValue(backupForRestore.settings.onboardingComplete);
     } catch {
       warningMessage =
         'Breeding data was restored, but onboarding state could not be updated. Close and reopen the app if the home screen looks incorrect.';
@@ -83,6 +111,7 @@ export async function restoreBackup(
 
 async function deleteManagedTables(db: Awaited<ReturnType<typeof getDb>>): Promise<void> {
   await db.runAsync('DELETE FROM collection_dose_events;');
+  await db.runAsync('DELETE FROM frozen_semen_batches;');
   await db.runAsync('DELETE FROM foals;');
   await db.runAsync('DELETE FROM pregnancy_checks;');
   await db.runAsync('DELETE FROM foaling_records;');
@@ -96,7 +125,7 @@ async function deleteManagedTables(db: Awaited<ReturnType<typeof getDb>>): Promi
 
 async function insertManagedTables(
   db: Awaited<ReturnType<typeof getDb>>,
-  backup: BackupEnvelope,
+  backup: NormalizedBackupForRestore,
 ): Promise<void> {
   for (const row of backup.tables.mares) {
     await insertMare(db, row);
@@ -106,6 +135,9 @@ async function insertManagedTables(
   }
   for (const row of backup.tables.semen_collections) {
     await insertSemenCollection(db, row);
+  }
+  for (const row of backup.tables.frozen_semen_batches) {
+    await insertFrozenSemenBatch(db, row);
   }
   for (const row of backup.tables.breeding_records) {
     await insertBreedingRecord(db, row);
@@ -214,8 +246,14 @@ async function insertStallion(
 
 async function insertSemenCollection(
   db: Awaited<ReturnType<typeof getDb>>,
-  row: BackupSemenCollectionRow,
+  row: BackupSemenCollectionRowV3,
 ): Promise<void> {
+  const hasTargetValues =
+    row.target_motile_sperm_millions_per_dose != null ||
+    row.target_post_extension_concentration_millions_per_ml != null;
+  const normalizedTargetMode =
+    row.target_mode ?? (hasTargetValues ? 'progressive' : null);
+
   await db.runAsync(
     `
     INSERT INTO semen_collections (
@@ -223,30 +261,98 @@ async function insertSemenCollection(
       stallion_id,
       collection_date,
       raw_volume_ml,
-      extended_volume_ml,
-      extender_volume_ml,
       extender_type,
       concentration_millions_per_ml,
       progressive_motility_percent,
-      dose_count,
-      dose_size_millions,
+      target_mode,
+      target_motile_sperm_millions_per_dose,
+      target_post_extension_concentration_millions_per_ml,
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
       row.stallion_id,
       row.collection_date,
       row.raw_volume_ml,
-      row.extended_volume_ml,
-      row.extender_volume_ml ?? null,
-      row.extender_type ?? null,
+      row.extender_type,
       row.concentration_millions_per_ml,
       row.progressive_motility_percent,
-      row.dose_count,
-      row.dose_size_millions,
+      normalizedTargetMode,
+      row.target_motile_sperm_millions_per_dose,
+      row.target_post_extension_concentration_millions_per_ml,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertFrozenSemenBatch(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupFrozenSemenBatchRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO frozen_semen_batches (
+      id,
+      stallion_id,
+      collection_id,
+      freeze_date,
+      raw_semen_volume_used_ml,
+      extender,
+      extender_other,
+      was_centrifuged,
+      centrifuge_speed_rpm,
+      centrifuge_duration_min,
+      centrifuge_cushion_used,
+      centrifuge_cushion_type,
+      centrifuge_resuspension_vol_ml,
+      centrifuge_notes,
+      straw_count,
+      straws_remaining,
+      straw_volume_ml,
+      concentration_millions_per_ml,
+      straws_per_dose,
+      straw_color,
+      straw_color_other,
+      straw_label,
+      post_thaw_motility_percent,
+      longevity_hours,
+      storage_details,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.stallion_id,
+      row.collection_id,
+      row.freeze_date,
+      row.raw_semen_volume_used_ml,
+      row.extender,
+      row.extender_other,
+      row.was_centrifuged,
+      row.centrifuge_speed_rpm,
+      row.centrifuge_duration_min,
+      row.centrifuge_cushion_used,
+      row.centrifuge_cushion_type,
+      row.centrifuge_resuspension_vol_ml,
+      row.centrifuge_notes,
+      row.straw_count,
+      row.straws_remaining,
+      row.straw_volume_ml,
+      row.concentration_millions_per_ml,
+      row.straws_per_dose,
+      row.straw_color,
+      row.straw_color_other,
+      row.straw_label,
+      row.post_thaw_motility_percent,
+      row.longevity_hours,
+      row.storage_details,
       row.notes,
       row.created_at,
       row.updated_at,
@@ -477,7 +583,7 @@ async function insertFoal(db: Awaited<ReturnType<typeof getDb>>, row: BackupFoal
 
 async function insertCollectionDoseEvent(
   db: Awaited<ReturnType<typeof getDb>>,
-  row: BackupCollectionDoseEventRow,
+  row: BackupCollectionDoseEventRowV3,
 ): Promise<void> {
   await db.runAsync(
     `
@@ -486,18 +592,40 @@ async function insertCollectionDoseEvent(
       collection_id,
       event_type,
       recipient,
+      recipient_phone,
+      recipient_street,
+      recipient_city,
+      recipient_state,
+      recipient_zip,
+      carrier_service,
+      container_type,
+      tracking_number,
+      breeding_record_id,
+      dose_semen_volume_ml,
+      dose_extender_volume_ml,
       dose_count,
       event_date,
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
       row.collection_id,
       row.event_type,
       row.recipient,
+      row.recipient_phone ?? null,
+      row.recipient_street ?? null,
+      row.recipient_city ?? null,
+      row.recipient_state ?? null,
+      row.recipient_zip ?? null,
+      row.carrier_service ?? null,
+      row.container_type ?? null,
+      row.tracking_number ?? null,
+      row.breeding_record_id ?? null,
+      row.dose_semen_volume_ml,
+      row.dose_extender_volume_ml,
       row.dose_count,
       row.event_date,
       row.notes,
@@ -505,4 +633,100 @@ async function insertCollectionDoseEvent(
       row.updated_at,
     ],
   );
+}
+
+function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForRestore {
+  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V4) {
+    return {
+      settings: backup.settings,
+      tables: {
+        ...backup.tables,
+        frozen_semen_batches: backup.tables.frozen_semen_batches ?? [],
+      },
+    };
+  }
+
+  return {
+    settings: backup.settings,
+    tables: {
+      mares: backup.tables.mares,
+      stallions: backup.tables.stallions,
+      semen_collections: backup.tables.semen_collections.map((row) =>
+        normalizeLegacySemenCollectionRow(row as BackupSemenCollectionRowV2),
+      ),
+      breeding_records: backup.tables.breeding_records,
+      daily_logs: backup.tables.daily_logs,
+      medication_logs: backup.tables.medication_logs,
+      pregnancy_checks: backup.tables.pregnancy_checks,
+      foaling_records: backup.tables.foaling_records,
+      foals: backup.tables.foals,
+      collection_dose_events: backup.tables.collection_dose_events.map((row) =>
+        normalizeLegacyCollectionDoseEventRow(row as BackupCollectionDoseEventRowV2),
+      ),
+      frozen_semen_batches: backup.tables.frozen_semen_batches ?? [],
+    },
+  };
+}
+
+function normalizeLegacySemenCollectionRow(
+  row: BackupSemenCollectionRowV2,
+): BackupSemenCollectionRowV3 {
+  return {
+    id: row.id,
+    stallion_id: row.stallion_id,
+    collection_date: row.collection_date,
+    raw_volume_ml: row.raw_volume_ml,
+    extender_type: row.extender_type ?? null,
+    concentration_millions_per_ml: row.concentration_millions_per_ml,
+    progressive_motility_percent: row.progressive_motility_percent,
+    target_mode: null,
+    target_motile_sperm_millions_per_dose: null,
+    target_post_extension_concentration_millions_per_ml: null,
+    notes: row.notes,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function normalizeLegacyCollectionDoseEventRow(
+  row: BackupCollectionDoseEventRowV2,
+): BackupCollectionDoseEventRowV3 {
+  const shouldCollapseUsedOnSite = row.event_type === 'usedOnSite';
+  const shouldAppendLegacyNote = shouldCollapseUsedOnSite && (row.dose_count ?? 0) > 1;
+
+  return {
+    id: row.id,
+    collection_id: row.collection_id,
+    event_type: row.event_type,
+    recipient: row.recipient,
+    recipient_phone: row.recipient_phone ?? null,
+    recipient_street: row.recipient_street ?? null,
+    recipient_city: row.recipient_city ?? null,
+    recipient_state: row.recipient_state ?? null,
+    recipient_zip: row.recipient_zip ?? null,
+    carrier_service: row.carrier_service ?? null,
+    container_type: row.container_type ?? null,
+    tracking_number: row.tracking_number ?? null,
+    breeding_record_id: row.breeding_record_id ?? null,
+    dose_semen_volume_ml: null,
+    dose_extender_volume_ml: null,
+    dose_count: shouldCollapseUsedOnSite ? 1 : row.dose_count,
+    event_date: row.event_date,
+    notes: shouldAppendLegacyNote
+      ? appendLegacyUsedOnSiteCollapseNote(row.notes)
+      : row.notes,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
+function appendLegacyUsedOnSiteCollapseNote(existing: string | null): string {
+  const trimmed = existing?.trim() ?? '';
+  if (!trimmed) {
+    return LEGACY_USED_ON_SITE_COLLAPSE_NOTE;
+  }
+  if (trimmed.includes(LEGACY_USED_ON_SITE_COLLAPSE_NOTE)) {
+    return trimmed;
+  }
+  return `${trimmed}\n${LEGACY_USED_ON_SITE_COLLAPSE_NOTE}`;
 }

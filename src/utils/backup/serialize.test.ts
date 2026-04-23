@@ -143,11 +143,85 @@ describe('serializeBackup', () => {
         }
 
         if (sql.includes('FROM semen_collections')) {
-          return [];
+          return [
+            {
+              id: 'collection-1',
+              stallion_id: 'stallion-1',
+              collection_date: '2026-04-01',
+              raw_volume_ml: 100,
+              extender_type: 'INRA 96',
+              concentration_millions_per_ml: 200,
+              progressive_motility_percent: 70,
+              target_mode: 'progressive',
+              target_motile_sperm_millions_per_dose: 500,
+              target_post_extension_concentration_millions_per_ml: 100,
+              notes: null,
+              created_at: '2026-04-01T00:00:00.000Z',
+              updated_at: '2026-04-01T00:00:00.000Z',
+            },
+          ];
         }
 
         if (sql.includes('FROM collection_dose_events')) {
-          return [];
+          return [
+            {
+              id: 'event-1',
+              collection_id: 'collection-1',
+              event_type: 'usedOnSite',
+              recipient: 'Maple',
+              recipient_phone: '555-0101',
+              recipient_street: '123 Barn Road',
+              recipient_city: 'Lexington',
+              recipient_state: 'KY',
+              recipient_zip: '40511',
+              carrier_service: 'FedEx',
+              container_type: 'Thermos',
+              tracking_number: 'TRACK-123',
+              breeding_record_id: 'breed-1',
+              dose_semen_volume_ml: 50,
+              dose_extender_volume_ml: null,
+              dose_count: 1,
+              event_date: '2026-04-02',
+              notes: null,
+              created_at: '2026-04-02T00:00:00.000Z',
+              updated_at: '2026-04-02T00:00:00.000Z',
+            },
+          ];
+        }
+
+        if (sql.includes('FROM frozen_semen_batches')) {
+          return [
+            {
+              id: 'freeze-1',
+              stallion_id: 'stallion-1',
+              collection_id: 'collection-1',
+              freeze_date: '2026-04-03',
+              raw_semen_volume_used_ml: 8.5,
+              extender: 'Gent',
+              extender_other: null,
+              was_centrifuged: 1,
+              centrifuge_speed_rpm: 1500,
+              centrifuge_duration_min: 10,
+              centrifuge_cushion_used: null,
+              centrifuge_cushion_type: null,
+              centrifuge_resuspension_vol_ml: 4,
+              centrifuge_notes: 'spin',
+              straw_count: 20,
+              straws_remaining: 20,
+              straw_volume_ml: 0.5,
+              concentration_millions_per_ml: 240,
+              straws_per_dose: 2,
+              straw_color: 'Blue',
+              straw_color_other: null,
+              straw_label: 'Lot A',
+              post_thaw_motility_percent: 65.5,
+              longevity_hours: 18.5,
+              storage_details: 'Tank 1',
+              notes: null,
+              created_at: '2026-04-03T00:00:00.000Z',
+              updated_at: '2026-04-03T00:00:00.000Z',
+            },
+          ];
         }
 
         throw new Error(`Unexpected query: ${sql}`);
@@ -160,7 +234,7 @@ describe('serializeBackup', () => {
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(2);
+    expect(backup.schemaVersion).toBe(4);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
     expect(backup.tables.mares[0]?.gestation_length_days).toBe(345);
@@ -168,6 +242,14 @@ describe('serializeBackup', () => {
     expect(backup.tables.breeding_records[0]?.straw_volume_ml).toBe(0.5);
     expect(backup.tables.foals[0]?.milestones).toBe('{"stood":{"done":true}}');
     expect(backup.tables.foals[0]?.igg_tests).toContain('"valueMgDl":900');
-    expect(db.getAllAsync).toHaveBeenCalledTimes(10);
+    expect(backup.tables.collection_dose_events[0]?.recipient_phone).toBe('555-0101');
+    expect(backup.tables.collection_dose_events[0]?.breeding_record_id).toBe('breed-1');
+    expect(backup.tables.collection_dose_events[0]?.dose_semen_volume_ml).toBe(50);
+    expect(backup.tables.collection_dose_events[0]?.dose_extender_volume_ml).toBeNull();
+    expect(
+      backup.tables.semen_collections[0]?.target_motile_sperm_millions_per_dose,
+    ).toBe(500);
+    expect(backup.tables.frozen_semen_batches[0]?.post_thaw_motility_percent).toBe(65.5);
+    expect(db.getAllAsync).toHaveBeenCalledTimes(11);
   });
 });

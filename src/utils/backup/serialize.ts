@@ -4,15 +4,16 @@ import { getOnboardingComplete } from '@/utils/onboarding';
 import {
   BACKUP_SCHEMA_VERSION_CURRENT,
   type BackupBreedingRecordRow,
-  type BackupCollectionDoseEventRow,
+  type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV2,
+  type BackupEnvelopeV4,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
+  type BackupFrozenSemenBatchRow,
   type BackupMareRow,
   type BackupMedicationLogRow,
   type BackupPregnancyCheckRow,
-  type BackupSemenCollectionRow,
+  type BackupSemenCollectionRowV3,
   type BackupStallionRow,
 } from './types';
 
@@ -28,7 +29,7 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV2> {
+export async function serializeBackup(): Promise<BackupEnvelopeV4> {
   const db = await getDb();
 
   const [
@@ -42,6 +43,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
     medicationLogs,
     semenCollections,
     collectionDoseEvents,
+    frozenSemenBatches,
     onboardingComplete,
   ] = await Promise.all([
     db.getAllAsync<BackupMareRow>(
@@ -196,20 +198,19 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
       ORDER BY date DESC, id ASC;
       `,
     ),
-    db.getAllAsync<BackupSemenCollectionRow>(
+    db.getAllAsync<BackupSemenCollectionRowV3>(
       `
       SELECT
         id,
         stallion_id,
         collection_date,
         raw_volume_ml,
-        extended_volume_ml,
-        extender_volume_ml,
         extender_type,
         concentration_millions_per_ml,
         progressive_motility_percent,
-        dose_count,
-        dose_size_millions,
+        target_mode,
+        target_motile_sperm_millions_per_dose,
+        target_post_extension_concentration_millions_per_ml,
         notes,
         created_at,
         updated_at
@@ -217,13 +218,24 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
       ORDER BY collection_date DESC, id ASC;
       `,
     ),
-    db.getAllAsync<BackupCollectionDoseEventRow>(
+    db.getAllAsync<BackupCollectionDoseEventRowV3>(
       `
       SELECT
         id,
         collection_id,
         event_type,
         recipient,
+        recipient_phone,
+        recipient_street,
+        recipient_city,
+        recipient_state,
+        recipient_zip,
+        carrier_service,
+        container_type,
+        tracking_number,
+        breeding_record_id,
+        dose_semen_volume_ml,
+        dose_extender_volume_ml,
         dose_count,
         event_date,
         notes,
@@ -231,6 +243,41 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
         updated_at
       FROM collection_dose_events
       ORDER BY created_at DESC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupFrozenSemenBatchRow>(
+      `
+      SELECT
+        id,
+        stallion_id,
+        collection_id,
+        freeze_date,
+        raw_semen_volume_used_ml,
+        extender,
+        extender_other,
+        was_centrifuged,
+        centrifuge_speed_rpm,
+        centrifuge_duration_min,
+        centrifuge_cushion_used,
+        centrifuge_cushion_type,
+        centrifuge_resuspension_vol_ml,
+        centrifuge_notes,
+        straw_count,
+        straws_remaining,
+        straw_volume_ml,
+        concentration_millions_per_ml,
+        straws_per_dose,
+        straw_color,
+        straw_color_other,
+        straw_label,
+        post_thaw_motility_percent,
+        longevity_hours,
+        storage_details,
+        notes,
+        created_at,
+        updated_at
+      FROM frozen_semen_batches
+      ORDER BY freeze_date DESC, id ASC;
       `,
     ),
     getOnboardingComplete(),
@@ -257,6 +304,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
       medication_logs: medicationLogs,
       semen_collections: semenCollections,
       collection_dose_events: collectionDoseEvents,
+      frozen_semen_batches: frozenSemenBatches,
     },
   };
 }

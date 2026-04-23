@@ -20,3 +20,12 @@ mare ovulation trends
 
 workflow wizard for new scans
 
+new screen for freezing semen, not just inseminating
+
+frozen semen inventory
+
+frozen semen: decrement straws-remaining when straws are used in a breeding (consumption tracking)
+
+frozen semen: dashboard alerts for low frozen inventory
+
+frozen semen: bulk-edit / multi-batch operations

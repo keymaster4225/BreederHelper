@@ -619,6 +619,253 @@ ADD COLUMN gestation_length_days INTEGER NOT NULL DEFAULT 340
 CHECK (gestation_length_days BETWEEN 300 AND 420);
 `;
 
+const migration018 = `
+CREATE TABLE collection_dose_events_new (
+  id TEXT PRIMARY KEY NOT NULL,
+  collection_id TEXT NOT NULL REFERENCES semen_collections(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL CHECK (event_type IN ('shipped', 'usedOnSite')),
+  recipient TEXT NOT NULL,
+  recipient_phone TEXT,
+  recipient_street TEXT,
+  recipient_city TEXT,
+  recipient_state TEXT,
+  recipient_zip TEXT,
+  carrier_service TEXT,
+  container_type TEXT,
+  tracking_number TEXT,
+  breeding_record_id TEXT REFERENCES breeding_records(id) ON DELETE CASCADE,
+  dose_count INTEGER CHECK (dose_count IS NULL OR dose_count > 0),
+  event_date TEXT CHECK (event_date IS NULL OR event_date GLOB '????-??-??'),
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+INSERT INTO collection_dose_events_new (
+  id,
+  collection_id,
+  event_type,
+  recipient,
+  recipient_phone,
+  recipient_street,
+  recipient_city,
+  recipient_state,
+  recipient_zip,
+  carrier_service,
+  container_type,
+  tracking_number,
+  breeding_record_id,
+  dose_count,
+  event_date,
+  notes,
+  created_at,
+  updated_at
+)
+SELECT
+  id,
+  collection_id,
+  event_type,
+  recipient,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  dose_count,
+  event_date,
+  notes,
+  created_at,
+  updated_at
+FROM collection_dose_events;
+
+DROP TABLE collection_dose_events;
+
+ALTER TABLE collection_dose_events_new RENAME TO collection_dose_events;
+
+CREATE INDEX IF NOT EXISTS idx_collection_dose_events_collection_id
+  ON collection_dose_events(collection_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_collection_dose_events_breeding_record_id
+  ON collection_dose_events(breeding_record_id);
+`;
+
+const migration019 = `
+CREATE TABLE semen_collections_new (
+  id TEXT PRIMARY KEY,
+  stallion_id TEXT NOT NULL,
+  collection_date TEXT NOT NULL,
+  raw_volume_ml REAL,
+  extender_type TEXT,
+  concentration_millions_per_ml REAL,
+  progressive_motility_percent INTEGER,
+  target_motile_sperm_millions_per_dose REAL,
+  target_post_extension_concentration_millions_per_ml REAL,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (collection_date GLOB '????-??-??'),
+  CHECK (raw_volume_ml IS NULL OR raw_volume_ml >= 0),
+  CHECK (extender_type IS NULL OR typeof(extender_type) = 'text'),
+  CHECK (concentration_millions_per_ml IS NULL OR concentration_millions_per_ml >= 0),
+  CHECK (progressive_motility_percent IS NULL OR progressive_motility_percent BETWEEN 0 AND 100),
+  CHECK (target_motile_sperm_millions_per_dose IS NULL OR target_motile_sperm_millions_per_dose >= 0),
+  CHECK (
+    target_post_extension_concentration_millions_per_ml IS NULL
+    OR target_post_extension_concentration_millions_per_ml >= 0
+  )
+);
+
+INSERT INTO semen_collections_new (
+  id,
+  stallion_id,
+  collection_date,
+  raw_volume_ml,
+  extender_type,
+  concentration_millions_per_ml,
+  progressive_motility_percent,
+  target_motile_sperm_millions_per_dose,
+  target_post_extension_concentration_millions_per_ml,
+  notes,
+  created_at,
+  updated_at
+)
+SELECT
+  id,
+  stallion_id,
+  collection_date,
+  raw_volume_ml,
+  extender_type,
+  concentration_millions_per_ml,
+  progressive_motility_percent,
+  NULL,
+  NULL,
+  notes,
+  created_at,
+  updated_at
+FROM semen_collections;
+
+DROP TABLE semen_collections;
+
+ALTER TABLE semen_collections_new RENAME TO semen_collections;
+
+CREATE INDEX IF NOT EXISTS idx_semen_collections_stallion_date
+  ON semen_collections (stallion_id, collection_date DESC);
+
+ALTER TABLE collection_dose_events
+  ADD COLUMN dose_semen_volume_ml REAL CHECK (dose_semen_volume_ml IS NULL OR dose_semen_volume_ml >= 0);
+
+ALTER TABLE collection_dose_events
+  ADD COLUMN dose_extender_volume_ml REAL CHECK (dose_extender_volume_ml IS NULL OR dose_extender_volume_ml >= 0);
+
+UPDATE collection_dose_events
+SET
+  notes = CASE
+    WHEN dose_count > 1 THEN
+      CASE
+        WHEN notes IS NULL OR TRIM(notes) = '' THEN
+          'Legacy migration: collapsed used-on-site dose count to 1 during collection volume rework.'
+        ELSE
+          notes || '\nLegacy migration: collapsed used-on-site dose count to 1 during collection volume rework.'
+      END
+    ELSE notes
+  END,
+  dose_count = 1,
+  dose_semen_volume_ml = NULL,
+  dose_extender_volume_ml = NULL
+WHERE event_type = 'usedOnSite';
+`;
+
+const migration021 = `
+CREATE TABLE frozen_semen_batches (
+  id TEXT PRIMARY KEY,
+  stallion_id TEXT NOT NULL,
+  collection_id TEXT,
+  freeze_date TEXT NOT NULL,
+  raw_semen_volume_used_ml REAL,
+  extender TEXT,
+  extender_other TEXT,
+  was_centrifuged INTEGER NOT NULL DEFAULT 0,
+  centrifuge_speed_rpm INTEGER,
+  centrifuge_duration_min INTEGER,
+  centrifuge_cushion_used INTEGER,
+  centrifuge_cushion_type TEXT,
+  centrifuge_resuspension_vol_ml REAL,
+  centrifuge_notes TEXT,
+  straw_count INTEGER NOT NULL,
+  straws_remaining INTEGER NOT NULL,
+  straw_volume_ml REAL NOT NULL,
+  concentration_millions_per_ml REAL,
+  straws_per_dose INTEGER,
+  straw_color TEXT,
+  straw_color_other TEXT,
+  straw_label TEXT,
+  post_thaw_motility_percent REAL,
+  longevity_hours REAL,
+  storage_details TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  -- Frozen inventory should not disappear automatically if a source collection is deleted.
+  FOREIGN KEY (collection_id) REFERENCES semen_collections(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (freeze_date GLOB '????-??-??'),
+  CHECK (raw_semen_volume_used_ml IS NULL OR raw_semen_volume_used_ml > 0),
+  CHECK (extender IS NULL OR extender IN (
+    'BotuCrio',
+    'INRA Freeze',
+    'Gent',
+    'HF-20',
+    'Equex STM',
+    'Lactose-EDTA-egg-yolk',
+    'Skim milk-glycerol',
+    'Other'
+  )),
+  CHECK (extender_other IS NULL OR typeof(extender_other) = 'text'),
+  CHECK (was_centrifuged IN (0, 1)),
+  CHECK (centrifuge_speed_rpm IS NULL OR centrifuge_speed_rpm > 0),
+  CHECK (centrifuge_duration_min IS NULL OR centrifuge_duration_min > 0),
+  CHECK (centrifuge_cushion_used IS NULL OR centrifuge_cushion_used IN (0, 1)),
+  CHECK (centrifuge_cushion_type IS NULL OR typeof(centrifuge_cushion_type) = 'text'),
+  CHECK (centrifuge_resuspension_vol_ml IS NULL OR centrifuge_resuspension_vol_ml > 0),
+  CHECK (centrifuge_notes IS NULL OR typeof(centrifuge_notes) = 'text'),
+  CHECK (straw_count >= 1),
+  CHECK (straws_remaining >= 0 AND straws_remaining <= straw_count),
+  CHECK (straw_volume_ml > 0),
+  CHECK (concentration_millions_per_ml IS NULL OR concentration_millions_per_ml > 0),
+  CHECK (straws_per_dose IS NULL OR straws_per_dose >= 1),
+  CHECK (straw_color IS NULL OR straw_color IN (
+    'Yellow',
+    'Pink',
+    'Blue',
+    'Green',
+    'Red',
+    'Orange',
+    'Purple',
+    'White',
+    'Black',
+    'Clear',
+    'Other'
+  )),
+  CHECK (straw_color_other IS NULL OR typeof(straw_color_other) = 'text'),
+  CHECK (straw_label IS NULL OR typeof(straw_label) = 'text'),
+  CHECK (post_thaw_motility_percent IS NULL OR post_thaw_motility_percent BETWEEN 0 AND 100),
+  CHECK (longevity_hours IS NULL OR longevity_hours > 0),
+  CHECK (storage_details IS NULL OR typeof(storage_details) = 'text'),
+  CHECK (notes IS NULL OR typeof(notes) = 'text')
+);
+
+CREATE INDEX IF NOT EXISTS idx_frozen_semen_batches_stallion_id
+  ON frozen_semen_batches (stallion_id);
+
+CREATE INDEX IF NOT EXISTS idx_frozen_semen_batches_collection_id
+  ON frozen_semen_batches (collection_id);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -742,6 +989,27 @@ const migrations: Migration[] = [
     name: '017_mare_gestation_length_days',
     statements: splitStatements(migration017),
     shouldSkip: async (db) => hasColumn(db, 'mares', 'gestation_length_days'),
+  },
+  {
+    id: 18,
+    name: '018_collection_dose_event_shipping_details',
+    statements: splitStatements(migration018),
+    shouldSkip: async (db) => hasColumn(db, 'collection_dose_events', 'breeding_record_id'),
+  },
+  {
+    id: 19,
+    name: '019_collection_wizard_volume_rework',
+    statements: splitStatements(migration019),
+    requiresForeignKeysOff: true,
+    shouldSkip: async (db) =>
+      (await hasColumn(db, 'semen_collections', 'target_motile_sperm_millions_per_dose')) &&
+      (await hasColumn(db, 'collection_dose_events', 'dose_semen_volume_ml')) &&
+      (await hasColumn(db, 'collection_dose_events', 'dose_extender_volume_ml')),
+  },
+  {
+    id: 21,
+    name: '021_frozen_semen_batches',
+    statements: splitStatements(migration021),
   },
 ];
 

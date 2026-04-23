@@ -1,6 +1,10 @@
 ﻿import { describe, expect, it } from 'vitest';
 
 import {
+  validateOptionalDecimalRange,
+  validateOtherSelection,
+  validateTriStateSelection,
+  validateLinkedFrozenRawVolume,
   normalizeLocalDate,
   parseOptionalInteger,
   parseOptionalNumber,
@@ -114,5 +118,74 @@ describe('normalizeLocalDate', () => {
 
   it('returns trimmed local date string for non-empty values', () => {
     expect(normalizeLocalDate('2026-02-27')).toBe('2026-02-27');
+  });
+});
+
+describe('validateLinkedFrozenRawVolume', () => {
+  it('requires linked batches to provide volume', () => {
+    expect(validateLinkedFrozenRawVolume(null, 'collection-1')).toBe(
+      'Raw semen volume used is required for linked frozen batches.',
+    );
+  });
+
+  it('rejects invalid and non-positive linked volume values', () => {
+    expect(validateLinkedFrozenRawVolume(Number.NaN, 'collection-1')).toBe(
+      'Raw semen volume used must be a valid number.',
+    );
+    expect(validateLinkedFrozenRawVolume(0, 'collection-1')).toBe(
+      'Raw semen volume used must be greater than zero.',
+    );
+  });
+
+  it('allows standalone batches to omit volume', () => {
+    expect(validateLinkedFrozenRawVolume(null, null)).toBeNull();
+  });
+});
+
+describe('validateOtherSelection', () => {
+  it('requires an other value when selection is Other', () => {
+    expect(validateOtherSelection('Other', '   ', 'Extender')).toBe(
+      'Extender other value is required.',
+    );
+  });
+
+  it('rejects other text when selection is not Other', () => {
+    expect(validateOtherSelection('Gent', 'Custom', 'Extender')).toBe(
+      'Extender other value can only be set when extender is Other.',
+    );
+  });
+
+  it('accepts valid selection/other combinations', () => {
+    expect(validateOtherSelection('Other', 'Custom', 'Extender')).toBeNull();
+    expect(validateOtherSelection('Gent', '   ', 'Extender')).toBeNull();
+  });
+});
+
+describe('validateTriStateSelection', () => {
+  it('requires a value when required', () => {
+    expect(validateTriStateSelection(null, 'Cushion used', true)).toBe(
+      'Cushion used selection is required.',
+    );
+  });
+
+  it('allows null when not required and accepts booleans', () => {
+    expect(validateTriStateSelection(null, 'Cushion used', false)).toBeNull();
+    expect(validateTriStateSelection(true, 'Cushion used', true)).toBeNull();
+    expect(validateTriStateSelection(false, 'Cushion used', true)).toBeNull();
+  });
+});
+
+describe('validateOptionalDecimalRange', () => {
+  it('supports decimal values in range', () => {
+    expect(validateOptionalDecimalRange(62.5, 'Post-thaw motility', 0, 100)).toBeNull();
+  });
+
+  it('reuses numeric range errors for invalid values', () => {
+    expect(validateOptionalDecimalRange(Number.NaN, 'Post-thaw motility', 0, 100)).toBe(
+      'Post-thaw motility must be a valid number.',
+    );
+    expect(validateOptionalDecimalRange(120.1, 'Post-thaw motility', 0, 100)).toBe(
+      'Post-thaw motility must be between 0 and 100.',
+    );
   });
 });

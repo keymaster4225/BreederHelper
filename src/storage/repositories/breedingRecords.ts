@@ -1,6 +1,7 @@
 import { BreedingMethod, BreedingRecord } from '@/models/types';
 import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
+import { assertCollectionSemenVolumeCanSupportAllocation } from './internal/collectionAllocation';
 import { getSemenCollectionById } from './semenCollections';
 
 type BreedingRecordRow = {
@@ -61,6 +62,42 @@ async function validateCollectionStallion(
       throw new Error('Collection belongs to a different stallion.');
     }
   }
+}
+
+type LinkedOnFarmDoseEventRow = {
+  id: string;
+  collection_id: string;
+};
+
+type ExistingBreedingRecordRow = {
+  id: string;
+};
+
+async function getLinkedOnFarmDoseEventByBreedingRecordId(
+  db: Awaited<ReturnType<typeof getDb>>,
+  breedingRecordId: string,
+): Promise<LinkedOnFarmDoseEventRow | null> {
+  const row = await db.getFirstAsync<LinkedOnFarmDoseEventRow>(
+    `
+    SELECT id, collection_id
+    FROM collection_dose_events
+    WHERE breeding_record_id = ?
+      AND event_type = 'usedOnSite'
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1;
+    `,
+    [breedingRecordId],
+  );
+
+  return row ?? null;
+}
+
+export async function hasLinkedOnFarmDoseEvent(
+  breedingRecordId: string,
+): Promise<boolean> {
+  const db = await getDb();
+  const row = await getLinkedOnFarmDoseEventByBreedingRecordId(db, breedingRecordId);
+  return row != null;
 }
 
 export async function createBreedingRecord(input: {
@@ -136,49 +173,118 @@ export async function updateBreedingRecord(
     collectionDate?: string | null;
   },
 ): Promise<void> {
-  await validateCollectionStallion(input.collectionId, input.stallionId);
-
   const db = await getDb();
-
-  await db.runAsync(
+  const existing = await db.getFirstAsync<ExistingBreedingRecordRow>(
     `
-    UPDATE breeding_records
-    SET
-      stallion_id = ?,
-      stallion_name = ?,
-      collection_id = ?,
-      date = ?,
-      method = ?,
-      notes = ?,
-      volume_ml = ?,
-      concentration_m_per_ml = ?,
-      motility_percent = ?,
-      number_of_straws = ?,
-      straw_volume_ml = ?,
-      straw_details = ?,
-      collection_date = ?,
-      updated_at = ?
+    SELECT id
+    FROM breeding_records
     WHERE id = ?;
     `,
-    [
-      input.stallionId,
-      input.stallionName ?? null,
-      input.collectionId ?? null,
-      input.date,
-      input.method,
-      input.notes ?? null,
-      input.volumeMl ?? null,
-      input.concentrationMPerMl ?? null,
-      input.motilityPercent ?? null,
-      input.numberOfStraws ?? null,
-      input.strawVolumeMl ?? null,
-      input.strawDetails ?? null,
-      input.collectionDate ?? null,
-      new Date().toISOString(),
-      id,
-    ],
+    [id],
   );
+
+  if (!existing) {
+    throw new Error('Breeding record not found.');
+  }
+
+  const linkedOnFarmDoseEvent = await getLinkedOnFarmDoseEventByBreedingRecordId(db, id);
+
+  if (linkedOnFarmDoseEvent) {
+    if (input.method !== 'freshAI') {
+      throw new Error('Linked on-farm breeding records must remain Fresh AI.');
+    }
+
+    if (input.collectionId == null) {
+      throw new Error('Linked on-farm breeding records must keep their collection link.');
+    }
+
+    if (input.collectionId !== linkedOnFarmDoseEvent.collection_id) {
+      throw new Error(
+        'Linked on-farm breeding records cannot be moved to a different collection.',
+      );
+    }
+  }
+
+  await validateCollectionStallion(input.collectionId, input.stallionId);
+
+  await db.withTransactionAsync(async () => {
+    const now = new Date().toISOString();
+
+    if (linkedOnFarmDoseEvent) {
+      await assertCollectionSemenVolumeCanSupportAllocation(
+        db,
+        linkedOnFarmDoseEvent.collection_id,
+        input.volumeMl ?? null,
+        1,
+        { excludeDoseEventId: linkedOnFarmDoseEvent.id },
+      );
+    }
+
+    await db.runAsync(
+      `
+      UPDATE breeding_records
+      SET
+        stallion_id = ?,
+        stallion_name = ?,
+        collection_id = ?,
+        date = ?,
+        method = ?,
+        notes = ?,
+        volume_ml = ?,
+        concentration_m_per_ml = ?,
+        motility_percent = ?,
+        number_of_straws = ?,
+        straw_volume_ml = ?,
+        straw_details = ?,
+        collection_date = ?,
+        updated_at = ?
+      WHERE id = ?;
+      `,
+      [
+        input.stallionId,
+        input.stallionName ?? null,
+        input.collectionId ?? null,
+        input.date,
+        input.method,
+        input.notes ?? null,
+        input.volumeMl ?? null,
+        input.concentrationMPerMl ?? null,
+        input.motilityPercent ?? null,
+        input.numberOfStraws ?? null,
+        input.strawVolumeMl ?? null,
+        input.strawDetails ?? null,
+        input.collectionDate ?? null,
+        now,
+        id,
+      ],
+    );
+
+    if (linkedOnFarmDoseEvent) {
+      await db.runAsync(
+        `
+        UPDATE collection_dose_events
+        SET
+          event_date = ?,
+          dose_semen_volume_ml = ?,
+          notes = ?,
+          updated_at = ?
+        WHERE id = ?;
+        `,
+        [
+          input.date,
+          input.volumeMl ?? null,
+          input.notes ?? null,
+          now,
+          linkedOnFarmDoseEvent.id,
+        ],
+      );
+    }
+  });
+
   emitDataInvalidation('breedingRecords');
+  if (linkedOnFarmDoseEvent) {
+    emitDataInvalidation('collectionDoseEvents');
+  }
 }
 
 export async function getBreedingRecordById(id: string): Promise<BreedingRecord | null> {

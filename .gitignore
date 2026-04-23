@@ -40,3 +40,6 @@ coverage/
 
 # Git worktrees
 .worktrees/
+
+# Superpowers brainstorm mockups (ephemeral)
+.superpowers/

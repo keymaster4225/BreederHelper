@@ -84,6 +84,71 @@ export function validateIntegerRange(
   return null;
 }
 
+export function validateLinkedFrozenRawVolume(
+  value: number | null,
+  collectionId: string | null,
+): string | null {
+  if (!collectionId) {
+    return null;
+  }
+
+  if (value === null) {
+    return 'Raw semen volume used is required for linked frozen batches.';
+  }
+
+  if (Number.isNaN(value)) {
+    return 'Raw semen volume used must be a valid number.';
+  }
+
+  if (value <= 0) {
+    return 'Raw semen volume used must be greater than zero.';
+  }
+
+  return null;
+}
+
+export function validateOtherSelection(
+  value: string | null,
+  otherValue: string,
+  label: string,
+): string | null {
+  const trimmedOther = otherValue.trim();
+  if (value === 'Other' && trimmedOther.length === 0) {
+    return `${label} other value is required.`;
+  }
+
+  if (value !== 'Other' && trimmedOther.length > 0) {
+    return `${label} other value can only be set when ${label.toLowerCase()} is Other.`;
+  }
+
+  return null;
+}
+
+export function validateTriStateSelection(
+  value: boolean | null,
+  label: string,
+  required: boolean,
+): string | null {
+  if (!required) {
+    return null;
+  }
+
+  if (value == null) {
+    return `${label} selection is required.`;
+  }
+
+  return null;
+}
+
+export function validateOptionalDecimalRange(
+  value: number | null,
+  label: string,
+  min: number,
+  max: number,
+): string | null {
+  return validateNumberRange(value, label, min, max);
+}
+
 export function normalizeLocalDate(value: string): LocalDate | null {
   const trimmed = value.trim();
   return trimmed ? (trimmed as LocalDate) : null;
