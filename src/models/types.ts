@@ -9,10 +9,12 @@
   FOAL_MILESTONE_KEYS,
   FOAL_SEX_VALUES,
   FOALING_OUTCOME_VALUES,
+  FREEZING_EXTENDER_VALUES,
   MEDICATION_ROUTE_VALUES,
   OVARY_CONSISTENCY_VALUES,
   OVARY_STRUCTURE_VALUES,
   PREGNANCY_RESULT_VALUES,
+  STRAW_COLOR_VALUES,
   UTERINE_TONE_CATEGORY_VALUES,
 } from './enums';
 
@@ -173,6 +175,54 @@ export interface CreateCollectionDoseEventInput {
 
 export type UpdateCollectionDoseEventInput = Partial<
   Omit<CreateCollectionDoseEventInput, 'collectionId'>
+>;
+
+export type FreezingExtender = (typeof FREEZING_EXTENDER_VALUES)[number];
+
+export type StrawColor = (typeof STRAW_COLOR_VALUES)[number];
+
+export interface CentrifugeSettings {
+  speedRpm: number | null;
+  durationMin: number | null;
+  cushionUsed: boolean | null;
+  cushionType: string | null;
+  resuspensionVolumeMl: number | null;
+  notes: string | null;
+}
+
+export interface FrozenSemenBatch {
+  id: UUID;
+  stallionId: UUID;
+  collectionId: UUID | null;
+  freezeDate: LocalDate;
+  rawSemenVolumeUsedMl: number | null;
+  extender: FreezingExtender | null;
+  extenderOther: string | null;
+  wasCentrifuged: boolean;
+  centrifuge: CentrifugeSettings;
+  strawCount: number;
+  strawsRemaining: number;
+  strawVolumeMl: number;
+  concentrationMillionsPerMl: number | null;
+  strawsPerDose: number | null;
+  strawColor: StrawColor | null;
+  strawColorOther: string | null;
+  strawLabel: string | null;
+  postThawMotilityPercent: number | null;
+  longevityHours: number | null;
+  storageDetails: string | null;
+  notes: string | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+export type CreateFrozenSemenBatchInput = Omit<
+  FrozenSemenBatch,
+  'id' | 'strawsRemaining' | 'createdAt' | 'updatedAt'
+>;
+
+export type UpdateFrozenSemenBatchInput = Partial<
+  Omit<CreateFrozenSemenBatchInput, 'stallionId' | 'collectionId'>
 >;
 
 export interface SemenCollection {

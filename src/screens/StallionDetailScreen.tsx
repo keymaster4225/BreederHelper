@@ -15,6 +15,7 @@ import {
   StallionDetailHeader,
   CollectionsTab,
   BreedingHistoryTab,
+  FrozenBatchesTab,
 } from '@/screens/stallion-detail';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StallionDetail'>;
@@ -22,11 +23,13 @@ type Props = NativeStackScreenProps<RootStackParamList, 'StallionDetail'>;
 const TAB_OPTIONS = [
   { label: 'Collections' },
   { label: 'Breeding' },
+  { label: 'Frozen' },
 ] as const;
 
 const TAB_KEY_TO_INDEX: Record<string, number> = {
   collections: 0,
   breeding: 1,
+  frozen: 2,
 };
 
 export function StallionDetailScreen({ navigation, route }: Props): JSX.Element {
@@ -46,6 +49,8 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
     legacyBreedings,
     breedingRecordById,
     doseEventsByCollectionId,
+    frozenBatches,
+    frozenBatchesByCollectionId,
     mareNameById,
     age,
     isLoading,
@@ -111,6 +116,7 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
               stallion={stallion}
               collections={collections}
               doseEventsByCollectionId={doseEventsByCollectionId}
+              frozenBatchesByCollectionId={frozenBatchesByCollectionId}
               breedingRecordById={breedingRecordById}
               mareNameById={mareNameById}
               isDeleted={isDeleted}
@@ -122,6 +128,14 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
               linkedBreedings={linkedBreedings}
               legacyBreedings={legacyBreedings}
               mareNameById={mareNameById}
+              navigation={navigation}
+            />
+            <FrozenBatchesTab
+              key="2"
+              stallionId={stallionId}
+              collections={collections}
+              frozenBatches={frozenBatches}
+              isDeleted={isDeleted}
               navigation={navigation}
             />
           </PagerView>

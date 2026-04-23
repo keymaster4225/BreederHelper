@@ -476,4 +476,47 @@ describe('validateBackup', () => {
 
     expect(result.error.code).toBe('unsupported_schema_version');
   });
+
+  it('rejects frozen rows with invalid extender Other pairing', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        frozen_semen_batches: backup.tables.frozen_semen_batches.map((row, index) =>
+          index === 0 ? { ...row, extender: 'Other', extender_other: null } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('frozen_semen_batches');
+    expect(result.error.field).toBe('extender_other');
+  });
+
+  it('rejects frozen rows that reference missing collections', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        frozen_semen_batches: backup.tables.frozen_semen_batches.map((row, index) =>
+          index === 0 ? { ...row, collection_id: 'missing-collection' } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('frozen_semen_batches');
+    expect(result.error.field).toBe('collection_id');
+    expect(result.error.message).toContain('references missing semen collection');
+  });
 });

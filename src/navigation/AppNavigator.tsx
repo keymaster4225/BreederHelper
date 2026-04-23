@@ -16,6 +16,8 @@ import { StallionDetailScreen } from '@/screens/StallionDetailScreen';
 import { StallionFormScreen } from '@/screens/StallionFormScreen';
 import { CollectionFormScreen } from '@/screens/CollectionFormScreen';
 import { CollectionWizardScreen } from '@/screens/CollectionWizardScreen';
+import { FrozenBatchWizardScreen } from '@/screens/FrozenBatchWizardScreen';
+import { FrozenBatchFormScreen } from '@/screens/FrozenBatchFormScreen';
 import { AVPreferencesFormScreen } from '@/screens/AVPreferencesFormScreen';
 import { DataBackupScreen } from '@/screens/DataBackupScreen';
 
@@ -34,10 +36,12 @@ export type RootStackParamList = {
   MareDetail: { mareId: string; initialTab?: 'dailyLogs' | 'breeding' | 'pregnancy' | 'foaling' | 'meds' };
   EditMare: { mareId?: string } | undefined;
   DailyLogForm: { mareId: string; logId?: string };
-  StallionDetail: { stallionId: string; initialTab?: 'collections' | 'breeding' };
+  StallionDetail: { stallionId: string; initialTab?: 'collections' | 'breeding' | 'frozen' };
   StallionForm: { stallionId?: string };
   CollectionCreateWizard: { stallionId: string };
   CollectionForm: { stallionId: string; collectionId: string };
+  FrozenBatchCreateWizard: { stallionId: string; collectionId?: string };
+  FrozenBatchForm: { stallionId: string; frozenBatchId: string };
   AVPreferencesForm: { stallionId: string };
   BreedingRecordForm: { mareId: string; breedingRecordId?: string };
   PregnancyCheckForm: { mareId: string; pregnancyCheckId?: string };
@@ -76,6 +80,8 @@ export function AppNavigator(): JSX.Element {
         <Stack.Screen name="StallionForm" component={StallionFormScreen} options={{ title: 'Stallion' }} />
         <Stack.Screen name="CollectionCreateWizard" component={CollectionWizardScreen} options={{ title: 'Add Collection' }} />
         <Stack.Screen name="CollectionForm" component={CollectionFormScreen} options={{ title: 'Collection' }} />
+        <Stack.Screen name="FrozenBatchCreateWizard" component={FrozenBatchWizardScreen} options={{ title: 'Add Frozen Batch' }} />
+        <Stack.Screen name="FrozenBatchForm" component={FrozenBatchFormScreen} options={{ title: 'Frozen Batch' }} />
         <Stack.Screen name="AVPreferencesForm" component={AVPreferencesFormScreen} options={{ title: 'AV Preferences' }} />
         <Stack.Screen name="MareCalendar" component={MareCalendarScreen} options={{ title: 'Calendar' }} />
         <Stack.Screen name="DataBackup" component={DataBackupScreen} options={{ title: 'Data Backup & Restore' }} />

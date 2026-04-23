@@ -10,8 +10,13 @@ type AllocatedSemenVolumeRow = {
   allocated_semen_volume_ml: number;
 };
 
+type AllocatedFrozenSemenVolumeRow = {
+  allocated_frozen_volume_ml: number;
+};
+
 export type AllocatedSemenVolumeOptions = {
   excludeDoseEventId?: string;
+  excludeFrozenBatchId?: string;
 };
 
 export async function getCollectionRawVolumeMl(
@@ -35,25 +40,43 @@ export async function getAllocatedSemenVolumeForCollectionDb(
   collectionId: string,
   options?: AllocatedSemenVolumeOptions,
 ): Promise<number> {
-  const params: string[] = [collectionId];
-  const exclusionClause = options?.excludeDoseEventId ? 'AND id <> ?' : '';
+  const doseEventParams: string[] = [collectionId];
+  const doseEventExclusionClause = options?.excludeDoseEventId ? 'AND id <> ?' : '';
 
   if (options?.excludeDoseEventId) {
-    params.push(options.excludeDoseEventId);
+    doseEventParams.push(options.excludeDoseEventId);
   }
 
-  const row = await db.getFirstAsync<AllocatedSemenVolumeRow>(
+  const doseEventRow = await db.getFirstAsync<AllocatedSemenVolumeRow>(
     `
     SELECT COALESCE(SUM(dose_semen_volume_ml * COALESCE(dose_count, 0)), 0) AS allocated_semen_volume_ml
     FROM collection_dose_events
     WHERE collection_id = ?
       AND dose_semen_volume_ml IS NOT NULL
-      ${exclusionClause};
+      ${doseEventExclusionClause};
     `,
-    params,
+    doseEventParams,
   );
 
-  return row?.allocated_semen_volume_ml ?? 0;
+  const frozenBatchParams: string[] = [collectionId];
+  const frozenBatchExclusionClause = options?.excludeFrozenBatchId ? 'AND id <> ?' : '';
+
+  if (options?.excludeFrozenBatchId) {
+    frozenBatchParams.push(options.excludeFrozenBatchId);
+  }
+
+  const frozenBatchRow = await db.getFirstAsync<AllocatedFrozenSemenVolumeRow>(
+    `
+    SELECT COALESCE(SUM(raw_semen_volume_used_ml), 0) AS allocated_frozen_volume_ml
+    FROM frozen_semen_batches
+    WHERE collection_id = ?
+      AND raw_semen_volume_used_ml IS NOT NULL
+      ${frozenBatchExclusionClause};
+    `,
+    frozenBatchParams,
+  );
+
+  return (doseEventRow?.allocated_semen_volume_ml ?? 0) + (frozenBatchRow?.allocated_frozen_volume_ml ?? 0);
 }
 
 export async function assertCollectionSemenVolumeCanSupportAllocation(

@@ -18,6 +18,8 @@ jest.mock('@react-navigation/native', () => {
 jest.mock('@/storage/repositories', () => ({
   getStallionById: jest.fn(),
   listDoseEventsByCollectionIds: jest.fn(),
+  listFrozenSemenBatchesByCollectionIds: jest.fn(),
+  listFrozenSemenBatchesByStallion: jest.fn(),
   listSemenCollectionsByStallion: jest.fn(),
   listBreedingRecordsForStallion: jest.fn(),
   listLegacyBreedingRecordsMatchingStallionName: jest.fn(),
@@ -63,17 +65,55 @@ const makeCollection = (id: string, date: string, overrides?: Record<string, unk
   ...overrides,
 });
 
+const makeFrozenBatch = (id: string, overrides?: Record<string, unknown>) => ({
+  id,
+  stallionId: 'st-1',
+  collectionId: null,
+  freezeDate: '2026-04-03',
+  rawSemenVolumeUsedMl: null,
+  extender: 'INRA Freeze',
+  extenderOther: null,
+  wasCentrifuged: false,
+  centrifuge: {
+    speedRpm: null,
+    durationMin: null,
+    cushionUsed: null,
+    cushionType: null,
+    resuspensionVolumeMl: null,
+    notes: null,
+  },
+  strawCount: 12,
+  strawsRemaining: 10,
+  strawVolumeMl: 0.5,
+  concentrationMillionsPerMl: 200,
+  strawsPerDose: 2,
+  strawColor: 'Blue',
+  strawColorOther: null,
+  strawLabel: null,
+  postThawMotilityPercent: 45,
+  longevityHours: 24,
+  storageDetails: 'Tank 1 / Cane A',
+  notes: null,
+  createdAt: '2026-04-03T00:00:00.000Z',
+  updatedAt: '2026-04-03T00:00:00.000Z',
+  ...overrides,
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   repositories.getStallionById.mockResolvedValue(makeStallion());
   repositories.listDoseEventsByCollectionIds.mockResolvedValue({});
+  repositories.listFrozenSemenBatchesByCollectionIds.mockResolvedValue({});
+  repositories.listFrozenSemenBatchesByStallion.mockResolvedValue([]);
   repositories.listSemenCollectionsByStallion.mockResolvedValue([]);
   repositories.listBreedingRecordsForStallion.mockResolvedValue([]);
   repositories.listLegacyBreedingRecordsMatchingStallionName.mockResolvedValue([]);
   repositories.listMares.mockResolvedValue([]);
 });
 
-function renderScreen(params: { stallionId: string; initialTab?: 'collections' | 'breeding' } = { stallionId: 'st-1' }) {
+function renderScreen(
+  params: { stallionId: string; initialTab?: 'collections' | 'breeding' | 'frozen' } = { stallionId: 'st-1' },
+) {
   const navigation = { navigate: jest.fn(), setOptions: jest.fn() };
   return {
     navigation,
@@ -88,19 +128,25 @@ function renderScreen(params: { stallionId: string; initialTab?: 'collections' |
 
 it('renders stallion name in header', async () => {
   const screen = renderScreen();
-  await waitFor(() =>
-    expect(screen.navigation.setOptions).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Thunder' }),
-    ),
+  await waitFor(() => expect(screen.getByText('Thunder')).toBeTruthy());
+  expect(screen.navigation.setOptions).toHaveBeenCalledWith(
+    expect.objectContaining({ title: 'Thunder' }),
   );
 });
 
-it('shows Collections and Breeding tab labels', async () => {
+it('shows Collections, Breeding, and Frozen tab labels', async () => {
   const screen = renderScreen();
   await waitFor(() => {
     expect(screen.getByRole('tab', { name: 'Collections' })).toBeTruthy();
     expect(screen.getByRole('tab', { name: 'Breeding' })).toBeTruthy();
+    expect(screen.getByRole('tab', { name: 'Frozen' })).toBeTruthy();
   });
+});
+
+it('selects Frozen tab when initialTab is frozen', async () => {
+  const screen = renderScreen({ stallionId: 'st-1', initialTab: 'frozen' });
+  await waitFor(() => expect(screen.getByRole('tab', { name: 'Frozen' })).toBeTruthy());
+  expect(screen.getByRole('tab', { name: 'Frozen' }).props.accessibilityState.selected).toBe(true);
 });
 
 it('shows AV preferences when values exist', async () => {
@@ -242,6 +288,28 @@ it('navigates to the collection wizard from Add Collection', async () => {
   });
 });
 
+it('navigates to frozen batch wizard from Freeze button with collectionId', async () => {
+  repositories.listSemenCollectionsByStallion.mockResolvedValue([
+    makeCollection('col-1', '2026-04-01'),
+  ]);
+  repositories.listDoseEventsByCollectionIds.mockResolvedValue({
+    'col-1': [],
+  });
+  repositories.listFrozenSemenBatchesByCollectionIds.mockResolvedValue({
+    'col-1': [],
+  });
+
+  const screen = renderScreen();
+
+  await waitFor(() => expect(screen.getByText('Freeze')).toBeTruthy());
+  fireEvent.press(screen.getByText('Freeze'));
+
+  expect(screen.navigation.navigate).toHaveBeenCalledWith('FrozenBatchCreateWizard', {
+    stallionId: 'st-1',
+    collectionId: 'col-1',
+  });
+});
+
 it('navigates to the collection form from a collection card edit button', async () => {
   repositories.listSemenCollectionsByStallion.mockResolvedValue([
     makeCollection('col-1', '2026-04-01'),
@@ -268,6 +336,53 @@ it('hides Add Collection button when stallion is soft-deleted', async () => {
   const screen = renderScreen();
   await waitFor(() => expect(screen.getByText('Thunder')).toBeTruthy());
   expect(screen.queryByText('Add Collection')).toBeNull();
+});
+
+it('hides Add Frozen Batch button when stallion is soft-deleted', async () => {
+  repositories.getStallionById.mockResolvedValue(
+    makeStallion({ deletedAt: '2026-04-01T00:00:00.000Z' }),
+  );
+  repositories.listFrozenSemenBatchesByStallion.mockResolvedValue([
+    makeFrozenBatch('frozen-1'),
+  ]);
+
+  const screen = renderScreen({ stallionId: 'st-1', initialTab: 'frozen' });
+
+  await waitFor(() => expect(screen.getByText('Thunder')).toBeTruthy());
+  expect(screen.queryByText('Add Frozen Batch')).toBeNull();
+});
+
+it('renders frozen allocation rows and navigates to frozen batch form from row and edit button', async () => {
+  repositories.listSemenCollectionsByStallion.mockResolvedValue([
+    makeCollection('col-1', '2026-04-01'),
+  ]);
+  repositories.listDoseEventsByCollectionIds.mockResolvedValue({
+    'col-1': [],
+  });
+  repositories.listFrozenSemenBatchesByCollectionIds.mockResolvedValue({
+    'col-1': [makeFrozenBatch('frozen-1', { collectionId: 'col-1', freezeDate: '2026-04-04', strawCount: 8 })],
+  });
+
+  const screen = renderScreen();
+
+  await waitFor(() => expect(screen.getByText('Frozen: 8 straws')).toBeTruthy());
+  expect(screen.getByText('Freeze date: 04-04-2026')).toBeTruthy();
+
+  fireEvent.press(screen.getByLabelText('Open frozen batch from 04-04-2026'));
+  fireEvent.press(screen.getByLabelText('Edit frozen batch'));
+
+  const frozenFormCalls = screen.navigation.navigate.mock.calls.filter(
+    (call) => call[0] === 'FrozenBatchForm',
+  );
+  expect(frozenFormCalls).toHaveLength(2);
+  expect(frozenFormCalls[0]).toEqual([
+    'FrozenBatchForm',
+    { stallionId: 'st-1', frozenBatchId: 'frozen-1' },
+  ]);
+  expect(frozenFormCalls[1]).toEqual([
+    'FrozenBatchForm',
+    { stallionId: 'st-1', frozenBatchId: 'frozen-1' },
+  ]);
 });
 
 it('shows linked breeding records with mare names', async () => {

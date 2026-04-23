@@ -89,6 +89,7 @@ function createFakeDb() {
   const stallions = new Map<string, StallionRow>();
   const collections = new Map<string, CollectionRow>();
   const breedings = new Map<string, BreedingRow>();
+  const frozenBatches = new Map<string, { id: string; collection_id: string | null }>();
   const doseEvents = new Map<string, {
     id: string;
     collection_id: string;
@@ -307,6 +308,15 @@ function createFakeDb() {
         });
         return;
       }
+
+      if (stmt.startsWith('insert into frozen_semen_batches')) {
+        const [id, , collectionId] = params as [string, string, string | null];
+        frozenBatches.set(id, {
+          id,
+          collection_id: collectionId,
+        });
+        return;
+      }
     },
 
     async getFirstAsync<T>(sql: string, params: unknown[] = []): Promise<T | null> {
@@ -325,6 +335,12 @@ function createFakeDb() {
       if (stmt.includes('count(*)') && stmt.includes('breeding_records') && stmt.includes('collection_id = ?')) {
         const [collectionId] = params as [string];
         const count = Array.from(breedings.values()).filter((b) => b.collection_id === collectionId).length;
+        return { count } as T;
+      }
+
+      if (stmt.includes('count(*)') && stmt.includes('frozen_semen_batches') && stmt.includes('collection_id = ?')) {
+        const [collectionId] = params as [string];
+        const count = Array.from(frozenBatches.values()).filter((batch) => batch.collection_id === collectionId).length;
         return { count } as T;
       }
 
@@ -499,7 +515,26 @@ describe('semen collection repository', () => {
       expect(linked).toBe(true);
 
       await expect(deleteSemenCollection('col-link')).rejects.toThrow(
-        'This collection is linked to a breeding record and cannot be deleted.',
+        'This collection is linked to breeding or frozen records and cannot be deleted.',
+      );
+    });
+
+    it('throws when deleting collection linked to frozen inventory', async () => {
+      await createStallion({ id: 'st-freeze', name: 'Freeze Stallion' });
+      await createSemenCollection({
+        id: 'col-freeze',
+        stallionId: 'st-freeze',
+        collectionDate: '2026-04-01',
+      });
+
+      const db = await getDb();
+      await db.runAsync(
+        'INSERT INTO frozen_semen_batches (id, stallion_id, collection_id) VALUES (?, ?, ?);',
+        ['freeze-1', 'st-freeze', 'col-freeze'],
+      );
+
+      await expect(deleteSemenCollection('col-freeze')).rejects.toThrow(
+        'This collection is linked to breeding or frozen records and cannot be deleted.',
       );
     });
   });

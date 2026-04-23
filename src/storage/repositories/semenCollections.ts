@@ -168,7 +168,7 @@ export async function updateSemenCollection(
 export async function deleteSemenCollection(id: string): Promise<void> {
   const linked = await isSemenCollectionLinked(id);
   if (linked) {
-    throw new Error('This collection is linked to a breeding record and cannot be deleted.');
+    throw new Error('This collection is linked to breeding or frozen records and cannot be deleted.');
   }
 
   const db = await getDb();
@@ -178,9 +178,13 @@ export async function deleteSemenCollection(id: string): Promise<void> {
 
 export async function isSemenCollectionLinked(id: string): Promise<boolean> {
   const db = await getDb();
-  const row = await db.getFirstAsync<{ count: number }>(
+  const breedingRow = await db.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) as count FROM breeding_records WHERE collection_id = ?;',
     [id],
   );
-  return (row?.count ?? 0) > 0;
+  const frozenRow = await db.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM frozen_semen_batches WHERE collection_id = ?;',
+    [id],
+  );
+  return (breedingRow?.count ?? 0) > 0 || (frozenRow?.count ?? 0) > 0;
 }
