@@ -382,6 +382,29 @@ export function useFrozenBatchWizard({
     setCurrentStepIndex((current) => Math.max(current - 1, 0));
   };
 
+  const goToStep = (targetStepIndex: number): void => {
+    const maxIndex = FROZEN_BATCH_WIZARD_STEPS.length - 1;
+    const nextStepIndex = Math.max(0, Math.min(targetStepIndex, maxIndex));
+
+    if (nextStepIndex === currentStepIndex) {
+      return;
+    }
+
+    if (nextStepIndex < currentStepIndex) {
+      setCurrentStepIndex(nextStepIndex);
+      return;
+    }
+
+    for (let stepIndex = currentStepIndex; stepIndex < nextStepIndex; stepIndex += 1) {
+      if (!validateStep(stepIndex)) {
+        setCurrentStepIndex(stepIndex);
+        return;
+      }
+    }
+
+    setCurrentStepIndex(nextStepIndex);
+  };
+
   const save = async (): Promise<void> => {
     const basicsValid = validateBasicsStep();
     const strawsValid = validateStrawsStep();
@@ -512,6 +535,7 @@ export function useFrozenBatchWizard({
     isLinkedToCollection: Boolean(collectionId),
     goNext,
     goBack,
+    goToStep,
     save,
   };
 }

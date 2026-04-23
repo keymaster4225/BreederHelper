@@ -80,14 +80,26 @@ export function FrozenBatchWizardScreen({ navigation, route }: Props): JSX.Eleme
             {FROZEN_BATCH_WIZARD_STEPS.map((title, index) => {
               const active = wizard.currentStepIndex === index;
               return (
-                <View key={title} style={[styles.stepPill, active && styles.stepPillActive]}>
+                <Pressable
+                  key={title}
+                  onPress={() => wizard.goToStep(index)}
+                  disabled={wizard.isSaving}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Go to ${title} step`}
+                  accessibilityState={{ selected: active, disabled: wizard.isSaving }}
+                  style={({ pressed }) => [
+                    styles.stepPill,
+                    active && styles.stepPillActive,
+                    pressed && !wizard.isSaving && styles.stepPillPressed,
+                  ]}
+                >
                   <Text style={[styles.stepPillNumber, active && styles.stepPillNumberActive]}>
                     {index + 1}
                   </Text>
                   <Text style={[styles.stepPillText, active && styles.stepPillTextActive]}>
                     {title}
                   </Text>
-                </View>
+                </Pressable>
               );
             })}
           </View>
@@ -223,6 +235,9 @@ const styles = StyleSheet.create({
   stepPillActive: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryContainer,
+  },
+  stepPillPressed: {
+    opacity: 0.8,
   },
   stepPillNumber: {
     ...typography.labelLarge,
