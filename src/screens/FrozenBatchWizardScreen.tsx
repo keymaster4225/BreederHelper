@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useLayoutEffect } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { PrimaryButton, SecondaryButton } from '@/components/Buttons';
 import { formStyles } from '@/components/FormControls';
@@ -34,9 +35,25 @@ export function FrozenBatchWizardScreen({ navigation, route }: Props): JSX.Eleme
     onInvalidLinkedCollection: () => navigation.goBack(),
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     navigation.setOptions({
       title: 'Add Frozen Batch',
+      headerBackVisible: wizard.currentStepIndex === 0,
+      headerLeft:
+        wizard.currentStepIndex > 0
+          ? () => (
+              <Pressable
+                accessibilityLabel="Go to previous wizard step"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={wizard.goBack}
+                style={({ pressed }) => [styles.headerBackButton, pressed && styles.headerBackButtonPressed]}
+                testID="frozen-batch-wizard-header-back"
+              >
+                <MaterialCommunityIcons name="chevron-left" size={26} color={colors.onSurface} />
+              </Pressable>
+            )
+          : undefined,
       headerRight: () => (
         <Pressable
           onPress={() => navigation.goBack()}
@@ -48,7 +65,7 @@ export function FrozenBatchWizardScreen({ navigation, route }: Props): JSX.Eleme
         </Pressable>
       ),
     });
-  }, [navigation]);
+  }, [navigation, wizard.currentStepIndex, wizard.goBack]);
 
   return (
     <Screen>
@@ -224,6 +241,13 @@ const styles = StyleSheet.create({
   actions: {
     gap: spacing.sm,
     paddingBottom: spacing.lg,
+  },
+  headerBackButton: {
+    borderRadius: 999,
+    padding: spacing.xs,
+  },
+  headerBackButtonPressed: {
+    backgroundColor: colors.surfaceVariant,
   },
   cancelAction: {
     borderRadius: 999,

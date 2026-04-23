@@ -73,7 +73,7 @@ export function StrawsStep({
           onChange={(value) => setExtender(value ? (value as FreezingExtender) : null)}
           options={FREEZING_EXTENDER_VALUES as unknown as readonly string[]}
           clearable
-          placeholder="Select extender (optional)"
+          placeholder="Select extender"
         />
       </FormField>
 
