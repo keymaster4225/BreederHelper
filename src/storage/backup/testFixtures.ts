@@ -3,13 +3,14 @@ import type {
   BackupEnvelopeV3,
   BackupEnvelopeV4,
   BackupEnvelopeV5,
+  BackupEnvelopeV6,
 } from './types';
 
 const BASE_TIMESTAMP = '2026-04-16T12:00:00.000Z';
 
-export function createBackupFixture(): BackupEnvelopeV5 {
+export function createBackupFixture(): BackupEnvelopeV6 {
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -27,6 +28,7 @@ export function createBackupFixture(): BackupEnvelopeV5 {
           gestation_length_days: 345,
           date_of_birth: '2018-02-02',
           registration_number: null,
+          is_recipient: 1,
           notes: null,
           created_at: BASE_TIMESTAMP,
           updated_at: BASE_TIMESTAMP,
@@ -257,12 +259,37 @@ export function createBackupFixture(): BackupEnvelopeV5 {
   };
 }
 
-export function cloneBackupFixture(): BackupEnvelopeV5 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV5;
+export function cloneBackupFixture(): BackupEnvelopeV6 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV6;
+}
+
+export function createBackupFixtureV5(): BackupEnvelopeV5 {
+  const backupV6 = createBackupFixture();
+
+  return {
+    schemaVersion: 5,
+    createdAt: backupV6.createdAt,
+    app: backupV6.app,
+    settings: backupV6.settings,
+    tables: {
+      mares: backupV6.tables.mares.map(({ is_recipient: _isRecipient, ...row }) => row),
+      stallions: backupV6.tables.stallions,
+      daily_logs: backupV6.tables.daily_logs,
+      uterine_fluid: backupV6.tables.uterine_fluid,
+      breeding_records: backupV6.tables.breeding_records,
+      pregnancy_checks: backupV6.tables.pregnancy_checks,
+      foaling_records: backupV6.tables.foaling_records,
+      foals: backupV6.tables.foals,
+      medication_logs: backupV6.tables.medication_logs,
+      semen_collections: backupV6.tables.semen_collections,
+      collection_dose_events: backupV6.tables.collection_dose_events,
+      frozen_semen_batches: backupV6.tables.frozen_semen_batches,
+    },
+  };
 }
 
 export function createBackupFixtureV4(): BackupEnvelopeV4 {
-  const backupV5 = createBackupFixture();
+  const backupV5 = createBackupFixtureV5();
 
   return {
     schemaVersion: 4,

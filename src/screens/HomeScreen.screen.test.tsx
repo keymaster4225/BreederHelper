@@ -51,8 +51,10 @@ const pregnantMare = {
   id: 'mare-1',
   name: 'Nova',
   breed: 'Warmblood',
+  gestationLengthDays: 340,
   dateOfBirth: '2015-01-01',
   registrationNumber: null,
+  isRecipient: true,
   notes: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
@@ -62,8 +64,10 @@ const openMare = {
   id: 'mare-2',
   name: 'Maple',
   breed: 'Quarter Horse',
+  gestationLengthDays: 340,
   dateOfBirth: '2016-02-02',
   registrationNumber: null,
+  isRecipient: false,
   notes: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
@@ -128,6 +132,7 @@ it('loads dashboard, search, and filter state correctly', () => {
   expect(screen.getByText('Nova')).toBeTruthy();
   expect(screen.getByText('Maple')).toBeTruthy();
   expect(screen.getAllByText('Pregnant').length).toBeGreaterThan(0);
+  expect(screen.getByText('Recipient')).toBeTruthy();
   expect(loadMaresIfStale).toHaveBeenCalledTimes(1);
   expect(setSelectedMareId).toHaveBeenCalledWith(null);
 
@@ -149,6 +154,7 @@ it('loads dashboard, search, and filter state correctly', () => {
 
   expect(screen.queryByText('Nova')).toBeNull();
   expect(screen.getByText('Maple')).toBeTruthy();
+  expect(screen.queryByText('Recipient')).toBeNull();
 
   fireEvent.press(screen.getByLabelText('Clear search'));
   expect(setSearchText).toHaveBeenCalledWith('');
@@ -171,6 +177,7 @@ it('loads dashboard, search, and filter state correctly', () => {
 
   expect(screen.queryByText('Nova')).toBeNull();
   expect(screen.getByText('Maple')).toBeTruthy();
+  expect(screen.queryByText('Recipient')).toBeNull();
 });
 
 it('refreshes the list after deleting a mare', () => {

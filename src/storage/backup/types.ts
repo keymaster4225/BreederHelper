@@ -21,7 +21,8 @@ export const BACKUP_SCHEMA_VERSION_V2 = 2 as const;
 export const BACKUP_SCHEMA_VERSION_V3 = 3 as const;
 export const BACKUP_SCHEMA_VERSION_V4 = 4 as const;
 export const BACKUP_SCHEMA_VERSION_V5 = 5 as const;
-export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V5;
+export const BACKUP_SCHEMA_VERSION_V6 = 6 as const;
+export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V6;
 
 export const BACKUP_TABLE_NAMES = [
   'mares',
@@ -98,7 +99,11 @@ export type BackupMareRowV2 = BackupMareRowV1 & {
   readonly gestation_length_days: number;
 };
 
-export type BackupMareRow = BackupMareRowV2;
+export type BackupMareRowV6 = BackupMareRowV2 & {
+  readonly is_recipient: 0 | 1;
+};
+
+export type BackupMareRow = BackupMareRowV6;
 
 export type BackupStallionRow = {
   readonly id: string;
@@ -419,6 +424,21 @@ export type BackupTablesV5 = {
   readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
 };
 
+export type BackupTablesV6 = {
+  readonly mares: readonly BackupMareRowV6[];
+  readonly stallions: readonly BackupStallionRow[];
+  readonly daily_logs: readonly BackupDailyLogRow[];
+  readonly uterine_fluid: readonly BackupUterineFluidRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
+  readonly foaling_records: readonly BackupFoalingRecordRow[];
+  readonly foals: readonly BackupFoalRow[];
+  readonly medication_logs: readonly BackupMedicationLogRow[];
+  readonly semen_collections: readonly BackupSemenCollectionRowV3[];
+  readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
+  readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
+};
+
 export type BackupEnvelopeV1 = {
   readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V1;
   readonly createdAt: BackupIsoDateTime;
@@ -459,12 +479,21 @@ export type BackupEnvelopeV5 = {
   readonly tables: BackupTablesV5;
 };
 
+export type BackupEnvelopeV6 = {
+  readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V6;
+  readonly createdAt: BackupIsoDateTime;
+  readonly app: BackupAppMetadata;
+  readonly settings: BackupSettings;
+  readonly tables: BackupTablesV6;
+};
+
 export type BackupEnvelope =
   | BackupEnvelopeV1
   | BackupEnvelopeV2
   | BackupEnvelopeV3
   | BackupEnvelopeV4
-  | BackupEnvelopeV5;
+  | BackupEnvelopeV5
+  | BackupEnvelopeV6;
 
 export type BackupPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;

@@ -43,6 +43,7 @@ export function useEditMareForm({
   const today = useMemo(() => new Date(), []);
 
   const [name, setName] = useState('');
+  const [isRecipient, setIsRecipient] = useState(false);
   const [breed, setBreed] = useState('');
   const [gestationLengthDays, setGestationLengthDays] = useState(
     String(DEFAULT_GESTATION_LENGTH_DAYS),
@@ -74,6 +75,7 @@ export function useEditMareForm({
         }
 
         setName(mare.name);
+        setIsRecipient(mare.isRecipient);
         setBreed(mare.breed);
         setGestationLengthDays(String(mare.gestationLengthDays));
         setDateOfBirth(mare.dateOfBirth ?? '');
@@ -134,6 +136,7 @@ export function useEditMareForm({
           gestationLengthDays: parsedGestationLengthDays,
           dateOfBirth: normalizeLocalDate(dateOfBirth),
           registrationNumber: registrationNumber.trim() || null,
+          isRecipient,
           notes: notes.trim() || null,
         };
 
@@ -159,6 +162,7 @@ export function useEditMareForm({
     breed,
     dateOfBirth,
     gestationLengthDays,
+    isRecipient,
     mareId,
     name,
     notes,
@@ -197,6 +201,7 @@ export function useEditMareForm({
     isEdit,
     today,
     name,
+    isRecipient,
     breed,
     gestationLengthDays,
     dateOfBirth,
@@ -207,6 +212,7 @@ export function useEditMareForm({
     isSaving,
     isDeleting,
     setName,
+    setIsRecipient,
     setBreed,
     setGestationLengthDays,
     setDateOfBirth,

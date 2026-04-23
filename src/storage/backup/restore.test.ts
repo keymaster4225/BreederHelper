@@ -31,6 +31,7 @@ import {
   createBackupFixtureV2,
   createBackupFixtureV3,
   createBackupFixtureV4,
+  createBackupFixtureV5,
 } from './testFixtures';
 import { restoreBackup } from './restore';
 import { validateBackup, validateBackupJson } from './validate';
@@ -63,7 +64,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 5,
+        schemaVersion: 6,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -72,7 +73,7 @@ describe('restoreBackup', () => {
       fileUri: 'file:///snapshot.json',
       createdAt: backup.createdAt,
       mareCount: 1,
-      schemaVersion: 5,
+      schemaVersion: 6,
     });
 
     const result = await restoreBackup(JSON.stringify(backup), {
@@ -109,6 +110,7 @@ describe('restoreBackup', () => {
     const mareInsertCall = db.runAsync.mock.calls[12] as unknown[] | undefined;
     const mareInsertParams = (mareInsertCall?.[1] ?? []) as unknown[];
     expect(mareInsertParams[3]).toBe(345);
+    expect(mareInsertParams[6]).toBe(1);
     expect(sqlCalls[13]).toContain('INSERT INTO stallions');
     expect(sqlCalls[14]).toContain('INSERT INTO semen_collections');
     const semenCollectionInsertCall = db.runAsync.mock.calls[14] as unknown[] | undefined;
@@ -160,7 +162,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 5,
+        schemaVersion: 6,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -201,7 +203,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 5,
+        schemaVersion: 6,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -240,7 +242,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 5,
+        schemaVersion: 6,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -278,7 +280,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 5,
+        schemaVersion: 6,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -355,6 +357,44 @@ describe('restoreBackup', () => {
       typeof sql === 'string' && sql.includes('INSERT INTO mares'),
     );
     expect((mareInsertCall?.[1] as unknown[] | undefined)?.[3]).toBe(340);
+    expect((mareInsertCall?.[1] as unknown[] | undefined)?.[6]).toBe(0);
+  });
+
+  it('defaults missing mare is_recipient to 0 when restoring a v5 backup', async () => {
+    const backup = createBackupFixtureV5();
+    const db = {
+      runAsync: vi.fn(async () => undefined),
+      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
+        await callback();
+      }),
+    };
+
+    vi.mocked(validateBackup).mockReturnValue({
+      ok: true,
+      backup,
+      preview: {
+        createdAt: backup.createdAt,
+        mareCount: 1,
+        stallionCount: 1,
+        dailyLogCount: 1,
+        onboardingComplete: true,
+        schemaVersion: 5,
+      },
+    });
+    vi.mocked(getDb).mockResolvedValue(db as never);
+    vi.mocked(setOnboardingCompleteValue).mockResolvedValue(undefined);
+
+    const result = await restoreBackup(backup, { skipSafetySnapshot: true });
+
+    expect(result).toEqual({
+      ok: true,
+      safetySnapshotCreated: false,
+    });
+    const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
+    const mareInsertCall = runCalls.find(([sql]) =>
+      typeof sql === 'string' && sql.includes('INSERT INTO mares'),
+    );
+    expect((mareInsertCall?.[1] as unknown[] | undefined)?.[6]).toBe(0);
   });
 
   it('normalizes frozen semen batches to empty when restoring a v4 backup', async () => {

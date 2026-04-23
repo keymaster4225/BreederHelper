@@ -89,6 +89,7 @@ export interface Mare {
   gestationLengthDays: number;
   dateOfBirth?: LocalDate | null;
   registrationNumber?: string | null;
+  isRecipient: boolean;
   notes?: string | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;

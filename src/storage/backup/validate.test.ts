@@ -4,6 +4,7 @@ import {
   cloneBackupFixture,
   createBackupFixtureV2,
   createBackupFixtureV4,
+  createBackupFixtureV5,
 } from './testFixtures';
 import { validateBackup, validateBackupJson } from './validate';
 
@@ -21,7 +22,7 @@ describe('validateBackup', () => {
     expect(result.preview.mareCount).toBe(1);
     expect(result.preview.dailyLogCount).toBe(1);
     expect(result.preview.onboardingComplete).toBe(true);
-    expect(result.preview.schemaVersion).toBe(5);
+    expect(result.preview.schemaVersion).toBe(6);
   });
 
   it('accepts v1 backups without gestation length on mare rows', () => {
@@ -41,6 +42,19 @@ describe('validateBackup', () => {
     }
 
     expect(result.preview.schemaVersion).toBe(1);
+  });
+
+  it('accepts v5 backups without is_recipient on mare rows', () => {
+    const backup = createBackupFixtureV5();
+
+    const result = validateBackup(backup);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected backup to validate');
+    }
+
+    expect(result.preview.schemaVersion).toBe(5);
   });
 
   it('accepts v4 backups without frozen semen batches', () => {
@@ -500,7 +514,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 6,
+      schemaVersion: 7,
     });
 
     const result = validateBackupJson(jsonText);
@@ -511,6 +525,25 @@ describe('validateBackup', () => {
     }
 
     expect(result.error.code).toBe('unsupported_schema_version');
+  });
+
+  it('requires is_recipient on v6 mare rows', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        mares: backup.tables.mares.map(({ is_recipient: _isRecipient, ...row }) => row),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('mares');
+    expect(result.error.field).toBe('is_recipient');
   });
 
   it('rejects frozen rows with invalid extender Other pairing', () => {

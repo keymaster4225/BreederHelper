@@ -34,8 +34,10 @@ beforeEach(() => {
     id: 'mare-1',
     name: 'Nova',
     breed: 'Warmblood',
+    gestationLengthDays: 340,
     dateOfBirth: '2015-01-01',
     registrationNumber: null,
+    isRecipient: false,
     notes: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
@@ -77,4 +79,44 @@ it('updates the active tab on tab press and page change', async () => {
 
   fireEvent(screen.getByTestId('mare-detail-pager'), 'onPageSelected', { nativeEvent: { position: 4 } });
   expect(screen.getByRole('tab', { name: 'Meds' }).props.accessibilityState.selected).toBe(true);
+});
+
+it('shows recipient and pregnant badges together in the header when both apply', async () => {
+  repositories.getMareById.mockResolvedValueOnce({
+    id: 'mare-1',
+    name: 'Nova',
+    breed: 'Warmblood',
+    gestationLengthDays: 340,
+    dateOfBirth: '2015-01-01',
+    registrationNumber: null,
+    isRecipient: true,
+    notes: null,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  });
+  repositories.listPregnancyChecksByMare.mockResolvedValueOnce([
+    {
+      id: 'check-1',
+      mareId: 'mare-1',
+      breedingRecordId: 'breed-1',
+      date: '2026-03-01',
+      result: 'positive',
+      heartbeatDetected: true,
+      notes: null,
+      createdAt: '2026-03-01T00:00:00.000Z',
+      updatedAt: '2026-03-01T00:00:00.000Z',
+    },
+  ]);
+  repositories.listFoalingRecordsByMare.mockResolvedValueOnce([]);
+
+  const navigation = { navigate: jest.fn(), setOptions: jest.fn() };
+  const screen = render(
+    <MareDetailScreen
+      navigation={navigation as never}
+      route={{ key: 'MareDetail', name: 'MareDetail', params: { mareId: 'mare-1' } } as never}
+    />,
+  );
+
+  await waitFor(() => expect(screen.getByText('Recipient')).toBeTruthy());
+  expect(screen.getByText('Pregnant')).toBeTruthy();
 });

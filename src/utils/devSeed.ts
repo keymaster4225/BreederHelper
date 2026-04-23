@@ -78,6 +78,7 @@ export async function seedPreviewData(): Promise<SeedPreviewDataResult> {
         breed: 'Quarter Horse',
         gestationLengthDays: 340,
         dateOfBirth: '2018-04-12',
+        isRecipient: false,
       }),
     )) || insertedAny;
   insertedAny =
@@ -135,6 +136,7 @@ export async function seedPreviewData(): Promise<SeedPreviewDataResult> {
         breed: 'Arabian',
         gestationLengthDays: 340,
         dateOfBirth: '2016-05-03',
+        isRecipient: false,
       }),
     )) || insertedAny;
   insertedAny =
@@ -190,6 +192,7 @@ export async function seedPreviewData(): Promise<SeedPreviewDataResult> {
         breed: 'Warmblood',
         gestationLengthDays: 340,
         dateOfBirth: '2020-03-28',
+        isRecipient: true,
         notes: 'Maiden mare, first breeding season',
       }),
     )) || insertedAny;

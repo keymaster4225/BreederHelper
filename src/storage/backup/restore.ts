@@ -8,6 +8,7 @@ import {
   BACKUP_SCHEMA_VERSION_V3,
   BACKUP_SCHEMA_VERSION_V4,
   BACKUP_SCHEMA_VERSION_V5,
+  BACKUP_SCHEMA_VERSION_V6,
 } from './types';
 import type {
   BackupCollectionDoseEventRowV2,
@@ -18,11 +19,13 @@ import type {
   BackupEnvelope,
   BackupEnvelopeV4,
   BackupEnvelopeV5,
+  BackupEnvelopeV6,
   BackupFoalingRecordRow,
   BackupFoalRow,
   BackupFrozenSemenBatchRow,
   BackupMareRowV1,
   BackupMareRowV2,
+  BackupMareRowV6,
   BackupMedicationLogRow,
   BackupPregnancyCheckRow,
   BackupSemenCollectionRowV2,
@@ -47,7 +50,7 @@ type NormalizedBackupForRestore = {
     readonly onboardingComplete: boolean;
   };
   readonly tables: {
-    readonly mares: readonly (BackupMareRowV1 | BackupMareRowV2)[];
+    readonly mares: readonly BackupMareRowV6[];
     readonly stallions: readonly BackupStallionRow[];
     readonly semen_collections: readonly BackupSemenCollectionRowV3[];
     readonly breeding_records: readonly BackupBreedingRecordRow[];
@@ -178,7 +181,7 @@ async function insertManagedTables(
 
 async function insertMare(
   db: Awaited<ReturnType<typeof getDb>>,
-  row: BackupMareRowV1 | BackupMareRowV2,
+  row: BackupMareRowV6,
 ): Promise<void> {
   await db.runAsync(
     `
@@ -189,21 +192,21 @@ async function insertMare(
       gestation_length_days,
       date_of_birth,
       registration_number,
+      is_recipient,
       notes,
       created_at,
       updated_at,
       deleted_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
       row.name,
       row.breed,
-      'gestation_length_days' in row
-        ? row.gestation_length_days
-        : DEFAULT_GESTATION_LENGTH_DAYS,
+      row.gestation_length_days,
       row.date_of_birth,
       row.registration_number,
+      row.is_recipient,
       row.notes,
       row.created_at,
       row.updated_at,
@@ -697,10 +700,16 @@ async function insertCollectionDoseEvent(
 }
 
 function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForRestore {
-  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V5) {
-    return backup as BackupEnvelopeV5;
+  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V6) {
+    return backup as BackupEnvelopeV6;
   }
 
+  const mares: readonly BackupMareRowV6[] =
+    backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V6
+      ? (backup.tables.mares as readonly BackupMareRowV6[])
+      : backup.tables.mares.map((row) =>
+          normalizeLegacyMareRow(row as BackupMareRowV1 | BackupMareRowV2),
+        );
   const semenCollections: readonly BackupSemenCollectionRowV3[] =
     backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V3
       ? (backup.tables.semen_collections as readonly BackupSemenCollectionRowV3[])
@@ -723,11 +732,15 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
     backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V4
       ? (backup as BackupEnvelopeV4).tables.uterine_fluid
       : [];
+  const frozenSemenBatches: readonly BackupFrozenSemenBatchRow[] =
+    backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V5
+      ? (backup as BackupEnvelopeV5).tables.frozen_semen_batches
+      : [];
 
   return {
     settings: backup.settings,
     tables: {
-      mares: backup.tables.mares,
+      mares,
       stallions: backup.tables.stallions,
       semen_collections: semenCollections,
       breeding_records: backup.tables.breeding_records,
@@ -738,8 +751,21 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
       foaling_records: backup.tables.foaling_records,
       foals: backup.tables.foals,
       collection_dose_events: collectionDoseEvents,
-      frozen_semen_batches: [],
+      frozen_semen_batches: frozenSemenBatches,
     },
+  };
+}
+
+function normalizeLegacyMareRow(
+  row: BackupMareRowV1 | BackupMareRowV2,
+): BackupMareRowV6 {
+  return {
+    ...row,
+    gestation_length_days:
+      'gestation_length_days' in row
+        ? row.gestation_length_days
+        : DEFAULT_GESTATION_LENGTH_DAYS,
+    is_recipient: 0,
   };
 }
 

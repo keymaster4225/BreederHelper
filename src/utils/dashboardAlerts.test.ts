@@ -31,6 +31,7 @@ function makeMare(overrides: Partial<Mare> = {}): Mare {
     name: 'Star',
     breed: 'Thoroughbred',
     gestationLengthDays: 340,
+    isRecipient: false,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     ...overrides,

@@ -36,6 +36,7 @@ describe('serializeBackup', () => {
               gestation_length_days: 345,
               date_of_birth: '2018-02-02',
               registration_number: null,
+              is_recipient: 1,
               notes: null,
               created_at: '2026-01-01T00:00:00.000Z',
               updated_at: '2026-01-01T00:00:00.000Z',
@@ -261,10 +262,11 @@ describe('serializeBackup', () => {
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(5);
+    expect(backup.schemaVersion).toBe(6);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
     expect(backup.tables.mares[0]?.gestation_length_days).toBe(345);
+    expect(backup.tables.mares[0]?.is_recipient).toBe(1);
     expect(backup.tables.mares[0]?.deleted_at).toBe('2026-04-01T00:00:00.000Z');
     expect(backup.tables.breeding_records[0]?.straw_volume_ml).toBe(0.5);
     expect(backup.tables.foals[0]?.milestones).toBe('{"stood":{"done":true}}');

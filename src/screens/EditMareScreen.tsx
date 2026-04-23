@@ -2,7 +2,14 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'r
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
-import { FormAutocompleteInput, FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
+import {
+  FormAutocompleteInput,
+  FormCheckbox,
+  FormDateInput,
+  FormField,
+  FormTextInput,
+  formStyles,
+} from '@/components/FormControls';
 import { useEditMareForm } from '@/hooks/useEditMareForm';
 import {
   DEFAULT_GESTATION_LENGTH_DAYS,
@@ -19,6 +26,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
     isEdit,
     today,
     name,
+    isRecipient,
     breed,
     gestationLengthDays,
     dateOfBirth,
@@ -29,6 +37,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
     isSaving,
     isDeleting,
     setName,
+    setIsRecipient,
     setBreed,
     setGestationLengthDays,
     setDateOfBirth,
@@ -57,6 +66,14 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
         <FormField label="Name" required error={errors.name}>
           <FormTextInput value={name} onChangeText={setName} placeholder="Mare name" />
+        </FormField>
+
+        <FormField label="Recipient">
+          <FormCheckbox
+            label="Recipient mare"
+            value={isRecipient}
+            onChange={setIsRecipient}
+          />
         </FormField>
 
         <FormField label="Breed" required error={errors.breed}>

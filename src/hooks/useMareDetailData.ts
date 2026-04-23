@@ -1,6 +1,15 @@
 import { useCallback, useMemo, useState } from 'react';
 
-import { BreedingRecord, DailyLog, Foal, FoalingRecord, Mare, MedicationLog, PregnancyCheck } from '@/models/types';
+import {
+  BreedingRecord,
+  DailyLog,
+  findCurrentPregnancyCheck,
+  Foal,
+  FoalingRecord,
+  Mare,
+  MedicationLog,
+  PregnancyCheck,
+} from '@/models/types';
 import {
   getMareById,
   listBreedingRecordsByMare,
@@ -29,6 +38,7 @@ type MareDetailData = {
   readonly stallionNameById: Record<string, string>;
   readonly breedingById: Record<string, BreedingRecord>;
   readonly age: number | null;
+  readonly isCurrentlyPregnant: boolean;
   readonly isLoading: boolean;
   readonly error: string | null;
   readonly loadData: () => Promise<void>;
@@ -89,6 +99,10 @@ export function useMareDetailData({ mareId, setTitle }: UseMareDetailDataArgs): 
     () => Object.fromEntries(breedingRecords.map((record) => [record.id, record])),
     [breedingRecords],
   );
+  const isCurrentlyPregnant = useMemo(
+    () => findCurrentPregnancyCheck(pregnancyChecks, foalingRecords) !== null,
+    [foalingRecords, pregnancyChecks],
+  );
 
   return {
     mare,
@@ -101,6 +115,7 @@ export function useMareDetailData({ mareId, setTitle }: UseMareDetailDataArgs): 
     stallionNameById,
     breedingById,
     age: deriveAgeYears(mare?.dateOfBirth ?? null),
+    isCurrentlyPregnant,
     isLoading,
     error,
     loadData,

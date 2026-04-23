@@ -31,7 +31,13 @@ import {
   updateFoal,
 } from '@/storage/repositories/queries';
 import { serializeIggTestsForSave } from '@/storage/repositories/internal/foalCodecs';
-import { createMare, getMareById, listMares, softDeleteMare, updateMare } from '@/storage/repositories/mares';
+import {
+  createMare as createRepoMare,
+  getMareById,
+  listMares,
+  softDeleteMare,
+  updateMare,
+} from '@/storage/repositories/mares';
 
 type MareRow = {
   id: string;
@@ -40,6 +46,7 @@ type MareRow = {
   gestation_length_days: number;
   date_of_birth: string | null;
   registration_number: string | null;
+  is_recipient: number;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -160,6 +167,17 @@ function normalized(sql: string): string {
   return sql.replace(/\s+/g, ' ').trim().toLowerCase();
 }
 
+function createMare(
+  input: Omit<Parameters<typeof createRepoMare>[0], 'isRecipient'> & {
+    isRecipient?: boolean;
+  },
+): ReturnType<typeof createRepoMare> {
+  return createRepoMare({
+    ...input,
+    isRecipient: input.isRecipient ?? false,
+  });
+}
+
 function createFakeDb(): FakeDb {
   const mares = new Map<string, MareRow>();
   const dailyLogs = new Map<string, DailyLogRow>();
@@ -175,13 +193,25 @@ function createFakeDb(): FakeDb {
       const stmt = normalized(sql);
 
       if (stmt.startsWith('insert into mares')) {
-        const [id, name, breed, gestationLengthDays, dateOfBirth, registrationNumber, notes, createdAt, updatedAt] = params as [
+        const [
+          id,
+          name,
+          breed,
+          gestationLengthDays,
+          dateOfBirth,
+          registrationNumber,
+          isRecipient,
+          notes,
+          createdAt,
+          updatedAt,
+        ] = params as [
           string,
           string,
           string,
           number,
           string | null,
           string | null,
+          number,
           string | null,
           string,
           string,
@@ -193,6 +223,7 @@ function createFakeDb(): FakeDb {
           gestation_length_days: gestationLengthDays,
           date_of_birth: dateOfBirth,
           registration_number: registrationNumber,
+          is_recipient: isRecipient,
           notes,
           created_at: createdAt,
           updated_at: updatedAt,
@@ -202,12 +233,23 @@ function createFakeDb(): FakeDb {
       }
 
       if (stmt.startsWith('update mares set name =')) {
-        const [name, breed, gestationLengthDays, dateOfBirth, registrationNumber, notes, updatedAt, id] = params as [
+        const [
+          name,
+          breed,
+          gestationLengthDays,
+          dateOfBirth,
+          registrationNumber,
+          isRecipient,
+          notes,
+          updatedAt,
+          id,
+        ] = params as [
           string,
           string,
           number,
           string | null,
           string | null,
+          number,
           string | null,
           string,
           string,
@@ -221,6 +263,7 @@ function createFakeDb(): FakeDb {
           gestation_length_days: gestationLengthDays,
           date_of_birth: dateOfBirth,
           registration_number: registrationNumber,
+          is_recipient: isRecipient,
           notes,
           updated_at: updatedAt,
         });
@@ -811,6 +854,7 @@ describe('repository smoke tests', () => {
       gestationLengthDays: 340,
       dateOfBirth: '2018-03-01',
       registrationNumber: 'REG-1',
+      isRecipient: true,
       notes: 'Initial',
     });
 
@@ -818,6 +862,7 @@ describe('repository smoke tests', () => {
     expect(created?.name).toBe('Astra');
     expect(created?.breed).toBe('Thoroughbred');
     expect(created?.gestationLengthDays).toBe(340);
+    expect(created?.isRecipient).toBe(true);
 
     await updateMare('mare-1', {
       name: 'Astra Prime',
@@ -825,6 +870,7 @@ describe('repository smoke tests', () => {
       gestationLengthDays: 345,
       dateOfBirth: '2018-03-01',
       registrationNumber: 'REG-2',
+      isRecipient: false,
       notes: 'Updated',
     });
 
@@ -832,6 +878,7 @@ describe('repository smoke tests', () => {
     expect(updated?.name).toBe('Astra Prime');
     expect(updated?.registrationNumber).toBe('REG-2');
     expect(updated?.gestationLengthDays).toBe(345);
+    expect(updated?.isRecipient).toBe(false);
 
     const listedBeforeDelete = await listMares();
     expect(listedBeforeDelete).toHaveLength(1);

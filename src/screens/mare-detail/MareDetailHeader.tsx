@@ -2,16 +2,23 @@ import { StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { IconButton } from '@/components/Buttons';
+import { StatusBadge } from '@/components/StatusBadge';
 import { Mare } from '@/models/types';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type MareDetailHeaderProps = {
   readonly mare: Mare;
   readonly age: number | null;
+  readonly isCurrentlyPregnant: boolean;
   readonly onCalendarPress: () => void;
 };
 
-export function MareDetailHeader({ mare, age, onCalendarPress }: MareDetailHeaderProps): JSX.Element {
+export function MareDetailHeader({
+  mare,
+  age,
+  isCurrentlyPregnant,
+  onCalendarPress,
+}: MareDetailHeaderProps): JSX.Element {
   return (
     <View style={styles.headerCard}>
       <View style={styles.cardHeader}>
@@ -24,6 +31,24 @@ export function MareDetailHeader({ mare, age, onCalendarPress }: MareDetailHeade
           />
         </View>
       </View>
+      {mare.isRecipient || isCurrentlyPregnant ? (
+        <View style={styles.badgeRow}>
+          {mare.isRecipient ? (
+            <StatusBadge
+              label="Recipient"
+              backgroundColor={colors.secondaryContainer}
+              textColor={colors.onSecondaryContainer}
+            />
+          ) : null}
+          {isCurrentlyPregnant ? (
+            <StatusBadge
+              label="Pregnant"
+              backgroundColor={colors.pregnant}
+              textColor="#FFFFFF"
+            />
+          ) : null}
+        </View>
+      ) : null}
       <Text style={styles.headerLine}>{mare.breed}</Text>
       <Text style={styles.headerLine}>Gestation {mare.gestationLengthDays} days</Text>
       {age !== null ? <Text style={styles.headerLine}>Age {age}</Text> : null}
@@ -56,6 +81,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  badgeRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
   },
   headerLine: {
     color: colors.onSurfaceVariant,

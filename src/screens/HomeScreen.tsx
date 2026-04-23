@@ -228,7 +228,16 @@ export function HomeScreen({ navigation, route }: Props): JSX.Element {
               onLongPress={() => setSelectedMareId(isSelected ? null : item.id)}
             >
               <View style={styles.rowMain}>
-                <Text style={styles.rowTitle}>{item.name}</Text>
+                <View style={styles.rowTitleRow}>
+                  <Text style={styles.rowTitle}>{item.name}</Text>
+                  {item.isRecipient ? (
+                    <StatusBadge
+                      label="Recipient"
+                      backgroundColor={colors.secondaryContainer}
+                      textColor={colors.onSecondaryContainer}
+                    />
+                  ) : null}
+                </View>
                 <Text style={styles.rowSubtitle}>{item.breed}</Text>
                 {age !== null ? <Text style={styles.rowMeta}>Age {age}</Text> : null}
                 {pregnantInfo.has(item.id) ? (
@@ -300,7 +309,14 @@ const styles = StyleSheet.create({
     gap: spacing.xs,
     marginRight: spacing.md,
   },
+  rowTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
   rowTitle: {
+    flexShrink: 1,
     ...typography.titleMedium,
   },
   rowSubtitle: {

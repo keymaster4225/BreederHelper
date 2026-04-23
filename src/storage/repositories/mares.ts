@@ -17,6 +17,7 @@ export async function listMares(includeDeleted = false, db?: RepoDb): Promise<Ma
       gestation_length_days,
       date_of_birth,
       registration_number,
+      is_recipient,
       notes,
       created_at,
       updated_at,
@@ -39,6 +40,7 @@ export async function getMareById(id: string, db?: RepoDb): Promise<Mare | null>
       gestation_length_days,
       date_of_birth,
       registration_number,
+      is_recipient,
       notes,
       created_at,
       updated_at,
@@ -59,6 +61,7 @@ export async function createMare(input: {
   gestationLengthDays?: number;
   dateOfBirth?: LocalDate | null;
   registrationNumber?: string | null;
+  isRecipient: boolean;
   notes?: string | null;
 }, db?: RepoDb): Promise<void> {
   const handle = await resolveDb(db);
@@ -73,11 +76,12 @@ export async function createMare(input: {
       gestation_length_days,
       date_of_birth,
       registration_number,
+      is_recipient,
       notes,
       created_at,
       updated_at,
       deleted_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL);
     `,
     [
       input.id,
@@ -86,6 +90,7 @@ export async function createMare(input: {
       input.gestationLengthDays ?? DEFAULT_GESTATION_LENGTH_DAYS,
       input.dateOfBirth ?? null,
       input.registrationNumber ?? null,
+      input.isRecipient ? 1 : 0,
       input.notes ?? null,
       now,
       now,
@@ -102,6 +107,7 @@ export async function updateMare(
     gestationLengthDays: number;
     dateOfBirth?: LocalDate | null;
     registrationNumber?: string | null;
+    isRecipient: boolean;
     notes?: string | null;
   },
   db?: RepoDb,
@@ -117,6 +123,7 @@ export async function updateMare(
       gestation_length_days = ?,
       date_of_birth = ?,
       registration_number = ?,
+      is_recipient = ?,
       notes = ?,
       updated_at = ?
     WHERE id = ?;
@@ -127,6 +134,7 @@ export async function updateMare(
       input.gestationLengthDays,
       input.dateOfBirth ?? null,
       input.registrationNumber ?? null,
+      input.isRecipient ? 1 : 0,
       input.notes ?? null,
       new Date().toISOString(),
       id,
@@ -156,6 +164,7 @@ type MareRow = {
   gestation_length_days: number;
   date_of_birth: string | null;
   registration_number: string | null;
+  is_recipient: number;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -170,6 +179,7 @@ function mapMareRow(row: MareRow): Mare {
     gestationLengthDays: row.gestation_length_days,
     dateOfBirth: row.date_of_birth,
     registrationNumber: row.registration_number,
+    isRecipient: row.is_recipient === 1,
     notes: row.notes,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

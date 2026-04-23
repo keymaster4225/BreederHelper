@@ -979,6 +979,12 @@ CREATE INDEX IF NOT EXISTS idx_frozen_semen_batches_collection_id
   ON frozen_semen_batches (collection_id);
 `;
 
+const migration023 = `
+ALTER TABLE mares
+  ADD COLUMN is_recipient INTEGER NOT NULL DEFAULT 0
+  CHECK (is_recipient IN (0, 1));
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -1155,6 +1161,12 @@ const migrations: Migration[] = [
       (await tableExists(db, 'frozen_semen_batches')) &&
       (await indexExists(db, 'idx_frozen_semen_batches_stallion_id')) &&
       (await indexExists(db, 'idx_frozen_semen_batches_collection_id')),
+  },
+  {
+    id: 23,
+    name: '023_mare_is_recipient',
+    statements: splitStatements(migration023),
+    shouldSkip: async (db) => hasColumn(db, 'mares', 'is_recipient'),
   },
 ];
 

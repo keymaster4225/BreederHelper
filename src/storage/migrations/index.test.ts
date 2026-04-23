@@ -18,6 +18,7 @@ function createFakeDb(options: {
   semenCollectionsColumns?: string[];
   collectionDoseEventColumns?: string[];
   dailyLogsColumns?: string[];
+  mareColumns?: string[];
   hasUterineFluidTable?: boolean;
   hasUterineFluidIndex?: boolean;
   hasFrozenSemenBatchesTable?: boolean;
@@ -268,6 +269,22 @@ function createFakeDb(options: {
           'notes',
           'created_at',
           'updated_at',
+        ];
+        return columns.map((name) => ({ name } as T));
+      }
+      if (trimmed === 'PRAGMA table_info(mares);') {
+        const columns = options.mareColumns ?? [
+          'id',
+          'name',
+          'breed',
+          'gestation_length_days',
+          'date_of_birth',
+          'registration_number',
+          'notes',
+          'created_at',
+          'updated_at',
+          'deleted_at',
+          'is_recipient',
         ];
         return columns.map((name) => ({ name } as T));
       }
@@ -593,7 +610,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([21, 22]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([21, 22, 23]);
   });
 
   it('applies migration022 when frozen_semen_batches artifacts are missing', async () => {
@@ -641,7 +658,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([22]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([22, 23]);
   });
 
   it('skips migration019 when target and dose volume columns already exist', async () => {
@@ -697,7 +714,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20, 21, 22]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20, 21, 22, 23]);
   });
 
   it('skips the repair migration when breeding_records already references semen_collections', async () => {
@@ -736,7 +753,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20, 21, 22]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23]);
   });
 
   it('runs the repair migration when the legacy table still exists even if breeding_records already looks correct', async () => {
@@ -877,7 +894,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20, 21, 22]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20, 21, 22, 23]);
   });
 
   it('rebuilds stallions and semen_collections when canonical constraint checks are missing', async () => {
@@ -979,7 +996,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE stallions_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20, 21, 22]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20, 21, 22, 23]);
   });
 
   it('fails the canonical repair migration with a targeted error when legacy stallion rows are invalid', async () => {
@@ -1012,5 +1029,40 @@ describe('applyMigrations', () => {
 
     expect(execCalls).toHaveLength(1);
     expect(runCalls.some(({ params }) => params[0] === 16)).toBe(false);
+  });
+
+  it('adds is_recipient to mares in migration023 when the column is missing', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 22 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY
+        )
+      `,
+      mareColumns: [
+        'id',
+        'name',
+        'breed',
+        'gestation_length_days',
+        'date_of_birth',
+        'registration_number',
+        'notes',
+        'created_at',
+        'updated_at',
+        'deleted_at',
+      ],
+    });
+
+    await applyMigrations(db as never);
+
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('ADD COLUMN is_recipient INTEGER NOT NULL DEFAULT 0'),
+      ),
+    ).toBe(true);
+    expect(
+      execCalls.some((sql) => sql.includes('CHECK (is_recipient IN (0, 1))')),
+    ).toBe(true);
+    expect(runCalls.some(({ params }) => params[0] === 23)).toBe(true);
   });
 });

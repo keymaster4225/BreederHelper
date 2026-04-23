@@ -23,6 +23,7 @@ import {
   BACKUP_SCHEMA_VERSION_V3,
   BACKUP_SCHEMA_VERSION_V4,
   BACKUP_SCHEMA_VERSION_V5,
+  BACKUP_SCHEMA_VERSION_V6,
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupEnvelope,
@@ -37,6 +38,7 @@ import {
   type BackupTablesV3,
   type BackupTablesV4,
   type BackupTablesV5,
+  type BackupTablesV6,
   type ValidateBackupError,
   type ValidateBackupResult,
 } from './types';
@@ -63,7 +65,8 @@ type BackupTables =
   | BackupTablesV2
   | BackupTablesV3
   | BackupTablesV4
-  | BackupTablesV5;
+  | BackupTablesV5
+  | BackupTablesV6;
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;
@@ -109,7 +112,8 @@ export function validateBackup(input: unknown): ValidateBackupResult {
     schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V3 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V4 &&
-    schemaVersion !== BACKUP_SCHEMA_VERSION_V5
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V5 &&
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V6
   ) {
     return validationFailure(
       'unsupported_schema_version',
@@ -178,11 +182,17 @@ export function validateBackup(input: unknown): ValidateBackupResult {
                 ...baseEnvelopeFields,
                 tables: tableArrays.tables as BackupTablesV4,
               }
-            : {
-                schemaVersion: BACKUP_SCHEMA_VERSION_V5,
-                ...baseEnvelopeFields,
-                tables: tableArrays.tables as BackupTablesV5,
-              };
+            : schemaVersion === BACKUP_SCHEMA_VERSION_V5
+              ? {
+                  schemaVersion: BACKUP_SCHEMA_VERSION_V5,
+                  ...baseEnvelopeFields,
+                  tables: tableArrays.tables as BackupTablesV5,
+                }
+              : {
+                  schemaVersion: BACKUP_SCHEMA_VERSION_V6,
+                  ...baseEnvelopeFields,
+                  tables: tableArrays.tables as BackupTablesV6,
+                };
 
   const rowError = validateRows(backup.tables, schemaVersion);
   if (rowError) {
@@ -363,6 +373,12 @@ function validateMareRow(
       'gestation_length_days',
       'must be an integer between 300 and 420',
     );
+  }
+  if (
+    schemaVersion >= BACKUP_SCHEMA_VERSION_V6 &&
+    !(row.is_recipient === 0 || row.is_recipient === 1)
+  ) {
+    return rowFailure('mares', rowIndex, 'is_recipient', 'must be 0 or 1');
   }
   if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
     return rowFailure('mares', rowIndex, 'timestamps', 'created_at and updated_at are required');

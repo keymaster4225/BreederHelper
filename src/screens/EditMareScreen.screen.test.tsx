@@ -22,6 +22,7 @@ function createHookState(overrides: Record<string, unknown> = {}) {
     isEdit: false,
     today: new Date('2026-04-23T12:00:00Z'),
     name: '',
+    isRecipient: false,
     breed: '',
     gestationLengthDays: '340',
     dateOfBirth: '',
@@ -32,6 +33,7 @@ function createHookState(overrides: Record<string, unknown> = {}) {
     isSaving: false,
     isDeleting: false,
     setName: jest.fn(),
+    setIsRecipient: jest.fn(),
     setBreed: jest.fn(),
     setGestationLengthDays: jest.fn(),
     setDateOfBirth: jest.fn(),
@@ -57,6 +59,7 @@ it('renders edit-mode values and wires save/delete actions to the hook', () => {
     dateOfBirth: '2016-02-14',
     registrationNumber: 'REG-123',
     notes: 'Steady temperament',
+    isRecipient: true,
   });
   useEditMareForm.mockReturnValue(hookState);
 
@@ -72,6 +75,7 @@ it('renders edit-mode values and wires save/delete actions to the hook', () => {
   expect(screen.getByDisplayValue('345')).toBeTruthy();
   expect(screen.getByDisplayValue('REG-123')).toBeTruthy();
   expect(screen.getByDisplayValue('Steady temperament')).toBeTruthy();
+  expect(screen.getByRole('checkbox').props.accessibilityState.checked).toBe(true);
 
   fireEvent.press(screen.getByText('Save'));
   fireEvent.press(screen.getByText('Delete Mare'));
@@ -100,11 +104,13 @@ it('renders validation errors and forwards field edits in create mode', () => {
   fireEvent.changeText(screen.getByPlaceholderText('Mare name'), 'Luna');
   fireEvent.changeText(screen.getByPlaceholderText('Type or select breed'), 'Spanish Barb');
   fireEvent.changeText(screen.getByDisplayValue('340'), '299');
+  fireEvent.press(screen.getByRole('checkbox'));
   fireEvent.press(screen.getByText('Save'));
 
   expect(hookState.setName).toHaveBeenCalledWith('Luna');
   expect(hookState.setBreed).toHaveBeenCalledWith('Spanish Barb');
   expect(hookState.setGestationLengthDays).toHaveBeenCalledWith('299');
+  expect(hookState.setIsRecipient).toHaveBeenCalledWith(true);
   expect(hookState.onSave).toHaveBeenCalled();
   expect(screen.getByText('Breed is required.')).toBeTruthy();
   expect(screen.getByText('Gestation length must be between 300 and 420.')).toBeTruthy();

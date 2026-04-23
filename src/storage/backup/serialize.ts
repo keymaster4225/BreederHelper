@@ -6,7 +6,7 @@ import {
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV5,
+  type BackupEnvelopeV6,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
   type BackupFrozenSemenBatchRow,
@@ -30,7 +30,7 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV5> {
+export async function serializeBackup(): Promise<BackupEnvelopeV6> {
   const db = await getDb();
 
   const [
@@ -57,6 +57,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV5> {
         gestation_length_days,
         date_of_birth,
         registration_number,
+        is_recipient,
         notes,
         created_at,
         updated_at,

@@ -56,6 +56,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
     stallionNameById,
     breedingById,
     age,
+    isCurrentlyPregnant,
     isLoading,
     error,
     loadData,
@@ -88,6 +89,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
           <MareDetailHeader
             mare={mare}
             age={age}
+            isCurrentlyPregnant={isCurrentlyPregnant}
             onCalendarPress={() => navigation.navigate('MareCalendar', { mareId })}
           />
 
