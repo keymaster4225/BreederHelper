@@ -5,12 +5,14 @@ import type {
   DoseEventType,
   FluidLocation,
   FollicleState,
+  FreezingExtender,
   FoalColor,
   FoalSex,
   FoalingOutcome,
   MedicationRoute,
   OvaryConsistency,
   PregnancyResult,
+  StrawColor,
   UterineToneCategory,
 } from '@/models/types';
 
@@ -32,12 +34,14 @@ export const BACKUP_TABLE_NAMES = [
   'medication_logs',
   'semen_collections',
   'collection_dose_events',
+  'frozen_semen_batches',
 ] as const;
 
 export type BackupTableName = (typeof BACKUP_TABLE_NAMES)[number];
 
 export const BACKUP_DELETE_ORDER: readonly BackupTableName[] = [
   'collection_dose_events',
+  'frozen_semen_batches',
   'foals',
   'pregnancy_checks',
   'uterine_fluid',
@@ -54,6 +58,7 @@ export const BACKUP_INSERT_ORDER: readonly BackupTableName[] = [
   'mares',
   'stallions',
   'semen_collections',
+  'frozen_semen_batches',
   'breeding_records',
   'daily_logs',
   'uterine_fluid',
@@ -310,6 +315,37 @@ export type BackupCollectionDoseEventRow =
   | BackupCollectionDoseEventRowV2
   | BackupCollectionDoseEventRowV3;
 
+export type BackupFrozenSemenBatchRow = {
+  readonly id: string;
+  readonly stallion_id: string;
+  readonly collection_id: string | null;
+  readonly freeze_date: BackupLocalDate;
+  readonly raw_semen_volume_used_ml: number | null;
+  readonly extender: FreezingExtender | null;
+  readonly extender_other: string | null;
+  readonly was_centrifuged: 0 | 1;
+  readonly centrifuge_speed_rpm: number | null;
+  readonly centrifuge_duration_min: number | null;
+  readonly centrifuge_cushion_used: 0 | 1 | null;
+  readonly centrifuge_cushion_type: string | null;
+  readonly centrifuge_resuspension_vol_ml: number | null;
+  readonly centrifuge_notes: string | null;
+  readonly straw_count: number;
+  readonly straws_remaining: number;
+  readonly straw_volume_ml: number;
+  readonly concentration_millions_per_ml: number | null;
+  readonly straws_per_dose: number | null;
+  readonly straw_color: StrawColor | null;
+  readonly straw_color_other: string | null;
+  readonly straw_label: string | null;
+  readonly post_thaw_motility_percent: number | null;
+  readonly longevity_hours: number | null;
+  readonly storage_details: string | null;
+  readonly notes: string | null;
+  readonly created_at: BackupIsoDateTime;
+  readonly updated_at: BackupIsoDateTime;
+};
+
 export type BackupTablesV1 = {
   readonly mares: readonly BackupMareRowV1[];
   readonly stallions: readonly BackupStallionRow[];
@@ -321,6 +357,7 @@ export type BackupTablesV1 = {
   readonly medication_logs: readonly BackupMedicationLogRow[];
   readonly semen_collections: readonly BackupSemenCollectionRowV2[];
   readonly collection_dose_events: readonly BackupCollectionDoseEventRowV2[];
+  readonly frozen_semen_batches?: readonly BackupFrozenSemenBatchRow[];
 };
 
 export type BackupTablesV2 = {
@@ -334,6 +371,7 @@ export type BackupTablesV2 = {
   readonly medication_logs: readonly BackupMedicationLogRow[];
   readonly semen_collections: readonly BackupSemenCollectionRowV2[];
   readonly collection_dose_events: readonly BackupCollectionDoseEventRowV2[];
+  readonly frozen_semen_batches?: readonly BackupFrozenSemenBatchRow[];
 };
 
 export type BackupTablesV3 = {
@@ -347,6 +385,7 @@ export type BackupTablesV3 = {
   readonly medication_logs: readonly BackupMedicationLogRow[];
   readonly semen_collections: readonly BackupSemenCollectionRowV3[];
   readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
+  readonly frozen_semen_batches?: readonly BackupFrozenSemenBatchRow[];
 };
 
 export type BackupTablesV4 = {
@@ -361,6 +400,7 @@ export type BackupTablesV4 = {
   readonly medication_logs: readonly BackupMedicationLogRow[];
   readonly semen_collections: readonly BackupSemenCollectionRowV3[];
   readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
+  readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
 };
 
 export type BackupEnvelopeV1 = {
