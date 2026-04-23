@@ -43,3 +43,6 @@ coverage/
 
 # Superpowers brainstorm mockups (ephemeral)
 .superpowers/
+
+# Local agent workspace
+agency-agents/
