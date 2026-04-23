@@ -421,7 +421,7 @@ describe('applyMigrations', () => {
   });
 
   it('skips migration019 when target and dose volume columns already exist', async () => {
-    const { db, execCalls, runCalls } = createFakeDb({
+    const { db, runCalls } = createFakeDb({
       appliedMigrationIds: Array.from({ length: 18 }, (_, index) => index + 1),
       breedingRecordsSql: `
         CREATE TABLE breeding_records (
@@ -468,8 +468,48 @@ describe('applyMigrations', () => {
 
     await applyMigrations(db as never);
 
-    expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([19]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 21]);
+  });
+
+  it('adds frozen semen batches table and indexes in migration021', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 20 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY
+        )
+      `,
+    });
+
+    await applyMigrations(db as never);
+
+    const createFrozenBatchesTable = execCalls.find((sql) =>
+      sql.includes('CREATE TABLE frozen_semen_batches'),
+    );
+    expect(createFrozenBatchesTable).toBeDefined();
+    expect(createFrozenBatchesTable).toContain('stallion_id TEXT NOT NULL');
+    expect(createFrozenBatchesTable).toContain('collection_id TEXT');
+    expect(createFrozenBatchesTable).toContain('raw_semen_volume_used_ml REAL');
+    expect(createFrozenBatchesTable).toContain('straw_volume_ml REAL NOT NULL');
+    expect(createFrozenBatchesTable).toContain('post_thaw_motility_percent REAL');
+    expect(createFrozenBatchesTable).toContain('longevity_hours REAL');
+    expect(createFrozenBatchesTable).toContain(
+      'FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT',
+    );
+    expect(createFrozenBatchesTable).toContain(
+      'FOREIGN KEY (collection_id) REFERENCES semen_collections(id) ON UPDATE CASCADE ON DELETE RESTRICT',
+    );
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('CREATE INDEX IF NOT EXISTS idx_frozen_semen_batches_stallion_id'),
+      ),
+    ).toBe(true);
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('CREATE INDEX IF NOT EXISTS idx_frozen_semen_batches_collection_id'),
+      ),
+    ).toBe(true);
+    expect(runCalls.some(({ params }) => params[0] === 21)).toBe(true);
   });
 
   it('skips the repair migration when breeding_records already references semen_collections', async () => {
@@ -508,7 +548,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 21]);
   });
 
   it('runs the repair migration when the legacy table still exists even if breeding_records already looks correct', async () => {
@@ -649,7 +689,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 21]);
   });
 
   it('rebuilds stallions and semen_collections when canonical constraint checks are missing', async () => {
@@ -751,7 +791,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE stallions_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 21]);
   });
 
   it('fails the canonical repair migration with a targeted error when legacy stallion rows are invalid', async () => {

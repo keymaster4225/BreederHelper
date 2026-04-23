@@ -1,10 +1,10 @@
-import type { BackupEnvelopeV2, BackupEnvelopeV3 } from './types';
+import type { BackupEnvelopeV2, BackupEnvelopeV4 } from './types';
 
 const BASE_TIMESTAMP = '2026-04-16T12:00:00.000Z';
 
-export function createBackupFixture(): BackupEnvelopeV3 {
+export function createBackupFixture(): BackupEnvelopeV4 {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -160,6 +160,7 @@ export function createBackupFixture(): BackupEnvelopeV3 {
           extender_type: 'INRA 96',
           concentration_millions_per_ml: 200,
           progressive_motility_percent: 70,
+          target_mode: 'progressive',
           target_motile_sperm_millions_per_dose: 500,
           target_post_extension_concentration_millions_per_ml: 100,
           notes: null,
@@ -191,12 +192,74 @@ export function createBackupFixture(): BackupEnvelopeV3 {
           updated_at: BASE_TIMESTAMP,
         },
       ],
+      frozen_semen_batches: [
+        {
+          id: 'freeze-linked-1',
+          stallion_id: 'stallion-1',
+          collection_id: 'collection-1',
+          freeze_date: '2026-04-03',
+          raw_semen_volume_used_ml: 8.5,
+          extender: 'Gent',
+          extender_other: null,
+          was_centrifuged: 1,
+          centrifuge_speed_rpm: 1500,
+          centrifuge_duration_min: 10,
+          centrifuge_cushion_used: null,
+          centrifuge_cushion_type: null,
+          centrifuge_resuspension_vol_ml: 4,
+          centrifuge_notes: 'Spin cycle',
+          straw_count: 20,
+          straws_remaining: 20,
+          straw_volume_ml: 0.5,
+          concentration_millions_per_ml: 240,
+          straws_per_dose: 2,
+          straw_color: 'Blue',
+          straw_color_other: null,
+          straw_label: 'Lot A',
+          post_thaw_motility_percent: 65.5,
+          longevity_hours: 18.25,
+          storage_details: 'Tank A / Cane 1',
+          notes: null,
+          created_at: BASE_TIMESTAMP,
+          updated_at: BASE_TIMESTAMP,
+        },
+        {
+          id: 'freeze-standalone-1',
+          stallion_id: 'stallion-1',
+          collection_id: null,
+          freeze_date: '2026-04-05',
+          raw_semen_volume_used_ml: null,
+          extender: 'Other',
+          extender_other: 'Custom Blend',
+          was_centrifuged: 0,
+          centrifuge_speed_rpm: null,
+          centrifuge_duration_min: null,
+          centrifuge_cushion_used: null,
+          centrifuge_cushion_type: null,
+          centrifuge_resuspension_vol_ml: null,
+          centrifuge_notes: null,
+          straw_count: 12,
+          straws_remaining: 12,
+          straw_volume_ml: 0.5,
+          concentration_millions_per_ml: null,
+          straws_per_dose: null,
+          straw_color: 'Other',
+          straw_color_other: 'Striped',
+          straw_label: 'Imported',
+          post_thaw_motility_percent: null,
+          longevity_hours: null,
+          storage_details: 'Tank B / Cane 3',
+          notes: 'Purchased batch',
+          created_at: BASE_TIMESTAMP,
+          updated_at: BASE_TIMESTAMP,
+        },
+      ],
     },
   };
 }
 
-export function cloneBackupFixture(): BackupEnvelopeV3 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV3;
+export function cloneBackupFixture(): BackupEnvelopeV4 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV4;
 }
 
 export function createBackupFixtureV2(): BackupEnvelopeV2 {
@@ -208,6 +271,7 @@ export function createBackupFixtureV2(): BackupEnvelopeV2 {
     settings: backupV3.settings,
     tables: {
       ...backupV3.tables,
+      frozen_semen_batches: undefined,
       semen_collections: [
         {
           id: 'collection-1',

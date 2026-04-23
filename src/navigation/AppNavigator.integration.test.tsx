@@ -64,6 +64,12 @@ jest.mock('@/screens/CollectionWizardScreen', () => ({
     return <Text>Collection Wizard Screen</Text>;
   },
 }));
+jest.mock('@/screens/FrozenBatchWizardScreen', () => ({
+  FrozenBatchWizardScreen: () => null,
+}));
+jest.mock('@/screens/FrozenBatchFormScreen', () => ({
+  FrozenBatchFormScreen: () => null,
+}));
 jest.mock('@/screens/FoalingRecordFormScreen', () => ({
   FoalingRecordFormScreen: () => null,
 }));

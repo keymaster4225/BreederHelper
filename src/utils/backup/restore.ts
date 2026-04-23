@@ -4,7 +4,7 @@ import { DEFAULT_GESTATION_LENGTH_DAYS } from '@/models/types';
 import { setOnboardingCompleteValue } from '@/utils/onboarding';
 
 import { createSafetySnapshot } from './safetyBackups';
-import { BACKUP_SCHEMA_VERSION_V3 } from './types';
+import { BACKUP_SCHEMA_VERSION_V4 } from './types';
 import type {
   BackupCollectionDoseEventRowV2,
   BackupCollectionDoseEventRowV3,
@@ -13,6 +13,7 @@ import type {
   BackupEnvelope,
   BackupFoalingRecordRow,
   BackupFoalRow,
+  BackupFrozenSemenBatchRow,
   BackupMareRowV1,
   BackupMareRowV2,
   BackupMedicationLogRow,
@@ -47,6 +48,7 @@ type NormalizedBackupForRestore = {
     readonly foaling_records: readonly BackupFoalingRecordRow[];
     readonly foals: readonly BackupFoalRow[];
     readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
+    readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
   };
 };
 
@@ -109,6 +111,7 @@ export async function restoreBackup(
 
 async function deleteManagedTables(db: Awaited<ReturnType<typeof getDb>>): Promise<void> {
   await db.runAsync('DELETE FROM collection_dose_events;');
+  await db.runAsync('DELETE FROM frozen_semen_batches;');
   await db.runAsync('DELETE FROM foals;');
   await db.runAsync('DELETE FROM pregnancy_checks;');
   await db.runAsync('DELETE FROM foaling_records;');
@@ -132,6 +135,9 @@ async function insertManagedTables(
   }
   for (const row of backup.tables.semen_collections) {
     await insertSemenCollection(db, row);
+  }
+  for (const row of backup.tables.frozen_semen_batches) {
+    await insertFrozenSemenBatch(db, row);
   }
   for (const row of backup.tables.breeding_records) {
     await insertBreedingRecord(db, row);
@@ -242,6 +248,12 @@ async function insertSemenCollection(
   db: Awaited<ReturnType<typeof getDb>>,
   row: BackupSemenCollectionRowV3,
 ): Promise<void> {
+  const hasTargetValues =
+    row.target_motile_sperm_millions_per_dose != null ||
+    row.target_post_extension_concentration_millions_per_ml != null;
+  const normalizedTargetMode =
+    row.target_mode ?? (hasTargetValues ? 'progressive' : null);
+
   await db.runAsync(
     `
     INSERT INTO semen_collections (
@@ -252,12 +264,13 @@ async function insertSemenCollection(
       extender_type,
       concentration_millions_per_ml,
       progressive_motility_percent,
+      target_mode,
       target_motile_sperm_millions_per_dose,
       target_post_extension_concentration_millions_per_ml,
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
@@ -267,8 +280,79 @@ async function insertSemenCollection(
       row.extender_type,
       row.concentration_millions_per_ml,
       row.progressive_motility_percent,
+      normalizedTargetMode,
       row.target_motile_sperm_millions_per_dose,
       row.target_post_extension_concentration_millions_per_ml,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertFrozenSemenBatch(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupFrozenSemenBatchRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO frozen_semen_batches (
+      id,
+      stallion_id,
+      collection_id,
+      freeze_date,
+      raw_semen_volume_used_ml,
+      extender,
+      extender_other,
+      was_centrifuged,
+      centrifuge_speed_rpm,
+      centrifuge_duration_min,
+      centrifuge_cushion_used,
+      centrifuge_cushion_type,
+      centrifuge_resuspension_vol_ml,
+      centrifuge_notes,
+      straw_count,
+      straws_remaining,
+      straw_volume_ml,
+      concentration_millions_per_ml,
+      straws_per_dose,
+      straw_color,
+      straw_color_other,
+      straw_label,
+      post_thaw_motility_percent,
+      longevity_hours,
+      storage_details,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.stallion_id,
+      row.collection_id,
+      row.freeze_date,
+      row.raw_semen_volume_used_ml,
+      row.extender,
+      row.extender_other,
+      row.was_centrifuged,
+      row.centrifuge_speed_rpm,
+      row.centrifuge_duration_min,
+      row.centrifuge_cushion_used,
+      row.centrifuge_cushion_type,
+      row.centrifuge_resuspension_vol_ml,
+      row.centrifuge_notes,
+      row.straw_count,
+      row.straws_remaining,
+      row.straw_volume_ml,
+      row.concentration_millions_per_ml,
+      row.straws_per_dose,
+      row.straw_color,
+      row.straw_color_other,
+      row.straw_label,
+      row.post_thaw_motility_percent,
+      row.longevity_hours,
+      row.storage_details,
       row.notes,
       row.created_at,
       row.updated_at,
@@ -552,8 +636,14 @@ async function insertCollectionDoseEvent(
 }
 
 function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForRestore {
-  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V3) {
-    return backup as NormalizedBackupForRestore;
+  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V4) {
+    return {
+      settings: backup.settings,
+      tables: {
+        ...backup.tables,
+        frozen_semen_batches: backup.tables.frozen_semen_batches ?? [],
+      },
+    };
   }
 
   return {
@@ -573,6 +663,7 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
       collection_dose_events: backup.tables.collection_dose_events.map((row) =>
         normalizeLegacyCollectionDoseEventRow(row as BackupCollectionDoseEventRowV2),
       ),
+      frozen_semen_batches: backup.tables.frozen_semen_batches ?? [],
     },
   };
 }
@@ -588,6 +679,7 @@ function normalizeLegacySemenCollectionRow(
     extender_type: row.extender_type ?? null,
     concentration_millions_per_ml: row.concentration_millions_per_ml,
     progressive_motility_percent: row.progressive_motility_percent,
+    target_mode: null,
     target_motile_sperm_millions_per_dose: null,
     target_post_extension_concentration_millions_per_ml: null,
     notes: row.notes,

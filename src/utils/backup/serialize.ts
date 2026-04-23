@@ -6,9 +6,10 @@ import {
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV3,
+  type BackupEnvelopeV4,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
+  type BackupFrozenSemenBatchRow,
   type BackupMareRow,
   type BackupMedicationLogRow,
   type BackupPregnancyCheckRow,
@@ -28,7 +29,7 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV3> {
+export async function serializeBackup(): Promise<BackupEnvelopeV4> {
   const db = await getDb();
 
   const [
@@ -42,6 +43,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV3> {
     medicationLogs,
     semenCollections,
     collectionDoseEvents,
+    frozenSemenBatches,
     onboardingComplete,
   ] = await Promise.all([
     db.getAllAsync<BackupMareRow>(
@@ -206,6 +208,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV3> {
         extender_type,
         concentration_millions_per_ml,
         progressive_motility_percent,
+        target_mode,
         target_motile_sperm_millions_per_dose,
         target_post_extension_concentration_millions_per_ml,
         notes,
@@ -242,6 +245,41 @@ export async function serializeBackup(): Promise<BackupEnvelopeV3> {
       ORDER BY created_at DESC, id ASC;
       `,
     ),
+    db.getAllAsync<BackupFrozenSemenBatchRow>(
+      `
+      SELECT
+        id,
+        stallion_id,
+        collection_id,
+        freeze_date,
+        raw_semen_volume_used_ml,
+        extender,
+        extender_other,
+        was_centrifuged,
+        centrifuge_speed_rpm,
+        centrifuge_duration_min,
+        centrifuge_cushion_used,
+        centrifuge_cushion_type,
+        centrifuge_resuspension_vol_ml,
+        centrifuge_notes,
+        straw_count,
+        straws_remaining,
+        straw_volume_ml,
+        concentration_millions_per_ml,
+        straws_per_dose,
+        straw_color,
+        straw_color_other,
+        straw_label,
+        post_thaw_motility_percent,
+        longevity_hours,
+        storage_details,
+        notes,
+        created_at,
+        updated_at
+      FROM frozen_semen_batches
+      ORDER BY freeze_date DESC, id ASC;
+      `,
+    ),
     getOnboardingComplete(),
   ]);
 
@@ -266,6 +304,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV3> {
       medication_logs: medicationLogs,
       semen_collections: semenCollections,
       collection_dose_events: collectionDoseEvents,
+      frozen_semen_batches: frozenSemenBatches,
     },
   };
 }

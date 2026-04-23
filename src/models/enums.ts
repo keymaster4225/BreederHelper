@@ -192,3 +192,80 @@ export const DOSE_EVENT_TYPE_OPTIONS = buildOptions(
   DOSE_EVENT_TYPE_VALUES,
   DOSE_EVENT_TYPE_LABELS,
 );
+
+export const FREEZING_EXTENDER_VALUES = [
+  'BotuCrio',
+  'INRA Freeze',
+  'Gent',
+  'HF-20',
+  'Equex STM',
+  'Lactose-EDTA-egg-yolk',
+  'Skim milk-glycerol',
+  'Other',
+] as const;
+type FreezingExtenderValue = (typeof FREEZING_EXTENDER_VALUES)[number];
+
+export const FREEZING_EXTENDER_LABELS: Readonly<Record<FreezingExtenderValue, string>> = {
+  'BotuCrio': 'BotuCrio',
+  'INRA Freeze': 'INRA Freeze',
+  'Gent': 'Gent',
+  'HF-20': 'HF-20',
+  'Equex STM': 'Equex STM',
+  'Lactose-EDTA-egg-yolk': 'Lactose-EDTA-egg-yolk',
+  'Skim milk-glycerol': 'Skim milk-glycerol',
+  'Other': 'Other',
+};
+
+export const FREEZING_EXTENDER_OPTIONS = buildOptions(
+  FREEZING_EXTENDER_VALUES,
+  FREEZING_EXTENDER_LABELS,
+);
+
+export const STRAW_COLOR_VALUES = [
+  'Yellow',
+  'Pink',
+  'Blue',
+  'Green',
+  'Red',
+  'Orange',
+  'Purple',
+  'White',
+  'Black',
+  'Clear',
+  'Other',
+] as const;
+type StrawColorValue = (typeof STRAW_COLOR_VALUES)[number];
+
+export const STRAW_COLOR_LABELS: Readonly<Record<StrawColorValue, string>> = {
+  'Yellow': 'Yellow',
+  'Pink': 'Pink',
+  'Blue': 'Blue',
+  'Green': 'Green',
+  'Red': 'Red',
+  'Orange': 'Orange',
+  'Purple': 'Purple',
+  'White': 'White',
+  'Black': 'Black',
+  'Clear': 'Clear',
+  'Other': 'Other',
+};
+
+export const STRAW_COLOR_OPTIONS = buildOptions(
+  STRAW_COLOR_VALUES,
+  STRAW_COLOR_LABELS,
+);
+
+export const COLLECTION_TARGET_MODE_VALUES = ['progressive', 'total'] as const;
+type CollectionTargetModeValue = (typeof COLLECTION_TARGET_MODE_VALUES)[number];
+
+export const COLLECTION_TARGET_MODE_LABELS: Readonly<
+  Record<CollectionTargetModeValue, string>
+> = {
+  progressive: 'Progressive',
+  total: 'Total',
+};
+
+export const COLLECTION_TARGET_MODE_OPTIONS = buildOptions(
+  COLLECTION_TARGET_MODE_VALUES,
+  COLLECTION_TARGET_MODE_LABELS,
+);

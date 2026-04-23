@@ -780,6 +780,92 @@ SET
 WHERE event_type = 'usedOnSite';
 `;
 
+const migration021 = `
+CREATE TABLE frozen_semen_batches (
+  id TEXT PRIMARY KEY,
+  stallion_id TEXT NOT NULL,
+  collection_id TEXT,
+  freeze_date TEXT NOT NULL,
+  raw_semen_volume_used_ml REAL,
+  extender TEXT,
+  extender_other TEXT,
+  was_centrifuged INTEGER NOT NULL DEFAULT 0,
+  centrifuge_speed_rpm INTEGER,
+  centrifuge_duration_min INTEGER,
+  centrifuge_cushion_used INTEGER,
+  centrifuge_cushion_type TEXT,
+  centrifuge_resuspension_vol_ml REAL,
+  centrifuge_notes TEXT,
+  straw_count INTEGER NOT NULL,
+  straws_remaining INTEGER NOT NULL,
+  straw_volume_ml REAL NOT NULL,
+  concentration_millions_per_ml REAL,
+  straws_per_dose INTEGER,
+  straw_color TEXT,
+  straw_color_other TEXT,
+  straw_label TEXT,
+  post_thaw_motility_percent REAL,
+  longevity_hours REAL,
+  storage_details TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  -- Frozen inventory should not disappear automatically if a source collection is deleted.
+  FOREIGN KEY (collection_id) REFERENCES semen_collections(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (freeze_date GLOB '????-??-??'),
+  CHECK (raw_semen_volume_used_ml IS NULL OR raw_semen_volume_used_ml > 0),
+  CHECK (extender IS NULL OR extender IN (
+    'BotuCrio',
+    'INRA Freeze',
+    'Gent',
+    'HF-20',
+    'Equex STM',
+    'Lactose-EDTA-egg-yolk',
+    'Skim milk-glycerol',
+    'Other'
+  )),
+  CHECK (extender_other IS NULL OR typeof(extender_other) = 'text'),
+  CHECK (was_centrifuged IN (0, 1)),
+  CHECK (centrifuge_speed_rpm IS NULL OR centrifuge_speed_rpm > 0),
+  CHECK (centrifuge_duration_min IS NULL OR centrifuge_duration_min > 0),
+  CHECK (centrifuge_cushion_used IS NULL OR centrifuge_cushion_used IN (0, 1)),
+  CHECK (centrifuge_cushion_type IS NULL OR typeof(centrifuge_cushion_type) = 'text'),
+  CHECK (centrifuge_resuspension_vol_ml IS NULL OR centrifuge_resuspension_vol_ml > 0),
+  CHECK (centrifuge_notes IS NULL OR typeof(centrifuge_notes) = 'text'),
+  CHECK (straw_count >= 1),
+  CHECK (straws_remaining >= 0 AND straws_remaining <= straw_count),
+  CHECK (straw_volume_ml > 0),
+  CHECK (concentration_millions_per_ml IS NULL OR concentration_millions_per_ml > 0),
+  CHECK (straws_per_dose IS NULL OR straws_per_dose >= 1),
+  CHECK (straw_color IS NULL OR straw_color IN (
+    'Yellow',
+    'Pink',
+    'Blue',
+    'Green',
+    'Red',
+    'Orange',
+    'Purple',
+    'White',
+    'Black',
+    'Clear',
+    'Other'
+  )),
+  CHECK (straw_color_other IS NULL OR typeof(straw_color_other) = 'text'),
+  CHECK (straw_label IS NULL OR typeof(straw_label) = 'text'),
+  CHECK (post_thaw_motility_percent IS NULL OR post_thaw_motility_percent BETWEEN 0 AND 100),
+  CHECK (longevity_hours IS NULL OR longevity_hours > 0),
+  CHECK (storage_details IS NULL OR typeof(storage_details) = 'text'),
+  CHECK (notes IS NULL OR typeof(notes) = 'text')
+);
+
+CREATE INDEX IF NOT EXISTS idx_frozen_semen_batches_stallion_id
+  ON frozen_semen_batches (stallion_id);
+
+CREATE INDEX IF NOT EXISTS idx_frozen_semen_batches_collection_id
+  ON frozen_semen_batches (collection_id);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -919,6 +1005,11 @@ const migrations: Migration[] = [
       (await hasColumn(db, 'semen_collections', 'target_motile_sperm_millions_per_dose')) &&
       (await hasColumn(db, 'collection_dose_events', 'dose_semen_volume_ml')) &&
       (await hasColumn(db, 'collection_dose_events', 'dose_extender_volume_ml')),
+  },
+  {
+    id: 21,
+    name: '021_frozen_semen_batches',
+    statements: splitStatements(migration021),
   },
 ];
 

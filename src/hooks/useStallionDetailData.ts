@@ -3,11 +3,14 @@ import { useCallback, useState } from 'react';
 import {
   BreedingRecord,
   CollectionDoseEvent,
+  FrozenSemenBatch,
   SemenCollection,
   Stallion,
 } from '@/models/types';
 import {
   getStallionById,
+  listFrozenSemenBatchesByCollectionIds,
+  listFrozenSemenBatchesByStallion,
   listDoseEventsByCollectionIds,
   listBreedingRecordsForStallion,
   listLegacyBreedingRecordsMatchingStallionName,
@@ -27,6 +30,8 @@ type StallionDetailData = {
   readonly legacyBreedings: BreedingRecord[];
   readonly breedingRecordById: Record<string, BreedingRecord>;
   readonly doseEventsByCollectionId: Record<string, CollectionDoseEvent[]>;
+  readonly frozenBatches: FrozenSemenBatch[];
+  readonly frozenBatchesByCollectionId: Record<string, FrozenSemenBatch[]>;
   readonly mareNameById: Record<string, string>;
   readonly age: number | null;
   readonly isLoading: boolean;
@@ -49,6 +54,10 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
   const [breedingRecordById, setBreedingRecordById] = useState<Record<string, BreedingRecord>>({});
   const [doseEventsByCollectionId, setDoseEventsByCollectionId] = useState<
     Record<string, CollectionDoseEvent[]>
+  >({});
+  const [frozenBatches, setFrozenBatches] = useState<FrozenSemenBatch[]>([]);
+  const [frozenBatchesByCollectionId, setFrozenBatchesByCollectionId] = useState<
+    Record<string, FrozenSemenBatch[]>
   >({});
   const [mareNameById, setMareNameById] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -77,12 +86,19 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
         listLegacyBreedingRecordsMatchingStallionName(stallionRecord.name),
         listMares(),
       ]);
-      const doseEvents = await listDoseEventsByCollectionIds(cols.map((collection) => collection.id));
+      const collectionIds = cols.map((collection) => collection.id);
+      const [doseEvents, frozenByCollection, allFrozenBatches] = await Promise.all([
+        listDoseEventsByCollectionIds(collectionIds),
+        listFrozenSemenBatchesByCollectionIds(collectionIds),
+        listFrozenSemenBatchesByStallion(stallionId),
+      ]);
 
       setCollections(cols);
       setLinkedBreedings(linked);
       setLegacyBreedings(legacy);
       setDoseEventsByCollectionId(doseEvents);
+      setFrozenBatches(allFrozenBatches);
+      setFrozenBatchesByCollectionId(frozenByCollection);
 
       const breedingLookup: Record<string, BreedingRecord> = {};
       for (const record of linked) {
@@ -110,6 +126,8 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
     legacyBreedings,
     breedingRecordById,
     doseEventsByCollectionId,
+    frozenBatches,
+    frozenBatchesByCollectionId,
     mareNameById,
     age,
     isLoading,

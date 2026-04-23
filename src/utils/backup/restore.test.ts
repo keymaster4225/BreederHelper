@@ -41,7 +41,7 @@ describe('restoreBackup', () => {
     const steps: string[] = [];
     const sqlCalls: string[] = [];
     const db = {
-      runAsync: vi.fn(async (sql: string) => {
+      runAsync: vi.fn(async (sql: string, _params?: unknown[]) => {
         sqlCalls.push(sql.replace(/\s+/g, ' ').trim());
       }),
       withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
@@ -58,7 +58,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 3,
+        schemaVersion: 4,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -84,8 +84,9 @@ describe('restoreBackup', () => {
       'Restoring data...',
       'Updating app settings...',
     ]);
-    expect(sqlCalls.slice(0, 10)).toEqual([
+    expect(sqlCalls.slice(0, 11)).toEqual([
       'DELETE FROM collection_dose_events;',
+      'DELETE FROM frozen_semen_batches;',
       'DELETE FROM foals;',
       'DELETE FROM pregnancy_checks;',
       'DELETE FROM foaling_records;',
@@ -96,23 +97,38 @@ describe('restoreBackup', () => {
       'DELETE FROM mares;',
       'DELETE FROM stallions;',
     ]);
-    expect(sqlCalls[10]).toContain('INSERT INTO mares');
-    const mareInsertCall = db.runAsync.mock.calls[10] as unknown[] | undefined;
+    const mareInsertCall = db.runAsync.mock.calls.find(([sql]) =>
+      typeof sql === 'string' && sql.includes('INSERT INTO mares'),
+    ) as unknown[] | undefined;
     const mareInsertParams = (mareInsertCall?.[1] ?? []) as unknown[];
     expect(mareInsertParams[3]).toBe(345);
-    expect(sqlCalls[11]).toContain('INSERT INTO stallions');
-    expect(sqlCalls[12]).toContain('INSERT INTO semen_collections');
-    expect(sqlCalls[13]).toContain('INSERT INTO breeding_records');
-    const breedingInsertCall = db.runAsync.mock.calls[13] as unknown[] | undefined;
+    expect(sqlCalls.some((sql) => sql.includes('INSERT INTO stallions'))).toBe(true);
+    expect(sqlCalls.some((sql) => sql.includes('INSERT INTO semen_collections'))).toBe(true);
+    const frozenInsertCall = db.runAsync.mock.calls.find((call) => {
+      const sql = call[0];
+      const params = call[1] as unknown[] | undefined;
+      return (
+        typeof sql === 'string' &&
+        sql.includes('INSERT INTO frozen_semen_batches') &&
+        params?.[0] === 'freeze-linked-1'
+      );
+    }) as unknown[] | undefined;
+    const frozenInsertParams = (frozenInsertCall?.[1] ?? []) as unknown[];
+    expect(frozenInsertParams[0]).toBe('freeze-linked-1');
+    expect(frozenInsertParams[22]).toBe(65.5);
+    const breedingInsertCall = db.runAsync.mock.calls.find(([sql]) =>
+      typeof sql === 'string' && sql.includes('INSERT INTO breeding_records'),
+    ) as unknown[] | undefined;
     const breedingInsertParams = (breedingInsertCall?.[1] ?? []) as unknown[];
     expect(breedingInsertParams[12]).toBe(0.5);
-    expect(sqlCalls[14]).toContain('INSERT INTO daily_logs');
-    expect(sqlCalls[15]).toContain('INSERT INTO medication_logs');
-    expect(sqlCalls[16]).toContain('INSERT INTO pregnancy_checks');
-    expect(sqlCalls[17]).toContain('INSERT INTO foaling_records');
-    expect(sqlCalls[18]).toContain('INSERT INTO foals');
-    expect(sqlCalls[19]).toContain('INSERT INTO collection_dose_events');
-    const collectionInsertCall = db.runAsync.mock.calls[19] as unknown[] | undefined;
+    expect(sqlCalls.some((sql) => sql.includes('INSERT INTO daily_logs'))).toBe(true);
+    expect(sqlCalls.some((sql) => sql.includes('INSERT INTO medication_logs'))).toBe(true);
+    expect(sqlCalls.some((sql) => sql.includes('INSERT INTO pregnancy_checks'))).toBe(true);
+    expect(sqlCalls.some((sql) => sql.includes('INSERT INTO foaling_records'))).toBe(true);
+    expect(sqlCalls.some((sql) => sql.includes('INSERT INTO foals'))).toBe(true);
+    const collectionInsertCall = db.runAsync.mock.calls.find(([sql]) =>
+      typeof sql === 'string' && sql.includes('INSERT INTO collection_dose_events'),
+    ) as unknown[] | undefined;
     const collectionInsertParams = (collectionInsertCall?.[1] ?? []) as unknown[];
     expect(collectionInsertParams[4]).toBeNull();
     expect(collectionInsertParams[12]).toBe('breed-1');
@@ -141,7 +157,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 3,
+        schemaVersion: 4,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -173,7 +189,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 3,
+        schemaVersion: 4,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -211,7 +227,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 3,
+        schemaVersion: 4,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);

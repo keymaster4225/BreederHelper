@@ -1,12 +1,15 @@
 ﻿import {
   BREEDING_METHOD_VALUES,
+  COLLECTION_TARGET_MODE_VALUES,
   DOSE_EVENT_TYPE_VALUES,
   FOAL_COLOR_VALUES,
   FOAL_MILESTONE_KEYS,
   FOAL_SEX_VALUES,
   FOALING_OUTCOME_VALUES,
+  FREEZING_EXTENDER_VALUES,
   MEDICATION_ROUTE_VALUES,
   PREGNANCY_RESULT_VALUES,
+  STRAW_COLOR_VALUES,
 } from './enums';
 
 export type UUID = string;
@@ -106,6 +109,7 @@ export interface Stallion {
 }
 
 export type DoseEventType = (typeof DOSE_EVENT_TYPE_VALUES)[number];
+export type CollectionTargetMode = (typeof COLLECTION_TARGET_MODE_VALUES)[number];
 
 export interface CollectionDoseEvent {
   id: UUID;
@@ -154,6 +158,54 @@ export type UpdateCollectionDoseEventInput = Partial<
   Omit<CreateCollectionDoseEventInput, 'collectionId'>
 >;
 
+export type FreezingExtender = (typeof FREEZING_EXTENDER_VALUES)[number];
+
+export type StrawColor = (typeof STRAW_COLOR_VALUES)[number];
+
+export interface CentrifugeSettings {
+  speedRpm: number | null;
+  durationMin: number | null;
+  cushionUsed: boolean | null;
+  cushionType: string | null;
+  resuspensionVolumeMl: number | null;
+  notes: string | null;
+}
+
+export interface FrozenSemenBatch {
+  id: UUID;
+  stallionId: UUID;
+  collectionId: UUID | null;
+  freezeDate: LocalDate;
+  rawSemenVolumeUsedMl: number | null;
+  extender: FreezingExtender | null;
+  extenderOther: string | null;
+  wasCentrifuged: boolean;
+  centrifuge: CentrifugeSettings;
+  strawCount: number;
+  strawsRemaining: number;
+  strawVolumeMl: number;
+  concentrationMillionsPerMl: number | null;
+  strawsPerDose: number | null;
+  strawColor: StrawColor | null;
+  strawColorOther: string | null;
+  strawLabel: string | null;
+  postThawMotilityPercent: number | null;
+  longevityHours: number | null;
+  storageDetails: string | null;
+  notes: string | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+export type CreateFrozenSemenBatchInput = Omit<
+  FrozenSemenBatch,
+  'id' | 'strawsRemaining' | 'createdAt' | 'updatedAt'
+>;
+
+export type UpdateFrozenSemenBatchInput = Partial<
+  Omit<CreateFrozenSemenBatchInput, 'stallionId' | 'collectionId'>
+>;
+
 export interface SemenCollection {
   id: UUID;
   stallionId: UUID;
@@ -162,6 +214,7 @@ export interface SemenCollection {
   extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
   progressiveMotilityPercent?: number | null;
+  targetMode?: CollectionTargetMode | null;
   targetMotileSpermMillionsPerDose?: number | null;
   targetPostExtensionConcentrationMillionsPerMl?: number | null;
   notes?: string | null;
