@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { fireEvent, render, waitFor, within } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor, within } from '@testing-library/react-native';
 
 import { FrozenBatchWizardScreen } from '@/screens/FrozenBatchWizardScreen';
 
@@ -191,15 +191,64 @@ it('saves the wizard happy path', async () => {
   expect(screen.navigation.goBack).toHaveBeenCalled();
 });
 
-it('shows centrifuge fields when centrifuge is toggled on', () => {
+it('uses the header back arrow to move between wizard steps after step 1', async () => {
+  const screen = renderScreen();
+
+  await waitFor(() =>
+    expect(screen.navigation.setOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ headerBackVisible: true, headerLeft: undefined }),
+    ),
+  );
+
+  typeDate(screen, 'Freeze Date', '2026-04-22');
+  fireEvent.press(screen.getByText('Next'));
+
+  await waitFor(() =>
+    expect(screen.getAllByText('Straws & Extender').length).toBeGreaterThan(0),
+  );
+
+  await waitFor(() => {
+    const options =
+      screen.navigation.setOptions.mock.calls[screen.navigation.setOptions.mock.calls.length - 1][0];
+    expect(options.headerLeft).toEqual(expect.any(Function));
+  });
+
+  const options =
+    screen.navigation.setOptions.mock.calls[screen.navigation.setOptions.mock.calls.length - 1][0];
+  const headerLeft = options.headerLeft as (props?: Record<string, unknown>) => JSX.Element;
+  const headerButton = headerLeft({});
+  const headerButtonScreen = render(headerButton);
+
+  expect(headerButtonScreen.getByLabelText('Go to previous wizard step')).toBeTruthy();
+
+  await act(async () => {
+    fireEvent.press(headerButtonScreen.getByLabelText('Go to previous wizard step'));
+  });
+
+  await waitFor(() => expect(screen.getByTestId('field-Freeze Date')).toBeTruthy());
+  expect(screen.navigation.goBack).not.toHaveBeenCalled();
+});
+
+it('auto-expands centrifuge card and supports collapse with nested cushion fields', () => {
   const screen = renderScreen();
 
   expect(screen.queryByTestId('field-Centrifuge Speed (RPM)')).toBeNull();
 
   fireEvent.press(within(getField(screen, 'Was centrifuged?')).getByRole('checkbox'));
 
+  expect(screen.getByTestId('centrifuge-settings-card')).toBeTruthy();
   expect(screen.getByTestId('field-Centrifuge Speed (RPM)')).toBeTruthy();
   expect(screen.getByTestId('field-Cushion Used?')).toBeTruthy();
+  expect(screen.queryByTestId('field-Cushion Type')).toBeNull();
+
+  fireEvent.press(screen.getByText('Yes'));
+  expect(screen.getByTestId('field-Cushion Type')).toBeTruthy();
+
+  fireEvent.press(screen.getByLabelText('Toggle centrifuge settings'));
+  expect(screen.queryByTestId('field-Centrifuge Speed (RPM)')).toBeNull();
+
+  fireEvent.press(screen.getByLabelText('Toggle centrifuge settings'));
+  expect(screen.getByTestId('field-Centrifuge Speed (RPM)')).toBeTruthy();
 });
 
 it('shows save errors when repository save rejects', async () => {

@@ -218,3 +218,61 @@ it('deletes after confirm dialog action', async () => {
   await waitFor(() => expect(repositories.deleteFrozenSemenBatch).toHaveBeenCalledWith('batch-1'));
   expect(screen.navigation.goBack).toHaveBeenCalled();
 });
+
+it('shows centrifuge card expanded for centrifuged batches and allows collapsing', async () => {
+  repositories.getFrozenSemenBatch.mockResolvedValueOnce({
+    id: 'batch-2',
+    stallionId: 'stallion-1',
+    collectionId: 'col-1',
+    freezeDate: '2026-04-20',
+    rawSemenVolumeUsedMl: 8,
+    extender: 'BotuCrio',
+    extenderOther: null,
+    wasCentrifuged: true,
+    centrifuge: {
+      speedRpm: 1200,
+      durationMin: 12,
+      cushionUsed: true,
+      cushionType: 'EquiPure',
+      resuspensionVolumeMl: 3,
+      notes: null,
+    },
+    strawCount: 16,
+    strawsRemaining: 16,
+    strawVolumeMl: 0.5,
+    concentrationMillionsPerMl: 180,
+    strawsPerDose: 2,
+    strawColor: 'Blue',
+    strawColorOther: null,
+    strawLabel: 'LOT-A',
+    postThawMotilityPercent: 60,
+    longevityHours: 10,
+    storageDetails: 'Tank A',
+    notes: 'Initial note',
+    createdAt: '2026-04-20T00:00:00.000Z',
+    updatedAt: '2026-04-20T00:00:00.000Z',
+  });
+
+  const navigation = {
+    goBack: jest.fn(),
+    setOptions: jest.fn(),
+    navigate: jest.fn(),
+  };
+
+  const screen = render(
+    <FrozenBatchFormScreen
+      navigation={navigation as never}
+      route={{
+        key: 'FrozenBatchForm',
+        name: 'FrozenBatchForm',
+        params: { stallionId: 'stallion-1', frozenBatchId: 'batch-2' },
+      } as never}
+    />,
+  );
+
+  await waitFor(() => expect(screen.getByTestId('centrifuge-settings-card')).toBeTruthy());
+  expect(screen.getByTestId('field-Centrifuge Speed (RPM)')).toBeTruthy();
+
+  fireEvent.press(screen.getByLabelText('Toggle centrifuge settings'));
+  expect(screen.queryByTestId('field-Centrifuge Speed (RPM)')).toBeNull();
+});
