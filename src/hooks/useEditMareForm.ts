@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import {
@@ -41,6 +41,8 @@ export function useEditMareForm({
 }: UseEditMareFormArgs) {
   const isEdit = Boolean(mareId);
   const today = useMemo(() => new Date(), []);
+  const onGoBackRef = useRef(onGoBack);
+  const setTitleRef = useRef(setTitle);
 
   const [name, setName] = useState('');
   const [isRecipient, setIsRecipient] = useState(false);
@@ -56,8 +58,13 @@ export function useEditMareForm({
     useRecordForm({ initialLoading: isEdit });
 
   useEffect(() => {
-    setTitle(isEdit ? 'Edit Mare' : 'Add Mare');
-  }, [isEdit, setTitle]);
+    onGoBackRef.current = onGoBack;
+    setTitleRef.current = setTitle;
+  }, [onGoBack, setTitle]);
+
+  useEffect(() => {
+    setTitleRef.current(isEdit ? 'Edit Mare' : 'Add Mare');
+  }, [isEdit]);
 
   useEffect(() => {
     if (!mareId) {
@@ -70,7 +77,7 @@ export function useEditMareForm({
         const mare = await getMareById(mareId);
         if (!mare) {
           Alert.alert('Mare not found', 'This mare no longer exists.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
@@ -86,11 +93,11 @@ export function useEditMareForm({
         onError: (error: unknown) => {
           const message = error instanceof Error ? error.message : 'Unable to load mare.';
           Alert.alert('Load error', message);
-          onGoBack();
+          onGoBackRef.current();
         },
       },
     );
-  }, [mareId, onGoBack, runLoad, setIsLoading]);
+  }, [mareId, runLoad, setIsLoading]);
 
   const validate = useCallback((): boolean => {
     const parsedGestationLengthDays = parseOptionalInteger(gestationLengthDays);

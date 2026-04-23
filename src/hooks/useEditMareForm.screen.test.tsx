@@ -19,6 +19,12 @@ const repositories = jest.requireMock('@/storage/repositories') as {
 
 import { useEditMareForm } from './useEditMareForm';
 
+type HookCallbacks = {
+  onGoBack: () => void;
+  onDeleted: () => void;
+  setTitle: (title: string) => void;
+};
+
 describe('useEditMareForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -111,5 +117,49 @@ describe('useEditMareForm', () => {
       notes: null,
     });
     expect(onGoBack).toHaveBeenCalled();
+  });
+
+  it('does not reload the mare when callback props change identity', async () => {
+    repositories.getMareById.mockResolvedValue({
+      id: 'mare-1',
+      name: 'Maple',
+      breed: 'Quarter Horse',
+      gestationLengthDays: 345,
+      dateOfBirth: '2018-02-02',
+      registrationNumber: null,
+      isRecipient: true,
+      notes: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    const { result, rerender } = renderHook<ReturnType<typeof useEditMareForm>, HookCallbacks>(
+      ({ onGoBack, onDeleted, setTitle }) =>
+        useEditMareForm({
+          mareId: 'mare-1',
+          onGoBack,
+          onDeleted,
+          setTitle,
+        }),
+      {
+        initialProps: {
+          onGoBack: jest.fn(),
+          onDeleted: jest.fn(),
+          setTitle: jest.fn(),
+        },
+      },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(repositories.getMareById).toHaveBeenCalledTimes(1);
+
+    rerender({
+      onGoBack: jest.fn(),
+      onDeleted: jest.fn(),
+      setTitle: jest.fn(),
+    });
+
+    await waitFor(() => expect(result.current.name).toBe('Maple'));
+    expect(repositories.getMareById).toHaveBeenCalledTimes(1);
   });
 });
