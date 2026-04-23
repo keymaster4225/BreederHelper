@@ -55,12 +55,21 @@ function formatTriStateValue(value: boolean | null): string {
   return 'Unknown';
 }
 
-function formatOvarySummary(ovary: DailyLogWizardOvaryDraft): string {
+type FormatOvarySummaryOptions = {
+  showFollicleState?: boolean;
+  singleFollicleSize?: boolean;
+};
+
+function formatOvarySummary(
+  ovary: DailyLogWizardOvaryDraft,
+  options: FormatOvarySummaryOptions = {},
+): string {
+  const { showFollicleState = true, singleFollicleSize = false } = options;
   const rows: string[] = [];
 
   rows.push(`Ovulation: ${formatTriStateValue(ovary.ovulation)}`);
 
-  if (ovary.follicleState) {
+  if (showFollicleState && ovary.follicleState) {
     rows.push(`Follicle state: ${FOLLICLE_STATE_LABELS[ovary.follicleState]}`);
   }
 
@@ -68,11 +77,16 @@ function formatOvarySummary(ovary: DailyLogWizardOvaryDraft): string {
     const values = ovary.follicleMeasurements
       .map((measurement) => measurement.value.trim())
       .filter(Boolean);
-    rows.push(
-      values.length > 0
-        ? `Measurements: ${values.join(', ')} mm`
-        : 'Measurements: none entered',
-    );
+
+    if (singleFollicleSize) {
+      rows.push(values.length > 0 ? `Follicle size: ${values[0]} mm` : 'Follicle size: not entered');
+    } else {
+      rows.push(
+        values.length > 0
+          ? `Measurements: ${values.join(', ')} mm`
+          : 'Measurements: none entered',
+      );
+    }
   }
 
   if (ovary.consistency) {
@@ -186,14 +200,14 @@ export function ReviewStep({
 
       <ReviewSection
         title="Right Ovary"
-        summary={formatOvarySummary(rightOvary)}
+        summary={formatOvarySummary(rightOvary, { showFollicleState: false, singleFollicleSize: true })}
         editLabel="Edit Right Ovary"
         onEdit={() => onJumpToStep(1)}
       />
 
       <ReviewSection
         title="Left Ovary"
-        summary={formatOvarySummary(leftOvary)}
+        summary={formatOvarySummary(leftOvary, { showFollicleState: false, singleFollicleSize: true })}
         editLabel="Edit Left Ovary"
         onEdit={() => onJumpToStep(2)}
       />

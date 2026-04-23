@@ -100,6 +100,7 @@ function createWizardMock(overrides: Record<string, unknown> = {}) {
     setNotes: jest.fn(),
     setOvaryOvulation: jest.fn(),
     setOvaryFollicleState: jest.fn(),
+    setOvaryFollicleSize: jest.fn(),
     setOvaryConsistency: jest.fn(),
     toggleOvaryStructure: jest.fn(),
     addOvaryMeasurement: jest.fn(),

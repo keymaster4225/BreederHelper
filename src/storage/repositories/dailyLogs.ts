@@ -93,6 +93,7 @@ const OVARY_CONSISTENCY_SET = new Set<string>(OVARY_CONSISTENCY_VALUES);
 const OVARY_STRUCTURE_SET = new Set<string>(OVARY_STRUCTURE_VALUES);
 const UTERINE_TONE_CATEGORY_SET = new Set<string>(UTERINE_TONE_CATEGORY_VALUES);
 const CERVICAL_FIRMNESS_SET = new Set<string>(CERVICAL_FIRMNESS_VALUES);
+const FOLLICLE_MEASUREMENT_INPUT_PATTERN = /^\d*\.?\d*$/;
 
 const DAILY_LOG_SELECT_COLUMNS = `
   id,
@@ -145,9 +146,18 @@ function parseOptionalEnum<T extends string>(
   return allowedValues.has(value) ? (value as T) : null;
 }
 
+function hasAtMostOneDecimalPlace(value: number): boolean {
+  const scaled = value * 10;
+  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
+}
+
+function isValidMeasurementNumber(value: number): boolean {
+  return Number.isFinite(value) && value >= 0 && value <= 100 && hasAtMostOneDecimalPlace(value);
+}
+
 function normalizeMeasurementValue(value: unknown): number | null {
   if (typeof value === 'number') {
-    if (!Number.isInteger(value) || value < 1 || value > 99) {
+    if (!isValidMeasurementNumber(value)) {
       return null;
     }
     return value;
@@ -155,11 +165,11 @@ function normalizeMeasurementValue(value: unknown): number | null {
 
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    if (!trimmed) {
+    if (!trimmed || trimmed === '.' || !FOLLICLE_MEASUREMENT_INPUT_PATTERN.test(trimmed)) {
       return null;
     }
     const parsed = Number(trimmed);
-    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 99) {
+    if (!isValidMeasurementNumber(parsed)) {
       return null;
     }
     return parsed;

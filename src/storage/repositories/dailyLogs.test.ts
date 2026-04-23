@@ -171,8 +171,13 @@ describe('daily log JSON normalization helpers', () => {
     expect(parseFollicleMeasurementsJson('{bad json')).toEqual([]);
   });
 
-  it('normalizes measured follicle arrays to whole numbers in 1-99 range', () => {
-    expect(parseFollicleMeasurementsJson('[12, \"15\", 0, 100, \"bad\", 16.4]')).toEqual([12, 15]);
+  it('normalizes measured follicle arrays to values in 0-100 range with up to one decimal place', () => {
+    expect(parseFollicleMeasurementsJson('[12, \"15.5\", 0, 100, \"bad\", 16.45, 100.1]')).toEqual([
+      12,
+      15.5,
+      0,
+      100,
+    ]);
   });
 
   it('drops invalid structure values and de-duplicates in enum declaration order', () => {

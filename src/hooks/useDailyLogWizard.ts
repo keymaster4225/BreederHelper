@@ -19,6 +19,7 @@ import {
   updateDailyLog,
 } from '@/storage/repositories';
 import { confirmDelete } from '@/utils/confirmDelete';
+import { toLocalDate } from '@/utils/dates';
 import { newId } from '@/utils/id';
 import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validation';
 
@@ -202,6 +203,31 @@ type ParsedMeasurements = {
   hasInvalid: boolean;
 };
 
+const FOLLICLE_MEASUREMENT_INPUT_PATTERN = /^\d*\.?\d*$/;
+
+function hasAtMostOneDecimalPlace(value: number): boolean {
+  const scaled = value * 10;
+  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
+}
+
+function parseMeasurementTextValue(value: string): number | null {
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === '.') {
+    return null;
+  }
+
+  if (!FOLLICLE_MEASUREMENT_INPUT_PATTERN.test(trimmed)) {
+    return null;
+  }
+
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100 || !hasAtMostOneDecimalPlace(parsed)) {
+    return null;
+  }
+
+  return parsed;
+}
+
 function collectValidMeasurements(
   rows: readonly DailyLogWizardMeasurementDraft[],
 ): ParsedMeasurements {
@@ -214,8 +240,8 @@ function collectValidMeasurements(
       continue;
     }
 
-    const parsed = Number(trimmed);
-    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 99) {
+    const parsed = parseMeasurementTextValue(trimmed);
+    if (parsed == null) {
       hasInvalid = true;
       continue;
     }
@@ -263,9 +289,10 @@ export function useDailyLogWizard({
   setTitle,
 }: UseDailyLogWizardArgs) {
   const isEdit = Boolean(logId);
+  const today = useMemo(() => new Date(), []);
 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState<string>(() => (isEdit ? '' : toLocalDate(today)));
   const [teasingScore, setTeasingScore] = useState<ScoreOption>('');
   const [rightOvary, setRightOvary] = useState<DailyLogWizardOvaryDraft>(createEmptyOvaryDraft);
   const [leftOvary, setLeftOvary] = useState<DailyLogWizardOvaryDraft>(createEmptyOvaryDraft);
@@ -289,7 +316,6 @@ export function useDailyLogWizard({
     runSave,
     runDelete,
   } = useRecordForm({ initialLoading: isEdit });
-  const today = useMemo(() => new Date(), []);
 
   useEffect(() => {
     setTitle(isEdit ? 'Edit Daily Log' : 'Add Daily Log');
@@ -406,6 +432,37 @@ export function useDailyLogWizard({
       setErrors((current) => ({
         ...current,
         [side === 'right' ? 'rightOvary' : 'leftOvary']: {},
+      }));
+    },
+    [setOvaryForSide],
+  );
+
+  const setOvaryFollicleSize = useCallback(
+    (side: OvarySide, value: string): void => {
+      setOvaryForSide(side, (current) => {
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return {
+            ...current,
+            follicleState: null,
+            follicleMeasurements: [],
+          };
+        }
+
+        const existingClientId = current.follicleMeasurements[0]?.clientId ?? newId();
+        return {
+          ...current,
+          follicleState: 'measured',
+          follicleMeasurements: [{ clientId: existingClientId, value }],
+        };
+      });
+
+      setErrors((current) => ({
+        ...current,
+        [side === 'right' ? 'rightOvary' : 'leftOvary']: {
+          ...current[side === 'right' ? 'rightOvary' : 'leftOvary'],
+          measurements: undefined,
+        },
       }));
     },
     [setOvaryForSide],
@@ -589,9 +646,9 @@ export function useDailyLogWizard({
       if (draft.follicleState === 'measured') {
         const measurements = collectValidMeasurements(draft.follicleMeasurements);
         if (measurements.values.length === 0) {
-          measurementsError = 'Add at least one valid follicle measurement (1-99 mm).';
+          measurementsError = 'Enter a valid follicle size (0-100 mm, up to 1 decimal place).';
         } else if (measurements.hasInvalid) {
-          measurementsError = 'Measurements must be whole numbers between 1 and 99 mm.';
+          measurementsError = 'Follicle size must be between 0 and 100 mm with at most 1 decimal place.';
         }
       }
 
@@ -668,6 +725,17 @@ export function useDailyLogWizard({
 
   const goToStep = useCallback((stepIndex: number): void => {
     setCurrentStepIndex(Math.max(0, Math.min(stepIndex, DAILY_LOG_WIZARD_STEPS.length - 1)));
+  }, []);
+
+  const setDateValue = useCallback((value: string): void => {
+    setDate(value);
+    setErrors((current) => ({
+      ...current,
+      basics: {
+        ...current.basics,
+        date: undefined,
+      },
+    }));
   }, []);
 
   const save = useCallback(async (): Promise<void> => {
@@ -830,11 +898,12 @@ export function useDailyLogWizard({
     isLoading,
     isSaving,
     isDeleting,
-    setDate,
+    setDate: setDateValue,
     setTeasingScore,
     setNotes,
     setOvaryOvulation,
     setOvaryFollicleState,
+    setOvaryFollicleSize,
     setOvaryConsistency,
     toggleOvaryStructure,
     addOvaryMeasurement,

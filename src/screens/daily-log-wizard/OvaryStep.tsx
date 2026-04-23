@@ -1,14 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import {
-  FOLLICLE_STATE_LABELS,
-  FOLLICLE_STATE_OPTIONS,
   OVARY_CONSISTENCY_LABELS,
   OVARY_CONSISTENCY_OPTIONS,
   OVARY_STRUCTURE_LABELS,
   OVARY_STRUCTURE_OPTIONS,
 } from '@/models/enums';
-import type { FollicleState, OvaryConsistency, OvaryStructure } from '@/models/types';
+import type { OvaryConsistency, OvaryStructure } from '@/models/types';
 import {
   fromTriStateOption,
   toTriStateOption,
@@ -26,20 +24,13 @@ type Props = {
     measurements?: string;
   };
   onOvulationChange: (value: boolean | null) => void;
-  onFollicleStateChange: (value: FollicleState | null) => void;
+  onFollicleSizeChange: (value: string) => void;
   onConsistencyChange: (value: OvaryConsistency | null) => void;
   onToggleStructure: (value: OvaryStructure) => void;
-  onAddMeasurement: () => void;
-  onMeasurementChange: (clientId: string, value: string) => void;
-  onRemoveMeasurement: (clientId: string) => void;
 };
 
 function getSideLabel(side: 'right' | 'left'): string {
   return side === 'right' ? 'Right' : 'Left';
-}
-
-function renderMeasurementPlaceholder(index: number): string {
-  return `Measurement ${index + 1} (mm)`;
 }
 
 export function OvaryStep({
@@ -47,14 +38,12 @@ export function OvaryStep({
   ovary,
   errors,
   onOvulationChange,
-  onFollicleStateChange,
+  onFollicleSizeChange,
   onConsistencyChange,
   onToggleStructure,
-  onAddMeasurement,
-  onMeasurementChange,
-  onRemoveMeasurement,
 }: Props): JSX.Element {
   const sideLabel = getSideLabel(side);
+  const follicleSizeValue = ovary.follicleMeasurements[0]?.value ?? '';
 
   return (
     <>
@@ -66,55 +55,15 @@ export function OvaryStep({
         />
       </FormField>
 
-      <FormField label={`${sideLabel} Follicle State`}>
-        <OptionSelector<FollicleState>
-          value={ovary.follicleState}
-          onChange={onFollicleStateChange}
-          options={[...FOLLICLE_STATE_OPTIONS]}
-          allowDeselect
+      <FormField label="Follicle Size" error={errors.measurements}>
+        <FormTextInput
+          value={follicleSizeValue}
+          onChangeText={onFollicleSizeChange}
+          keyboardType="decimal-pad"
+          placeholder="mm"
         />
-        {ovary.follicleState ? (
-          <Text style={styles.helperText}>{`Selected: ${FOLLICLE_STATE_LABELS[ovary.follicleState]}`}</Text>
-        ) : null}
+        <Text style={styles.helperText}>Enter a value up to 100 mm.</Text>
       </FormField>
-
-      {ovary.follicleState === 'measured' ? (
-        <FormField label={`${sideLabel} Follicle Measurements (mm)`} error={errors.measurements}>
-          <View style={styles.measurementsWrap}>
-            {ovary.follicleMeasurements.length === 0 ? (
-              <Text style={styles.emptyText}>No measurements added yet.</Text>
-            ) : (
-              ovary.follicleMeasurements.map((measurement, index) => (
-                <View key={measurement.clientId} style={styles.measurementRow}>
-                  <View style={styles.measurementInput}>
-                    <FormTextInput
-                      value={measurement.value}
-                      onChangeText={(value) => onMeasurementChange(measurement.clientId, value)}
-                      keyboardType="numeric"
-                      placeholder={renderMeasurementPlaceholder(index)}
-                    />
-                  </View>
-                  <Pressable
-                    style={({ pressed }) => [styles.measurementDelete, pressed && styles.pressed]}
-                    onPress={() => onRemoveMeasurement(measurement.clientId)}
-                    accessibilityRole="button"
-                    accessibilityLabel="Remove measurement"
-                  >
-                    <Text style={styles.measurementDeleteText}>Remove</Text>
-                  </Pressable>
-                </View>
-              ))
-            )}
-            <Pressable
-              style={({ pressed }) => [styles.addRowButton, pressed && styles.pressed]}
-              onPress={onAddMeasurement}
-              accessibilityRole="button"
-            >
-              <Text style={styles.addRowButtonText}>Add Measurement</Text>
-            </Pressable>
-          </View>
-        </FormField>
-      ) : null}
 
       <FormField label={`${sideLabel} Ovary Consistency`}>
         <OptionSelector<OvaryConsistency>
@@ -158,46 +107,6 @@ export function OvaryStep({
 
 const styles = StyleSheet.create({
   helperText: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-  measurementsWrap: {
-    gap: spacing.sm,
-  },
-  measurementRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  measurementInput: {
-    flex: 1,
-  },
-  measurementDelete: {
-    alignItems: 'center',
-    backgroundColor: colors.surfaceVariant,
-    borderRadius: borderRadius.full,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: spacing.md,
-  },
-  measurementDeleteText: {
-    ...typography.labelMedium,
-    color: colors.onSurface,
-  },
-  addRowButton: {
-    alignItems: 'center',
-    borderColor: colors.outlineVariant,
-    borderRadius: borderRadius.full,
-    borderWidth: 1,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: spacing.lg,
-  },
-  addRowButtonText: {
-    ...typography.labelMedium,
-    color: colors.onSurface,
-  },
-  emptyText: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
   },

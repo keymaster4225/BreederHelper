@@ -1,4 +1,4 @@
-import { useLayoutEffect } from 'react';
+import { useCallback, useLayoutEffect } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -26,11 +26,21 @@ import { UterusStep } from './daily-log-wizard/UterusStep';
 type Props = NativeStackScreenProps<RootStackParamList, 'DailyLogForm'>;
 
 export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element {
+  const handleGoBack = useCallback(() => {
+    navigation.goBack();
+  }, [navigation]);
+  const handleSetTitle = useCallback(
+    (title: string) => {
+      navigation.setOptions({ title });
+    },
+    [navigation],
+  );
+
   const wizard = useDailyLogWizard({
     mareId: route.params.mareId,
     logId: route.params.logId,
-    onGoBack: () => navigation.goBack(),
-    setTitle: (title) => navigation.setOptions({ title }),
+    onGoBack: handleGoBack,
+    setTitle: handleSetTitle,
   });
 
   useLayoutEffect(() => {
@@ -87,14 +97,9 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
               ovary={wizard.rightOvary}
               errors={wizard.errors.rightOvary}
               onOvulationChange={(value) => wizard.setOvaryOvulation('right', value)}
-              onFollicleStateChange={(value) => wizard.setOvaryFollicleState('right', value)}
+              onFollicleSizeChange={(value) => wizard.setOvaryFollicleSize('right', value)}
               onConsistencyChange={(value) => wizard.setOvaryConsistency('right', value)}
               onToggleStructure={(value) => wizard.toggleOvaryStructure('right', value)}
-              onAddMeasurement={() => wizard.addOvaryMeasurement('right')}
-              onMeasurementChange={(clientId, value) =>
-                wizard.updateOvaryMeasurement('right', clientId, value)
-              }
-              onRemoveMeasurement={(clientId) => wizard.removeOvaryMeasurement('right', clientId)}
             />
           ) : null}
 
@@ -104,14 +109,9 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
               ovary={wizard.leftOvary}
               errors={wizard.errors.leftOvary}
               onOvulationChange={(value) => wizard.setOvaryOvulation('left', value)}
-              onFollicleStateChange={(value) => wizard.setOvaryFollicleState('left', value)}
+              onFollicleSizeChange={(value) => wizard.setOvaryFollicleSize('left', value)}
               onConsistencyChange={(value) => wizard.setOvaryConsistency('left', value)}
               onToggleStructure={(value) => wizard.toggleOvaryStructure('left', value)}
-              onAddMeasurement={() => wizard.addOvaryMeasurement('left')}
-              onMeasurementChange={(clientId, value) =>
-                wizard.updateOvaryMeasurement('left', clientId, value)
-              }
-              onRemoveMeasurement={(clientId) => wizard.removeOvaryMeasurement('left', clientId)}
             />
           ) : null}
 
