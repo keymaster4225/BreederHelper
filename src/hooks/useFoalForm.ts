@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { FoalColor, FoalMilestoneKey, FoalMilestones, FoalSex, IggTest } from '@/models/types';
@@ -63,6 +63,8 @@ export function useFoalForm({
 }: UseFoalFormArgs): UseFoalFormResult {
   const [existingFoalId, setExistingFoalId] = useState<string | null>(foalId ?? null);
   const isEdit = Boolean(existingFoalId);
+  const onGoBackRef = useRef(onGoBack);
+  const setTitleRef = useRef(setTitle);
 
   const [name, setName] = useState('');
   const [sex, setSex] = useState<FoalSex | null>(defaultSex ?? null);
@@ -77,8 +79,13 @@ export function useFoalForm({
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    setTitle(isEdit ? 'Edit Foal Record' : 'Add Foal Record');
-  }, [isEdit, setTitle]);
+    onGoBackRef.current = onGoBack;
+    setTitleRef.current = setTitle;
+  }, [onGoBack, setTitle]);
+
+  useEffect(() => {
+    setTitleRef.current(isEdit ? 'Edit Foal Record' : 'Add Foal Record');
+  }, [isEdit]);
 
   useEffect(() => {
     let mounted = true;
@@ -90,13 +97,13 @@ export function useFoalForm({
 
         if (!foalingRecord) {
           Alert.alert('Record not found', 'This foaling record no longer exists.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
         if (foalingRecord.outcome !== 'liveFoal') {
           Alert.alert('Invalid record', 'Foal records can only be added to live foal outcomes.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
@@ -119,7 +126,7 @@ export function useFoalForm({
         if (!mounted) return;
         const message = err instanceof Error ? err.message : 'Unable to load foal form data.';
         Alert.alert('Load error', message);
-        onGoBack();
+        onGoBackRef.current();
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -130,7 +137,7 @@ export function useFoalForm({
     return () => {
       mounted = false;
     };
-  }, [foalId, foalingRecordId, onGoBack]);
+  }, [foalId, foalingRecordId]);
 
   const toggleMilestone = useCallback((key: FoalMilestoneKey) => {
     setMilestones((prev) => {

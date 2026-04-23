@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import type { MedicationRoute } from '@/models/types';
@@ -51,6 +51,8 @@ export function useMedicationForm({
   setTitle,
 }: UseMedicationFormArgs): UseMedicationFormResult {
   const isEdit = Boolean(medicationLogId);
+  const onGoBackRef = useRef(onGoBack);
+  const setTitleRef = useRef(setTitle);
 
   const [selectedMed, setSelectedMed] = useState<MedSelection | null>(null);
   const [customMedName, setCustomMedName] = useState('');
@@ -64,8 +66,13 @@ export function useMedicationForm({
   const today = new Date();
 
   useEffect(() => {
-    setTitle(isEdit ? 'Edit Medication' : 'Add Medication');
-  }, [isEdit, setTitle]);
+    onGoBackRef.current = onGoBack;
+    setTitleRef.current = setTitle;
+  }, [onGoBack, setTitle]);
+
+  useEffect(() => {
+    setTitleRef.current(isEdit ? 'Edit Medication' : 'Add Medication');
+  }, [isEdit]);
 
   useEffect(() => {
     if (!medicationLogId) return;
@@ -77,7 +84,7 @@ export function useMedicationForm({
 
         if (!record) {
           Alert.alert('Not found', 'This medication log no longer exists.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
@@ -97,7 +104,7 @@ export function useMedicationForm({
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : 'Unable to load medication log.';
         Alert.alert('Load error', message);
-        onGoBack();
+        onGoBackRef.current();
       })
       .finally(() => {
         if (mounted) {
@@ -108,7 +115,7 @@ export function useMedicationForm({
     return () => {
       mounted = false;
     };
-  }, [medicationLogId, onGoBack]);
+  }, [medicationLogId]);
 
   const getMedicationName = useCallback((): string => {
     if (selectedMed === 'custom') return customMedName.trim();

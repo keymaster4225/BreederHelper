@@ -281,6 +281,7 @@ function mapDailyLogRow(row: DailyLogRow): DailyLog {
     id: row.id,
     mareId: row.mare_id,
     date: row.date,
+    time: null,
     teasingScore: row.teasing_score,
     rightOvary: row.right_ovary,
     leftOvary: row.left_ovary,

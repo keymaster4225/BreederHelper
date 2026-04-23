@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import {
@@ -35,6 +35,8 @@ export function useStallionForm({
 }: UseStallionFormArgs) {
   const isEdit = Boolean(stallionId);
   const today = useMemo(() => new Date(), []);
+  const onGoBackRef = useRef(onGoBack);
+  const setTitleRef = useRef(setTitle);
 
   const [name, setName] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
@@ -48,8 +50,13 @@ export function useStallionForm({
     useRecordForm({ initialLoading: isEdit });
 
   useEffect(() => {
-    setTitle(isEdit ? 'Edit Stallion' : 'Add Stallion');
-  }, [isEdit, setTitle]);
+    onGoBackRef.current = onGoBack;
+    setTitleRef.current = setTitle;
+  }, [onGoBack, setTitle]);
+
+  useEffect(() => {
+    setTitleRef.current(isEdit ? 'Edit Stallion' : 'Add Stallion');
+  }, [isEdit]);
 
   useEffect(() => {
     if (!stallionId) {
@@ -62,7 +69,7 @@ export function useStallionForm({
         const record = await getStallionById(stallionId);
         if (!record) {
           Alert.alert('Stallion not found', 'This stallion no longer exists.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
@@ -78,11 +85,11 @@ export function useStallionForm({
         onError: (error: unknown) => {
           const message = error instanceof Error ? error.message : 'Unable to load stallion.';
           Alert.alert('Load error', message);
-          onGoBack();
+          onGoBackRef.current();
         },
       },
     );
-  }, [onGoBack, runLoad, setIsLoading, stallionId]);
+  }, [runLoad, setIsLoading, stallionId]);
 
   const validate = useCallback((): FormErrors => {
     return {

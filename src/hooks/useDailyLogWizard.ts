@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import type { DailyLogDetail, DailyLogOvulationSource, FluidLocation, FollicleState, OvaryConsistency, OvaryStructure, UterineToneCategory, CervicalFirmness } from '@/models/types';
@@ -82,6 +82,8 @@ export function useDailyLogWizard({
 }: UseDailyLogWizardArgs) {
   const isEdit = Boolean(logId);
   const today = useMemo(() => new Date(), []);
+  const onGoBackRef = useRef(onGoBack);
+  const setTitleRef = useRef(setTitle);
 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [date, setDate] = useState<string>(() => (isEdit ? '' : toLocalDate(today)));
@@ -110,8 +112,13 @@ export function useDailyLogWizard({
   } = useRecordForm({ initialLoading: isEdit });
 
   useEffect(() => {
-    setTitle(isEdit ? 'Edit Daily Log' : 'Add Daily Log');
-  }, [isEdit, setTitle]);
+    onGoBackRef.current = onGoBack;
+    setTitleRef.current = setTitle;
+  }, [onGoBack, setTitle]);
+
+  useEffect(() => {
+    setTitleRef.current(isEdit ? 'Edit Daily Log' : 'Add Daily Log');
+  }, [isEdit]);
 
   const hydrateFromRecord = useCallback((record: DailyLogDetail): void => {
     const hydrated = hydrateDailyLogWizardRecord(record);
@@ -139,7 +146,7 @@ export function useDailyLogWizard({
         const record = await getDailyLogById(logId);
         if (!record) {
           Alert.alert('Log not found', 'This daily log no longer exists.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
@@ -150,11 +157,11 @@ export function useDailyLogWizard({
         onError: (error: unknown) => {
           const message = error instanceof Error ? error.message : 'Unable to load daily log.';
           Alert.alert('Load error', message);
-          onGoBack();
+          onGoBackRef.current();
         },
       },
     );
-  }, [hydrateFromRecord, logId, onGoBack, runLoad, setIsLoading]);
+  }, [hydrateFromRecord, logId, runLoad, setIsLoading]);
 
   const setOvaryForSide = useCallback(
     (side: OvarySide, updater: (current: DailyLogWizardOvaryDraft) => DailyLogWizardOvaryDraft): void => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import type { FoalSex, FoalingOutcome } from '@/models/types';
@@ -35,6 +35,8 @@ export function useFoalingRecordForm({
 }: UseFoalingRecordFormArgs) {
   const isEdit = Boolean(foalingRecordId);
   const today = useMemo(() => new Date(), []);
+  const onGoBackRef = useRef(onGoBack);
+  const setTitleRef = useRef(setTitle);
 
   const [breedingOptions, setBreedingOptions] = useState<Array<{ label: string; value: string }>>(
     [],
@@ -53,8 +55,13 @@ export function useFoalingRecordForm({
   });
 
   useEffect(() => {
-    setTitle(isEdit ? 'Edit Foaling Record' : 'Add Foaling Record');
-  }, [isEdit, setTitle]);
+    onGoBackRef.current = onGoBack;
+    setTitleRef.current = setTitle;
+  }, [onGoBack, setTitle]);
+
+  useEffect(() => {
+    setTitleRef.current(isEdit ? 'Edit Foaling Record' : 'Add Foaling Record');
+  }, [isEdit]);
 
   useEffect(() => {
     void runLoad(
@@ -67,7 +74,7 @@ export function useFoalingRecordForm({
 
         if (foalingRecordId && !existing) {
           Alert.alert('Record not found', 'This foaling record no longer exists.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
@@ -94,11 +101,11 @@ export function useFoalingRecordForm({
         onError: (error: unknown) => {
           const message = error instanceof Error ? error.message : 'Unable to load foaling form data.';
           Alert.alert('Load error', message);
-          onGoBack();
+          onGoBackRef.current();
         },
       },
     );
-  }, [foalingRecordId, mareId, onGoBack, runLoad]);
+  }, [foalingRecordId, mareId, runLoad]);
 
   const validate = useCallback((): boolean => {
     const nextErrors: FormErrors = {

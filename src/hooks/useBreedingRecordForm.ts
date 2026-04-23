@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { AI_BREEDING_METHOD_OPTIONS } from '@/models/enums';
@@ -76,6 +76,8 @@ export function useBreedingRecordForm({
 }: UseBreedingRecordFormArgs) {
   const isEdit = Boolean(breedingRecordId);
   const today = useMemo(() => new Date(), []);
+  const onGoBackRef = useRef(onGoBack);
+  const setTitleRef = useRef(setTitle);
 
   const [date, setDate] = useState('');
   const [stallionName, setStallionName] = useState('');
@@ -103,8 +105,13 @@ export function useBreedingRecordForm({
   const [isLinkedOnFarmRecord, setIsLinkedOnFarmRecord] = useState(false);
 
   useEffect(() => {
-    setTitle(isEdit ? 'Edit Breeding Record' : 'Add Breeding Record');
-  }, [isEdit, setTitle]);
+    onGoBackRef.current = onGoBack;
+    setTitleRef.current = setTitle;
+  }, [onGoBack, setTitle]);
+
+  useEffect(() => {
+    setTitleRef.current(isEdit ? 'Edit Breeding Record' : 'Add Breeding Record');
+  }, [isEdit]);
 
   useEffect(() => {
     void (async () => {
@@ -124,7 +131,7 @@ export function useBreedingRecordForm({
         const record = await getBreedingRecordById(breedingRecordId);
         if (!record) {
           Alert.alert('Record not found', 'This breeding record no longer exists.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
@@ -170,11 +177,11 @@ export function useBreedingRecordForm({
         onError: (error: unknown) => {
           const message = error instanceof Error ? error.message : 'Unable to load breeding record.';
           Alert.alert('Load error', message);
-          onGoBack();
+          onGoBackRef.current();
         },
       },
     );
-  }, [breedingRecordId, onGoBack, runLoad]);
+  }, [breedingRecordId, runLoad]);
 
   const coverageType: CoverageType = method === 'liveCover' ? 'liveCover' : 'ai';
   const lockMethodAndCollection = isEdit && isLinkedOnFarmRecord;

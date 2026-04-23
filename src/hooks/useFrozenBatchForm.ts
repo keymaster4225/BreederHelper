@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import type { FreezingExtender, StrawColor } from '@/models/types';
@@ -88,6 +88,8 @@ export function useFrozenBatchForm({
   onGoBack,
   setTitle,
 }: UseFrozenBatchFormArgs) {
+  const onGoBackRef = useRef(onGoBack);
+  const setTitleRef = useRef(setTitle);
   const [freezeDate, setFreezeDate] = useState('');
   const [rawSemenVolumeUsedMl, setRawSemenVolumeUsedMl] = useState('');
   const [wasCentrifuged, setWasCentrifuged] = useState(false);
@@ -121,8 +123,13 @@ export function useFrozenBatchForm({
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    setTitle('Edit Frozen Batch');
-  }, [setTitle]);
+    onGoBackRef.current = onGoBack;
+    setTitleRef.current = setTitle;
+  }, [onGoBack, setTitle]);
+
+  useEffect(() => {
+    setTitleRef.current('Edit Frozen Batch');
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -136,13 +143,13 @@ export function useFrozenBatchForm({
 
         if (!batch) {
           Alert.alert('Batch not found', 'This frozen batch no longer exists.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
         if (batch.stallionId !== expectedStallionId) {
           Alert.alert('Batch mismatch', 'This batch belongs to a different stallion.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
@@ -208,7 +215,7 @@ export function useFrozenBatchForm({
 
         const message = error instanceof Error ? error.message : 'Unable to load frozen batch.';
         Alert.alert('Load error', message);
-        onGoBack();
+        onGoBackRef.current();
       } finally {
         if (mounted) {
           setIsLoading(false);
@@ -219,7 +226,7 @@ export function useFrozenBatchForm({
     return () => {
       mounted = false;
     };
-  }, [expectedStallionId, frozenBatchId, onGoBack]);
+  }, [expectedStallionId, frozenBatchId]);
 
   const parsedRawSemenVolumeUsedMl = useMemo(
     () => parseOptionalNumber(rawSemenVolumeUsedMl),

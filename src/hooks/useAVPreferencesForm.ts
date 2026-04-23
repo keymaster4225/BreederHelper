@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { getStallionById, updateStallion } from '@/storage/repositories';
@@ -24,6 +24,7 @@ export function useAVPreferencesForm({
   stallionId,
   onGoBack,
 }: UseAVPreferencesFormArgs) {
+  const onGoBackRef = useRef(onGoBack);
   const [avTemperatureF, setAvTemperatureF] = useState('');
   const [avType, setAvType] = useState('');
   const [avLinerType, setAvLinerType] = useState('');
@@ -33,12 +34,16 @@ export function useAVPreferencesForm({
   const { isLoading, isSaving, runLoad, runSave } = useRecordForm({ initialLoading: true });
 
   useEffect(() => {
+    onGoBackRef.current = onGoBack;
+  }, [onGoBack]);
+
+  useEffect(() => {
     void runLoad(
       async () => {
         const record = await getStallionById(stallionId);
         if (!record) {
           Alert.alert('Error', 'Stallion not found.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
@@ -52,11 +57,11 @@ export function useAVPreferencesForm({
         onError: (error: unknown) => {
           const message = error instanceof Error ? error.message : 'Unable to load AV preferences.';
           Alert.alert('Load error', message);
-          onGoBack();
+          onGoBackRef.current();
         },
       },
     );
-  }, [onGoBack, runLoad, stallionId]);
+  }, [runLoad, stallionId]);
 
   const validate = useCallback((): FormErrors => {
     return {

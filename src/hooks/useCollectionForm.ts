@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { type CollectionTargetMode } from '@/models/types';
@@ -71,6 +71,8 @@ export function useCollectionForm({
   setTitle,
 }: UseCollectionFormArgs) {
   const today = useMemo(() => new Date(), []);
+  const onGoBackRef = useRef(onGoBack);
+  const setTitleRef = useRef(setTitle);
 
   const [collectionDate, setCollectionDate] = useState('');
   const [rawVolumeMl, setRawVolumeMl] = useState('');
@@ -89,8 +91,13 @@ export function useCollectionForm({
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    setTitle('Edit Collection');
-  }, [setTitle]);
+    onGoBackRef.current = onGoBack;
+    setTitleRef.current = setTitle;
+  }, [onGoBack, setTitle]);
+
+  useEffect(() => {
+    setTitleRef.current('Edit Collection');
+  }, []);
 
   useEffect(() => {
     void (async () => {
@@ -98,7 +105,7 @@ export function useCollectionForm({
         const record = await getSemenCollectionById(collectionId);
         if (!record) {
           Alert.alert('Collection not found', 'This collection no longer exists.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
@@ -131,7 +138,7 @@ export function useCollectionForm({
         setIsLoading(false);
       }
     })();
-  }, [collectionId, onGoBack]);
+  }, [collectionId]);
 
   const parsedRawVolumeMl = useMemo(() => parseOptionalNumber(rawVolumeMl), [rawVolumeMl]);
   const parsedConcentrationMillionsPerMl = useMemo(

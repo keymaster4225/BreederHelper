@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { DEFAULT_GESTATION_LENGTH_DAYS, type BreedingRecord, type PregnancyResult } from '@/models/types';
@@ -47,6 +47,8 @@ export function usePregnancyCheckForm({
 }: UsePregnancyCheckFormArgs) {
   const isEdit = Boolean(pregnancyCheckId);
   const today = useMemo(() => new Date(), []);
+  const onGoBackRef = useRef(onGoBack);
+  const setTitleRef = useRef(setTitle);
 
   const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
   const [gestationLengthDays, setGestationLengthDays] = useState(DEFAULT_GESTATION_LENGTH_DAYS);
@@ -61,8 +63,13 @@ export function usePregnancyCheckForm({
   });
 
   useEffect(() => {
-    setTitle(isEdit ? 'Edit Pregnancy Check' : 'Add Pregnancy Check');
-  }, [isEdit, setTitle]);
+    onGoBackRef.current = onGoBack;
+    setTitleRef.current = setTitle;
+  }, [onGoBack, setTitle]);
+
+  useEffect(() => {
+    setTitleRef.current(isEdit ? 'Edit Pregnancy Check' : 'Add Pregnancy Check');
+  }, [isEdit]);
 
   useEffect(() => {
     void runLoad(
@@ -75,13 +82,13 @@ export function usePregnancyCheckForm({
 
         if (!mare) {
           Alert.alert('Mare not found', 'This mare no longer exists.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
         if (pregnancyCheckId && !existing) {
           Alert.alert('Record not found', 'This pregnancy check no longer exists.');
-          onGoBack();
+          onGoBackRef.current();
           return;
         }
 
@@ -103,11 +110,11 @@ export function usePregnancyCheckForm({
           const message =
             error instanceof Error ? error.message : 'Unable to load pregnancy-check form data.';
           Alert.alert('Load error', message);
-          onGoBack();
+          onGoBackRef.current();
         },
       },
     );
-  }, [mareId, onGoBack, pregnancyCheckId, runLoad]);
+  }, [mareId, pregnancyCheckId, runLoad]);
 
   useEffect(() => {
     if (result === 'negative') {
