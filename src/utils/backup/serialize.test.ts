@@ -80,7 +80,34 @@ describe('serializeBackup', () => {
               edema: 2,
               uterine_tone: null,
               uterine_cysts: null,
+              right_ovary_ovulation: null,
+              right_ovary_follicle_state: 'measured',
+              right_ovary_follicle_measurements_mm: '[35]',
+              right_ovary_consistency: 'firm',
+              right_ovary_structures: '["corpusLuteum"]',
+              left_ovary_ovulation: 1,
+              left_ovary_follicle_state: null,
+              left_ovary_follicle_measurements_mm: '[]',
+              left_ovary_consistency: null,
+              left_ovary_structures: '[]',
+              uterine_tone_category: 'tight',
+              cervical_firmness: 'closed',
+              discharge_observed: 0,
+              discharge_notes: null,
               notes: null,
+              created_at: '2026-04-10T00:00:00.000Z',
+              updated_at: '2026-04-10T00:00:00.000Z',
+            },
+          ];
+        }
+
+        if (sql.includes('FROM uterine_fluid')) {
+          return [
+            {
+              id: 'fluid-1',
+              daily_log_id: 'log-1',
+              depth_mm: 14,
+              location: 'leftHorn',
               created_at: '2026-04-10T00:00:00.000Z',
               updated_at: '2026-04-10T00:00:00.000Z',
             },
@@ -199,7 +226,7 @@ describe('serializeBackup', () => {
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(3);
+    expect(backup.schemaVersion).toBe(4);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
     expect(backup.tables.mares[0]?.gestation_length_days).toBe(345);
@@ -207,6 +234,12 @@ describe('serializeBackup', () => {
     expect(backup.tables.breeding_records[0]?.straw_volume_ml).toBe(0.5);
     expect(backup.tables.foals[0]?.milestones).toBe('{"stood":{"done":true}}');
     expect(backup.tables.foals[0]?.igg_tests).toContain('"valueMgDl":900');
+    expect(backup.tables.daily_logs[0]?.right_ovary_follicle_state).toBe('measured');
+    expect(backup.tables.daily_logs[0]?.right_ovary_follicle_measurements_mm).toBe('[35]');
+    expect(backup.tables.daily_logs[0]?.left_ovary_ovulation).toBe(1);
+    expect(backup.tables.daily_logs[0]?.cervical_firmness).toBe('closed');
+    expect(backup.tables.uterine_fluid[0]?.daily_log_id).toBe('log-1');
+    expect(backup.tables.uterine_fluid[0]?.depth_mm).toBe(14);
     expect(backup.tables.collection_dose_events[0]?.recipient_phone).toBe('555-0101');
     expect(backup.tables.collection_dose_events[0]?.breeding_record_id).toBe('breed-1');
     expect(backup.tables.collection_dose_events[0]?.dose_semen_volume_ml).toBe(50);
@@ -215,6 +248,6 @@ describe('serializeBackup', () => {
     expect(
       backup.tables.semen_collections[0]?.target_motile_sperm_millions_per_dose,
     ).toBe(500);
-    expect(db.getAllAsync).toHaveBeenCalledTimes(10);
+    expect(db.getAllAsync).toHaveBeenCalledTimes(11);
   });
 });

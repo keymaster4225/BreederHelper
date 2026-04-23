@@ -1,19 +1,25 @@
 import {
   BREEDING_METHOD_VALUES,
+  CERVICAL_FIRMNESS_VALUES,
   COLLECTION_TARGET_MODE_VALUES,
   DOSE_EVENT_TYPE_VALUES,
+  FLUID_LOCATION_VALUES,
+  FOLLICLE_STATE_VALUES,
   FOAL_COLOR_VALUES,
   FOAL_MILESTONE_KEYS as FOAL_MILESTONE_VALUE_KEYS,
   FOAL_SEX_VALUES,
   FOALING_OUTCOME_VALUES,
   MEDICATION_ROUTE_VALUES,
+  OVARY_CONSISTENCY_VALUES,
   PREGNANCY_RESULT_VALUES,
+  UTERINE_TONE_CATEGORY_VALUES,
 } from '@/models/enums';
 import {
   BACKUP_SCHEMA_VERSION_CURRENT,
   BACKUP_SCHEMA_VERSION_V1,
   BACKUP_SCHEMA_VERSION_V2,
   BACKUP_SCHEMA_VERSION_V3,
+  BACKUP_SCHEMA_VERSION_V4,
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupEnvelope,
@@ -26,6 +32,7 @@ import {
   type BackupTablesV1,
   type BackupTablesV2,
   type BackupTablesV3,
+  type BackupTablesV4,
   type ValidateBackupError,
   type ValidateBackupResult,
 } from './types';
@@ -38,14 +45,23 @@ const FOAL_COLORS = new Set(FOAL_COLOR_VALUES);
 const MEDICATION_ROUTES = new Set(MEDICATION_ROUTE_VALUES);
 const COLLECTION_EVENT_TYPES = new Set(DOSE_EVENT_TYPE_VALUES);
 const COLLECTION_TARGET_MODES = new Set(COLLECTION_TARGET_MODE_VALUES);
+const FOLLICLE_STATES = new Set(FOLLICLE_STATE_VALUES);
+const OVARY_CONSISTENCIES = new Set(OVARY_CONSISTENCY_VALUES);
+const UTERINE_TONE_CATEGORIES = new Set(UTERINE_TONE_CATEGORY_VALUES);
+const CERVICAL_FIRMNESSES = new Set(CERVICAL_FIRMNESS_VALUES);
+const FLUID_LOCATIONS = new Set(FLUID_LOCATION_VALUES);
 const FOAL_MILESTONE_KEYS: ReadonlySet<string> = new Set(FOAL_MILESTONE_VALUE_KEYS);
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;
+  readonly dailyLogIds: ReadonlySet<string>;
   readonly stallionIds: ReadonlySet<string>;
   readonly breedingById: ReadonlyMap<string, BackupBreedingRecordRow>;
   readonly foalingById: ReadonlyMap<string, BackupFoalingRecordRow>;
-  readonly collectionById: ReadonlyMap<string, BackupSemenCollectionRowV2 | BackupSemenCollectionRowV3>;
+  readonly collectionById: ReadonlyMap<
+    string,
+    BackupSemenCollectionRowV2 | BackupSemenCollectionRowV3
+  >;
 };
 
 export function validateBackupJson(jsonText: string): ValidateBackupResult {
@@ -78,7 +94,8 @@ export function validateBackup(input: unknown): ValidateBackupResult {
   if (
     schemaVersion !== BACKUP_SCHEMA_VERSION_V1 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&
-    schemaVersion !== BACKUP_SCHEMA_VERSION_V3
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V3 &&
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V4
   ) {
     return validationFailure(
       'unsupported_schema_version',
@@ -109,44 +126,43 @@ export function validateBackup(input: unknown): ValidateBackupResult {
   }
 
   const tables = input.tables;
-  const tableArrays = getTableArrays(tables);
+  const tableArrays = getTableArrays(tables, schemaVersion);
   if (!tableArrays.ok) {
     return tableArrays.error;
   }
 
+  const baseEnvelopeFields = {
+    createdAt: input.createdAt,
+    app: {
+      name: 'BreedWise' as const,
+      version: input.app.version,
+    },
+    settings: input.settings as BackupSettings,
+  };
   const backup: BackupEnvelope =
     schemaVersion === BACKUP_SCHEMA_VERSION_V1
       ? {
           schemaVersion: BACKUP_SCHEMA_VERSION_V1,
-          createdAt: input.createdAt,
-          app: {
-            name: 'BreedWise',
-            version: input.app.version,
-          },
-          settings: input.settings as BackupSettings,
+          ...baseEnvelopeFields,
           tables: tableArrays.tables as BackupTablesV1,
         }
       : schemaVersion === BACKUP_SCHEMA_VERSION_V2
         ? {
             schemaVersion: BACKUP_SCHEMA_VERSION_V2,
-            createdAt: input.createdAt,
-            app: {
-              name: 'BreedWise',
-              version: input.app.version,
-            },
-            settings: input.settings as BackupSettings,
+            ...baseEnvelopeFields,
             tables: tableArrays.tables as BackupTablesV2,
           }
-        : {
-            schemaVersion: BACKUP_SCHEMA_VERSION_V3,
-            createdAt: input.createdAt,
-            app: {
-              name: 'BreedWise',
-              version: input.app.version,
-            },
-            settings: input.settings as BackupSettings,
-            tables: tableArrays.tables as BackupTablesV3,
-          };
+        : schemaVersion === BACKUP_SCHEMA_VERSION_V3
+          ? {
+              schemaVersion: BACKUP_SCHEMA_VERSION_V3,
+              ...baseEnvelopeFields,
+              tables: tableArrays.tables as BackupTablesV3,
+            }
+          : {
+              schemaVersion: BACKUP_SCHEMA_VERSION_V4,
+              ...baseEnvelopeFields,
+              tables: tableArrays.tables as BackupTablesV4,
+            };
 
   const rowError = validateRows(backup.tables, schemaVersion);
   if (rowError) {
@@ -189,7 +205,10 @@ function validateSettings(settings: Record<string, unknown>): ValidateBackupResu
 
 function getTableArrays(
   tables: Record<string, unknown>,
-): { ok: true; tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3 } | { ok: false; error: ValidateBackupResult } {
+  schemaVersion: number,
+):
+  | { ok: true; tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3 | BackupTablesV4 }
+  | { ok: false; error: ValidateBackupResult } {
   const requiredTables: BackupTableName[] = [
     'mares',
     'stallions',
@@ -202,6 +221,9 @@ function getTableArrays(
     'semen_collections',
     'collection_dose_events',
   ];
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V4) {
+    requiredTables.push('uterine_fluid');
+  }
 
   for (const tableName of requiredTables) {
     if (!Array.isArray(tables[tableName])) {
@@ -214,12 +236,12 @@ function getTableArrays(
 
   return {
     ok: true,
-    tables: tables as unknown as BackupTablesV1 | BackupTablesV2 | BackupTablesV3,
+    tables: tables as unknown as BackupTablesV1 | BackupTablesV2 | BackupTablesV3 | BackupTablesV4,
   };
 }
 
 function validateRows(
-  tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3,
+  tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3 | BackupTablesV4,
   schemaVersion: number,
 ): ValidateBackupResult | null {
   for (let index = 0; index < tables.mares.length; index += 1) {
@@ -231,8 +253,15 @@ function validateRows(
     if (error) return error;
   }
   for (let index = 0; index < tables.daily_logs.length; index += 1) {
-    const error = validateDailyLogRow(tables.daily_logs[index], index);
+    const error = validateDailyLogRow(tables.daily_logs[index], index, schemaVersion);
     if (error) return error;
+  }
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V4) {
+    const uterineFluidRows = (tables as BackupTablesV4).uterine_fluid;
+    for (let index = 0; index < uterineFluidRows.length; index += 1) {
+      const error = validateUterineFluidRow(uterineFluidRows[index], index);
+      if (error) return error;
+    }
   }
   for (let index = 0; index < tables.breeding_records.length; index += 1) {
     const error = validateBreedingRecordRow(tables.breeding_records[index], index);
@@ -355,7 +384,11 @@ function validateStallionRow(row: unknown, rowIndex: number): ValidateBackupResu
   return null;
 }
 
-function validateDailyLogRow(row: unknown, rowIndex: number): ValidateBackupResult | null {
+function validateDailyLogRow(
+  row: unknown,
+  rowIndex: number,
+  schemaVersion: number,
+): ValidateBackupResult | null {
   if (!isRecord(row)) {
     return rowFailure('daily_logs', rowIndex, 'row', 'must be an object');
   }
@@ -376,9 +409,125 @@ function validateDailyLogRow(row: unknown, rowIndex: number): ValidateBackupResu
   }
   if (!isNullableString(row.uterine_tone)) return rowFailure('daily_logs', rowIndex, 'uterine_tone', 'must be a string or null');
   if (!isNullableString(row.uterine_cysts)) return rowFailure('daily_logs', rowIndex, 'uterine_cysts', 'must be a string or null');
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V4) {
+    if (!isNullableFlag(row.right_ovary_ovulation)) {
+      return rowFailure('daily_logs', rowIndex, 'right_ovary_ovulation', 'must be 0, 1, or null');
+    }
+    if (!isNullableStringEnum(row.right_ovary_follicle_state, FOLLICLE_STATES)) {
+      return rowFailure(
+        'daily_logs',
+        rowIndex,
+        'right_ovary_follicle_state',
+        'must be a supported follicle state or null',
+      );
+    }
+    if (typeof row.right_ovary_follicle_measurements_mm !== 'string') {
+      return rowFailure(
+        'daily_logs',
+        rowIndex,
+        'right_ovary_follicle_measurements_mm',
+        'must be a JSON-text string',
+      );
+    }
+    if (!isNullableStringEnum(row.right_ovary_consistency, OVARY_CONSISTENCIES)) {
+      return rowFailure(
+        'daily_logs',
+        rowIndex,
+        'right_ovary_consistency',
+        'must be a supported ovary consistency or null',
+      );
+    }
+    if (typeof row.right_ovary_structures !== 'string') {
+      return rowFailure(
+        'daily_logs',
+        rowIndex,
+        'right_ovary_structures',
+        'must be a JSON-text string',
+      );
+    }
+    if (!isNullableFlag(row.left_ovary_ovulation)) {
+      return rowFailure('daily_logs', rowIndex, 'left_ovary_ovulation', 'must be 0, 1, or null');
+    }
+    if (!isNullableStringEnum(row.left_ovary_follicle_state, FOLLICLE_STATES)) {
+      return rowFailure(
+        'daily_logs',
+        rowIndex,
+        'left_ovary_follicle_state',
+        'must be a supported follicle state or null',
+      );
+    }
+    if (typeof row.left_ovary_follicle_measurements_mm !== 'string') {
+      return rowFailure(
+        'daily_logs',
+        rowIndex,
+        'left_ovary_follicle_measurements_mm',
+        'must be a JSON-text string',
+      );
+    }
+    if (!isNullableStringEnum(row.left_ovary_consistency, OVARY_CONSISTENCIES)) {
+      return rowFailure(
+        'daily_logs',
+        rowIndex,
+        'left_ovary_consistency',
+        'must be a supported ovary consistency or null',
+      );
+    }
+    if (typeof row.left_ovary_structures !== 'string') {
+      return rowFailure(
+        'daily_logs',
+        rowIndex,
+        'left_ovary_structures',
+        'must be a JSON-text string',
+      );
+    }
+    if (!isNullableStringEnum(row.uterine_tone_category, UTERINE_TONE_CATEGORIES)) {
+      return rowFailure(
+        'daily_logs',
+        rowIndex,
+        'uterine_tone_category',
+        'must be a supported uterine tone category or null',
+      );
+    }
+    if (!isNullableStringEnum(row.cervical_firmness, CERVICAL_FIRMNESSES)) {
+      return rowFailure(
+        'daily_logs',
+        rowIndex,
+        'cervical_firmness',
+        'must be a supported cervical firmness value or null',
+      );
+    }
+    if (!isNullableFlag(row.discharge_observed)) {
+      return rowFailure('daily_logs', rowIndex, 'discharge_observed', 'must be 0, 1, or null');
+    }
+    if (!isNullableString(row.discharge_notes)) {
+      return rowFailure('daily_logs', rowIndex, 'discharge_notes', 'must be a string or null');
+    }
+  }
   if (!isNullableString(row.notes)) return rowFailure('daily_logs', rowIndex, 'notes', 'must be a string or null');
   if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
     return rowFailure('daily_logs', rowIndex, 'timestamps', 'created_at and updated_at are required');
+  }
+
+  return null;
+}
+
+function validateUterineFluidRow(row: unknown, rowIndex: number): ValidateBackupResult | null {
+  if (!isRecord(row)) {
+    return rowFailure('uterine_fluid', rowIndex, 'row', 'must be an object');
+  }
+
+  if (!isNonEmptyString(row.id)) return rowFailure('uterine_fluid', rowIndex, 'id', 'is required');
+  if (!isNonEmptyString(row.daily_log_id)) {
+    return rowFailure('uterine_fluid', rowIndex, 'daily_log_id', 'is required');
+  }
+  if (!(typeof row.depth_mm === 'number' && Number.isInteger(row.depth_mm) && row.depth_mm > 0)) {
+    return rowFailure('uterine_fluid', rowIndex, 'depth_mm', 'must be a positive integer');
+  }
+  if (!isStringEnum(row.location, FLUID_LOCATIONS)) {
+    return rowFailure('uterine_fluid', rowIndex, 'location', 'must be a supported fluid location');
+  }
+  if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
+    return rowFailure('uterine_fluid', rowIndex, 'timestamps', 'created_at and updated_at are required');
   }
 
   return null;
@@ -848,10 +997,11 @@ function validateIggTestsJson(value: string, rowIndex: number): ValidateBackupRe
 }
 
 function buildIndexes(
-  tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3,
+  tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3 | BackupTablesV4,
 ): ValidationIndexes {
   return {
     mareIds: new Set(tables.mares.map((row) => row.id)),
+    dailyLogIds: new Set(tables.daily_logs.map((row) => row.id)),
     stallionIds: new Set(tables.stallions.map((row) => row.id)),
     breedingById: new Map(tables.breeding_records.map((row) => [row.id, row])),
     foalingById: new Map(tables.foaling_records.map((row) => [row.id, row])),
@@ -860,7 +1010,7 @@ function buildIndexes(
 }
 
 function validateCrossTableRules(
-  tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3,
+  tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3 | BackupTablesV4,
   indexes: ValidationIndexes,
   schemaVersion: number,
 ): ValidateBackupResult | null {
@@ -874,7 +1024,13 @@ function validateCrossTableRules(
     ensureUniqueIds('foals', tables.foals.map((row) => row.id)) ??
     ensureUniqueIds('medication_logs', tables.medication_logs.map((row) => row.id)) ??
     ensureUniqueIds('semen_collections', tables.semen_collections.map((row) => row.id)) ??
-    ensureUniqueIds('collection_dose_events', tables.collection_dose_events.map((row) => row.id));
+    ensureUniqueIds('collection_dose_events', tables.collection_dose_events.map((row) => row.id)) ??
+    (schemaVersion >= BACKUP_SCHEMA_VERSION_V4
+      ? ensureUniqueIds(
+          'uterine_fluid',
+          (tables as BackupTablesV4).uterine_fluid.map((row) => row.id),
+        )
+      : null);
   if (idError) return idError;
 
   const dailyLogPairSet = new Set<string>();
@@ -983,6 +1139,16 @@ function validateCrossTableRules(
         'breeding_record_id',
         'references missing breeding record',
       );
+    }
+  }
+
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V4) {
+    const uterineFluidRows = (tables as BackupTablesV4).uterine_fluid;
+    for (let index = 0; index < uterineFluidRows.length; index += 1) {
+      const row = uterineFluidRows[index];
+      if (!indexes.dailyLogIds.has(row.daily_log_id)) {
+        return rowFailure('uterine_fluid', index, 'daily_log_id', 'references missing daily log');
+      }
     }
   }
 

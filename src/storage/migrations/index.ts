@@ -795,6 +795,104 @@ END
 WHERE target_mode IS NULL;
 `;
 
+const migration021 = `
+ALTER TABLE daily_logs
+  ADD COLUMN right_ovary_ovulation INTEGER
+  CHECK (right_ovary_ovulation IS NULL OR right_ovary_ovulation IN (0, 1));
+
+ALTER TABLE daily_logs
+  ADD COLUMN right_ovary_follicle_state TEXT
+  CHECK (
+    right_ovary_follicle_state IS NULL
+    OR right_ovary_follicle_state IN (
+      'notVisualized',
+      'small',
+      'medium',
+      'large',
+      'measured',
+      'postOvulatory'
+    )
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN right_ovary_follicle_measurements_mm TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE daily_logs
+  ADD COLUMN right_ovary_consistency TEXT
+  CHECK (
+    right_ovary_consistency IS NULL
+    OR right_ovary_consistency IN ('soft', 'moderate', 'firm', 'veryFirm')
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN right_ovary_structures TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE daily_logs
+  ADD COLUMN left_ovary_ovulation INTEGER
+  CHECK (left_ovary_ovulation IS NULL OR left_ovary_ovulation IN (0, 1));
+
+ALTER TABLE daily_logs
+  ADD COLUMN left_ovary_follicle_state TEXT
+  CHECK (
+    left_ovary_follicle_state IS NULL
+    OR left_ovary_follicle_state IN (
+      'notVisualized',
+      'small',
+      'medium',
+      'large',
+      'measured',
+      'postOvulatory'
+    )
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN left_ovary_follicle_measurements_mm TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE daily_logs
+  ADD COLUMN left_ovary_consistency TEXT
+  CHECK (
+    left_ovary_consistency IS NULL
+    OR left_ovary_consistency IN ('soft', 'moderate', 'firm', 'veryFirm')
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN left_ovary_structures TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE daily_logs
+  ADD COLUMN uterine_tone_category TEXT
+  CHECK (
+    uterine_tone_category IS NULL
+    OR uterine_tone_category IN ('flaccid', 'moderate', 'tight')
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN cervical_firmness TEXT
+  CHECK (
+    cervical_firmness IS NULL
+    OR cervical_firmness IN ('soft', 'moderate', 'firm', 'closed')
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN discharge_observed INTEGER
+  CHECK (discharge_observed IS NULL OR discharge_observed IN (0, 1));
+
+ALTER TABLE daily_logs
+  ADD COLUMN discharge_notes TEXT;
+
+CREATE TABLE IF NOT EXISTS uterine_fluid (
+  id TEXT PRIMARY KEY,
+  daily_log_id TEXT NOT NULL REFERENCES daily_logs(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  depth_mm INTEGER NOT NULL CHECK (depth_mm > 0),
+  location TEXT NOT NULL
+    CHECK (location IN ('leftHorn', 'rightHorn', 'bothHorns', 'uterineBody', 'bifurcation')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_uterine_fluid_daily_log_id
+  ON uterine_fluid (daily_log_id, created_at DESC);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -940,6 +1038,28 @@ const migrations: Migration[] = [
     name: '020_collection_target_mode',
     statements: splitStatements(migration020),
     shouldSkip: async (db) => hasColumn(db, 'semen_collections', 'target_mode'),
+  },
+  {
+    id: 21,
+    name: '021_daily_log_wizard',
+    statements: splitStatements(migration021),
+    shouldSkip: async (db) =>
+      (await hasColumn(db, 'daily_logs', 'right_ovary_ovulation')) &&
+      (await hasColumn(db, 'daily_logs', 'right_ovary_follicle_state')) &&
+      (await hasColumn(db, 'daily_logs', 'right_ovary_follicle_measurements_mm')) &&
+      (await hasColumn(db, 'daily_logs', 'right_ovary_consistency')) &&
+      (await hasColumn(db, 'daily_logs', 'right_ovary_structures')) &&
+      (await hasColumn(db, 'daily_logs', 'left_ovary_ovulation')) &&
+      (await hasColumn(db, 'daily_logs', 'left_ovary_follicle_state')) &&
+      (await hasColumn(db, 'daily_logs', 'left_ovary_follicle_measurements_mm')) &&
+      (await hasColumn(db, 'daily_logs', 'left_ovary_consistency')) &&
+      (await hasColumn(db, 'daily_logs', 'left_ovary_structures')) &&
+      (await hasColumn(db, 'daily_logs', 'uterine_tone_category')) &&
+      (await hasColumn(db, 'daily_logs', 'cervical_firmness')) &&
+      (await hasColumn(db, 'daily_logs', 'discharge_observed')) &&
+      (await hasColumn(db, 'daily_logs', 'discharge_notes')) &&
+      (await tableExists(db, 'uterine_fluid')) &&
+      (await indexExists(db, 'idx_uterine_fluid_daily_log_id')),
   },
 ];
 
@@ -1184,6 +1304,18 @@ async function tableExists(
   const row = await db.getFirstAsync<{ name: string }>(
     "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?;",
     [tableName],
+  );
+
+  return row != null;
+}
+
+async function indexExists(
+  db: SQLite.SQLiteDatabase,
+  indexName: string,
+): Promise<boolean> {
+  const row = await db.getFirstAsync<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?;",
+    [indexName],
   );
 
   return row != null;

@@ -17,6 +17,9 @@ function createFakeDb(options: {
   hasSemenCollectionsShippedColumn?: boolean;
   semenCollectionsColumns?: string[];
   collectionDoseEventColumns?: string[];
+  dailyLogsColumns?: string[];
+  hasUterineFluidTable?: boolean;
+  hasUterineFluidIndex?: boolean;
   failDropBreedingRecordsWhenForeignKeysEnabled?: boolean;
   invalidStallionDateOfBirthId?: string;
   invalidExtenderVolumeCollectionId?: string;
@@ -192,6 +195,17 @@ function createFakeDb(options: {
         if (tableName === 'semen_collections_old' && options.hasSemenCollectionsOld) {
           return { name: tableName } as T;
         }
+        if (tableName === 'uterine_fluid' && (options.hasUterineFluidTable ?? true)) {
+          return { name: tableName } as T;
+        }
+        return null;
+      }
+
+      if (trimmed === "SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?;") {
+        const [indexName] = params as [string];
+        if (indexName === 'idx_uterine_fluid_daily_log_id' && (options.hasUterineFluidIndex ?? true)) {
+          return { name: indexName } as T;
+        }
         return null;
       }
 
@@ -233,6 +247,38 @@ function createFakeDb(options: {
           'notes',
           'created_at',
           'updated_at',
+        ];
+        return columns.map((name) => ({ name } as T));
+      }
+      if (trimmed === 'PRAGMA table_info(daily_logs);') {
+        const columns = options.dailyLogsColumns ?? [
+          'id',
+          'mare_id',
+          'date',
+          'teasing_score',
+          'right_ovary',
+          'left_ovary',
+          'ovulation_detected',
+          'edema',
+          'uterine_tone',
+          'uterine_cysts',
+          'notes',
+          'created_at',
+          'updated_at',
+          'right_ovary_ovulation',
+          'right_ovary_follicle_state',
+          'right_ovary_follicle_measurements_mm',
+          'right_ovary_consistency',
+          'right_ovary_structures',
+          'left_ovary_ovulation',
+          'left_ovary_follicle_state',
+          'left_ovary_follicle_measurements_mm',
+          'left_ovary_consistency',
+          'left_ovary_structures',
+          'uterine_tone_category',
+          'cervical_firmness',
+          'discharge_observed',
+          'discharge_notes',
         ];
         return columns.map((name) => ({ name } as T));
       }
@@ -461,6 +507,71 @@ describe('applyMigrations', () => {
     expect(runCalls.some(({ params }) => params[0] === 20)).toBe(true);
   });
 
+  it('adds structured daily log columns and uterine_fluid table in migration021', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 20 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY
+        )
+      `,
+      dailyLogsColumns: [
+        'id',
+        'mare_id',
+        'date',
+        'teasing_score',
+        'right_ovary',
+        'left_ovary',
+        'ovulation_detected',
+        'edema',
+        'uterine_tone',
+        'uterine_cysts',
+        'notes',
+        'created_at',
+        'updated_at',
+      ],
+      hasUterineFluidTable: false,
+      hasUterineFluidIndex: false,
+    });
+
+    await applyMigrations(db as never);
+
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('ADD COLUMN right_ovary_follicle_measurements_mm TEXT NOT NULL DEFAULT'),
+      ),
+    ).toBe(true);
+    expect(
+      execCalls.some((sql) => sql.includes('ADD COLUMN uterine_tone_category TEXT')),
+    ).toBe(true);
+    expect(
+      execCalls.some((sql) => sql.includes('ADD COLUMN discharge_observed INTEGER')),
+    ).toBe(true);
+    expect(execCalls.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS uterine_fluid'))).toBe(
+      true,
+    );
+    expect(
+      execCalls.some((sql) => sql.includes('CREATE INDEX IF NOT EXISTS idx_uterine_fluid_daily_log_id')),
+    ).toBe(true);
+    expect(runCalls.some(({ params }) => params[0] === 21)).toBe(true);
+  });
+
+  it('skips migration021 when daily-log structured columns and uterine_fluid artifacts already exist', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 20 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY
+        )
+      `,
+    });
+
+    await applyMigrations(db as never);
+
+    expect(execCalls).toHaveLength(1);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([21]);
+  });
+
   it('skips migration019 when target and dose volume columns already exist', async () => {
     const { db, execCalls, runCalls } = createFakeDb({
       appliedMigrationIds: Array.from({ length: 18 }, (_, index) => index + 1),
@@ -511,7 +622,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20, 21]);
   });
 
   it('skips the repair migration when breeding_records already references semen_collections', async () => {
@@ -550,7 +661,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20, 21]);
   });
 
   it('runs the repair migration when the legacy table still exists even if breeding_records already looks correct', async () => {
@@ -691,7 +802,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20, 21]);
   });
 
   it('rebuilds stallions and semen_collections when canonical constraint checks are missing', async () => {
@@ -793,7 +904,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE stallions_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20, 21]);
   });
 
   it('fails the canonical repair migration with a targeted error when legacy stallion rows are invalid', async () => {

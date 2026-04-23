@@ -1,6 +1,7 @@
 ﻿export * from './mares';
 export * from './stallions';
 export * from './dailyLogs';
+export * from './uterineFluid';
 export * from './breedingRecords';
 export * from './pregnancyChecks';
 export * from './foalingRecords';

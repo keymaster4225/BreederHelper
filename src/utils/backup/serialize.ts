@@ -6,7 +6,7 @@ import {
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV3,
+  type BackupEnvelopeV4,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
   type BackupMareRow,
@@ -14,6 +14,7 @@ import {
   type BackupPregnancyCheckRow,
   type BackupSemenCollectionRowV3,
   type BackupStallionRow,
+  type BackupUterineFluidRow,
 } from './types';
 
 type AppJsonShape = {
@@ -28,13 +29,14 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV3> {
+export async function serializeBackup(): Promise<BackupEnvelopeV4> {
   const db = await getDb();
 
   const [
     mares,
     stallions,
     dailyLogs,
+    uterineFluid,
     breedingRecords,
     pregnancyChecks,
     foalingRecords,
@@ -97,11 +99,38 @@ export async function serializeBackup(): Promise<BackupEnvelopeV3> {
         edema,
         uterine_tone,
         uterine_cysts,
+        right_ovary_ovulation,
+        right_ovary_follicle_state,
+        right_ovary_follicle_measurements_mm,
+        right_ovary_consistency,
+        right_ovary_structures,
+        left_ovary_ovulation,
+        left_ovary_follicle_state,
+        left_ovary_follicle_measurements_mm,
+        left_ovary_consistency,
+        left_ovary_structures,
+        uterine_tone_category,
+        cervical_firmness,
+        discharge_observed,
+        discharge_notes,
         notes,
         created_at,
         updated_at
       FROM daily_logs
       ORDER BY date DESC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupUterineFluidRow>(
+      `
+      SELECT
+        id,
+        daily_log_id,
+        depth_mm,
+        location,
+        created_at,
+        updated_at
+      FROM uterine_fluid
+      ORDER BY created_at DESC, id ASC;
       `,
     ),
     db.getAllAsync<BackupBreedingRecordRow>(
@@ -260,6 +289,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV3> {
       mares,
       stallions,
       daily_logs: dailyLogs,
+      uterine_fluid: uterineFluid,
       breeding_records: breedingRecords,
       pregnancy_checks: pregnancyChecks,
       foaling_records: foalingRecords,

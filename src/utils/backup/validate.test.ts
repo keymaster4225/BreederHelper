@@ -17,6 +17,7 @@ describe('validateBackup', () => {
     expect(result.preview.mareCount).toBe(1);
     expect(result.preview.dailyLogCount).toBe(1);
     expect(result.preview.onboardingComplete).toBe(true);
+    expect(result.preview.schemaVersion).toBe(4);
   });
 
   it('accepts v1 backups without gestation length on mare rows', () => {
@@ -158,6 +159,99 @@ describe('validateBackup', () => {
     });
 
     expect(result.ok).toBe(true);
+  });
+
+  it('rejects invalid v4 daily log follicle-state enums', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        daily_logs: backup.tables.daily_logs.map((row, index) =>
+          index === 0 ? { ...row, right_ovary_follicle_state: 'huge' } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('daily_logs');
+    expect(result.error.field).toBe('right_ovary_follicle_state');
+  });
+
+  it('rejects v4 daily log JSON-text fields when stored as arrays', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        daily_logs: backup.tables.daily_logs.map((row, index) =>
+          index === 0
+            ? {
+                ...row,
+                right_ovary_follicle_measurements_mm: [35],
+                left_ovary_structures: ['corpusLuteum'],
+              }
+            : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('daily_logs');
+    expect(['right_ovary_follicle_measurements_mm', 'left_ovary_structures']).toContain(
+      result.error.field,
+    );
+  });
+
+  it('rejects uterine fluid rows with invalid depth or location', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        uterine_fluid: backup.tables.uterine_fluid.map((row, index) =>
+          index === 0 ? { ...row, depth_mm: 0, location: 'upperHorn' } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('uterine_fluid');
+    expect(['depth_mm', 'location']).toContain(result.error.field);
+  });
+
+  it('requires uterine fluid rows to reference existing daily logs', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        uterine_fluid: backup.tables.uterine_fluid.map((row, index) =>
+          index === 0 ? { ...row, daily_log_id: 'missing-log' } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('uterine_fluid');
+    expect(result.error.field).toBe('daily_log_id');
+    expect(result.error.message).toContain('references missing daily log');
   });
 
   it('requires collection dose events to reference an existing breeding record when provided', () => {
@@ -370,7 +464,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 4,
+      schemaVersion: 5,
     });
 
     const result = validateBackupJson(jsonText);

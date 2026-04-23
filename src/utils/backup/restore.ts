@@ -4,13 +4,15 @@ import { DEFAULT_GESTATION_LENGTH_DAYS } from '@/models/types';
 import { setOnboardingCompleteValue } from '@/utils/onboarding';
 
 import { createSafetySnapshot } from './safetyBackups';
-import { BACKUP_SCHEMA_VERSION_V3 } from './types';
+import { BACKUP_SCHEMA_VERSION_V3, BACKUP_SCHEMA_VERSION_V4 } from './types';
 import type {
   BackupCollectionDoseEventRowV2,
   BackupCollectionDoseEventRowV3,
   BackupBreedingRecordRow,
+  BackupDailyLogRowLegacy,
   BackupDailyLogRow,
   BackupEnvelope,
+  BackupEnvelopeV4,
   BackupFoalingRecordRow,
   BackupFoalRow,
   BackupMareRowV1,
@@ -20,6 +22,7 @@ import type {
   BackupSemenCollectionRowV2,
   BackupSemenCollectionRowV3,
   BackupStallionRow,
+  BackupUterineFluidRow,
   RestoreBackupResult,
 } from './types';
 import { validateBackup, validateBackupJson } from './validate';
@@ -31,6 +34,7 @@ type RestoreOptions = {
 
 const LEGACY_USED_ON_SITE_COLLAPSE_NOTE =
   'Legacy migration: collapsed used-on-site dose count to 1 during collection volume rework.';
+const EMPTY_JSON_ARRAY_TEXT = '[]';
 
 type NormalizedBackupForRestore = {
   readonly settings: {
@@ -42,6 +46,7 @@ type NormalizedBackupForRestore = {
     readonly semen_collections: readonly BackupSemenCollectionRowV3[];
     readonly breeding_records: readonly BackupBreedingRecordRow[];
     readonly daily_logs: readonly BackupDailyLogRow[];
+    readonly uterine_fluid: readonly BackupUterineFluidRow[];
     readonly medication_logs: readonly BackupMedicationLogRow[];
     readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
     readonly foaling_records: readonly BackupFoalingRecordRow[];
@@ -111,6 +116,7 @@ async function deleteManagedTables(db: Awaited<ReturnType<typeof getDb>>): Promi
   await db.runAsync('DELETE FROM collection_dose_events;');
   await db.runAsync('DELETE FROM foals;');
   await db.runAsync('DELETE FROM pregnancy_checks;');
+  await db.runAsync('DELETE FROM uterine_fluid;');
   await db.runAsync('DELETE FROM foaling_records;');
   await db.runAsync('DELETE FROM medication_logs;');
   await db.runAsync('DELETE FROM daily_logs;');
@@ -138,6 +144,9 @@ async function insertManagedTables(
   }
   for (const row of backup.tables.daily_logs) {
     await insertDailyLog(db, row);
+  }
+  for (const row of backup.tables.uterine_fluid) {
+    await insertUterineFluid(db, row);
   }
   for (const row of backup.tables.medication_logs) {
     await insertMedicationLog(db, row);
@@ -349,10 +358,24 @@ async function insertDailyLog(
       edema,
       uterine_tone,
       uterine_cysts,
+      right_ovary_ovulation,
+      right_ovary_follicle_state,
+      right_ovary_follicle_measurements_mm,
+      right_ovary_consistency,
+      right_ovary_structures,
+      left_ovary_ovulation,
+      left_ovary_follicle_state,
+      left_ovary_follicle_measurements_mm,
+      left_ovary_consistency,
+      left_ovary_structures,
+      uterine_tone_category,
+      cervical_firmness,
+      discharge_observed,
+      discharge_notes,
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
@@ -365,10 +388,43 @@ async function insertDailyLog(
       row.edema,
       row.uterine_tone,
       row.uterine_cysts,
+      row.right_ovary_ovulation,
+      row.right_ovary_follicle_state,
+      row.right_ovary_follicle_measurements_mm,
+      row.right_ovary_consistency,
+      row.right_ovary_structures,
+      row.left_ovary_ovulation,
+      row.left_ovary_follicle_state,
+      row.left_ovary_follicle_measurements_mm,
+      row.left_ovary_consistency,
+      row.left_ovary_structures,
+      row.uterine_tone_category,
+      row.cervical_firmness,
+      row.discharge_observed,
+      row.discharge_notes,
       row.notes,
       row.created_at,
       row.updated_at,
     ],
+  );
+}
+
+async function insertUterineFluid(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupUterineFluidRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO uterine_fluid (
+      id,
+      daily_log_id,
+      depth_mm,
+      location,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?);
+    `,
+    [row.id, row.daily_log_id, row.depth_mm, row.location, row.created_at, row.updated_at],
   );
 }
 
@@ -560,28 +616,60 @@ async function insertCollectionDoseEvent(
 }
 
 function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForRestore {
-  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V3) {
-    return backup as NormalizedBackupForRestore;
+  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V4) {
+    return backup as BackupEnvelopeV4;
   }
+
+  const semenCollections: readonly BackupSemenCollectionRowV3[] =
+    backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V3
+      ? (backup.tables.semen_collections as readonly BackupSemenCollectionRowV3[])
+      : backup.tables.semen_collections.map((row) =>
+          normalizeLegacySemenCollectionRow(row as BackupSemenCollectionRowV2),
+        );
+  const collectionDoseEvents: readonly BackupCollectionDoseEventRowV3[] =
+    backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V3
+      ? (backup.tables.collection_dose_events as readonly BackupCollectionDoseEventRowV3[])
+      : backup.tables.collection_dose_events.map((row) =>
+          normalizeLegacyCollectionDoseEventRow(row as BackupCollectionDoseEventRowV2),
+        );
 
   return {
     settings: backup.settings,
     tables: {
       mares: backup.tables.mares,
       stallions: backup.tables.stallions,
-      semen_collections: backup.tables.semen_collections.map((row) =>
-        normalizeLegacySemenCollectionRow(row as BackupSemenCollectionRowV2),
-      ),
+      semen_collections: semenCollections,
       breeding_records: backup.tables.breeding_records,
-      daily_logs: backup.tables.daily_logs,
+      daily_logs: backup.tables.daily_logs.map((row) =>
+        normalizeLegacyDailyLogRow(row as BackupDailyLogRowLegacy),
+      ),
+      uterine_fluid: [],
       medication_logs: backup.tables.medication_logs,
       pregnancy_checks: backup.tables.pregnancy_checks,
       foaling_records: backup.tables.foaling_records,
       foals: backup.tables.foals,
-      collection_dose_events: backup.tables.collection_dose_events.map((row) =>
-        normalizeLegacyCollectionDoseEventRow(row as BackupCollectionDoseEventRowV2),
-      ),
+      collection_dose_events: collectionDoseEvents,
     },
+  };
+}
+
+function normalizeLegacyDailyLogRow(row: BackupDailyLogRowLegacy): BackupDailyLogRow {
+  return {
+    ...row,
+    right_ovary_ovulation: null,
+    right_ovary_follicle_state: null,
+    right_ovary_follicle_measurements_mm: EMPTY_JSON_ARRAY_TEXT,
+    right_ovary_consistency: null,
+    right_ovary_structures: EMPTY_JSON_ARRAY_TEXT,
+    left_ovary_ovulation: null,
+    left_ovary_follicle_state: null,
+    left_ovary_follicle_measurements_mm: EMPTY_JSON_ARRAY_TEXT,
+    left_ovary_consistency: null,
+    left_ovary_structures: EMPTY_JSON_ARRAY_TEXT,
+    uterine_tone_category: null,
+    cervical_firmness: null,
+    discharge_observed: null,
+    discharge_notes: null,
   };
 }
 

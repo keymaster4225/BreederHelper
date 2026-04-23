@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  formatCervicalFirmness,
   formatBreedingMethod,
   formatDoseEventType,
+  formatFluidLocation,
+  formatFollicleState,
   formatFoalColor,
   formatFoalSex,
+  formatOvaryConsistency,
+  formatOvaryStructure,
   formatOutcome,
+  formatUterineToneCategory,
 } from './outcomeDisplay';
 
 describe('outcomeDisplay', () => {
@@ -15,6 +21,12 @@ describe('outcomeDisplay', () => {
     expect(formatOutcome('unknown')).toBe('Unknown');
     expect(formatFoalColor('pintoPaint')).toBe('Pinto/Paint');
     expect(formatFoalSex('filly')).toBe('Filly');
+    expect(formatFollicleState('measured')).toBe('Measured');
+    expect(formatOvaryConsistency('firm')).toBe('Firm');
+    expect(formatOvaryStructure('corpusLuteum')).toBe('Corpus Luteum');
+    expect(formatUterineToneCategory('tight')).toBe('Tight');
+    expect(formatCervicalFirmness('closed')).toBe('Closed');
+    expect(formatFluidLocation('leftHorn')).toBe('Left Horn');
   });
 
   it('preserves fallback behavior for unexpected strings', () => {
