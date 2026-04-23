@@ -13,7 +13,6 @@ describe('daily log wizard mappers', () => {
       id: 'log-1',
       mareId: 'mare-1',
       date: '2026-04-01',
-      time: null,
       teasingScore: 3,
       rightOvary: 'legacy right',
       leftOvary: 'legacy left',
