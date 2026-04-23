@@ -2,8 +2,8 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 
-const MANUAL_BACKUP_PREFIX = 'breedwise-backup-v1-';
-const SAFETY_BACKUP_PREFIX = 'breedwise-safety-backup-v1-';
+const MANUAL_BACKUP_PREFIX = 'breedwise-backup-v5-';
+const SAFETY_BACKUP_PREFIX = 'breedwise-safety-backup-v5-';
 const JSON_EXTENSION = '.json';
 
 export type PickedBackupFile =

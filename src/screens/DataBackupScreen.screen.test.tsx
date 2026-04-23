@@ -13,11 +13,11 @@ const mockUseDataBackup = useDataBackup as jest.MockedFunction<typeof useDataBac
 
 function createSnapshot(overrides: Partial<SafetySnapshotSummary> = {}): SafetySnapshotSummary {
   return {
-    fileName: 'breedwise-safety-backup-v1-20260416-120000.json',
-    fileUri: 'file:///safety/breedwise-safety-backup-v1-20260416-120000.json',
+    fileName: 'breedwise-safety-backup-v5-20260416-120000.json',
+    fileUri: 'file:///safety/breedwise-safety-backup-v5-20260416-120000.json',
     createdAt: '2026-04-16T12:00:00.000Z',
     mareCount: 4,
-    schemaVersion: 1,
+    schemaVersion: 5,
     ...overrides,
   };
 }
@@ -33,8 +33,8 @@ function buildHookState(overrides: Partial<ReturnType<typeof useDataBackup>> = {
     refreshSafetySnapshots: jest.fn(),
     createBackup: jest.fn().mockResolvedValue({
       ok: true,
-      fileName: 'breedwise-backup-v1-20260416-120000.json',
-      fileUri: 'file:///manual/breedwise-backup-v1-20260416-120000.json',
+      fileName: 'breedwise-backup-v5-20260416-120000.json',
+      fileUri: 'file:///manual/breedwise-backup-v5-20260416-120000.json',
       shared: true,
     }),
     prepareRestoreFromPickedFile: jest.fn().mockResolvedValue({ ok: true }),
@@ -108,7 +108,7 @@ it('wires backup creation and file restore actions', async () => {
   await waitFor(() =>
     expect(Alert.alert).toHaveBeenCalledWith(
       'Backup created',
-      expect.stringContaining('breedwise-backup-v1-20260416-120000.json'),
+      expect.stringContaining('breedwise-backup-v5-20260416-120000.json'),
     ),
   );
 

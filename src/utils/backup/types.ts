@@ -20,7 +20,8 @@ export const BACKUP_SCHEMA_VERSION_V1 = 1 as const;
 export const BACKUP_SCHEMA_VERSION_V2 = 2 as const;
 export const BACKUP_SCHEMA_VERSION_V3 = 3 as const;
 export const BACKUP_SCHEMA_VERSION_V4 = 4 as const;
-export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V4;
+export const BACKUP_SCHEMA_VERSION_V5 = 5 as const;
+export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V5;
 
 export const BACKUP_TABLE_NAMES = [
   'mares',
@@ -400,6 +401,21 @@ export type BackupTablesV4 = {
   readonly medication_logs: readonly BackupMedicationLogRow[];
   readonly semen_collections: readonly BackupSemenCollectionRowV3[];
   readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
+  readonly frozen_semen_batches?: readonly BackupFrozenSemenBatchRow[];
+};
+
+export type BackupTablesV5 = {
+  readonly mares: readonly BackupMareRowV2[];
+  readonly stallions: readonly BackupStallionRow[];
+  readonly daily_logs: readonly BackupDailyLogRow[];
+  readonly uterine_fluid: readonly BackupUterineFluidRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
+  readonly foaling_records: readonly BackupFoalingRecordRow[];
+  readonly foals: readonly BackupFoalRow[];
+  readonly medication_logs: readonly BackupMedicationLogRow[];
+  readonly semen_collections: readonly BackupSemenCollectionRowV3[];
+  readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
   readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
 };
 
@@ -435,11 +451,20 @@ export type BackupEnvelopeV4 = {
   readonly tables: BackupTablesV4;
 };
 
+export type BackupEnvelopeV5 = {
+  readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V5;
+  readonly createdAt: BackupIsoDateTime;
+  readonly app: BackupAppMetadata;
+  readonly settings: BackupSettings;
+  readonly tables: BackupTablesV5;
+};
+
 export type BackupEnvelope =
   | BackupEnvelopeV1
   | BackupEnvelopeV2
   | BackupEnvelopeV3
-  | BackupEnvelopeV4;
+  | BackupEnvelopeV4
+  | BackupEnvelopeV5;
 
 export type BackupPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;

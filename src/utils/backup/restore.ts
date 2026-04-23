@@ -4,7 +4,11 @@ import { DEFAULT_GESTATION_LENGTH_DAYS } from '@/models/types';
 import { setOnboardingCompleteValue } from '@/utils/onboarding';
 
 import { createSafetySnapshot } from './safetyBackups';
-import { BACKUP_SCHEMA_VERSION_V3, BACKUP_SCHEMA_VERSION_V4 } from './types';
+import {
+  BACKUP_SCHEMA_VERSION_V3,
+  BACKUP_SCHEMA_VERSION_V4,
+  BACKUP_SCHEMA_VERSION_V5,
+} from './types';
 import type {
   BackupCollectionDoseEventRowV2,
   BackupCollectionDoseEventRowV3,
@@ -13,8 +17,10 @@ import type {
   BackupDailyLogRow,
   BackupEnvelope,
   BackupEnvelopeV4,
+  BackupEnvelopeV5,
   BackupFoalingRecordRow,
   BackupFoalRow,
+  BackupFrozenSemenBatchRow,
   BackupMareRowV1,
   BackupMareRowV2,
   BackupMedicationLogRow,
@@ -52,6 +58,7 @@ type NormalizedBackupForRestore = {
     readonly foaling_records: readonly BackupFoalingRecordRow[];
     readonly foals: readonly BackupFoalRow[];
     readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
+    readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
   };
 };
 
@@ -114,6 +121,7 @@ export async function restoreBackup(
 
 async function deleteManagedTables(db: Awaited<ReturnType<typeof getDb>>): Promise<void> {
   await db.runAsync('DELETE FROM collection_dose_events;');
+  await db.runAsync('DELETE FROM frozen_semen_batches;');
   await db.runAsync('DELETE FROM foals;');
   await db.runAsync('DELETE FROM pregnancy_checks;');
   await db.runAsync('DELETE FROM uterine_fluid;');
@@ -138,6 +146,9 @@ async function insertManagedTables(
   }
   for (const row of backup.tables.semen_collections) {
     await insertSemenCollection(db, row);
+  }
+  for (const row of backup.tables.frozen_semen_batches) {
+    await insertFrozenSemenBatch(db, row);
   }
   for (const row of backup.tables.breeding_records) {
     await insertBreedingRecord(db, row);
@@ -286,6 +297,76 @@ async function insertSemenCollection(
       normalizedTargetMode,
       row.target_motile_sperm_millions_per_dose,
       row.target_post_extension_concentration_millions_per_ml,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertFrozenSemenBatch(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupFrozenSemenBatchRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO frozen_semen_batches (
+      id,
+      stallion_id,
+      collection_id,
+      freeze_date,
+      raw_semen_volume_used_ml,
+      extender,
+      extender_other,
+      was_centrifuged,
+      centrifuge_speed_rpm,
+      centrifuge_duration_min,
+      centrifuge_cushion_used,
+      centrifuge_cushion_type,
+      centrifuge_resuspension_vol_ml,
+      centrifuge_notes,
+      straw_count,
+      straws_remaining,
+      straw_volume_ml,
+      concentration_millions_per_ml,
+      straws_per_dose,
+      straw_color,
+      straw_color_other,
+      straw_label,
+      post_thaw_motility_percent,
+      longevity_hours,
+      storage_details,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.stallion_id,
+      row.collection_id,
+      row.freeze_date,
+      row.raw_semen_volume_used_ml,
+      row.extender,
+      row.extender_other,
+      row.was_centrifuged,
+      row.centrifuge_speed_rpm,
+      row.centrifuge_duration_min,
+      row.centrifuge_cushion_used,
+      row.centrifuge_cushion_type,
+      row.centrifuge_resuspension_vol_ml,
+      row.centrifuge_notes,
+      row.straw_count,
+      row.straws_remaining,
+      row.straw_volume_ml,
+      row.concentration_millions_per_ml,
+      row.straws_per_dose,
+      row.straw_color,
+      row.straw_color_other,
+      row.straw_label,
+      row.post_thaw_motility_percent,
+      row.longevity_hours,
+      row.storage_details,
       row.notes,
       row.created_at,
       row.updated_at,
@@ -616,8 +697,8 @@ async function insertCollectionDoseEvent(
 }
 
 function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForRestore {
-  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V4) {
-    return backup as BackupEnvelopeV4;
+  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V5) {
+    return backup as BackupEnvelopeV5;
   }
 
   const semenCollections: readonly BackupSemenCollectionRowV3[] =
@@ -632,6 +713,16 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
       : backup.tables.collection_dose_events.map((row) =>
           normalizeLegacyCollectionDoseEventRow(row as BackupCollectionDoseEventRowV2),
         );
+  const dailyLogs: readonly BackupDailyLogRow[] =
+    backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V4
+      ? (backup.tables.daily_logs as readonly BackupDailyLogRow[])
+      : backup.tables.daily_logs.map((row) =>
+          normalizeLegacyDailyLogRow(row as BackupDailyLogRowLegacy),
+        );
+  const uterineFluid: readonly BackupUterineFluidRow[] =
+    backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V4
+      ? (backup as BackupEnvelopeV4).tables.uterine_fluid
+      : [];
 
   return {
     settings: backup.settings,
@@ -640,15 +731,14 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
       stallions: backup.tables.stallions,
       semen_collections: semenCollections,
       breeding_records: backup.tables.breeding_records,
-      daily_logs: backup.tables.daily_logs.map((row) =>
-        normalizeLegacyDailyLogRow(row as BackupDailyLogRowLegacy),
-      ),
-      uterine_fluid: [],
+      daily_logs: dailyLogs,
+      uterine_fluid: uterineFluid,
       medication_logs: backup.tables.medication_logs,
       pregnancy_checks: backup.tables.pregnancy_checks,
       foaling_records: backup.tables.foaling_records,
       foals: backup.tables.foals,
       collection_dose_events: collectionDoseEvents,
+      frozen_semen_batches: [],
     },
   };
 }

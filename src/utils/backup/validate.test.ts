@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { cloneBackupFixture, createBackupFixtureV2 } from './testFixtures';
+import {
+  cloneBackupFixture,
+  createBackupFixtureV2,
+  createBackupFixtureV4,
+} from './testFixtures';
 import { validateBackup, validateBackupJson } from './validate';
 
 describe('validateBackup', () => {
@@ -17,7 +21,7 @@ describe('validateBackup', () => {
     expect(result.preview.mareCount).toBe(1);
     expect(result.preview.dailyLogCount).toBe(1);
     expect(result.preview.onboardingComplete).toBe(true);
-    expect(result.preview.schemaVersion).toBe(4);
+    expect(result.preview.schemaVersion).toBe(5);
   });
 
   it('accepts v1 backups without gestation length on mare rows', () => {
@@ -37,6 +41,38 @@ describe('validateBackup', () => {
     }
 
     expect(result.preview.schemaVersion).toBe(1);
+  });
+
+  it('accepts v4 backups without frozen semen batches', () => {
+    const backup = createBackupFixtureV4();
+
+    const result = validateBackup(backup);
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected backup to validate');
+    }
+
+    expect(result.preview.schemaVersion).toBe(4);
+  });
+
+  it('requires frozen semen batches in v5 backups', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        frozen_semen_batches: undefined,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.code).toBe('missing_key');
+    expect(result.error.message).toContain('tables.frozen_semen_batches');
   });
 
   it('rejects impossible calendar dates', () => {
@@ -464,7 +500,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 5,
+      schemaVersion: 6,
     });
 
     const result = validateBackupJson(jsonText);
@@ -518,5 +554,57 @@ describe('validateBackup', () => {
     expect(result.error.table).toBe('frozen_semen_batches');
     expect(result.error.field).toBe('collection_id');
     expect(result.error.message).toContain('references missing semen collection');
+  });
+
+  it('rejects frozen rows that reference missing stallions', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        frozen_semen_batches: backup.tables.frozen_semen_batches.map((row, index) =>
+          index === 0 ? { ...row, stallion_id: 'missing-stallion' } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('frozen_semen_batches');
+    expect(result.error.field).toBe('stallion_id');
+    expect(result.error.message).toContain('references missing stallion');
+  });
+
+  it('rejects frozen rows whose collection belongs to a different stallion', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        stallions: [
+          ...backup.tables.stallions,
+          {
+            ...backup.tables.stallions[0]!,
+            id: 'stallion-2',
+            name: 'Bolt',
+          },
+        ],
+        frozen_semen_batches: backup.tables.frozen_semen_batches.map((row, index) =>
+          index === 0 ? { ...row, stallion_id: 'stallion-2' } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('frozen_semen_batches');
+    expect(result.error.field).toBe('collection_id');
+    expect(result.error.message).toContain('belongs to a different stallion');
   });
 });

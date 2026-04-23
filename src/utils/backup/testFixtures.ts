@@ -2,13 +2,14 @@ import type {
   BackupEnvelopeV2,
   BackupEnvelopeV3,
   BackupEnvelopeV4,
+  BackupEnvelopeV5,
 } from './types';
 
 const BASE_TIMESTAMP = '2026-04-16T12:00:00.000Z';
 
-export function createBackupFixture(): BackupEnvelopeV4 {
+export function createBackupFixture(): BackupEnvelopeV5 {
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -256,12 +257,36 @@ export function createBackupFixture(): BackupEnvelopeV4 {
   };
 }
 
-export function cloneBackupFixture(): BackupEnvelopeV4 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV4;
+export function cloneBackupFixture(): BackupEnvelopeV5 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV5;
+}
+
+export function createBackupFixtureV4(): BackupEnvelopeV4 {
+  const backupV5 = createBackupFixture();
+
+  return {
+    schemaVersion: 4,
+    createdAt: backupV5.createdAt,
+    app: backupV5.app,
+    settings: backupV5.settings,
+    tables: {
+      mares: backupV5.tables.mares,
+      stallions: backupV5.tables.stallions,
+      daily_logs: backupV5.tables.daily_logs,
+      uterine_fluid: backupV5.tables.uterine_fluid,
+      breeding_records: backupV5.tables.breeding_records,
+      pregnancy_checks: backupV5.tables.pregnancy_checks,
+      foaling_records: backupV5.tables.foaling_records,
+      foals: backupV5.tables.foals,
+      medication_logs: backupV5.tables.medication_logs,
+      semen_collections: backupV5.tables.semen_collections,
+      collection_dose_events: backupV5.tables.collection_dose_events,
+    },
+  };
 }
 
 export function createBackupFixtureV3(): BackupEnvelopeV3 {
-  const backupV4 = createBackupFixture();
+  const backupV4 = createBackupFixtureV4();
 
   return {
     schemaVersion: 3,
@@ -297,7 +322,6 @@ export function createBackupFixtureV3(): BackupEnvelopeV3 {
       medication_logs: backupV4.tables.medication_logs,
       semen_collections: backupV4.tables.semen_collections,
       collection_dose_events: backupV4.tables.collection_dose_events,
-      frozen_semen_batches: backupV4.tables.frozen_semen_batches,
     },
   };
 }

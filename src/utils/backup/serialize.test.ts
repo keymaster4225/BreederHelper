@@ -216,6 +216,41 @@ describe('serializeBackup', () => {
           ];
         }
 
+        if (sql.includes('FROM frozen_semen_batches')) {
+          return [
+            {
+              id: 'frozen-1',
+              stallion_id: 'stallion-1',
+              collection_id: 'collection-1',
+              freeze_date: '2026-04-03',
+              raw_semen_volume_used_ml: 30,
+              extender: 'BotuCrio',
+              extender_other: null,
+              was_centrifuged: 1,
+              centrifuge_speed_rpm: 600,
+              centrifuge_duration_min: 10,
+              centrifuge_cushion_used: 0,
+              centrifuge_cushion_type: null,
+              centrifuge_resuspension_vol_ml: null,
+              centrifuge_notes: null,
+              straw_count: 20,
+              straws_remaining: 18,
+              straw_volume_ml: 0.5,
+              concentration_millions_per_ml: 200,
+              straws_per_dose: 4,
+              straw_color: 'Yellow',
+              straw_color_other: null,
+              straw_label: 'A1',
+              post_thaw_motility_percent: 45,
+              longevity_hours: 6,
+              storage_details: 'LN2 Tank 1',
+              notes: null,
+              created_at: '2026-04-03T00:00:00.000Z',
+              updated_at: '2026-04-03T00:00:00.000Z',
+            },
+          ];
+        }
+
         throw new Error(`Unexpected query: ${sql}`);
       }),
     };
@@ -226,7 +261,7 @@ describe('serializeBackup', () => {
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(4);
+    expect(backup.schemaVersion).toBe(5);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
     expect(backup.tables.mares[0]?.gestation_length_days).toBe(345);
@@ -248,6 +283,8 @@ describe('serializeBackup', () => {
     expect(
       backup.tables.semen_collections[0]?.target_motile_sperm_millions_per_dose,
     ).toBe(500);
-    expect(db.getAllAsync).toHaveBeenCalledTimes(11);
+    expect(backup.tables.frozen_semen_batches[0]?.id).toBe('frozen-1');
+    expect(backup.tables.frozen_semen_batches[0]?.extender).toBe('BotuCrio');
+    expect(db.getAllAsync).toHaveBeenCalledTimes(12);
   });
 });

@@ -9,9 +9,11 @@ import {
   FOAL_MILESTONE_KEYS as FOAL_MILESTONE_VALUE_KEYS,
   FOAL_SEX_VALUES,
   FOALING_OUTCOME_VALUES,
+  FREEZING_EXTENDER_VALUES,
   MEDICATION_ROUTE_VALUES,
   OVARY_CONSISTENCY_VALUES,
   PREGNANCY_RESULT_VALUES,
+  STRAW_COLOR_VALUES,
   UTERINE_TONE_CATEGORY_VALUES,
 } from '@/models/enums';
 import {
@@ -20,6 +22,7 @@ import {
   BACKUP_SCHEMA_VERSION_V2,
   BACKUP_SCHEMA_VERSION_V3,
   BACKUP_SCHEMA_VERSION_V4,
+  BACKUP_SCHEMA_VERSION_V5,
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupEnvelope,
@@ -33,6 +36,7 @@ import {
   type BackupTablesV2,
   type BackupTablesV3,
   type BackupTablesV4,
+  type BackupTablesV5,
   type ValidateBackupError,
   type ValidateBackupResult,
 } from './types';
@@ -42,15 +46,24 @@ const PREGNANCY_RESULTS = new Set(PREGNANCY_RESULT_VALUES);
 const FOALING_OUTCOMES = new Set(FOALING_OUTCOME_VALUES);
 const FOAL_SEXES = new Set(FOAL_SEX_VALUES);
 const FOAL_COLORS = new Set(FOAL_COLOR_VALUES);
+const FREEZING_EXTENDERS = new Set(FREEZING_EXTENDER_VALUES);
 const MEDICATION_ROUTES = new Set(MEDICATION_ROUTE_VALUES);
 const COLLECTION_EVENT_TYPES = new Set(DOSE_EVENT_TYPE_VALUES);
 const COLLECTION_TARGET_MODES = new Set(COLLECTION_TARGET_MODE_VALUES);
 const FOLLICLE_STATES = new Set(FOLLICLE_STATE_VALUES);
 const OVARY_CONSISTENCIES = new Set(OVARY_CONSISTENCY_VALUES);
+const STRAW_COLORS = new Set(STRAW_COLOR_VALUES);
 const UTERINE_TONE_CATEGORIES = new Set(UTERINE_TONE_CATEGORY_VALUES);
 const CERVICAL_FIRMNESSES = new Set(CERVICAL_FIRMNESS_VALUES);
 const FLUID_LOCATIONS = new Set(FLUID_LOCATION_VALUES);
 const FOAL_MILESTONE_KEYS: ReadonlySet<string> = new Set(FOAL_MILESTONE_VALUE_KEYS);
+
+type BackupTables =
+  | BackupTablesV1
+  | BackupTablesV2
+  | BackupTablesV3
+  | BackupTablesV4
+  | BackupTablesV5;
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;
@@ -95,7 +108,8 @@ export function validateBackup(input: unknown): ValidateBackupResult {
     schemaVersion !== BACKUP_SCHEMA_VERSION_V1 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V2 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V3 &&
-    schemaVersion !== BACKUP_SCHEMA_VERSION_V4
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V4 &&
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V5
   ) {
     return validationFailure(
       'unsupported_schema_version',
@@ -158,11 +172,17 @@ export function validateBackup(input: unknown): ValidateBackupResult {
               ...baseEnvelopeFields,
               tables: tableArrays.tables as BackupTablesV3,
             }
-          : {
-              schemaVersion: BACKUP_SCHEMA_VERSION_V4,
-              ...baseEnvelopeFields,
-              tables: tableArrays.tables as BackupTablesV4,
-            };
+          : schemaVersion === BACKUP_SCHEMA_VERSION_V4
+            ? {
+                schemaVersion: BACKUP_SCHEMA_VERSION_V4,
+                ...baseEnvelopeFields,
+                tables: tableArrays.tables as BackupTablesV4,
+              }
+            : {
+                schemaVersion: BACKUP_SCHEMA_VERSION_V5,
+                ...baseEnvelopeFields,
+                tables: tableArrays.tables as BackupTablesV5,
+              };
 
   const rowError = validateRows(backup.tables, schemaVersion);
   if (rowError) {
@@ -207,7 +227,7 @@ function getTableArrays(
   tables: Record<string, unknown>,
   schemaVersion: number,
 ):
-  | { ok: true; tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3 | BackupTablesV4 }
+  | { ok: true; tables: BackupTables }
   | { ok: false; error: ValidateBackupResult } {
   const requiredTables: BackupTableName[] = [
     'mares',
@@ -224,6 +244,9 @@ function getTableArrays(
   if (schemaVersion >= BACKUP_SCHEMA_VERSION_V4) {
     requiredTables.push('uterine_fluid');
   }
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V5) {
+    requiredTables.push('frozen_semen_batches');
+  }
 
   for (const tableName of requiredTables) {
     if (!Array.isArray(tables[tableName])) {
@@ -236,12 +259,12 @@ function getTableArrays(
 
   return {
     ok: true,
-    tables: tables as unknown as BackupTablesV1 | BackupTablesV2 | BackupTablesV3 | BackupTablesV4,
+    tables: tables as unknown as BackupTables,
   };
 }
 
 function validateRows(
-  tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3 | BackupTablesV4,
+  tables: BackupTables,
   schemaVersion: number,
 ): ValidateBackupResult | null {
   for (let index = 0; index < tables.mares.length; index += 1) {
@@ -294,6 +317,13 @@ function validateRows(
       schemaVersion,
     );
     if (error) return error;
+  }
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V5) {
+    const frozenRows = (tables as BackupTablesV5).frozen_semen_batches;
+    for (let index = 0; index < frozenRows.length; index += 1) {
+      const error = validateFrozenSemenBatchRow(frozenRows[index], index);
+      if (error) return error;
+    }
   }
 
   return null;
@@ -928,6 +958,243 @@ function validateCollectionDoseEventRow(
   return null;
 }
 
+function validateFrozenSemenBatchRow(
+  row: unknown,
+  rowIndex: number,
+): ValidateBackupResult | null {
+  if (!isRecord(row)) {
+    return rowFailure('frozen_semen_batches', rowIndex, 'row', 'must be an object');
+  }
+
+  if (!isNonEmptyString(row.id)) {
+    return rowFailure('frozen_semen_batches', rowIndex, 'id', 'is required');
+  }
+  if (!isNonEmptyString(row.stallion_id)) {
+    return rowFailure('frozen_semen_batches', rowIndex, 'stallion_id', 'is required');
+  }
+  if (!isNullableString(row.collection_id)) {
+    return rowFailure('frozen_semen_batches', rowIndex, 'collection_id', 'must be a string or null');
+  }
+  if (!isLocalDate(row.freeze_date)) {
+    return rowFailure('frozen_semen_batches', rowIndex, 'freeze_date', 'must be a valid YYYY-MM-DD date');
+  }
+  if (!isNullableFiniteNumberAtLeastExclusive(row.raw_semen_volume_used_ml, 0)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'raw_semen_volume_used_ml',
+      'must be > 0 or null',
+    );
+  }
+  if (!isNullableStringEnum(row.extender, FREEZING_EXTENDERS)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'extender',
+      'must be a supported freezing extender or null',
+    );
+  }
+  if (!isNullableString(row.extender_other)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'extender_other',
+      'must be a string or null',
+    );
+  }
+  if (row.extender === 'Other' && !isNonEmptyString(row.extender_other)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'extender_other',
+      'is required when extender is Other',
+    );
+  }
+  if (row.extender !== 'Other' && row.extender_other != null) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'extender_other',
+      'must be null unless extender is Other',
+    );
+  }
+  if (!(row.was_centrifuged === 0 || row.was_centrifuged === 1)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'was_centrifuged',
+      'must be 0 or 1',
+    );
+  }
+  if (!isNullableIntegerAtLeast(row.centrifuge_speed_rpm, 1)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'centrifuge_speed_rpm',
+      'must be an integer > 0 or null',
+    );
+  }
+  if (!isNullableIntegerAtLeast(row.centrifuge_duration_min, 1)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'centrifuge_duration_min',
+      'must be an integer > 0 or null',
+    );
+  }
+  if (!isNullableFlag(row.centrifuge_cushion_used)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'centrifuge_cushion_used',
+      'must be 0, 1, or null',
+    );
+  }
+  if (!isNullableString(row.centrifuge_cushion_type)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'centrifuge_cushion_type',
+      'must be a string or null',
+    );
+  }
+  if (!isNullableFiniteNumberAtLeastExclusive(row.centrifuge_resuspension_vol_ml, 0)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'centrifuge_resuspension_vol_ml',
+      'must be > 0 or null',
+    );
+  }
+  if (!isNullableString(row.centrifuge_notes)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'centrifuge_notes',
+      'must be a string or null',
+    );
+  }
+  if (!(typeof row.straw_count === 'number' && Number.isInteger(row.straw_count) && row.straw_count >= 1)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'straw_count',
+      'must be an integer >= 1',
+    );
+  }
+  if (
+    !(
+      typeof row.straws_remaining === 'number' &&
+      Number.isInteger(row.straws_remaining) &&
+      row.straws_remaining >= 0
+    )
+  ) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'straws_remaining',
+      'must be an integer >= 0',
+    );
+  }
+  if (
+    typeof row.straw_count === 'number' &&
+    typeof row.straws_remaining === 'number' &&
+    row.straws_remaining > row.straw_count
+  ) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'straws_remaining',
+      'must be less than or equal to straw_count',
+    );
+  }
+  if (!isFiniteNumber(row.straw_volume_ml) || row.straw_volume_ml <= 0) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'straw_volume_ml',
+      'must be a number > 0',
+    );
+  }
+  if (!isNullableFiniteNumberAtLeastExclusive(row.concentration_millions_per_ml, 0)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'concentration_millions_per_ml',
+      'must be > 0 or null',
+    );
+  }
+  if (!isNullableIntegerAtLeast(row.straws_per_dose, 1)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'straws_per_dose',
+      'must be an integer >= 1 or null',
+    );
+  }
+  if (!isNullableStringEnum(row.straw_color, STRAW_COLORS)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'straw_color',
+      'must be a supported straw color or null',
+    );
+  }
+  if (!isNullableString(row.straw_color_other)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'straw_color_other',
+      'must be a string or null',
+    );
+  }
+  if (!isNullableString(row.straw_label)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'straw_label',
+      'must be a string or null',
+    );
+  }
+  if (!isNullableFiniteNumberInRange(row.post_thaw_motility_percent, 0, 100)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'post_thaw_motility_percent',
+      'must be between 0 and 100 or null',
+    );
+  }
+  if (!isNullableFiniteNumberAtLeastExclusive(row.longevity_hours, 0)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'longevity_hours',
+      'must be > 0 or null',
+    );
+  }
+  if (!isNullableString(row.storage_details)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'storage_details',
+      'must be a string or null',
+    );
+  }
+  if (!isNullableString(row.notes)) {
+    return rowFailure('frozen_semen_batches', rowIndex, 'notes', 'must be a string or null');
+  }
+  if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
+    return rowFailure(
+      'frozen_semen_batches',
+      rowIndex,
+      'timestamps',
+      'created_at and updated_at are required',
+    );
+  }
+
+  return null;
+}
+
 function validateFoalMilestonesJson(value: string, rowIndex: number): ValidateBackupResult | null {
   let parsed: unknown;
 
@@ -997,7 +1264,7 @@ function validateIggTestsJson(value: string, rowIndex: number): ValidateBackupRe
 }
 
 function buildIndexes(
-  tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3 | BackupTablesV4,
+  tables: BackupTables,
 ): ValidationIndexes {
   return {
     mareIds: new Set(tables.mares.map((row) => row.id)),
@@ -1010,7 +1277,7 @@ function buildIndexes(
 }
 
 function validateCrossTableRules(
-  tables: BackupTablesV1 | BackupTablesV2 | BackupTablesV3 | BackupTablesV4,
+  tables: BackupTables,
   indexes: ValidationIndexes,
   schemaVersion: number,
 ): ValidateBackupResult | null {
@@ -1029,6 +1296,12 @@ function validateCrossTableRules(
       ? ensureUniqueIds(
           'uterine_fluid',
           (tables as BackupTablesV4).uterine_fluid.map((row) => row.id),
+        )
+      : null) ??
+    (schemaVersion >= BACKUP_SCHEMA_VERSION_V5
+      ? ensureUniqueIds(
+          'frozen_semen_batches',
+          (tables as BackupTablesV5).frozen_semen_batches.map((row) => row.id),
         )
       : null);
   if (idError) return idError;
@@ -1148,6 +1421,40 @@ function validateCrossTableRules(
       const row = uterineFluidRows[index];
       if (!indexes.dailyLogIds.has(row.daily_log_id)) {
         return rowFailure('uterine_fluid', index, 'daily_log_id', 'references missing daily log');
+      }
+    }
+  }
+
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V5) {
+    const frozenRows = (tables as BackupTablesV5).frozen_semen_batches;
+    for (let index = 0; index < frozenRows.length; index += 1) {
+      const row = frozenRows[index];
+      if (!indexes.stallionIds.has(row.stallion_id)) {
+        return rowFailure(
+          'frozen_semen_batches',
+          index,
+          'stallion_id',
+          'references missing stallion',
+        );
+      }
+      if (row.collection_id != null) {
+        const collection = indexes.collectionById.get(row.collection_id);
+        if (!collection) {
+          return rowFailure(
+            'frozen_semen_batches',
+            index,
+            'collection_id',
+            'references missing semen collection',
+          );
+        }
+        if (collection.stallion_id !== row.stallion_id) {
+          return rowFailure(
+            'frozen_semen_batches',
+            index,
+            'collection_id',
+            'belongs to a different stallion',
+          );
+        }
       }
     }
   }
