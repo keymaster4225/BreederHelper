@@ -52,6 +52,7 @@ jest.mock('./dailyLogWizard/mappers', () => ({
   })),
   hydrateDailyLogWizardRecord: jest.fn(() => ({
     date: '2026-04-01',
+    time: '08:30',
     teasingScore: '',
     rightOvary: {
       ovulation: null,

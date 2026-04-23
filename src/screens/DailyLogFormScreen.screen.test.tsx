@@ -53,6 +53,7 @@ function createWizardMock(overrides: Record<string, unknown> = {}) {
     currentStepIndex: 0,
     currentStepTitle: 'Basics',
     date: '2026-04-21',
+    time: '08:30',
     teasingScore: '',
     rightOvary: {
       ovulation: null,
@@ -85,6 +86,7 @@ function createWizardMock(overrides: Record<string, unknown> = {}) {
     },
     legacyOvulationDetected: null,
     ovulationSource: 'structured',
+    isTimeClearable: false,
     errors: {
       basics: {},
       rightOvary: {},
@@ -96,6 +98,7 @@ function createWizardMock(overrides: Record<string, unknown> = {}) {
     isSaving: false,
     isDeleting: false,
     setDate: jest.fn(),
+    setTime: jest.fn(),
     setTeasingScore: jest.fn(),
     setNotes: jest.fn(),
     setOvaryOvulation: jest.fn(),
@@ -151,6 +154,8 @@ it('renders basics step and advances with Next', () => {
 
   expect(screen.getByText('Step 1 of 5')).toBeTruthy();
   expect(screen.getByText('Basics')).toBeTruthy();
+  expect(screen.getByText('Time *')).toBeTruthy();
+  expect(screen.getByText('8:30 AM')).toBeTruthy();
   fireEvent.press(screen.getByText('Next'));
 
   expect(wizard.goNext).toHaveBeenCalledTimes(1);
@@ -161,15 +166,36 @@ it('renders review step actions and triggers save/delete callbacks', () => {
     currentStepIndex: 4,
     currentStepTitle: 'Review',
     isEdit: true,
+    time: '14:05',
   });
 
   expect(screen.getByText('Step 5 of 5')).toBeTruthy();
   expect(screen.getByText('Review')).toBeTruthy();
+  expect(screen.getByText(/Time: 2:05 PM/)).toBeTruthy();
   fireEvent.press(screen.getByText('Save'));
   fireEvent.press(screen.getByText('Delete'));
 
   expect(wizard.save).toHaveBeenCalledTimes(1);
   expect(wizard.requestDelete).toHaveBeenCalledTimes(1);
+});
+
+it('shows an inline time error from the hook on the basics step', () => {
+  const { screen } = renderScreen({
+    currentStepIndex: 0,
+    currentStepTitle: 'Basics',
+    errors: {
+      basics: {
+        time: 'A daily log already exists for this mare at that date and time.',
+      },
+      rightOvary: {},
+      leftOvary: {},
+      uterus: {},
+    },
+  });
+
+  expect(
+    screen.getByText('A daily log already exists for this mare at that date and time.'),
+  ).toBeTruthy();
 });
 
 it('passes mareId and logId through the hook args', () => {

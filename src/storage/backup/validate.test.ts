@@ -5,6 +5,7 @@ import {
   createBackupFixtureV2,
   createBackupFixtureV4,
   createBackupFixtureV5,
+  createBackupFixtureV6,
 } from './testFixtures';
 import { validateBackup, validateBackupJson } from './validate';
 
@@ -22,7 +23,7 @@ describe('validateBackup', () => {
     expect(result.preview.mareCount).toBe(1);
     expect(result.preview.dailyLogCount).toBe(1);
     expect(result.preview.onboardingComplete).toBe(true);
-    expect(result.preview.schemaVersion).toBe(6);
+    expect(result.preview.schemaVersion).toBe(7);
   });
 
   it('accepts v1 backups without gestation length on mare rows', () => {
@@ -111,8 +112,54 @@ describe('validateBackup', () => {
     expect(result.error.message).toContain('valid YYYY-MM-DD date');
   });
 
-  it('rejects duplicate daily_logs by mare and date before restore time', () => {
+  it('rejects duplicate v7 daily_logs when mare, date, and time all match', () => {
     const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        daily_logs: [
+          ...backup.tables.daily_logs,
+          {
+            ...backup.tables.daily_logs[0]!,
+            id: 'log-2',
+          },
+        ],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('daily_logs');
+    expect(result.error.field).toBe('mare_id,date,time');
+    expect(result.error.message).toContain('duplicate (mare_id, date, time) key');
+  });
+
+  it('accepts two v7 daily_logs on the same date when time differs', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        daily_logs: [
+          ...backup.tables.daily_logs,
+          {
+            ...backup.tables.daily_logs[0]!,
+            id: 'log-2',
+            time: '16:45',
+          },
+        ],
+      },
+    });
+
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects duplicate v6 daily_logs by mare and date before restore canonicalization', () => {
+    const backup = createBackupFixtureV6();
     const result = validateBackup({
       ...backup,
       tables: {
@@ -514,7 +561,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 7,
+      schemaVersion: 8,
     });
 
     const result = validateBackupJson(jsonText);
@@ -527,7 +574,7 @@ describe('validateBackup', () => {
     expect(result.error.code).toBe('unsupported_schema_version');
   });
 
-  it('requires is_recipient on v6 mare rows', () => {
+  it('requires is_recipient on current mare rows', () => {
     const backup = cloneBackupFixture();
     const result = validateBackup({
       ...backup,

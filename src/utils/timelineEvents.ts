@@ -1,4 +1,5 @@
 import type { BreedingRecord, DailyLog, FoalingRecord, LocalDate, MedicationLog, PregnancyCheck } from '@/models/types';
+import { compareDailyLogsDesc } from '@/utils/dailyLogTime';
 
 export type TimelineEventType = 'foaling' | 'pregnancyCheck' | 'breeding' | 'ovulation' | 'heat' | 'medication';
 
@@ -17,6 +18,8 @@ const TYPE_PRIORITY: Record<TimelineEventType, number> = {
   heat: 4,
   medication: 5,
 };
+
+const DAILY_LOG_EVENT_TYPES = new Set<TimelineEventType>(['ovulation', 'heat']);
 
 function filterDailyLogs(dailyLogs: readonly DailyLog[]): readonly TimelineEvent[] {
   const events: TimelineEvent[] = [];
@@ -72,6 +75,19 @@ export function buildTimelineEvents(
   return all.sort((a, b) => {
     const dateCompare = b.date.localeCompare(a.date);
     if (dateCompare !== 0) return dateCompare;
-    return TYPE_PRIORITY[a.type] - TYPE_PRIORITY[b.type];
+
+    if (DAILY_LOG_EVENT_TYPES.has(a.type) && DAILY_LOG_EVENT_TYPES.has(b.type)) {
+      const logCompare = compareDailyLogsDesc(a.data as DailyLog, b.data as DailyLog);
+      if (logCompare !== 0) {
+        return logCompare;
+      }
+    }
+
+    const typeCompare = TYPE_PRIORITY[a.type] - TYPE_PRIORITY[b.type];
+    if (typeCompare !== 0) {
+      return typeCompare;
+    }
+
+    return b.id.localeCompare(a.id);
   });
 }

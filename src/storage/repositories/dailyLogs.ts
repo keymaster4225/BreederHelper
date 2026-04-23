@@ -16,6 +16,7 @@ import type {
   UterineToneCategory,
 } from '@/models/types';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
+import { normalizeDailyLogTime } from '@/utils/dailyLogTime';
 
 import {
   deleteByDailyLogId,
@@ -30,6 +31,7 @@ type DailyLogRow = {
   id: string;
   mare_id: string;
   date: string;
+  time: string | null;
   teasing_score: number | null;
   right_ovary: string | null;
   left_ovary: string | null;
@@ -56,13 +58,13 @@ type DailyLogRow = {
   updated_at: string;
 };
 
-export type DailyLogWriteInput = {
+type DailyLogFieldsInput = {
   id: string;
   mareId: string;
   date: string;
-  teasingScore?: number | null;
   rightOvary?: string | null;
   leftOvary?: string | null;
+  teasingScore?: number | null;
   ovulationDetected?: boolean | null;
   edema?: number | null;
   uterineTone?: string | null;
@@ -86,7 +88,13 @@ export type DailyLogWriteInput = {
   uterineFluidPockets?: readonly ReplaceUterineFluidPocketInput[];
 };
 
-type DailyLogUpdateInput = Omit<DailyLogWriteInput, 'id' | 'mareId'>;
+export type DailyLogCreateInput = DailyLogFieldsInput & {
+  time: string;
+};
+
+export type DailyLogUpdateInput = Omit<DailyLogFieldsInput, 'id' | 'mareId'> & {
+  time?: string | null;
+};
 
 const FOLLICLE_STATE_SET = new Set<string>(FOLLICLE_STATE_VALUES);
 const OVARY_CONSISTENCY_SET = new Set<string>(OVARY_CONSISTENCY_VALUES);
@@ -99,6 +107,7 @@ const DAILY_LOG_SELECT_COLUMNS = `
   id,
   mare_id,
   date,
+  time,
   teasing_score,
   right_ovary,
   left_ovary,
@@ -123,6 +132,15 @@ const DAILY_LOG_SELECT_COLUMNS = `
   notes,
   created_at,
   updated_at
+`;
+
+const DAILY_LOG_ORDER_BY = `
+  ORDER BY
+    date DESC,
+    CASE WHEN time IS NULL THEN 1 ELSE 0 END ASC,
+    time DESC,
+    created_at DESC,
+    id DESC
 `;
 
 function fromSqlNullableBoolean(value: number | null): boolean | null {
@@ -281,6 +299,7 @@ function mapDailyLogRow(row: DailyLogRow): DailyLog {
     id: row.id,
     mareId: row.mare_id,
     date: row.date,
+    time: row.time,
     teasingScore: row.teasing_score,
     rightOvary: row.right_ovary,
     leftOvary: row.left_ovary,
@@ -338,7 +357,7 @@ type ResolvedOvulationValues = {
 
 function resolveOvulationValues(
   input: Pick<
-    DailyLogWriteInput,
+    DailyLogFieldsInput,
     'leftOvaryOvulation' | 'ovulationDetected' | 'ovulationSource' | 'rightOvaryOvulation'
   >,
   existing: DailyLogRow | null,
@@ -378,10 +397,42 @@ function resolveOvulationValues(
   };
 }
 
-export async function createDailyLog(input: DailyLogWriteInput, db?: RepoDb): Promise<void> {
+function requireCreateTime(time: unknown): string {
+  if (typeof time !== 'string' || time.trim().length === 0) {
+    throw new Error('Daily log time is required.');
+  }
+
+  const normalized = normalizeDailyLogTime(time);
+  if (normalized === null) {
+    throw new Error('Daily log time must be a valid HH:MM value.');
+  }
+  return normalized;
+}
+
+function resolveUpdateTime(input: DailyLogUpdateInput, existing: DailyLogRow | null): string | null {
+  if (input.time === undefined) {
+    return existing?.time ?? null;
+  }
+
+  if (input.time === null) {
+    if (existing?.time == null) {
+      return null;
+    }
+    throw new Error('Timed daily logs cannot be cleared back to untimed.');
+  }
+
+  const normalized = normalizeDailyLogTime(input.time);
+  if (normalized === null) {
+    throw new Error('Daily log time must be a valid HH:MM value.');
+  }
+  return normalized;
+}
+
+export async function createDailyLog(input: DailyLogCreateInput, db?: RepoDb): Promise<void> {
   const handle = await resolveDb(db);
   const now = new Date().toISOString();
   const ovulation = resolveOvulationValues(input, null);
+  const time = requireCreateTime(input.time);
 
   await handle.withTransactionAsync(async () => {
     await handle.runAsync(
@@ -390,6 +441,7 @@ export async function createDailyLog(input: DailyLogWriteInput, db?: RepoDb): Pr
         id,
         mare_id,
         date,
+        time,
         teasing_score,
         right_ovary,
         left_ovary,
@@ -414,12 +466,13 @@ export async function createDailyLog(input: DailyLogWriteInput, db?: RepoDb): Pr
         notes,
         created_at,
         updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
       `,
       [
         input.id,
         input.mareId,
         input.date,
+        time,
         input.teasingScore ?? null,
         input.rightOvary ?? null,
         input.leftOvary ?? null,
@@ -478,6 +531,7 @@ export async function updateDailyLog(
 
   const ovulation = resolveOvulationValues(input, existing);
   const now = new Date().toISOString();
+  const time = resolveUpdateTime(input, existing);
 
   const rightOvary = input.rightOvary === undefined ? existing?.right_ovary ?? null : input.rightOvary ?? null;
   const leftOvary = input.leftOvary === undefined ? existing?.left_ovary ?? null : input.leftOvary ?? null;
@@ -490,6 +544,7 @@ export async function updateDailyLog(
       UPDATE daily_logs
       SET
         date = ?,
+        time = ?,
         teasing_score = ?,
         right_ovary = ?,
         left_ovary = ?,
@@ -517,6 +572,7 @@ export async function updateDailyLog(
       `,
       [
         input.date,
+        time,
         input.teasingScore ?? null,
         rightOvary,
         leftOvary,
@@ -595,7 +651,7 @@ export async function listAllDailyLogs(db?: RepoDb): Promise<DailyLog[]> {
     `
     SELECT ${DAILY_LOG_SELECT_COLUMNS}
     FROM daily_logs
-    ORDER BY date DESC;
+    ${DAILY_LOG_ORDER_BY};
     `,
   );
 
@@ -609,7 +665,7 @@ export async function listDailyLogsByMare(mareId: string, db?: RepoDb): Promise<
     SELECT ${DAILY_LOG_SELECT_COLUMNS}
     FROM daily_logs
     WHERE mare_id = ?
-    ORDER BY date DESC;
+    ${DAILY_LOG_ORDER_BY};
     `,
     [mareId],
   );

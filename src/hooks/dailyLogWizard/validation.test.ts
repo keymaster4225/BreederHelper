@@ -4,9 +4,18 @@ import { validateBasics, validateOvary, validateUterus } from './validation';
 
 describe('daily log wizard validation helpers', () => {
   it('requires a valid non-future basics date', () => {
-    expect(validateBasics('').date).toBe('Date is required.');
-    expect(validateBasics('2026/13/40').date).toBe('Date must be YYYY-MM-DD.');
-    expect(validateBasics('9999-12-31').date).toBe('Date cannot be in the future.');
+    expect(validateBasics('', '08:30').date).toBe('Date is required.');
+    expect(validateBasics('2026/13/40', '08:30').date).toBe('Date must be YYYY-MM-DD.');
+    expect(validateBasics('9999-12-31', '08:30').date).toBe('Date cannot be in the future.');
+  });
+
+  it('requires a valid basics time unless the edit flow is preserving an untimed legacy row', () => {
+    expect(validateBasics('2026-04-01', '').time).toBe('Time is required.');
+    expect(validateBasics('2026-04-01', '29:10').time).toBe(
+      'Time must be a valid HH:MM value.',
+    );
+    expect(validateBasics('2026-04-01', '', true).time).toBeUndefined();
+    expect(validateBasics('2026-04-01', ' 08:30 ', true).time).toBeUndefined();
   });
 
   it('validates measured follicle size entries', () => {

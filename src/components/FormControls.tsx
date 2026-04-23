@@ -2,6 +2,7 @@
 import { Keyboard, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 
+import { formatDailyLogTime, getCurrentTimeHHMM, normalizeDailyLogTime } from '@/utils/dailyLogTime';
 import { formatLocalDate, fromLocalDate, toLocalDate } from '@/utils/dates';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
@@ -91,6 +92,87 @@ export function FormDateInput({
           mode="date"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           maximumDate={maximumDate}
+          onChange={onPickerChange}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+type FormTimeInputProps = {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  clearable?: boolean;
+  accessibilityLabel?: string;
+};
+
+function getTimePickerValue(value: string): Date {
+  const normalized = normalizeDailyLogTime(value);
+  const pickerValue = new Date();
+
+  if (!normalized) {
+    return pickerValue;
+  }
+
+  const [hours, minutes] = normalized.split(':').map(Number);
+  pickerValue.setHours(hours, minutes, 0, 0);
+  return pickerValue;
+}
+
+export function FormTimeInput({
+  value,
+  onChange,
+  placeholder = 'Select time',
+  clearable,
+  accessibilityLabel = 'Select time',
+}: FormTimeInputProps): JSX.Element {
+  const [showPicker, setShowPicker] = useState(false);
+  const normalizedValue = useMemo(() => normalizeDailyLogTime(value), [value]);
+  const pickerValue = useMemo(() => getTimePickerValue(value), [value]);
+
+  const onPickerChange = (event: DateTimePickerEvent, selectedTime?: Date): void => {
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+    }
+
+    if (event.type !== 'set' || !selectedTime) {
+      return;
+    }
+
+    onChange(getCurrentTimeHHMM(selectedTime));
+  };
+
+  return (
+    <View style={styles.dateWrap}>
+      <Pressable
+        style={styles.input}
+        onPress={() => {
+          Keyboard.dismiss();
+          setShowPicker(true);
+        }}
+        accessibilityLabel={accessibilityLabel}
+        accessibilityRole="button"
+      >
+        <Text style={normalizedValue ? styles.dateValue : styles.datePlaceholder}>
+          {normalizedValue ? formatDailyLogTime(normalizedValue) : placeholder}
+        </Text>
+      </Pressable>
+      {clearable && normalizedValue ? (
+        <Pressable
+          style={styles.clearButton}
+          onPress={() => onChange('')}
+          accessibilityLabel={`Clear ${accessibilityLabel.toLowerCase()}`}
+          accessibilityRole="button"
+        >
+          <Text style={styles.clearButtonText}>Clear</Text>
+        </Pressable>
+      ) : null}
+      {showPicker ? (
+        <DateTimePicker
+          value={pickerValue}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
           onChange={onPickerChange}
         />
       ) : null}

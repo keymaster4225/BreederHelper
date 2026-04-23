@@ -1,4 +1,5 @@
 import { FLUID_LOCATION_VALUES } from '@/models/enums';
+import { normalizeDailyLogTime } from '@/utils/dailyLogTime';
 import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validation';
 
 import { collectValidMeasurements } from './measurementUtils';
@@ -12,9 +13,25 @@ import type {
 
 const FLUID_LOCATION_SET = new Set<string>(FLUID_LOCATION_VALUES);
 
-export function validateBasics(date: string): BasicsErrors {
+export function validateBasics(
+  date: string,
+  time: string,
+  allowUntimedTime = false,
+): BasicsErrors {
+  const trimmedTime = time.trim();
+  let timeError: string | undefined;
+
+  if (!trimmedTime) {
+    if (!allowUntimedTime) {
+      timeError = 'Time is required.';
+    }
+  } else if (normalizeDailyLogTime(trimmedTime) === null) {
+    timeError = 'Time must be a valid HH:MM value.';
+  }
+
   return {
     date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
+    time: timeError,
   };
 }
 

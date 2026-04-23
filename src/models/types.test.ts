@@ -51,6 +51,7 @@ function makeDailyLog(overrides: Partial<DailyLog> & { date: string }): DailyLog
     id: overrides.id ?? `log-${overrides.date}`,
     mareId: overrides.mareId ?? 'mare-1',
     date: overrides.date,
+    time: overrides.time ?? null,
     ovulationDetected: overrides.ovulationDetected ?? null,
     teasingScore: null,
     rightOvary: null,

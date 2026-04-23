@@ -27,6 +27,7 @@ const previewIds = {
   bellaLog3: 'preview-seed-bella-log-3',
   bellaLog4: 'preview-seed-bella-log-4',
   bellaLog5: 'preview-seed-bella-log-5',
+  bellaLog5FollowUp: 'preview-seed-bella-log-5-followup',
   bellaLog6: 'preview-seed-bella-log-6',
   desertLog1: 'preview-seed-desert-log-1',
   desertLog2: 'preview-seed-desert-log-2',
@@ -84,32 +85,37 @@ export async function seedPreviewData(): Promise<SeedPreviewDataResult> {
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.bellaLog1),
-      () => createDailyLog({ id: previewIds.bellaLog1, mareId: previewIds.mareBella, date: '2026-02-20', teasingScore: 2, edema: 1 }),
+      () => createDailyLog({ id: previewIds.bellaLog1, mareId: previewIds.mareBella, date: '2026-02-20', time: '08:00', teasingScore: 2, edema: 1 }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.bellaLog2),
-      () => createDailyLog({ id: previewIds.bellaLog2, mareId: previewIds.mareBella, date: '2026-02-22', teasingScore: 3, edema: 2 }),
+      () => createDailyLog({ id: previewIds.bellaLog2, mareId: previewIds.mareBella, date: '2026-02-22', time: '08:15', teasingScore: 3, edema: 2 }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.bellaLog3),
-      () => createDailyLog({ id: previewIds.bellaLog3, mareId: previewIds.mareBella, date: '2026-02-24', teasingScore: 4, edema: 3, rightOvary: '35mm follicle' }),
+      () => createDailyLog({ id: previewIds.bellaLog3, mareId: previewIds.mareBella, date: '2026-02-24', time: '07:45', teasingScore: 4, edema: 3, rightOvary: '35mm follicle' }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.bellaLog4),
-      () => createDailyLog({ id: previewIds.bellaLog4, mareId: previewIds.mareBella, date: '2026-02-25', teasingScore: 5, edema: 4, rightOvary: '38mm follicle', leftOvary: 'quiet' }),
+      () => createDailyLog({ id: previewIds.bellaLog4, mareId: previewIds.mareBella, date: '2026-02-25', time: '07:30', teasingScore: 5, edema: 4, rightOvary: '38mm follicle', leftOvary: 'quiet' }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.bellaLog5),
-      () => createDailyLog({ id: previewIds.bellaLog5, mareId: previewIds.mareBella, date: '2026-02-26', teasingScore: 5, edema: 4, ovulationDetected: true, rightOvary: 'ovulated' }),
+      () => createDailyLog({ id: previewIds.bellaLog5, mareId: previewIds.mareBella, date: '2026-02-26', time: '07:10', teasingScore: 5, edema: 4, ovulationDetected: true, rightOvary: 'ovulated' }),
+    )) || insertedAny;
+  insertedAny =
+    (await ensureRecordExists(
+      () => getDailyLogById(previewIds.bellaLog5FollowUp),
+      () => createDailyLog({ id: previewIds.bellaLog5FollowUp, mareId: previewIds.mareBella, date: '2026-02-26', time: '15:45', teasingScore: 2, edema: 1, notes: 'Afternoon recheck after ovulation' }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.bellaLog6),
-      () => createDailyLog({ id: previewIds.bellaLog6, mareId: previewIds.mareBella, date: '2026-02-27', teasingScore: 2, edema: 1 }),
+      () => createDailyLog({ id: previewIds.bellaLog6, mareId: previewIds.mareBella, date: '2026-02-27', time: '08:30', teasingScore: 2, edema: 1 }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
@@ -170,17 +176,17 @@ export async function seedPreviewData(): Promise<SeedPreviewDataResult> {
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.desertLog1),
-      () => createDailyLog({ id: previewIds.desertLog1, mareId: previewIds.mareDesertRose, date: '2026-03-22', teasingScore: 3, edema: 2 }),
+      () => createDailyLog({ id: previewIds.desertLog1, mareId: previewIds.mareDesertRose, date: '2026-03-22', time: '08:20', teasingScore: 3, edema: 2 }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.desertLog2),
-      () => createDailyLog({ id: previewIds.desertLog2, mareId: previewIds.mareDesertRose, date: '2026-03-24', teasingScore: 4, edema: 3, leftOvary: '30mm follicle' }),
+      () => createDailyLog({ id: previewIds.desertLog2, mareId: previewIds.mareDesertRose, date: '2026-03-24', time: '08:00', teasingScore: 4, edema: 3, leftOvary: '30mm follicle' }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.desertLog3),
-      () => createDailyLog({ id: previewIds.desertLog3, mareId: previewIds.mareDesertRose, date: '2026-03-25', teasingScore: 5, edema: 4, leftOvary: '36mm follicle' }),
+      () => createDailyLog({ id: previewIds.desertLog3, mareId: previewIds.mareDesertRose, date: '2026-03-25', time: '07:50', teasingScore: 5, edema: 4, leftOvary: '36mm follicle' }),
     )) || insertedAny;
 
   insertedAny =
@@ -199,17 +205,17 @@ export async function seedPreviewData(): Promise<SeedPreviewDataResult> {
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.cloverLog1),
-      () => createDailyLog({ id: previewIds.cloverLog1, mareId: previewIds.mareClover, date: '2026-03-23', teasingScore: 1, edema: 0 }),
+      () => createDailyLog({ id: previewIds.cloverLog1, mareId: previewIds.mareClover, date: '2026-03-23', time: '08:10', teasingScore: 1, edema: 0 }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.cloverLog2),
-      () => createDailyLog({ id: previewIds.cloverLog2, mareId: previewIds.mareClover, date: '2026-03-25', teasingScore: 2, edema: 1 }),
+      () => createDailyLog({ id: previewIds.cloverLog2, mareId: previewIds.mareClover, date: '2026-03-25', time: '08:05', teasingScore: 2, edema: 1 }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
       () => getDailyLogById(previewIds.cloverLog3),
-      () => createDailyLog({ id: previewIds.cloverLog3, mareId: previewIds.mareClover, date: '2026-03-26', teasingScore: 2, edema: 1, notes: 'Winking, no strong signs yet' }),
+      () => createDailyLog({ id: previewIds.cloverLog3, mareId: previewIds.mareClover, date: '2026-03-26', time: '08:25', teasingScore: 2, edema: 1, notes: 'Winking, no strong signs yet' }),
     )) || insertedAny;
 
   return insertedAny ? 'inserted' : 'alreadySeeded';

@@ -9,17 +9,19 @@ import {
   BACKUP_SCHEMA_VERSION_V4,
   BACKUP_SCHEMA_VERSION_V5,
   BACKUP_SCHEMA_VERSION_V6,
+  BACKUP_SCHEMA_VERSION_V7,
 } from './types';
 import type {
   BackupCollectionDoseEventRowV2,
   BackupCollectionDoseEventRowV3,
   BackupBreedingRecordRow,
   BackupDailyLogRowLegacy,
+  BackupDailyLogRowV4,
   BackupDailyLogRow,
   BackupEnvelope,
   BackupEnvelopeV4,
   BackupEnvelopeV5,
-  BackupEnvelopeV6,
+  BackupEnvelopeV7,
   BackupFoalingRecordRow,
   BackupFoalRow,
   BackupFrozenSemenBatchRow,
@@ -435,6 +437,7 @@ async function insertDailyLog(
       id,
       mare_id,
       date,
+      time,
       teasing_score,
       right_ovary,
       left_ovary,
@@ -459,12 +462,13 @@ async function insertDailyLog(
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
       row.mare_id,
       row.date,
+      row.time,
       row.teasing_score,
       row.right_ovary,
       row.left_ovary,
@@ -700,8 +704,8 @@ async function insertCollectionDoseEvent(
 }
 
 function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForRestore {
-  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V6) {
-    return backup as BackupEnvelopeV6;
+  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V7) {
+    return backup as BackupEnvelopeV7;
   }
 
   const mares: readonly BackupMareRowV6[] =
@@ -723,10 +727,10 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
           normalizeLegacyCollectionDoseEventRow(row as BackupCollectionDoseEventRowV2),
         );
   const dailyLogs: readonly BackupDailyLogRow[] =
-    backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V4
+    backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V7
       ? (backup.tables.daily_logs as readonly BackupDailyLogRow[])
       : backup.tables.daily_logs.map((row) =>
-          normalizeLegacyDailyLogRow(row as BackupDailyLogRowLegacy),
+          normalizePreV7DailyLogRow(row as BackupDailyLogRowLegacy | BackupDailyLogRowV4),
         );
   const uterineFluid: readonly BackupUterineFluidRow[] =
     backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V4
@@ -769,23 +773,44 @@ function normalizeLegacyMareRow(
   };
 }
 
-function normalizeLegacyDailyLogRow(row: BackupDailyLogRowLegacy): BackupDailyLogRow {
+function normalizePreV7DailyLogRow(
+  row: BackupDailyLogRowLegacy | BackupDailyLogRowV4,
+): BackupDailyLogRow {
   return {
     ...row,
-    right_ovary_ovulation: null,
-    right_ovary_follicle_state: null,
-    right_ovary_follicle_measurements_mm: EMPTY_JSON_ARRAY_TEXT,
-    right_ovary_consistency: null,
-    right_ovary_structures: EMPTY_JSON_ARRAY_TEXT,
-    left_ovary_ovulation: null,
-    left_ovary_follicle_state: null,
-    left_ovary_follicle_measurements_mm: EMPTY_JSON_ARRAY_TEXT,
-    left_ovary_consistency: null,
-    left_ovary_structures: EMPTY_JSON_ARRAY_TEXT,
-    uterine_tone_category: null,
-    cervical_firmness: null,
-    discharge_observed: null,
-    discharge_notes: null,
+    time: null,
+    right_ovary_ovulation:
+      'right_ovary_ovulation' in row ? row.right_ovary_ovulation : null,
+    right_ovary_follicle_state:
+      'right_ovary_follicle_state' in row ? row.right_ovary_follicle_state : null,
+    right_ovary_follicle_measurements_mm:
+      'right_ovary_follicle_measurements_mm' in row
+        ? row.right_ovary_follicle_measurements_mm
+        : EMPTY_JSON_ARRAY_TEXT,
+    right_ovary_consistency:
+      'right_ovary_consistency' in row ? row.right_ovary_consistency : null,
+    right_ovary_structures:
+      'right_ovary_structures' in row ? row.right_ovary_structures : EMPTY_JSON_ARRAY_TEXT,
+    left_ovary_ovulation:
+      'left_ovary_ovulation' in row ? row.left_ovary_ovulation : null,
+    left_ovary_follicle_state:
+      'left_ovary_follicle_state' in row ? row.left_ovary_follicle_state : null,
+    left_ovary_follicle_measurements_mm:
+      'left_ovary_follicle_measurements_mm' in row
+        ? row.left_ovary_follicle_measurements_mm
+        : EMPTY_JSON_ARRAY_TEXT,
+    left_ovary_consistency:
+      'left_ovary_consistency' in row ? row.left_ovary_consistency : null,
+    left_ovary_structures:
+      'left_ovary_structures' in row ? row.left_ovary_structures : EMPTY_JSON_ARRAY_TEXT,
+    uterine_tone_category:
+      'uterine_tone_category' in row ? row.uterine_tone_category : null,
+    cervical_firmness:
+      'cervical_firmness' in row ? row.cervical_firmness : null,
+    discharge_observed:
+      'discharge_observed' in row ? row.discharge_observed : null,
+    discharge_notes:
+      'discharge_notes' in row ? row.discharge_notes : null,
   };
 }
 

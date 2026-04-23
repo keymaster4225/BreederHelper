@@ -985,6 +985,169 @@ ALTER TABLE mares
   CHECK (is_recipient IN (0, 1));
 `;
 
+const migration024 = `
+CREATE TABLE daily_logs_new (
+  id TEXT PRIMARY KEY,
+  mare_id TEXT NOT NULL,
+  date TEXT NOT NULL,
+  time TEXT,
+  teasing_score INTEGER,
+  right_ovary TEXT,
+  left_ovary TEXT,
+  ovulation_detected INTEGER,
+  edema INTEGER,
+  uterine_tone TEXT,
+  uterine_cysts TEXT,
+  right_ovary_ovulation INTEGER,
+  right_ovary_follicle_state TEXT,
+  right_ovary_follicle_measurements_mm TEXT NOT NULL DEFAULT '[]',
+  right_ovary_consistency TEXT,
+  right_ovary_structures TEXT NOT NULL DEFAULT '[]',
+  left_ovary_ovulation INTEGER,
+  left_ovary_follicle_state TEXT,
+  left_ovary_follicle_measurements_mm TEXT NOT NULL DEFAULT '[]',
+  left_ovary_consistency TEXT,
+  left_ovary_structures TEXT NOT NULL DEFAULT '[]',
+  uterine_tone_category TEXT,
+  cervical_firmness TEXT,
+  discharge_observed INTEGER,
+  discharge_notes TEXT,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (mare_id) REFERENCES mares(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (date GLOB '????-??-??'),
+  CHECK (
+    time IS NULL OR (
+      length(time) = 5
+      AND substr(time, 3, 1) = ':'
+      AND substr(time, 1, 2) BETWEEN '00' AND '23'
+      AND substr(time, 4, 2) BETWEEN '00' AND '59'
+    )
+  ),
+  CHECK (teasing_score IS NULL OR teasing_score BETWEEN 0 AND 5),
+  CHECK (ovulation_detected IS NULL OR ovulation_detected IN (0, 1)),
+  CHECK (edema IS NULL OR edema BETWEEN 0 AND 5),
+  CHECK (right_ovary_ovulation IS NULL OR right_ovary_ovulation IN (0, 1)),
+  CHECK (
+    right_ovary_follicle_state IS NULL
+    OR right_ovary_follicle_state IN (
+      'notVisualized',
+      'small',
+      'medium',
+      'large',
+      'measured',
+      'postOvulatory'
+    )
+  ),
+  CHECK (
+    right_ovary_consistency IS NULL
+    OR right_ovary_consistency IN ('soft', 'moderate', 'firm', 'veryFirm')
+  ),
+  CHECK (left_ovary_ovulation IS NULL OR left_ovary_ovulation IN (0, 1)),
+  CHECK (
+    left_ovary_follicle_state IS NULL
+    OR left_ovary_follicle_state IN (
+      'notVisualized',
+      'small',
+      'medium',
+      'large',
+      'measured',
+      'postOvulatory'
+    )
+  ),
+  CHECK (
+    left_ovary_consistency IS NULL
+    OR left_ovary_consistency IN ('soft', 'moderate', 'firm', 'veryFirm')
+  ),
+  CHECK (
+    uterine_tone_category IS NULL
+    OR uterine_tone_category IN ('flaccid', 'moderate', 'tight')
+  ),
+  CHECK (
+    cervical_firmness IS NULL
+    OR cervical_firmness IN ('soft', 'moderate', 'firm', 'closed')
+  ),
+  CHECK (discharge_observed IS NULL OR discharge_observed IN (0, 1))
+);
+
+INSERT INTO daily_logs_new (
+  id,
+  mare_id,
+  date,
+  time,
+  teasing_score,
+  right_ovary,
+  left_ovary,
+  ovulation_detected,
+  edema,
+  uterine_tone,
+  uterine_cysts,
+  right_ovary_ovulation,
+  right_ovary_follicle_state,
+  right_ovary_follicle_measurements_mm,
+  right_ovary_consistency,
+  right_ovary_structures,
+  left_ovary_ovulation,
+  left_ovary_follicle_state,
+  left_ovary_follicle_measurements_mm,
+  left_ovary_consistency,
+  left_ovary_structures,
+  uterine_tone_category,
+  cervical_firmness,
+  discharge_observed,
+  discharge_notes,
+  notes,
+  created_at,
+  updated_at
+)
+SELECT
+  id,
+  mare_id,
+  date,
+  NULL,
+  teasing_score,
+  right_ovary,
+  left_ovary,
+  CASE WHEN ovulation_detected IN (0, 1) THEN ovulation_detected ELSE NULL END,
+  edema,
+  uterine_tone,
+  uterine_cysts,
+  CASE WHEN right_ovary_ovulation IN (0, 1) THEN right_ovary_ovulation ELSE NULL END,
+  right_ovary_follicle_state,
+  COALESCE(right_ovary_follicle_measurements_mm, '[]'),
+  right_ovary_consistency,
+  COALESCE(right_ovary_structures, '[]'),
+  CASE WHEN left_ovary_ovulation IN (0, 1) THEN left_ovary_ovulation ELSE NULL END,
+  left_ovary_follicle_state,
+  COALESCE(left_ovary_follicle_measurements_mm, '[]'),
+  left_ovary_consistency,
+  COALESCE(left_ovary_structures, '[]'),
+  uterine_tone_category,
+  cervical_firmness,
+  CASE WHEN discharge_observed IN (0, 1) THEN discharge_observed ELSE NULL END,
+  discharge_notes,
+  notes,
+  created_at,
+  updated_at
+FROM daily_logs;
+
+DROP TABLE daily_logs;
+
+ALTER TABLE daily_logs_new RENAME TO daily_logs;
+
+CREATE INDEX IF NOT EXISTS idx_daily_logs_mare_date
+  ON daily_logs (mare_id, date DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_logs_mare_date_time_unique
+  ON daily_logs (mare_id, date, time)
+  WHERE time IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_logs_mare_date_untimed_unique
+  ON daily_logs (mare_id, date)
+  WHERE time IS NULL;
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -1167,6 +1330,16 @@ const migrations: Migration[] = [
     name: '023_mare_is_recipient',
     statements: splitStatements(migration023),
     shouldSkip: async (db) => hasColumn(db, 'mares', 'is_recipient'),
+  },
+  {
+    id: 24,
+    name: '024_daily_logs_multiple_checks',
+    statements: splitStatements(migration024),
+    requiresForeignKeysOff: true,
+    shouldSkip: async (db) =>
+      (await hasColumn(db, 'daily_logs', 'time')) &&
+      (await indexExists(db, 'idx_daily_logs_mare_date_time_unique')) &&
+      (await indexExists(db, 'idx_daily_logs_mare_date_untimed_unique')),
   },
 ];
 

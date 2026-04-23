@@ -8,6 +8,7 @@ import {
   PregnancyCheck,
   findCurrentPregnancyCheck,
 } from '@/models/types';
+import { compareDailyLogsDesc } from '@/utils/dailyLogTime';
 
 import { DashboardInput } from '@/utils/dashboardAlertTypes';
 
@@ -47,6 +48,10 @@ function sortByDateDesc<T extends { date: string }>(records: readonly T[]): T[] 
   return [...records].sort((a, b) => b.date.localeCompare(a.date));
 }
 
+function sortDailyLogsDesc(records: readonly DailyLog[]): DailyLog[] {
+  return [...records].sort(compareDailyLogsDesc);
+}
+
 export function buildDashboardAlertContext(input: DashboardInput): DashboardAlertContext {
   const logsByMare = groupByMareId(input.dailyLogs);
   const breedingsByMare = groupByMareId(input.breedingRecords);
@@ -68,7 +73,7 @@ export function buildDashboardAlertContext(input: DashboardInput): DashboardAler
     return {
       mare,
       dailyLogs,
-      dailyLogsDesc: sortByDateDesc(dailyLogs),
+      dailyLogsDesc: sortDailyLogsDesc(dailyLogs),
       breedingRecords,
       breedingRecordsDesc: sortByDateDesc(breedingRecords),
       pregnancyChecks,

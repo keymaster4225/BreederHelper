@@ -74,6 +74,7 @@ describe('serializeBackup', () => {
               id: 'log-1',
               mare_id: 'mare-1',
               date: '2026-04-10',
+              time: '08:30',
               teasing_score: 3,
               right_ovary: '35mm',
               left_ovary: null,
@@ -262,7 +263,7 @@ describe('serializeBackup', () => {
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(6);
+    expect(backup.schemaVersion).toBe(7);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
     expect(backup.tables.mares[0]?.gestation_length_days).toBe(345);
@@ -272,6 +273,7 @@ describe('serializeBackup', () => {
     expect(backup.tables.foals[0]?.milestones).toBe('{"stood":{"done":true}}');
     expect(backup.tables.foals[0]?.igg_tests).toContain('"valueMgDl":900');
     expect(backup.tables.daily_logs[0]?.right_ovary_follicle_state).toBe('measured');
+    expect(backup.tables.daily_logs[0]?.time).toBe('08:30');
     expect(backup.tables.daily_logs[0]?.right_ovary_follicle_measurements_mm).toBe('[35]');
     expect(backup.tables.daily_logs[0]?.left_ovary_ovulation).toBe(1);
     expect(backup.tables.daily_logs[0]?.cervical_firmness).toBe('closed');

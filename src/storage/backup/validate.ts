@@ -24,6 +24,7 @@ import {
   BACKUP_SCHEMA_VERSION_V4,
   BACKUP_SCHEMA_VERSION_V5,
   BACKUP_SCHEMA_VERSION_V6,
+  BACKUP_SCHEMA_VERSION_V7,
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupEnvelope,
@@ -39,9 +40,11 @@ import {
   type BackupTablesV4,
   type BackupTablesV5,
   type BackupTablesV6,
+  type BackupTablesV7,
   type ValidateBackupError,
   type ValidateBackupResult,
 } from './types';
+import { normalizeDailyLogTime } from '@/utils/dailyLogTime';
 
 const BREEDING_METHODS = new Set(BREEDING_METHOD_VALUES);
 const PREGNANCY_RESULTS = new Set(PREGNANCY_RESULT_VALUES);
@@ -66,7 +69,8 @@ type BackupTables =
   | BackupTablesV3
   | BackupTablesV4
   | BackupTablesV5
-  | BackupTablesV6;
+  | BackupTablesV6
+  | BackupTablesV7;
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;
@@ -113,7 +117,8 @@ export function validateBackup(input: unknown): ValidateBackupResult {
     schemaVersion !== BACKUP_SCHEMA_VERSION_V3 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V4 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V5 &&
-    schemaVersion !== BACKUP_SCHEMA_VERSION_V6
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V6 &&
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V7
   ) {
     return validationFailure(
       'unsupported_schema_version',
@@ -188,10 +193,16 @@ export function validateBackup(input: unknown): ValidateBackupResult {
                   ...baseEnvelopeFields,
                   tables: tableArrays.tables as BackupTablesV5,
                 }
+              : schemaVersion === BACKUP_SCHEMA_VERSION_V6
+                ? {
+                    schemaVersion: BACKUP_SCHEMA_VERSION_V6,
+                    ...baseEnvelopeFields,
+                    tables: tableArrays.tables as BackupTablesV6,
+                  }
               : {
-                  schemaVersion: BACKUP_SCHEMA_VERSION_V6,
+                  schemaVersion: BACKUP_SCHEMA_VERSION_V7,
                   ...baseEnvelopeFields,
-                  tables: tableArrays.tables as BackupTablesV6,
+                  tables: tableArrays.tables as BackupTablesV7,
                 };
 
   const rowError = validateRows(backup.tables, schemaVersion);
@@ -442,6 +453,9 @@ function validateDailyLogRow(
   if (!isNonEmptyString(row.id)) return rowFailure('daily_logs', rowIndex, 'id', 'is required');
   if (!isNonEmptyString(row.mare_id)) return rowFailure('daily_logs', rowIndex, 'mare_id', 'is required');
   if (!isLocalDate(row.date)) return rowFailure('daily_logs', rowIndex, 'date', 'must be a valid YYYY-MM-DD date');
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V7 && !isNullableDailyLogTime(row.time)) {
+    return rowFailure('daily_logs', rowIndex, 'time', 'must be a valid HH:MM value or null');
+  }
   if (!isNullableIntegerInRange(row.teasing_score, 0, 5)) {
     return rowFailure('daily_logs', rowIndex, 'teasing_score', 'must be an integer 0-5 or null');
   }
@@ -1323,13 +1337,39 @@ function validateCrossTableRules(
   if (idError) return idError;
 
   const dailyLogPairSet = new Set<string>();
+  const timedDailyLogSet = new Set<string>();
+  const untimedDailyLogSet = new Set<string>();
   for (let index = 0; index < tables.daily_logs.length; index += 1) {
     const row = tables.daily_logs[index];
-    const key = `${row.mare_id}::${row.date}`;
-    if (dailyLogPairSet.has(key)) {
+    const dateKey = `${row.mare_id}::${row.date}`;
+    if (schemaVersion >= BACKUP_SCHEMA_VERSION_V7) {
+      const time = 'time' in row ? row.time ?? null : null;
+      if (time === null) {
+        if (untimedDailyLogSet.has(dateKey)) {
+          return rowFailure(
+            'daily_logs',
+            index,
+            'mare_id,date,time',
+            'duplicate untimed (mare_id, date) pair',
+          );
+        }
+        untimedDailyLogSet.add(dateKey);
+      } else {
+        const timedKey = `${dateKey}::${time}`;
+        if (timedDailyLogSet.has(timedKey)) {
+          return rowFailure(
+            'daily_logs',
+            index,
+            'mare_id,date,time',
+            'duplicate (mare_id, date, time) key',
+          );
+        }
+        timedDailyLogSet.add(timedKey);
+      }
+    } else if (dailyLogPairSet.has(dateKey)) {
       return rowFailure('daily_logs', index, 'mare_id,date', 'duplicate (mare_id, date) pair');
     }
-    dailyLogPairSet.add(key);
+    dailyLogPairSet.add(dateKey);
     if (!indexes.mareIds.has(row.mare_id)) {
       return rowFailure('daily_logs', index, 'mare_id', 'references missing mare');
     }
@@ -1623,6 +1663,10 @@ function isNullableIntegerInRange(value: unknown, min: number, max: number): boo
 
 function isNullableFlag(value: unknown): value is 0 | 1 | null {
   return value == null || value === 0 || value === 1;
+}
+
+function isNullableDailyLogTime(value: unknown): value is string | null {
+  return value == null || (typeof value === 'string' && normalizeDailyLogTime(value) === value);
 }
 
 function isLocalDate(value: unknown): value is string {

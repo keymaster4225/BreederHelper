@@ -21,6 +21,7 @@ import {
   getFoalById,
   getFoalingRecordById,
   getPregnancyCheckById,
+  listDailyLogsByMare,
   listFoalsByMare,
   parseIggTests,
   parseFoalMilestones,
@@ -57,6 +58,7 @@ type DailyLogRow = {
   id: string;
   mare_id: string;
   date: string;
+  time: string | null;
   teasing_score: number | null;
   right_ovary: string | null;
   left_ovary: string | null;
@@ -188,6 +190,47 @@ function createFakeDb(): FakeDb {
   const foalingRecords = new Map<string, FoalingRecordRow>();
   const foals = new Map<string, FoalRow>();
 
+  function compareDailyLogRowsDesc(a: DailyLogRow, b: DailyLogRow): number {
+    return (
+      b.date.localeCompare(a.date) ||
+      compareDailyLogTimesDesc(a.time, b.time) ||
+      b.created_at.localeCompare(a.created_at) ||
+      b.id.localeCompare(a.id)
+    );
+  }
+
+  function compareDailyLogTimesDesc(a: string | null, b: string | null): number {
+    if (a === b) {
+      return 0;
+    }
+    if (a === null) {
+      return 1;
+    }
+    if (b === null) {
+      return -1;
+    }
+    return b.localeCompare(a);
+  }
+
+  function assertUniqueDailyLog(candidate: DailyLogRow, excludeId?: string): void {
+    for (const row of dailyLogs.values()) {
+      if (row.id === excludeId) {
+        continue;
+      }
+      if (row.mare_id !== candidate.mare_id || row.date !== candidate.date) {
+        continue;
+      }
+
+      if (candidate.time === null && row.time === null) {
+        throw new Error('UNIQUE constraint failed: daily_logs.mare_id, daily_logs.date');
+      }
+
+      if (candidate.time !== null && row.time === candidate.time) {
+        throw new Error('UNIQUE constraint failed: daily_logs.mare_id, daily_logs.date, daily_logs.time');
+      }
+    }
+  }
+
   return {
     async runAsync(sql: string, params: unknown[] = []): Promise<void> {
       const stmt = normalized(sql);
@@ -283,6 +326,7 @@ function createFakeDb(): FakeDb {
           id,
           mareId,
           date,
+          time,
           teasingScore,
           rightOvary,
           leftOvary,
@@ -311,6 +355,7 @@ function createFakeDb(): FakeDb {
           string,
           string,
           string,
+          string | null,
           number | null,
           string | null,
           string | null,
@@ -336,10 +381,11 @@ function createFakeDb(): FakeDb {
           string,
           string,
         ];
-        dailyLogs.set(id, {
+        const nextRow: DailyLogRow = {
           id,
           mare_id: mareId,
           date,
+          time,
           teasing_score: teasingScore,
           right_ovary: rightOvary,
           left_ovary: leftOvary,
@@ -364,13 +410,16 @@ function createFakeDb(): FakeDb {
           notes,
           created_at: createdAt,
           updated_at: updatedAt,
-        });
+        };
+        assertUniqueDailyLog(nextRow);
+        dailyLogs.set(id, nextRow);
         return;
       }
 
       if (stmt.startsWith('update daily_logs set')) {
         const [
           date,
+          time,
           teasingScore,
           rightOvary,
           leftOvary,
@@ -397,6 +446,7 @@ function createFakeDb(): FakeDb {
           id,
         ] = params as [
           string,
+          string | null,
           number | null,
           string | null,
           string | null,
@@ -424,9 +474,10 @@ function createFakeDb(): FakeDb {
         ];
         const existing = dailyLogs.get(id);
         if (!existing) return;
-        dailyLogs.set(id, {
+        const nextRow: DailyLogRow = {
           ...existing,
           date,
+          time,
           teasing_score: teasingScore,
           right_ovary: rightOvary,
           left_ovary: leftOvary,
@@ -450,7 +501,9 @@ function createFakeDb(): FakeDb {
           discharge_notes: dischargeNotes,
           notes,
           updated_at: updatedAt,
-        });
+        };
+        assertUniqueDailyLog(nextRow, id);
+        dailyLogs.set(id, nextRow);
         return;
       }
 
@@ -812,12 +865,15 @@ function createFakeDb(): FakeDb {
         return values as T[];
       }
 
-      if (stmt.includes('from daily_logs') && stmt.includes('where mare_id = ?')) {
-        const [mareId] = params as [string];
-        const values = Array.from(dailyLogs.values())
-          .filter((row) => row.mare_id === mareId)
-          .sort((a, b) => b.date.localeCompare(a.date));
-        return values as T[];
+      if (stmt.includes('from daily_logs')) {
+        const values = Array.from(dailyLogs.values());
+        if (stmt.includes('where mare_id = ?')) {
+          const [mareId] = params as [string];
+          return values
+            .filter((row) => row.mare_id === mareId)
+            .sort(compareDailyLogRowsDesc) as T[];
+        }
+        return values.sort(compareDailyLogRowsDesc) as T[];
       }
 
       if (stmt.includes('from foals') && stmt.includes('mare_id = ?')) {
@@ -900,6 +956,7 @@ describe('repository smoke tests', () => {
       id: 'log-1',
       mareId: 'mare-2',
       date: '2026-03-10',
+      time: '08:15',
       teasingScore: 3,
       edema: 2,
       notes: 'Baseline',
@@ -907,10 +964,12 @@ describe('repository smoke tests', () => {
 
     const created = await getDailyLogById('log-1');
     expect(created?.date).toBe('2026-03-10');
+    expect(created?.time).toBe('08:15');
     expect(created?.teasingScore).toBe(3);
 
     await updateDailyLog('log-1', {
       date: '2026-03-11',
+      time: '16:45',
       teasingScore: 4,
       edema: 3,
       rightOvary: '35mm',
@@ -919,6 +978,7 @@ describe('repository smoke tests', () => {
 
     const updated = await getDailyLogById('log-1');
     expect(updated?.date).toBe('2026-03-11');
+    expect(updated?.time).toBe('16:45');
     expect(updated?.teasingScore).toBe(4);
     expect(updated?.rightOvary).toBe('35mm');
 
@@ -926,6 +986,138 @@ describe('repository smoke tests', () => {
 
     const deleted = await getDailyLogById('log-1');
     expect(deleted).toBeNull();
+  });
+
+  it('allows multiple same-day daily logs when times are distinct', async () => {
+    await createMare({ id: 'mare-same-day', name: 'Nova Two', breed: 'Quarter Horse' });
+
+    await createDailyLog({
+      id: 'log-am',
+      mareId: 'mare-same-day',
+      date: '2026-03-10',
+      time: '08:00',
+    });
+    await createDailyLog({
+      id: 'log-pm',
+      mareId: 'mare-same-day',
+      date: '2026-03-10',
+      time: '16:00',
+    });
+
+    const logs = await listDailyLogsByMare('mare-same-day');
+    expect(logs.map((log) => log.id)).toEqual(['log-pm', 'log-am']);
+    expect(logs.map((log) => log.time)).toEqual(['16:00', '08:00']);
+  });
+
+  it('rejects duplicate same-day daily logs when time matches exactly', async () => {
+    await createMare({ id: 'mare-dup-time', name: 'Clover', breed: 'Warmblood' });
+
+    await createDailyLog({
+      id: 'log-1',
+      mareId: 'mare-dup-time',
+      date: '2026-03-10',
+      time: '08:00',
+    });
+
+    await expect(
+      createDailyLog({
+        id: 'log-2',
+        mareId: 'mare-dup-time',
+        date: '2026-03-10',
+        time: '08:00',
+      }),
+    ).rejects.toThrow('UNIQUE constraint failed: daily_logs.mare_id, daily_logs.date, daily_logs.time');
+  });
+
+  it('orders timed rows before untimed legacy rows on the same day', async () => {
+    await createMare({ id: 'mare-order', name: 'Orderly', breed: 'Warmblood' });
+
+    await createDailyLog({
+      id: 'log-am',
+      mareId: 'mare-order',
+      date: '2026-03-10',
+      time: '08:00',
+    });
+    await createDailyLog({
+      id: 'log-pm',
+      mareId: 'mare-order',
+      date: '2026-03-10',
+      time: '16:00',
+    });
+
+    await getDb().then((db) =>
+      db.runAsync(
+        `
+        INSERT INTO daily_logs (
+          id,
+          mare_id,
+          date,
+          time,
+          teasing_score,
+          right_ovary,
+          left_ovary,
+          ovulation_detected,
+          edema,
+          uterine_tone,
+          uterine_cysts,
+          right_ovary_ovulation,
+          right_ovary_follicle_state,
+          right_ovary_follicle_measurements_mm,
+          right_ovary_consistency,
+          right_ovary_structures,
+          left_ovary_ovulation,
+          left_ovary_follicle_state,
+          left_ovary_follicle_measurements_mm,
+          left_ovary_consistency,
+          left_ovary_structures,
+          uterine_tone_category,
+          cervical_firmness,
+          discharge_observed,
+          discharge_notes,
+          notes,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        `,
+        [
+          'log-legacy',
+          'mare-order',
+          '2026-03-10',
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          '[]',
+          null,
+          '[]',
+          null,
+          null,
+          '[]',
+          null,
+          '[]',
+          null,
+          null,
+          null,
+          null,
+          null,
+          '2026-03-10T07:00:00.000Z',
+          '2026-03-10T07:00:00.000Z',
+        ],
+      ),
+    );
+
+    const logs = await listDailyLogsByMare('mare-order');
+    expect(logs.map((log) => `${log.id}:${log.time ?? '-'}`)).toEqual([
+      'log-pm:16:00',
+      'log-am:08:00',
+      'log-legacy:-',
+    ]);
   });
 
   it('negative pregnancy check stores null heartbeatDetected', async () => {
@@ -1137,6 +1329,7 @@ describe('repository smoke tests', () => {
       id: 'log-ov1',
       mareId: 'mare-ov1',
       date: '2026-03-14',
+      time: '08:00',
       ovulationDetected: true,
     });
 
@@ -1151,6 +1344,7 @@ describe('repository smoke tests', () => {
       id: 'log-ov2',
       mareId: 'mare-ov2',
       date: '2026-03-14',
+      time: '08:00',
       ovulationDetected: false,
     });
 
@@ -1165,6 +1359,7 @@ describe('repository smoke tests', () => {
       id: 'log-ov3',
       mareId: 'mare-ov3',
       date: '2026-03-14',
+      time: '08:00',
     });
 
     const log = await getDailyLogById('log-ov3');
@@ -1178,6 +1373,7 @@ describe('repository smoke tests', () => {
       id: 'log-ov4',
       mareId: 'mare-ov4',
       date: '2026-03-14',
+      time: '08:00',
     });
 
     await updateDailyLog('log-ov4', {

@@ -1,4 +1,5 @@
 import type { DailyLogDetail, DailyLogOvulationSource } from '@/models/types';
+import { normalizeDailyLogTime } from '@/utils/dailyLogTime';
 import { newId } from '@/utils/id';
 
 import { collectValidMeasurements, fromScoreOption, toScoreOption } from './measurementUtils';
@@ -80,6 +81,7 @@ export function hydrateDailyLogWizardRecord(record: DailyLogDetail) {
 
   return {
     date: record.date,
+    time: record.time ?? '',
     teasingScore: toScoreOption(record.teasingScore),
     rightOvary: {
       ovulation: record.rightOvaryOvulation ?? null,
@@ -114,6 +116,7 @@ export function hydrateDailyLogWizardRecord(record: DailyLogDetail) {
 type BuildDailyLogPayloadArgs = {
   isEdit: boolean;
   date: string;
+  time: string;
   teasingScore: ReturnType<typeof toScoreOption>;
   rightOvary: DailyLogWizardOvaryDraft;
   leftOvary: DailyLogWizardOvaryDraft;
@@ -126,6 +129,7 @@ type BuildDailyLogPayloadArgs = {
 export function buildDailyLogPayload({
   isEdit,
   date,
+  time,
   teasingScore,
   rightOvary,
   leftOvary,
@@ -148,6 +152,7 @@ export function buildDailyLogPayload({
 
   return {
     date: date.trim(),
+    time: normalizeDailyLogTime(time),
     teasingScore: fromScoreOption(teasingScore),
     rightOvaryOvulation: rightOvary.ovulation,
     rightOvaryFollicleState: rightOvary.follicleState,
