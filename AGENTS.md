@@ -24,10 +24,12 @@ Implemented and actively used:
 - Mares: create, edit, list, detail
 - Stallions: create, edit, list
 - Daily logs: create, edit, delete
+- Daily log wizard: multi-step create/edit flow with ovary and uterus details
 - Breeding records: create, edit, delete
 - Pregnancy checks: create, edit, delete
 - Foaling records: create, edit, delete
 - Foal records: create, edit, delete, linked 1:1 to foaling records
+- Frozen semen batches: create, edit, delete, with stallion-level frozen inventory tab
 - Mare detail tabs: Daily Logs, Breeding, Pregnancy, Foaling, Meds
 - Mare calendar screen with event dots and day-level history
 - Home dashboard with actionable breeding alerts
@@ -74,6 +76,8 @@ Preserve these unless the user explicitly asks to change them:
 - Stallion form does not show `registration #` in the UI.
 - Mare DOB displays as `MM-DD-YYYY` in forms, while storage remains `YYYY-MM-DD`.
 - Daily log `None` options for teasing and edema are labeled `N/A`.
+- Daily log wizard ovary step uses `Follicle Size` numeric entry for both left and right ovaries (same input type on both sides).
+- Follicle size validation allows `0-100` with up to one decimal place.
 - Edit affordances use the pencil icon (`✎`) through `IconButton`.
 - Frozen AI supports optional `Straw Volume (mL)`.
 - `Straw Volume (mL)` is limited to an optional 2-digit integer (`0-99`).

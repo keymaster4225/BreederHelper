@@ -14,10 +14,12 @@ Implemented and working:
 - Mares: create/edit/list/detail
 - Stallions: create/edit/list
 - Daily logs: create/edit/delete
+- Daily log wizard with structured ovary/uterus fields and review step
 - Breeding records: create/edit/delete
 - Pregnancy checks: create/edit/delete
 - Foaling records: create/edit/delete
 - Foal records: create/edit/delete (linked 1:1 to foaling records)
+- Frozen semen batches: create/edit/delete with stallion-level frozen inventory tab
 - Mare detail swipeable tabs (Daily Logs, Breeding, Pregnancy, Foaling, Meds) via `react-native-pager-view`
 - SQLite migrations + repository layer
 - Typecheck/test CI plus local Vitest and Jest screen coverage
@@ -26,6 +28,8 @@ Recent UX/domain decisions reflected in code:
 - Stallion form no longer shows `registration #` field in UI.
 - Mare DOB is displayed in forms as `MM-DD-YYYY` (stored as `YYYY-MM-DD`).
 - Daily log "None" choice for teasing/edema is labeled `N/A`.
+- Daily log wizard ovary step uses `Follicle Size` numeric inputs for both left and right ovaries (same input type and validation on both sides).
+- Follicle size fields are constrained to numeric values from `0` to `100` with up to one decimal place.
 - Edit actions use pencil icon (`✎`) via `IconButton` throughout (mare detail header, record cards, home screen mare list).
 - Frozen AI includes optional `Straw Volume (mL)`.
 - `Straw Volume (mL)` is constrained to optional 2-digit integer (`0-99`).
