@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 
 import { DataBackupScreen } from '@/screens/DataBackupScreen';
 import { useDataBackup } from '@/hooks/useDataBackup';
-import type { SafetySnapshotSummary } from '@/utils/backup/types';
+import type { SafetySnapshotSummary } from '@/storage/backup';
 
 jest.mock('@/hooks/useDataBackup', () => ({
   useDataBackup: jest.fn(),

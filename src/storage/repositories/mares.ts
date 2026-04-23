@@ -1,12 +1,14 @@
 ﻿import { DEFAULT_GESTATION_LENGTH_DAYS, LocalDate, Mare } from '@/models/types';
-import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 
-export async function listMares(includeDeleted = false): Promise<Mare[]> {
-  const db = await getDb();
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
+
+export async function listMares(includeDeleted = false, db?: RepoDb): Promise<Mare[]> {
+  const handle = await resolveDb(db);
   const deletedClause = includeDeleted ? '' : 'WHERE deleted_at IS NULL';
 
-  return db.getAllAsync<MareRow>(
+  return handle.getAllAsync<MareRow>(
     `
     SELECT
       id,
@@ -26,9 +28,9 @@ export async function listMares(includeDeleted = false): Promise<Mare[]> {
   ).then((rows) => rows.map(mapMareRow));
 }
 
-export async function getMareById(id: string): Promise<Mare | null> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<MareRow>(
+export async function getMareById(id: string, db?: RepoDb): Promise<Mare | null> {
+  const handle = await resolveDb(db);
+  const row = await handle.getFirstAsync<MareRow>(
     `
     SELECT
       id,
@@ -58,11 +60,11 @@ export async function createMare(input: {
   dateOfBirth?: LocalDate | null;
   registrationNumber?: string | null;
   notes?: string | null;
-}): Promise<void> {
-  const db = await getDb();
+}, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
   const now = new Date().toISOString();
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     INSERT INTO mares (
       id,
@@ -101,11 +103,12 @@ export async function updateMare(
     dateOfBirth?: LocalDate | null;
     registrationNumber?: string | null;
     notes?: string | null;
-  }
+  },
+  db?: RepoDb,
 ): Promise<void> {
-  const db = await getDb();
+  const handle = await resolveDb(db);
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     UPDATE mares
     SET
@@ -132,10 +135,10 @@ export async function updateMare(
   emitDataInvalidation('mares');
 }
 
-export async function softDeleteMare(id: string): Promise<void> {
-  const db = await getDb();
+export async function softDeleteMare(id: string, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     UPDATE mares
     SET deleted_at = ?, updated_at = ?

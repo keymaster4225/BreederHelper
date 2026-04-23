@@ -1,25 +1,12 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
-jest.mock('@/storage/repositories', () => ({
-  createPregnancyCheck: jest.fn(),
-  deletePregnancyCheck: jest.fn(),
-  getMareById: jest.fn(),
-  getPregnancyCheckById: jest.fn(),
-  listBreedingRecordsByMare: jest.fn(),
-  updatePregnancyCheck: jest.fn(),
+jest.mock('@/hooks/usePregnancyCheckForm', () => ({
+  usePregnancyCheckForm: jest.fn(),
 }));
 
 const { PregnancyCheckFormScreen } = require('@/screens/PregnancyCheckFormScreen') as typeof import('@/screens/PregnancyCheckFormScreen');
-const {
-  getMareById,
-  getPregnancyCheckById,
-  listBreedingRecordsByMare,
-  updatePregnancyCheck,
-} = jest.requireMock('@/storage/repositories') as {
-  getMareById: jest.Mock;
-  getPregnancyCheckById: jest.Mock;
-  listBreedingRecordsByMare: jest.Mock;
-  updatePregnancyCheck: jest.Mock;
+const { usePregnancyCheckForm } = jest.requireMock('@/hooks/usePregnancyCheckForm') as {
+  usePregnancyCheckForm: jest.Mock;
 };
 
 function createNavigation() {
@@ -30,44 +17,41 @@ function createNavigation() {
   };
 }
 
+function createHookState(overrides: Record<string, unknown> = {}) {
+  return {
+    isEdit: true,
+    today: new Date('2026-04-23T12:00:00Z'),
+    breedingRecords: [{ id: 'br-1', date: '2026-03-20', stallionName: 'Atlas', method: 'liveCover' }],
+    breedingRecordId: 'br-1',
+    date: '2026-04-04',
+    result: 'positive',
+    heartbeat: 'yes',
+    notes: '',
+    errors: {},
+    daysPostBreeding: 15,
+    approxDueDate: '2027-02-03',
+    isLoading: false,
+    isSaving: false,
+    isDeleting: false,
+    setBreedingRecordId: jest.fn(),
+    setDate: jest.fn(),
+    setResult: jest.fn(),
+    setHeartbeat: jest.fn(),
+    setNotes: jest.fn(),
+    onSave: jest.fn(),
+    requestDelete: jest.fn(),
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
 });
 
-it('loads an existing pregnancy check and saves updates', async () => {
+it('renders derived pregnancy context and wires save/delete actions', () => {
   const navigation = createNavigation();
-  getMareById.mockResolvedValue({
-    id: 'mare-1',
-    name: 'Nova',
-    breed: 'Warmblood',
-    gestationLengthDays: 320,
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
-  });
-  listBreedingRecordsByMare.mockResolvedValue([
-    {
-      id: 'br-1',
-      mareId: 'mare-1',
-      stallionId: 'stallion-1',
-      stallionName: 'Atlas',
-      date: '2026-03-20',
-      method: 'liveCover',
-      createdAt: '2026-03-20T00:00:00Z',
-      updatedAt: '2026-03-20T00:00:00Z',
-    },
-  ]);
-  getPregnancyCheckById.mockResolvedValue({
-    id: 'pc-1',
-    mareId: 'mare-1',
-    breedingRecordId: 'br-1',
-    date: '2026-04-04',
-    result: 'positive',
-    heartbeatDetected: true,
-    notes: null,
-    createdAt: '2026-04-04T00:00:00Z',
-    updatedAt: '2026-04-04T00:00:00Z',
-  });
-  updatePregnancyCheck.mockResolvedValue(undefined);
+  const hookState = createHookState();
+  usePregnancyCheckForm.mockReturnValue(hookState);
 
   const screen = render(
     <PregnancyCheckFormScreen
@@ -80,23 +64,38 @@ it('loads an existing pregnancy check and saves updates', async () => {
     />,
   );
 
-  await waitFor(() => {
-    expect(getMareById).toHaveBeenCalledWith('mare-1');
-    expect(listBreedingRecordsByMare).toHaveBeenCalledWith('mare-1');
-    expect(getPregnancyCheckById).toHaveBeenCalledWith('pc-1');
-  });
-
+  expect(screen.getByText('Days post-breeding: 15')).toBeTruthy();
   expect(screen.getByText('Approx. due date: 02-03-2027')).toBeTruthy();
-  fireEvent.press(screen.getByText('Save'));
 
-  await waitFor(() => {
-    expect(updatePregnancyCheck).toHaveBeenCalledWith(
-      'pc-1',
-      expect.objectContaining({
-        breedingRecordId: 'br-1',
-        date: '2026-04-04',
-      }),
-    );
-    expect(navigation.goBack).toHaveBeenCalled();
+  fireEvent.press(screen.getByText('Save'));
+  fireEvent.press(screen.getByText('Delete'));
+
+  expect(hookState.onSave).toHaveBeenCalled();
+  expect(hookState.requestDelete).toHaveBeenCalled();
+});
+
+it('shows the empty breeding-record state and keeps the save action disabled', () => {
+  const navigation = createNavigation();
+  const hookState = createHookState({
+    isEdit: false,
+    breedingRecords: [],
+    breedingRecordId: '',
+    approxDueDate: null,
+    daysPostBreeding: null,
   });
+  usePregnancyCheckForm.mockReturnValue(hookState);
+
+  const screen = render(
+    <PregnancyCheckFormScreen
+      navigation={navigation as never}
+      route={{
+        key: 'PregnancyCheckForm',
+        name: 'PregnancyCheckForm',
+        params: { mareId: 'mare-1' },
+      } as never}
+    />,
+  );
+
+  expect(screen.getByText('No breeding records')).toBeTruthy();
+  expect(screen.getByText('Add a breeding record for this mare first.')).toBeTruthy();
 });

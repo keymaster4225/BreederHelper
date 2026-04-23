@@ -1,6 +1,8 @@
 import { Stallion } from '@/models/types';
-import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
+
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
 
 type StallionRow = {
   id: string;
@@ -42,9 +44,9 @@ function mapStallionRow(row: StallionRow): Stallion {
   };
 }
 
-export async function listStallions(): Promise<Stallion[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<StallionRow>(
+export async function listStallions(db?: RepoDb): Promise<Stallion[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<StallionRow>(
     `
     SELECT id, name, breed, registration_number, sire, dam, notes, date_of_birth, av_temperature_f, av_type, av_liner_type, av_water_volume_ml, av_notes, created_at, updated_at, deleted_at
     FROM stallions
@@ -56,9 +58,9 @@ export async function listStallions(): Promise<Stallion[]> {
   return rows.map(mapStallionRow);
 }
 
-export async function getStallionById(id: string): Promise<Stallion | null> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<StallionRow>(
+export async function getStallionById(id: string, db?: RepoDb): Promise<Stallion | null> {
+  const handle = await resolveDb(db);
+  const row = await handle.getFirstAsync<StallionRow>(
     `
     SELECT id, name, breed, registration_number, sire, dam, notes, date_of_birth, av_temperature_f, av_type, av_liner_type, av_water_volume_ml, av_notes, created_at, updated_at, deleted_at
     FROM stallions
@@ -84,11 +86,11 @@ export async function createStallion(input: {
   avLinerType?: string | null;
   avWaterVolumeMl?: number | null;
   avNotes?: string | null;
-}): Promise<void> {
-  const db = await getDb();
+}, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
   const now = new Date().toISOString();
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     INSERT INTO stallions (
       id, name, breed, registration_number, sire, dam, notes,
@@ -133,10 +135,11 @@ export async function updateStallion(
     avWaterVolumeMl?: number | null;
     avNotes?: string | null;
   },
+  db?: RepoDb,
 ): Promise<void> {
-  const db = await getDb();
+  const handle = await resolveDb(db);
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     UPDATE stallions
     SET
@@ -175,10 +178,10 @@ export async function updateStallion(
   emitDataInvalidation('stallions');
 }
 
-export async function softDeleteStallion(id: string): Promise<void> {
-  const db = await getDb();
+export async function softDeleteStallion(id: string, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     UPDATE stallions
     SET deleted_at = ?, updated_at = ?

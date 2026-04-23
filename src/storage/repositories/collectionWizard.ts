@@ -1,10 +1,9 @@
-import type * as SQLite from 'expo-sqlite';
-
-import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { computeAllocationSummary } from '@/utils/collectionAllocation';
 import { newId } from '@/utils/id';
 import type { AllocatedSemenVolumeOptions } from './internal/collectionAllocation';
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
 import {
   assertCollectionSemenVolumeWithinCap,
   getAllocatedSemenVolumeForCollectionDb,
@@ -120,7 +119,7 @@ function validateWizardInput(input: CreateCollectionWithAllocationsInput): void 
 }
 
 async function getRequiredStallion(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   stallionId: string,
 ): Promise<StallionRow> {
   const stallion = await db.getFirstAsync<StallionRow>(
@@ -144,7 +143,7 @@ async function getRequiredStallion(
 }
 
 async function getRequiredMare(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   mareId: string,
 ): Promise<MareRow> {
   const mare = await db.getFirstAsync<MareRow>(
@@ -168,7 +167,7 @@ async function getRequiredMare(
 }
 
 async function insertCollection(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   collectionId: string,
   input: CollectionDraftInput,
   now: string,
@@ -210,7 +209,7 @@ async function insertCollection(
 }
 
 async function insertShippedDoseEvent(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   collectionId: string,
   row: CreateCollectionWizardShippedRowInput,
   now: string,
@@ -266,7 +265,7 @@ async function insertShippedDoseEvent(
 }
 
 async function insertOnFarmAllocation(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   collectionId: string,
   collection: CollectionDraftInput,
   row: CreateCollectionWizardOnFarmRowInput,
@@ -372,26 +371,27 @@ async function insertOnFarmAllocation(
 
 export async function createCollectionWithAllocations(
   input: CreateCollectionWithAllocationsInput,
+  db?: RepoDb,
 ): Promise<CreateCollectionWithAllocationsResult> {
   validateWizardInput(input);
 
-  const db = await getDb();
-  await getRequiredStallion(db, input.collection.stallionId);
+  const handle = await resolveDb(db);
+  await getRequiredStallion(handle, input.collection.stallionId);
 
   const collectionId = newId();
   const breedingRecordIds: string[] = [];
   const now = new Date().toISOString();
 
-  await db.withTransactionAsync(async () => {
-    await insertCollection(db, collectionId, input.collection, now);
+  await handle.withTransactionAsync(async () => {
+    await insertCollection(handle, collectionId, input.collection, now);
 
     for (const row of input.shippedRows) {
-      await insertShippedDoseEvent(db, collectionId, row, now);
+      await insertShippedDoseEvent(handle, collectionId, row, now);
     }
 
     for (const row of input.onFarmRows) {
       const breedingRecordId = await insertOnFarmAllocation(
-        db,
+        handle,
         collectionId,
         input.collection,
         row,
@@ -400,7 +400,7 @@ export async function createCollectionWithAllocations(
       breedingRecordIds.push(breedingRecordId);
     }
 
-    await assertCollectionSemenVolumeWithinCap(db, collectionId);
+    await assertCollectionSemenVolumeWithinCap(handle, collectionId);
   });
 
   emitDataInvalidation('semenCollections');
@@ -416,7 +416,8 @@ export async function createCollectionWithAllocations(
 export async function getAllocatedSemenVolumeForCollection(
   collectionId: string,
   options?: AllocatedSemenVolumeOptions,
+  db?: RepoDb,
 ): Promise<number> {
-  const db = await getDb();
-  return getAllocatedSemenVolumeForCollectionDb(db, collectionId, options);
+  const handle = await resolveDb(db);
+  return getAllocatedSemenVolumeForCollectionDb(handle, collectionId, options);
 }

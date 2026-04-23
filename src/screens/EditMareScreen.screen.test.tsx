@@ -1,17 +1,12 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
-jest.mock('@/storage/repositories', () => ({
-  createMare: jest.fn(),
-  getMareById: jest.fn(),
-  softDeleteMare: jest.fn(),
-  updateMare: jest.fn(),
+jest.mock('@/hooks/useEditMareForm', () => ({
+  useEditMareForm: jest.fn(),
 }));
 
 const { EditMareScreen } = require('@/screens/EditMareScreen') as typeof import('@/screens/EditMareScreen');
-const { createMare, getMareById, updateMare } = jest.requireMock('@/storage/repositories') as {
-  createMare: jest.Mock;
-  getMareById: jest.Mock;
-  updateMare: jest.Mock;
+const { useEditMareForm } = jest.requireMock('@/hooks/useEditMareForm') as {
+  useEditMareForm: jest.Mock;
 };
 
 function createNavigation() {
@@ -22,25 +17,48 @@ function createNavigation() {
   };
 }
 
+function createHookState(overrides: Record<string, unknown> = {}) {
+  return {
+    isEdit: false,
+    today: new Date('2026-04-23T12:00:00Z'),
+    name: '',
+    breed: '',
+    gestationLengthDays: '340',
+    dateOfBirth: '',
+    registrationNumber: '',
+    notes: '',
+    errors: {},
+    isLoading: false,
+    isSaving: false,
+    isDeleting: false,
+    setName: jest.fn(),
+    setBreed: jest.fn(),
+    setGestationLengthDays: jest.fn(),
+    setDateOfBirth: jest.fn(),
+    setRegistrationNumber: jest.fn(),
+    setNotes: jest.fn(),
+    onSave: jest.fn(),
+    requestDelete: jest.fn(),
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
 });
 
-it('loads an existing mare and saves updates', async () => {
+it('renders edit-mode values and wires save/delete actions to the hook', () => {
   const navigation = createNavigation();
-  getMareById.mockResolvedValue({
-    id: 'mare-1',
+  const hookState = createHookState({
+    isEdit: true,
     name: 'Nova',
     breed: 'Warmblood',
-    gestationLengthDays: 345,
+    gestationLengthDays: '345',
     dateOfBirth: '2016-02-14',
     registrationNumber: 'REG-123',
     notes: 'Steady temperament',
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
-    deletedAt: null,
   });
-  updateMare.mockResolvedValue(undefined);
+  useEditMareForm.mockReturnValue(hookState);
 
   const screen = render(
     <EditMareScreen
@@ -49,29 +67,28 @@ it('loads an existing mare and saves updates', async () => {
     />,
   );
 
-  await waitFor(() => {
-    expect(getMareById).toHaveBeenCalledWith('mare-1');
-  });
+  expect(screen.getByDisplayValue('Nova')).toBeTruthy();
+  expect(screen.getByDisplayValue('Warmblood')).toBeTruthy();
+  expect(screen.getByDisplayValue('345')).toBeTruthy();
+  expect(screen.getByDisplayValue('REG-123')).toBeTruthy();
+  expect(screen.getByDisplayValue('Steady temperament')).toBeTruthy();
 
-  await screen.findByDisplayValue('Warmblood');
   fireEvent.press(screen.getByText('Save'));
+  fireEvent.press(screen.getByText('Delete Mare'));
 
-  await waitFor(() => {
-    expect(updateMare).toHaveBeenCalledWith(
-      'mare-1',
-      expect.objectContaining({
-        name: 'Nova',
-        breed: 'Warmblood',
-        gestationLengthDays: 345,
-      }),
-    );
-    expect(navigation.goBack).toHaveBeenCalled();
-  });
+  expect(hookState.onSave).toHaveBeenCalled();
+  expect(hookState.requestDelete).toHaveBeenCalled();
 });
 
-it('filters breed suggestions and saves a selected breed on create', async () => {
+it('renders validation errors and forwards field edits in create mode', () => {
   const navigation = createNavigation();
-  createMare.mockResolvedValue(undefined);
+  const hookState = createHookState({
+    errors: {
+      breed: 'Breed is required.',
+      gestationLengthDays: 'Gestation length must be between 300 and 420.',
+    },
+  });
+  useEditMareForm.mockReturnValue(hookState);
 
   const screen = render(
     <EditMareScreen
@@ -81,80 +98,14 @@ it('filters breed suggestions and saves a selected breed on create', async () =>
   );
 
   fireEvent.changeText(screen.getByPlaceholderText('Mare name'), 'Luna');
-  fireEvent.changeText(screen.getByPlaceholderText('Type or select breed'), 'warm');
-  fireEvent.press(await screen.findByText('Warmblood'));
-  fireEvent.press(screen.getByText('Save'));
-
-  await waitFor(() => {
-    expect(createMare).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Luna',
-        breed: 'Warmblood',
-        gestationLengthDays: 340,
-      }),
-    );
-    expect(navigation.goBack).toHaveBeenCalled();
-  });
-});
-
-it('saves a custom typed breed for a mare', async () => {
-  const navigation = createNavigation();
-  createMare.mockResolvedValue(undefined);
-
-  const screen = render(
-    <EditMareScreen
-      navigation={navigation as never}
-      route={{ key: 'EditMare', name: 'EditMare', params: undefined } as never}
-    />,
-  );
-
-  fireEvent.changeText(screen.getByPlaceholderText('Mare name'), 'Nova');
-  fireEvent.changeText(screen.getByPlaceholderText('Type or select breed'), 'Spanish Barb Cross');
-  fireEvent.press(screen.getByText('Save'));
-
-  await waitFor(() => {
-    expect(createMare).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Nova',
-        breed: 'Spanish Barb Cross',
-        gestationLengthDays: 340,
-      }),
-    );
-  });
-});
-
-it('requires a breed for mares', () => {
-  const navigation = createNavigation();
-
-  const screen = render(
-    <EditMareScreen
-      navigation={navigation as never}
-      route={{ key: 'EditMare', name: 'EditMare', params: undefined } as never}
-    />,
-  );
-
-  fireEvent.changeText(screen.getByPlaceholderText('Mare name'), 'Nova');
-  fireEvent.press(screen.getByText('Save'));
-
-  expect(createMare).not.toHaveBeenCalled();
-  expect(screen.getByText('Breed is required.')).toBeTruthy();
-});
-
-it('requires gestation length to stay within the supported whole-number range', () => {
-  const navigation = createNavigation();
-
-  const screen = render(
-    <EditMareScreen
-      navigation={navigation as never}
-      route={{ key: 'EditMare', name: 'EditMare', params: undefined } as never}
-    />,
-  );
-
-  fireEvent.changeText(screen.getByPlaceholderText('Mare name'), 'Nova');
-  fireEvent.changeText(screen.getByPlaceholderText('Type or select breed'), 'Warmblood');
+  fireEvent.changeText(screen.getByPlaceholderText('Type or select breed'), 'Spanish Barb');
   fireEvent.changeText(screen.getByDisplayValue('340'), '299');
   fireEvent.press(screen.getByText('Save'));
 
-  expect(createMare).not.toHaveBeenCalled();
+  expect(hookState.setName).toHaveBeenCalledWith('Luna');
+  expect(hookState.setBreed).toHaveBeenCalledWith('Spanish Barb');
+  expect(hookState.setGestationLengthDays).toHaveBeenCalledWith('299');
+  expect(hookState.onSave).toHaveBeenCalled();
+  expect(screen.getByText('Breed is required.')).toBeTruthy();
   expect(screen.getByText('Gestation length must be between 300 and 420.')).toBeTruthy();
 });

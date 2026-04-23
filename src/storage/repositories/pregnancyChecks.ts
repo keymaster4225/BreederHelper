@@ -1,6 +1,7 @@
 import { PregnancyCheck } from '@/models/types';
-import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
 import { getBreedingRecordById } from './breedingRecords';
 
 type PregnancyCheckRow = {
@@ -32,8 +33,9 @@ function mapPregnancyCheckRow(row: PregnancyCheckRow): PregnancyCheck {
 async function validateBreedingRecordForMare(
   breedingRecordId: string,
   mareId: string,
+  db?: RepoDb,
 ): Promise<void> {
-  const breedingRecord = await getBreedingRecordById(breedingRecordId);
+  const breedingRecord = await getBreedingRecordById(breedingRecordId, db);
 
   if (!breedingRecord) {
     throw new Error('Breeding record not found.');
@@ -52,13 +54,13 @@ export async function createPregnancyCheck(input: {
   result: PregnancyCheck['result'];
   heartbeatDetected?: boolean | null;
   notes?: string | null;
-}): Promise<void> {
-  await validateBreedingRecordForMare(input.breedingRecordId, input.mareId);
+}, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await validateBreedingRecordForMare(input.breedingRecordId, input.mareId, handle);
 
-  const db = await getDb();
   const now = new Date().toISOString();
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     INSERT INTO pregnancy_checks (
       id,
@@ -96,17 +98,17 @@ export async function updatePregnancyCheck(
     heartbeatDetected?: boolean | null;
     notes?: string | null;
   },
+  db?: RepoDb,
 ): Promise<void> {
-  const existing = await getPregnancyCheckById(id);
+  const handle = await resolveDb(db);
+  const existing = await getPregnancyCheckById(id, handle);
   if (!existing) {
     throw new Error('Pregnancy check not found.');
   }
 
-  await validateBreedingRecordForMare(input.breedingRecordId, existing.mareId);
+  await validateBreedingRecordForMare(input.breedingRecordId, existing.mareId, handle);
 
-  const db = await getDb();
-
-  await db.runAsync(
+  await handle.runAsync(
     `
     UPDATE pregnancy_checks
     SET
@@ -131,9 +133,9 @@ export async function updatePregnancyCheck(
   emitDataInvalidation('pregnancyChecks');
 }
 
-export async function getPregnancyCheckById(id: string): Promise<PregnancyCheck | null> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<PregnancyCheckRow>(
+export async function getPregnancyCheckById(id: string, db?: RepoDb): Promise<PregnancyCheck | null> {
+  const handle = await resolveDb(db);
+  const row = await handle.getFirstAsync<PregnancyCheckRow>(
     `
     SELECT id, mare_id, breeding_record_id, date, result, heartbeat_detected, notes, created_at, updated_at
     FROM pregnancy_checks
@@ -145,15 +147,15 @@ export async function getPregnancyCheckById(id: string): Promise<PregnancyCheck 
   return row ? mapPregnancyCheckRow(row) : null;
 }
 
-export async function deletePregnancyCheck(id: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM pregnancy_checks WHERE id = ?;', [id]);
+export async function deletePregnancyCheck(id: string, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await handle.runAsync('DELETE FROM pregnancy_checks WHERE id = ?;', [id]);
   emitDataInvalidation('pregnancyChecks');
 }
 
-export async function listAllPregnancyChecks(): Promise<PregnancyCheck[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<PregnancyCheckRow>(
+export async function listAllPregnancyChecks(db?: RepoDb): Promise<PregnancyCheck[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<PregnancyCheckRow>(
     `
     SELECT id, mare_id, breeding_record_id, date, result, heartbeat_detected, notes, created_at, updated_at
     FROM pregnancy_checks
@@ -164,9 +166,9 @@ export async function listAllPregnancyChecks(): Promise<PregnancyCheck[]> {
   return rows.map(mapPregnancyCheckRow);
 }
 
-export async function listPregnancyChecksByMare(mareId: string): Promise<PregnancyCheck[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<PregnancyCheckRow>(
+export async function listPregnancyChecksByMare(mareId: string, db?: RepoDb): Promise<PregnancyCheck[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<PregnancyCheckRow>(
     `
     SELECT id, mare_id, breeding_record_id, date, result, heartbeat_detected, notes, created_at, updated_at
     FROM pregnancy_checks

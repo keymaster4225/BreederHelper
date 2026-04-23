@@ -1,15 +1,13 @@
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { CompositeScreenProps, useFocusEffect } from '@react-navigation/native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { CompositeScreenProps } from '@react-navigation/native';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+import { useStallionManagement } from '@/hooks/useStallionManagement';
 import { Screen } from '@/components/Screen';
 import { EditIconButton } from '@/components/RecordCardParts';
-import { Stallion } from '@/models/types';
 import { RootStackParamList, TabParamList } from '@/navigation/AppNavigator';
-import { listStallions, softDeleteStallion } from '@/storage/repositories';
 import { deriveAgeYears } from '@/utils/dates';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
@@ -19,70 +17,16 @@ type Props = CompositeScreenProps<
 >;
 
 export function StallionManagementScreen({ navigation }: Props): JSX.Element {
-  const [stallions, setStallions] = useState<Stallion[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchText, setSearchText] = useState('');
-  const [selectedStallionId, setSelectedStallionId] = useState<string | null>(null);
-
-  const loadStallions = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const rows = await listStallions();
-      setStallions(rows);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      void loadStallions();
-      setSelectedStallionId(null);
-    }, [loadStallions]),
-  );
-
-  const filteredStallions = stallions.filter((s) =>
-    s.name.toLowerCase().includes(searchText.toLowerCase()),
-  );
-
-  const handleDeleteStallion = useCallback(
-    (stallion: Stallion) => {
-      Alert.alert('Delete Stallion', `Delete ${stallion.name}? This cannot be undone.`, [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            void (async () => {
-              try {
-                await softDeleteStallion(stallion.id);
-                await loadStallions();
-              } catch (err) {
-                const message = err instanceof Error ? err.message : 'Failed to delete stallion.';
-                if (message.toLowerCase().includes('foreign key')) {
-                  Alert.alert('Delete blocked', 'Cannot delete this stallion because linked records exist.');
-                  return;
-                }
-                Alert.alert('Delete failed', message);
-              }
-            })();
-          },
-        },
-      ]);
-    },
-    [loadStallions],
-  );
-
-  const handleStallionPress = useCallback(
-    (stallion: Stallion, isSelected: boolean) => {
-      if (isSelected) {
-        setSelectedStallionId(null);
-      } else {
-        navigation.navigate('StallionDetail', { stallionId: stallion.id });
-      }
-    },
-    [navigation],
-  );
+  const {
+    stallions,
+    filteredStallions,
+    isLoading,
+    searchText,
+    selectedStallionId,
+    setSearchText,
+    setSelectedStallionId,
+    requestDeleteStallion,
+  } = useStallionManagement();
 
   return (
     <Screen>
@@ -170,7 +114,14 @@ export function StallionManagementScreen({ navigation }: Props): JSX.Element {
               <Pressable
                 style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
                 accessibilityRole="button"
-                onPress={() => handleStallionPress(item, isSelected)}
+                onPress={() => {
+                  if (isSelected) {
+                    setSelectedStallionId(null);
+                    return;
+                  }
+
+                  navigation.navigate('StallionDetail', { stallionId: item.id });
+                }}
                 onLongPress={() => setSelectedStallionId(isSelected ? null : item.id)}
               >
                 <View style={styles.rowMain}>
@@ -181,7 +132,7 @@ export function StallionManagementScreen({ navigation }: Props): JSX.Element {
                 {isSelected ? (
                   <Pressable
                     style={({ pressed }) => [styles.inlineDeleteButton, pressed && styles.inlineEditPressed]}
-                    onPress={() => handleDeleteStallion(item)}
+                    onPress={() => requestDeleteStallion(item)}
                   >
                     <Text style={styles.inlineDeleteButtonText}>Delete</Text>
                   </Pressable>

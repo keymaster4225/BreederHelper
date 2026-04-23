@@ -8,8 +8,6 @@ vi.mock('@/storage/dataInvalidation', () => ({
   emitDataInvalidation: vi.fn(),
 }));
 
-import { getDb } from '@/storage/db';
-
 import {
   createDailyLog,
   deleteDailyLog,
@@ -71,7 +69,6 @@ describe('daily log repository structured storage', () => {
 
   beforeEach(() => {
     db = createFakeDb();
-    vi.mocked(getDb).mockResolvedValue(db as unknown as Awaited<ReturnType<typeof getDb>>);
   });
 
   it('writes legacy global ovulation as compatibility value on create', async () => {
@@ -80,7 +77,7 @@ describe('daily log repository structured storage', () => {
       mareId: 'mare-1',
       date: '2026-04-01',
       ovulationDetected: true,
-    });
+    }, db);
 
     expect(db.runAsync).toHaveBeenCalledTimes(1);
     const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
@@ -94,7 +91,7 @@ describe('daily log repository structured storage', () => {
 
     await updateDailyLog('log-1', {
       date: '2026-04-02',
-    });
+    }, db);
 
     const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
     expect(params[4]).toBe(1);
@@ -108,7 +105,7 @@ describe('daily log repository structured storage', () => {
       ovulationSource: 'structured',
       rightOvaryOvulation: true,
       leftOvaryOvulation: null,
-    });
+    }, db);
 
     const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
     expect(params[4]).toBe(1);
@@ -123,7 +120,7 @@ describe('daily log repository structured storage', () => {
       date: '2026-04-01',
       rightOvaryFollicleState: 'large',
       rightOvaryFollicleMeasurementsMm: [35, 36],
-    });
+    }, db);
 
     const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
     expect(params[12]).toBe('[]');
@@ -136,7 +133,7 @@ describe('daily log repository structured storage', () => {
       date: '2026-04-02',
       dischargeObserved: false,
       dischargeNotes: 'should not persist',
-    });
+    }, db);
 
     const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
     expect(params[20]).toBe(0);
@@ -149,7 +146,7 @@ describe('daily log repository structured storage', () => {
     await updateDailyLog('log-1', {
       date: '2026-04-02',
       uterineFluidPockets: [{ id: 'pocket-1', depthMm: 5, location: 'leftHorn' }],
-    });
+    }, db);
 
     expect(db.runAsync).toHaveBeenCalledTimes(3);
     expect(db.runAsync.mock.calls[0]?.[0]).toContain('UPDATE daily_logs');
@@ -158,7 +155,7 @@ describe('daily log repository structured storage', () => {
   });
 
   it('deletes uterine fluid children before deleting the daily log parent row', async () => {
-    await deleteDailyLog('log-1');
+    await deleteDailyLog('log-1', db);
 
     expect(db.runAsync).toHaveBeenCalledTimes(2);
     expect(db.runAsync.mock.calls[0]?.[0]).toContain('DELETE FROM uterine_fluid');

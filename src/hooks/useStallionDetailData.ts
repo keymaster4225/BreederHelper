@@ -8,6 +8,8 @@ import {
   Stallion,
 } from '@/models/types';
 import {
+  deleteDoseEvent,
+  deleteFrozenSemenBatch,
   getStallionById,
   listFrozenSemenBatchesByCollectionIds,
   listFrozenSemenBatchesByStallion,
@@ -37,6 +39,8 @@ type StallionDetailData = {
   readonly isLoading: boolean;
   readonly error: string | null;
   readonly loadData: () => Promise<void>;
+  readonly deleteDoseEventRecord: (doseEventId: string) => Promise<void>;
+  readonly deleteFrozenBatchRecord: (frozenBatchId: string) => Promise<void>;
 };
 
 function deriveHorseAge(dateOfBirth?: string | null): number | null {
@@ -119,6 +123,22 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
     }
   }, [stallionId, setTitle]);
 
+  const deleteDoseEventRecord = useCallback(
+    async (doseEventId: string): Promise<void> => {
+      await deleteDoseEvent(doseEventId);
+      await loadData();
+    },
+    [loadData],
+  );
+
+  const deleteFrozenBatchRecord = useCallback(
+    async (frozenBatchId: string): Promise<void> => {
+      await deleteFrozenSemenBatch(frozenBatchId);
+      await loadData();
+    },
+    [loadData],
+  );
+
   return {
     stallion,
     collections,
@@ -133,5 +153,7 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
     isLoading,
     error,
     loadData,
+    deleteDoseEventRecord,
+    deleteFrozenBatchRecord,
   };
 }

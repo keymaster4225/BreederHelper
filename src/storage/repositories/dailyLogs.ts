@@ -9,12 +9,12 @@ import type {
   CervicalFirmness,
   DailyLog,
   DailyLogDetail,
+  DailyLogOvulationSource,
   FollicleState,
   OvaryConsistency,
   OvaryStructure,
   UterineToneCategory,
 } from '@/models/types';
-import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 
 import {
@@ -23,6 +23,8 @@ import {
   replaceByDailyLogId,
   type ReplaceUterineFluidPocketInput,
 } from './uterineFluid';
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
 
 type DailyLogRow = {
   id: string;
@@ -53,8 +55,6 @@ type DailyLogRow = {
   created_at: string;
   updated_at: string;
 };
-
-export type DailyLogOvulationSource = 'legacy' | 'structured';
 
 export type DailyLogWriteInput = {
   id: string;
@@ -378,13 +378,13 @@ function resolveOvulationValues(
   };
 }
 
-export async function createDailyLog(input: DailyLogWriteInput): Promise<void> {
-  const db = await getDb();
+export async function createDailyLog(input: DailyLogWriteInput, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
   const now = new Date().toISOString();
   const ovulation = resolveOvulationValues(input, null);
 
-  await db.withTransactionAsync(async () => {
-    await db.runAsync(
+  await handle.withTransactionAsync(async () => {
+    await handle.runAsync(
       `
       INSERT INTO daily_logs (
         id,
@@ -454,7 +454,7 @@ export async function createDailyLog(input: DailyLogWriteInput): Promise<void> {
     );
 
     if (input.uterineFluidPockets && input.uterineFluidPockets.length > 0) {
-      await replaceByDailyLogId(db, input.id, input.uterineFluidPockets, now);
+      await replaceByDailyLogId(handle, input.id, input.uterineFluidPockets, now);
     }
   });
 
@@ -464,9 +464,10 @@ export async function createDailyLog(input: DailyLogWriteInput): Promise<void> {
 export async function updateDailyLog(
   id: string,
   input: DailyLogUpdateInput,
+  db?: RepoDb,
 ): Promise<void> {
-  const db = await getDb();
-  const existing = await db.getFirstAsync<DailyLogRow>(
+  const handle = await resolveDb(db);
+  const existing = await handle.getFirstAsync<DailyLogRow>(
     `
     SELECT ${DAILY_LOG_SELECT_COLUMNS}
     FROM daily_logs
@@ -483,8 +484,8 @@ export async function updateDailyLog(
   const uterineTone =
     input.uterineTone === undefined ? existing?.uterine_tone ?? null : input.uterineTone ?? null;
 
-  await db.withTransactionAsync(async () => {
-    await db.runAsync(
+  await handle.withTransactionAsync(async () => {
+    await handle.runAsync(
       `
       UPDATE daily_logs
       SET
@@ -550,16 +551,16 @@ export async function updateDailyLog(
     );
 
     if (input.uterineFluidPockets !== undefined) {
-      await replaceByDailyLogId(db, id, input.uterineFluidPockets, now);
+      await replaceByDailyLogId(handle, id, input.uterineFluidPockets, now);
     }
   });
 
   emitDataInvalidation('dailyLogs');
 }
 
-export async function getDailyLogById(id: string): Promise<DailyLogDetail | null> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<DailyLogRow>(
+export async function getDailyLogById(id: string, db?: RepoDb): Promise<DailyLogDetail | null> {
+  const handle = await resolveDb(db);
+  const row = await handle.getFirstAsync<DailyLogRow>(
     `
     SELECT ${DAILY_LOG_SELECT_COLUMNS}
     FROM daily_logs
@@ -572,25 +573,25 @@ export async function getDailyLogById(id: string): Promise<DailyLogDetail | null
     return null;
   }
 
-  const uterineFluidPockets = await listByDailyLogId(db, id);
+  const uterineFluidPockets = await listByDailyLogId(handle, id);
   return {
     ...mapDailyLogRow(row),
     uterineFluidPockets,
   };
 }
 
-export async function deleteDailyLog(id: string): Promise<void> {
-  const db = await getDb();
-  await db.withTransactionAsync(async () => {
-    await deleteByDailyLogId(db, id);
-    await db.runAsync('DELETE FROM daily_logs WHERE id = ?;', [id]);
+export async function deleteDailyLog(id: string, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await handle.withTransactionAsync(async () => {
+    await deleteByDailyLogId(handle, id);
+    await handle.runAsync('DELETE FROM daily_logs WHERE id = ?;', [id]);
   });
   emitDataInvalidation('dailyLogs');
 }
 
-export async function listAllDailyLogs(): Promise<DailyLog[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<DailyLogRow>(
+export async function listAllDailyLogs(db?: RepoDb): Promise<DailyLog[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<DailyLogRow>(
     `
     SELECT ${DAILY_LOG_SELECT_COLUMNS}
     FROM daily_logs
@@ -601,9 +602,9 @@ export async function listAllDailyLogs(): Promise<DailyLog[]> {
   return rows.map(mapDailyLogRow);
 }
 
-export async function listDailyLogsByMare(mareId: string): Promise<DailyLog[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<DailyLogRow>(
+export async function listDailyLogsByMare(mareId: string, db?: RepoDb): Promise<DailyLog[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<DailyLogRow>(
     `
     SELECT ${DAILY_LOG_SELECT_COLUMNS}
     FROM daily_logs

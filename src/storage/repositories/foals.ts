@@ -1,5 +1,4 @@
 import { Foal, FoalColor, FoalMilestones, FoalSex, IggTest } from '@/models/types';
-import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import {
   parseFoalMilestones,
@@ -7,6 +6,8 @@ import {
   serializeFoalMilestonesForSave,
   serializeIggTestsForSave,
 } from '@/storage/repositories/internal/foalCodecs';
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
 import { getFoalingRecordById } from './foalingRecords';
 
 type FoalRow = {
@@ -43,8 +44,8 @@ function mapFoalRow(row: FoalRow): Foal {
 
 export { parseFoalMilestones, parseIggTests };
 
-async function validateFoalingRecordExists(foalingRecordId: string): Promise<void> {
-  const foalingRecord = await getFoalingRecordById(foalingRecordId);
+async function validateFoalingRecordExists(foalingRecordId: string, db?: RepoDb): Promise<void> {
+  const foalingRecord = await getFoalingRecordById(foalingRecordId, db);
   if (!foalingRecord) {
     throw new Error('Foaling record not found.');
   }
@@ -61,13 +62,13 @@ export async function createFoal(input: {
   milestones: FoalMilestones;
   iggTests?: readonly IggTest[];
   notes?: string | null;
-}): Promise<void> {
-  await validateFoalingRecordExists(input.foalingRecordId);
+}, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await validateFoalingRecordExists(input.foalingRecordId, handle);
 
-  const db = await getDb();
   const now = new Date().toISOString();
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     INSERT INTO foals (
       id,
@@ -114,9 +115,10 @@ export async function updateFoal(
     iggTests?: readonly IggTest[];
     notes?: string | null;
   },
+  db?: RepoDb,
 ): Promise<void> {
-  const db = await getDb();
-  const existingRow = await db.getFirstAsync<Pick<FoalRow, 'milestones' | 'igg_tests'>>(
+  const handle = await resolveDb(db);
+  const existingRow = await handle.getFirstAsync<Pick<FoalRow, 'milestones' | 'igg_tests'>>(
     `
     SELECT milestones, igg_tests
     FROM foals
@@ -125,7 +127,7 @@ export async function updateFoal(
     [id],
   );
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     UPDATE foals
     SET
@@ -156,9 +158,9 @@ export async function updateFoal(
   emitDataInvalidation('foals');
 }
 
-export async function getFoalById(id: string): Promise<Foal | null> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<FoalRow>(
+export async function getFoalById(id: string, db?: RepoDb): Promise<Foal | null> {
+  const handle = await resolveDb(db);
+  const row = await handle.getFirstAsync<FoalRow>(
     `
     SELECT id, foaling_record_id, name, sex, color, markings, birth_weight_lbs,
            milestones, igg_tests, notes, created_at, updated_at
@@ -171,9 +173,9 @@ export async function getFoalById(id: string): Promise<Foal | null> {
   return row ? mapFoalRow(row) : null;
 }
 
-export async function getFoalByFoalingRecordId(foalingRecordId: string): Promise<Foal | null> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<FoalRow>(
+export async function getFoalByFoalingRecordId(foalingRecordId: string, db?: RepoDb): Promise<Foal | null> {
+  const handle = await resolveDb(db);
+  const row = await handle.getFirstAsync<FoalRow>(
     `
     SELECT id, foaling_record_id, name, sex, color, markings, birth_weight_lbs,
            milestones, igg_tests, notes, created_at, updated_at
@@ -186,9 +188,9 @@ export async function getFoalByFoalingRecordId(foalingRecordId: string): Promise
   return row ? mapFoalRow(row) : null;
 }
 
-export async function listFoalsByMare(mareId: string): Promise<Foal[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<FoalRow>(
+export async function listFoalsByMare(mareId: string, db?: RepoDb): Promise<Foal[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<FoalRow>(
     `
     SELECT f.id, f.foaling_record_id, f.name, f.sex, f.color, f.markings,
            f.birth_weight_lbs, f.milestones, f.igg_tests, f.notes, f.created_at, f.updated_at
@@ -203,15 +205,15 @@ export async function listFoalsByMare(mareId: string): Promise<Foal[]> {
   return rows.map(mapFoalRow);
 }
 
-export async function deleteFoal(id: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM foals WHERE id = ?;', [id]);
+export async function deleteFoal(id: string, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await handle.runAsync('DELETE FROM foals WHERE id = ?;', [id]);
   emitDataInvalidation('foals');
 }
 
-export async function listAllFoals(): Promise<Foal[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<FoalRow>(
+export async function listAllFoals(db?: RepoDb): Promise<Foal[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<FoalRow>(
     `
     SELECT id, foaling_record_id, name, sex, color, markings,
            birth_weight_lbs, milestones, igg_tests, notes, created_at, updated_at

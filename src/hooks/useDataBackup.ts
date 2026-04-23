@@ -7,18 +7,16 @@ import {
   joinFileUri,
   pickBackupFile,
   readTextFile,
+  restoreBackup,
+  serializeBackup,
+  listSafetySnapshots,
   shareFileIfAvailable,
+  type BackupPreviewSummary,
+  type RestoreBackupResult,
+  type SafetySnapshotSummary,
+  validateBackupJson,
   writeJsonFile,
-} from '@/utils/backup/fileIO';
-import { restoreBackup } from '@/utils/backup/restore';
-import { serializeBackup } from '@/utils/backup/serialize';
-import { listSafetySnapshots } from '@/utils/backup/safetyBackups';
-import type {
-  BackupPreviewSummary,
-  RestoreBackupResult,
-  SafetySnapshotSummary,
-} from '@/utils/backup/types';
-import { validateBackupJson } from '@/utils/backup/validate';
+} from '@/storage/backup';
 
 type PendingRestoreState = {
   readonly candidateText: string;

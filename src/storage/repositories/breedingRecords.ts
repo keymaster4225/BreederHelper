@@ -1,7 +1,8 @@
 import { BreedingMethod, BreedingRecord } from '@/models/types';
-import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { assertCollectionSemenVolumeCanSupportAllocation } from './internal/collectionAllocation';
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
 import { getSemenCollectionById } from './semenCollections';
 
 type BreedingRecordRow = {
@@ -49,12 +50,13 @@ function mapBreedingRecordRow(row: BreedingRecordRow): BreedingRecord {
 async function validateCollectionStallion(
   collectionId: string | null | undefined,
   stallionId: string | null,
+  db?: RepoDb,
 ): Promise<void> {
   if (collectionId != null) {
     if (stallionId == null) {
       throw new Error('A collection requires a linked stallion.');
     }
-    const collection = await getSemenCollectionById(collectionId);
+    const collection = await getSemenCollectionById(collectionId, db);
     if (!collection) {
       throw new Error('Collection not found.');
     }
@@ -74,7 +76,7 @@ type ExistingBreedingRecordRow = {
 };
 
 async function getLinkedOnFarmDoseEventByBreedingRecordId(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RepoDb,
   breedingRecordId: string,
 ): Promise<LinkedOnFarmDoseEventRow | null> {
   const row = await db.getFirstAsync<LinkedOnFarmDoseEventRow>(
@@ -94,9 +96,10 @@ async function getLinkedOnFarmDoseEventByBreedingRecordId(
 
 export async function hasLinkedOnFarmDoseEvent(
   breedingRecordId: string,
+  db?: RepoDb,
 ): Promise<boolean> {
-  const db = await getDb();
-  const row = await getLinkedOnFarmDoseEventByBreedingRecordId(db, breedingRecordId);
+  const handle = await resolveDb(db);
+  const row = await getLinkedOnFarmDoseEventByBreedingRecordId(handle, breedingRecordId);
   return row != null;
 }
 
@@ -116,13 +119,13 @@ export async function createBreedingRecord(input: {
   strawVolumeMl?: number | null;
   strawDetails?: string | null;
   collectionDate?: string | null;
-}): Promise<void> {
-  await validateCollectionStallion(input.collectionId, input.stallionId);
+}, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await validateCollectionStallion(input.collectionId, input.stallionId, handle);
 
-  const db = await getDb();
   const now = new Date().toISOString();
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     INSERT INTO breeding_records (
       id, mare_id, stallion_id, stallion_name, collection_id,
@@ -172,9 +175,10 @@ export async function updateBreedingRecord(
     strawDetails?: string | null;
     collectionDate?: string | null;
   },
+  db?: RepoDb,
 ): Promise<void> {
-  const db = await getDb();
-  const existing = await db.getFirstAsync<ExistingBreedingRecordRow>(
+  const handle = await resolveDb(db);
+  const existing = await handle.getFirstAsync<ExistingBreedingRecordRow>(
     `
     SELECT id
     FROM breeding_records
@@ -187,7 +191,7 @@ export async function updateBreedingRecord(
     throw new Error('Breeding record not found.');
   }
 
-  const linkedOnFarmDoseEvent = await getLinkedOnFarmDoseEventByBreedingRecordId(db, id);
+  const linkedOnFarmDoseEvent = await getLinkedOnFarmDoseEventByBreedingRecordId(handle, id);
 
   if (linkedOnFarmDoseEvent) {
     if (input.method !== 'freshAI') {
@@ -205,14 +209,14 @@ export async function updateBreedingRecord(
     }
   }
 
-  await validateCollectionStallion(input.collectionId, input.stallionId);
+  await validateCollectionStallion(input.collectionId, input.stallionId, handle);
 
-  await db.withTransactionAsync(async () => {
+  await handle.withTransactionAsync(async () => {
     const now = new Date().toISOString();
 
     if (linkedOnFarmDoseEvent) {
       await assertCollectionSemenVolumeCanSupportAllocation(
-        db,
+        handle,
         linkedOnFarmDoseEvent.collection_id,
         input.volumeMl ?? null,
         1,
@@ -220,7 +224,7 @@ export async function updateBreedingRecord(
       );
     }
 
-    await db.runAsync(
+    await handle.runAsync(
       `
       UPDATE breeding_records
       SET
@@ -260,7 +264,7 @@ export async function updateBreedingRecord(
     );
 
     if (linkedOnFarmDoseEvent) {
-      await db.runAsync(
+      await handle.runAsync(
         `
         UPDATE collection_dose_events
         SET
@@ -287,9 +291,9 @@ export async function updateBreedingRecord(
   }
 }
 
-export async function getBreedingRecordById(id: string): Promise<BreedingRecord | null> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<BreedingRecordRow>(
+export async function getBreedingRecordById(id: string, db?: RepoDb): Promise<BreedingRecord | null> {
+  const handle = await resolveDb(db);
+  const row = await handle.getFirstAsync<BreedingRecordRow>(
     `
     SELECT
       id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
@@ -303,15 +307,15 @@ export async function getBreedingRecordById(id: string): Promise<BreedingRecord 
   return row ? mapBreedingRecordRow(row) : null;
 }
 
-export async function deleteBreedingRecord(id: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM breeding_records WHERE id = ?;', [id]);
+export async function deleteBreedingRecord(id: string, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await handle.runAsync('DELETE FROM breeding_records WHERE id = ?;', [id]);
   emitDataInvalidation('breedingRecords');
 }
 
-export async function listAllBreedingRecords(): Promise<BreedingRecord[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<BreedingRecordRow>(
+export async function listAllBreedingRecords(db?: RepoDb): Promise<BreedingRecord[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<BreedingRecordRow>(
     `
     SELECT
       id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
@@ -324,9 +328,9 @@ export async function listAllBreedingRecords(): Promise<BreedingRecord[]> {
   return rows.map(mapBreedingRecordRow);
 }
 
-export async function listBreedingRecordsByMare(mareId: string): Promise<BreedingRecord[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<BreedingRecordRow>(
+export async function listBreedingRecordsByMare(mareId: string, db?: RepoDb): Promise<BreedingRecord[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<BreedingRecordRow>(
     `
     SELECT
       id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
@@ -343,9 +347,10 @@ export async function listBreedingRecordsByMare(mareId: string): Promise<Breedin
 
 export async function listBreedingRecordsForStallion(
   stallionId: string,
+  db?: RepoDb,
 ): Promise<BreedingRecord[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<BreedingRecordRow>(
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<BreedingRecordRow>(
     `
     SELECT
       id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
@@ -361,9 +366,10 @@ export async function listBreedingRecordsForStallion(
 
 export async function listLegacyBreedingRecordsMatchingStallionName(
   stallionName: string,
+  db?: RepoDb,
 ): Promise<BreedingRecord[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<BreedingRecordRow>(
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<BreedingRecordRow>(
     `
     SELECT
       id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,

@@ -13,7 +13,6 @@ vi.mock('./semenCollections', () => ({
 }));
 
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
-import { getDb } from '@/storage/db';
 import { getSemenCollectionById } from './semenCollections';
 import { hasLinkedOnFarmDoseEvent, updateBreedingRecord } from './breedingRecords';
 
@@ -253,6 +252,9 @@ function createFakeDb() {
 
       return null;
     },
+    async getAllAsync<T>(): Promise<T[]> {
+      return [];
+    },
     async withTransactionAsync<T>(callback: () => Promise<T>): Promise<T> {
       return callback();
     },
@@ -287,7 +289,6 @@ describe('breedingRecords linked on-farm behavior', () => {
 
   it('mirrors linked on-farm updates to the companion usedOnSite event', async () => {
     const fakeDb = createFakeDb();
-    vi.mocked(getDb).mockResolvedValue(fakeDb as unknown as Awaited<ReturnType<typeof getDb>>);
 
     await updateBreedingRecord('breed-1', {
       stallionId: 'stallion-1',
@@ -302,7 +303,7 @@ describe('breedingRecords linked on-farm behavior', () => {
       strawVolumeMl: null,
       strawDetails: null,
       collectionDate: '2026-04-01',
-    });
+    }, fakeDb);
 
     const breedingRecord = fakeDb.breedingRecords.get('breed-1');
     const companionEvent = fakeDb.doseEvents.get('event-used-on-site');
@@ -318,7 +319,6 @@ describe('breedingRecords linked on-farm behavior', () => {
 
   it('blocks changing linked on-farm method away from freshAI', async () => {
     const fakeDb = createFakeDb();
-    vi.mocked(getDb).mockResolvedValue(fakeDb as unknown as Awaited<ReturnType<typeof getDb>>);
 
     await expect(
       updateBreedingRecord('breed-1', {
@@ -328,13 +328,12 @@ describe('breedingRecords linked on-farm behavior', () => {
         method: 'shippedCooledAI',
         notes: null,
         volumeMl: 3,
-      }),
+      }, fakeDb),
     ).rejects.toThrow('Linked on-farm breeding records must remain Fresh AI.');
   });
 
   it('blocks clearing linked on-farm collection_id', async () => {
     const fakeDb = createFakeDb();
-    vi.mocked(getDb).mockResolvedValue(fakeDb as unknown as Awaited<ReturnType<typeof getDb>>);
 
     await expect(
       updateBreedingRecord('breed-1', {
@@ -344,13 +343,12 @@ describe('breedingRecords linked on-farm behavior', () => {
         method: 'freshAI',
         notes: null,
         volumeMl: 3,
-      }),
+      }, fakeDb),
     ).rejects.toThrow('Linked on-farm breeding records must keep their collection link.');
   });
 
   it('blocks moving linked on-farm breeding records to a different collection', async () => {
     const fakeDb = createFakeDb();
-    vi.mocked(getDb).mockResolvedValue(fakeDb as unknown as Awaited<ReturnType<typeof getDb>>);
 
     await expect(
       updateBreedingRecord('breed-1', {
@@ -360,7 +358,7 @@ describe('breedingRecords linked on-farm behavior', () => {
         method: 'freshAI',
         notes: null,
         volumeMl: 3,
-      }),
+      }, fakeDb),
     ).rejects.toThrow(
       'Linked on-farm breeding records cannot be moved to a different collection.',
     );
@@ -369,7 +367,6 @@ describe('breedingRecords linked on-farm behavior', () => {
   it('reruns semen-volume cap check when linked on-farm volume changes', async () => {
     const fakeDb = createFakeDb();
     fakeDb.collections.set('col-1', { id: 'col-1', raw_volume_ml: 5 });
-    vi.mocked(getDb).mockResolvedValue(fakeDb as unknown as Awaited<ReturnType<typeof getDb>>);
 
     await expect(
       updateBreedingRecord('breed-1', {
@@ -379,15 +376,14 @@ describe('breedingRecords linked on-farm behavior', () => {
         method: 'freshAI',
         notes: null,
         volumeMl: 3,
-      }),
+      }, fakeDb),
     ).rejects.toThrow('Allocated semen volume cannot exceed the collection total volume.');
   });
 
   it('reports whether a breeding record has a linked on-farm dose event', async () => {
     const fakeDb = createFakeDb();
-    vi.mocked(getDb).mockResolvedValue(fakeDb as unknown as Awaited<ReturnType<typeof getDb>>);
 
-    await expect(hasLinkedOnFarmDoseEvent('breed-1')).resolves.toBe(true);
-    await expect(hasLinkedOnFarmDoseEvent('missing')).resolves.toBe(false);
+    await expect(hasLinkedOnFarmDoseEvent('breed-1', fakeDb)).resolves.toBe(true);
+    await expect(hasLinkedOnFarmDoseEvent('missing', fakeDb)).resolves.toBe(false);
   });
 });

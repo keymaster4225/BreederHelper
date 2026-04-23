@@ -1,8 +1,8 @@
-import type * as SQLite from 'expo-sqlite';
-
 import { FLUID_LOCATION_VALUES } from '@/models/enums';
 import type { FluidLocation, UterineFluidPocket } from '@/models/types';
 import { newId } from '@/utils/id';
+
+import type { RepoDb } from './internal/dbTypes';
 
 type UterineFluidRow = {
   id: string;
@@ -72,7 +72,7 @@ function normalizePocketInput(
 }
 
 export async function listByDailyLogId(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   dailyLogId: string,
 ): Promise<UterineFluidPocket[]> {
   const rows = await db.getAllAsync<UterineFluidRow>(
@@ -89,14 +89,14 @@ export async function listByDailyLogId(
 }
 
 export async function deleteByDailyLogId(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   dailyLogId: string,
 ): Promise<void> {
   await db.runAsync('DELETE FROM uterine_fluid WHERE daily_log_id = ?;', [dailyLogId]);
 }
 
 export async function replaceByDailyLogId(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   dailyLogId: string,
   pockets: readonly ReplaceUterineFluidPocketInput[],
   now = new Date().toISOString(),

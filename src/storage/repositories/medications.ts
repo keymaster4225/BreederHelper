@@ -1,6 +1,8 @@
 import { LocalDate, MedicationLog, MedicationRoute } from '@/models/types';
-import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
+
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
 
 type MedicationLogRow = {
   id: string;
@@ -36,11 +38,11 @@ export async function createMedicationLog(input: {
   dose?: string | null;
   route?: MedicationRoute | null;
   notes?: string | null;
-}): Promise<void> {
-  const db = await getDb();
+}, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
   const now = new Date().toISOString();
 
-  await db.runAsync(
+  await handle.runAsync(
     `INSERT INTO medication_logs (
       id, mare_id, date, medication_name, dose, route, notes, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
@@ -59,9 +61,9 @@ export async function createMedicationLog(input: {
   emitDataInvalidation('medicationLogs');
 }
 
-export async function getMedicationLogById(id: string): Promise<MedicationLog | null> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<MedicationLogRow>(
+export async function getMedicationLogById(id: string, db?: RepoDb): Promise<MedicationLog | null> {
+  const handle = await resolveDb(db);
+  const row = await handle.getFirstAsync<MedicationLogRow>(
     `SELECT id, mare_id, date, medication_name, dose, route, notes, created_at, updated_at
      FROM medication_logs WHERE id = ?;`,
     [id],
@@ -70,9 +72,9 @@ export async function getMedicationLogById(id: string): Promise<MedicationLog | 
   return row ? mapMedicationLogRow(row) : null;
 }
 
-export async function listMedicationLogsByMare(mareId: string): Promise<MedicationLog[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<MedicationLogRow>(
+export async function listMedicationLogsByMare(mareId: string, db?: RepoDb): Promise<MedicationLog[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<MedicationLogRow>(
     `SELECT id, mare_id, date, medication_name, dose, route, notes, created_at, updated_at
      FROM medication_logs WHERE mare_id = ? ORDER BY date DESC;`,
     [mareId],
@@ -81,9 +83,9 @@ export async function listMedicationLogsByMare(mareId: string): Promise<Medicati
   return rows.map(mapMedicationLogRow);
 }
 
-export async function listAllMedicationLogs(): Promise<MedicationLog[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<MedicationLogRow>(
+export async function listAllMedicationLogs(db?: RepoDb): Promise<MedicationLog[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<MedicationLogRow>(
     `SELECT id, mare_id, date, medication_name, dose, route, notes, created_at, updated_at
      FROM medication_logs ORDER BY date DESC;`,
   );
@@ -100,11 +102,12 @@ export async function updateMedicationLog(
     route?: MedicationRoute | null;
     notes?: string | null;
   },
+  db?: RepoDb,
 ): Promise<void> {
-  const db = await getDb();
+  const handle = await resolveDb(db);
   const now = new Date().toISOString();
 
-  await db.runAsync(
+  await handle.runAsync(
     `UPDATE medication_logs
      SET date = ?, medication_name = ?, dose = ?, route = ?, notes = ?, updated_at = ?
      WHERE id = ?;`,
@@ -121,8 +124,8 @@ export async function updateMedicationLog(
   emitDataInvalidation('medicationLogs');
 }
 
-export async function deleteMedicationLog(id: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM medication_logs WHERE id = ?;', [id]);
+export async function deleteMedicationLog(id: string, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await handle.runAsync('DELETE FROM medication_logs WHERE id = ?;', [id]);
   emitDataInvalidation('medicationLogs');
 }

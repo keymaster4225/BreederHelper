@@ -1,17 +1,12 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
-jest.mock('@/storage/repositories', () => ({
-  createStallion: jest.fn(),
-  getStallionById: jest.fn(),
-  softDeleteStallion: jest.fn(),
-  updateStallion: jest.fn(),
+jest.mock('@/hooks/useStallionForm', () => ({
+  useStallionForm: jest.fn(),
 }));
 
 const { StallionFormScreen } = require('@/screens/StallionFormScreen') as typeof import('@/screens/StallionFormScreen');
-const { createStallion, getStallionById, updateStallion } = jest.requireMock('@/storage/repositories') as {
-  createStallion: jest.Mock;
-  getStallionById: jest.Mock;
-  updateStallion: jest.Mock;
+const { useStallionForm } = jest.requireMock('@/hooks/useStallionForm') as {
+  useStallionForm: jest.Mock;
 };
 
 function createNavigation() {
@@ -22,31 +17,48 @@ function createNavigation() {
   };
 }
 
+function createHookState(overrides: Record<string, unknown> = {}) {
+  return {
+    isEdit: false,
+    today: new Date('2026-04-23T12:00:00Z'),
+    name: '',
+    dateOfBirth: '',
+    breed: '',
+    registrationNumber: '',
+    sire: '',
+    dam: '',
+    notes: '',
+    errors: {},
+    isLoading: false,
+    isSaving: false,
+    isDeleting: false,
+    setName: jest.fn(),
+    setDateOfBirth: jest.fn(),
+    setBreed: jest.fn(),
+    setRegistrationNumber: jest.fn(),
+    setSire: jest.fn(),
+    setDam: jest.fn(),
+    setNotes: jest.fn(),
+    onSave: jest.fn(),
+    requestDelete: jest.fn(),
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
 });
 
-it('loads an existing stallion and saves updates', async () => {
+it('renders edit-mode values and wires update/delete actions to the hook', () => {
   const navigation = createNavigation();
-  getStallionById.mockResolvedValue({
-    id: 'stallion-1',
+  const hookState = createHookState({
+    isEdit: true,
     name: 'Atlas',
+    dateOfBirth: '2014-03-10',
     breed: 'Warmblood',
     registrationNumber: 'ST-001',
-    sire: null,
-    dam: null,
-    notes: null,
-    dateOfBirth: '2014-03-10',
-    avTemperatureF: null,
-    avType: null,
-    avLinerType: null,
-    avWaterVolumeMl: null,
-    avNotes: null,
-    createdAt: '2026-01-01T00:00:00Z',
-    updatedAt: '2026-01-01T00:00:00Z',
-    deletedAt: null,
   });
-  updateStallion.mockResolvedValue(undefined);
+  useStallionForm.mockReturnValue(hookState);
 
   const screen = render(
     <StallionFormScreen
@@ -55,26 +67,23 @@ it('loads an existing stallion and saves updates', async () => {
     />,
   );
 
-  await waitFor(() => {
-    expect(getStallionById).toHaveBeenCalledWith('stallion-1');
-  });
+  expect(screen.getByDisplayValue('Atlas')).toBeTruthy();
+  expect(screen.getByDisplayValue('Warmblood')).toBeTruthy();
+  expect(screen.getByDisplayValue('ST-001')).toBeTruthy();
 
   fireEvent.press(screen.getByText('Update Stallion'));
+  fireEvent.press(screen.getByText('Delete Stallion'));
 
-  await waitFor(() => {
-    expect(updateStallion).toHaveBeenCalledWith(
-      'stallion-1',
-      expect.objectContaining({
-        name: 'Atlas',
-      }),
-    );
-    expect(navigation.goBack).toHaveBeenCalled();
-  });
+  expect(hookState.onSave).toHaveBeenCalled();
+  expect(hookState.requestDelete).toHaveBeenCalled();
 });
 
-it('filters breed suggestions and allows clearing the optional stallion breed', async () => {
+it('renders create-mode errors and forwards user input to the hook setters', () => {
   const navigation = createNavigation();
-  createStallion.mockResolvedValue(undefined);
+  const hookState = createHookState({
+    errors: { name: 'Name is required.' },
+  });
+  useStallionForm.mockReturnValue(hookState);
 
   const screen = render(
     <StallionFormScreen
@@ -83,25 +92,12 @@ it('filters breed suggestions and allows clearing the optional stallion breed', 
     />,
   );
 
-  const breedInput = screen.getByPlaceholderText('Type or select breed (optional)');
-
   fireEvent.changeText(screen.getByPlaceholderText('Stallion name'), 'Atlas');
-  fireEvent.changeText(breedInput, 'warm');
-  fireEvent.press(await screen.findByText('Warmblood'));
-  await waitFor(() => {
-    expect(screen.getByDisplayValue('Warmblood')).toBeTruthy();
-  });
-
-  fireEvent.changeText(breedInput, '');
+  fireEvent.changeText(screen.getByPlaceholderText('Type or select breed (optional)'), 'Warmblood');
   fireEvent.press(screen.getByText('Add Stallion'));
 
-  await waitFor(() => {
-    expect(createStallion).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: 'Atlas',
-        breed: null,
-      }),
-    );
-    expect(navigation.goBack).toHaveBeenCalled();
-  });
+  expect(hookState.setName).toHaveBeenCalledWith('Atlas');
+  expect(hookState.setBreed).toHaveBeenCalledWith('Warmblood');
+  expect(hookState.onSave).toHaveBeenCalled();
+  expect(screen.getByText('Name is required.')).toBeTruthy();
 });

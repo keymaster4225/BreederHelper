@@ -1,151 +1,45 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormAutocompleteInput, FormDateInput, FormField, FormTextInput, formStyles } from '@/components/FormControls';
-import { useRecordForm } from '@/hooks/useRecordForm';
+import { useStallionForm } from '@/hooks/useStallionForm';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import {
-  createStallion,
-  getStallionById,
-  softDeleteStallion,
-  updateStallion,
-} from '@/storage/repositories';
 import { colors } from '@/theme';
-import { confirmDelete } from '@/utils/confirmDelete';
 import { getBreedSuggestions, HORSE_BREEDS } from '@/utils/horseBreeds';
-import { newId } from '@/utils/id';
-import {
-  validateLocalDate,
-  validateLocalDateNotInFuture,
-  validateRequired,
-} from '@/utils/validation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'StallionForm'>;
 
-type FormErrors = {
-  name?: string;
-  dateOfBirth?: string;
-};
-
 export function StallionFormScreen({ navigation, route }: Props): JSX.Element {
-  const stallionId = route.params?.stallionId;
-  const isEdit = Boolean(stallionId);
-
-  const [name, setName] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [breed, setBreed] = useState('');
-  const [registrationNumber, setRegistrationNumber] = useState('');
-  const [sire, setSire] = useState('');
-  const [dam, setDam] = useState('');
-  const [notes, setNotes] = useState('');
-  const [errors, setErrors] = useState<FormErrors>({});
-  const { isLoading, isSaving, isDeleting, setIsLoading, runLoad, runSave, runDelete } =
-    useRecordForm({ initialLoading: isEdit });
-  const today = new Date();
-
-  useEffect(() => {
-    navigation.setOptions({ title: isEdit ? 'Edit Stallion' : 'Add Stallion' });
-  }, [isEdit, navigation]);
-
-  useEffect(() => {
-    if (!stallionId) {
-      setIsLoading(false);
-      return;
-    }
-
-    void runLoad(
-      async () => {
-        const record = await getStallionById(stallionId);
-        if (record) {
-          setName(record.name);
-          setDateOfBirth(record.dateOfBirth ?? '');
-          setBreed(record.breed ?? '');
-          setRegistrationNumber(record.registrationNumber ?? '');
-          setSire(record.sire ?? '');
-          setDam(record.dam ?? '');
-          setNotes(record.notes ?? '');
-          return;
-        }
-        Alert.alert('Stallion not found', 'This stallion no longer exists.');
-        navigation.goBack();
-      },
-      {
-        onError: (err: unknown) => {
-          const message = err instanceof Error ? err.message : 'Unable to load stallion.';
-          Alert.alert('Load error', message);
-          navigation.goBack();
-        },
-      },
-    );
-  }, [navigation, runLoad, setIsLoading, stallionId]);
-
-  const validate = (): FormErrors => {
-    const errs: FormErrors = {};
-    errs.name = validateRequired(name, 'Name') ?? undefined;
-    errs.dateOfBirth =
-      validateLocalDate(dateOfBirth, 'Date of birth') ??
-      validateLocalDateNotInFuture(dateOfBirth) ??
-      undefined;
-    return errs;
-  };
-
-  const onSave = async (): Promise<void> => {
-    const errs = validate();
-    setErrors(errs);
-    if (Object.values(errs).some(Boolean)) return;
-
-    await runSave(
-      async () => {
-        const payload = {
-          name: name.trim(),
-          breed: breed.trim() || null,
-          registrationNumber: registrationNumber.trim() || null,
-          sire: sire.trim() || null,
-          dam: dam.trim() || null,
-          notes: notes.trim() || null,
-          dateOfBirth: dateOfBirth.trim() || null,
-        };
-
-        if (isEdit && stallionId) {
-          await updateStallion(stallionId, payload);
-        } else {
-          await createStallion({ id: newId(), ...payload });
-        }
-        navigation.goBack();
-      },
-      {
-        onError: (err: unknown) => {
-          const message = err instanceof Error ? err.message : 'Failed to save stallion.';
-          Alert.alert('Save error', message);
-        },
-      },
-    );
-  };
-
-  const onDelete = (): void => {
-    if (!stallionId) return;
-    confirmDelete({
-      title: 'Delete Stallion',
-      message: 'This stallion will be removed from the list. Existing breeding records will be preserved.',
-      onConfirm: async () => {
-        await runDelete(
-          async () => {
-            await softDeleteStallion(stallionId);
-            navigation.goBack();
-          },
-          {
-            onError: (err: unknown) => {
-              const message = err instanceof Error ? err.message : 'Unable to delete stallion.';
-              Alert.alert('Delete error', message);
-            },
-          },
-        );
-      },
-    });
-  };
+  const {
+    isEdit,
+    today,
+    name,
+    dateOfBirth,
+    breed,
+    registrationNumber,
+    sire,
+    dam,
+    notes,
+    errors,
+    isLoading,
+    isSaving,
+    isDeleting,
+    setName,
+    setDateOfBirth,
+    setBreed,
+    setRegistrationNumber,
+    setSire,
+    setDam,
+    setNotes,
+    onSave,
+    requestDelete,
+  } = useStallionForm({
+    stallionId: route.params?.stallionId,
+    onGoBack: () => navigation.goBack(),
+    setTitle: (title) => navigation.setOptions({ title }),
+  });
 
   if (isLoading) {
     return (
@@ -210,7 +104,7 @@ export function StallionFormScreen({ navigation, route }: Props): JSX.Element {
             {isEdit ? (
               <DeleteButton
                 label={isDeleting ? 'Deleting...' : 'Delete Stallion'}
-                onPress={onDelete}
+                onPress={requestDelete}
                 disabled={isSaving || isDeleting}
               />
             ) : null}

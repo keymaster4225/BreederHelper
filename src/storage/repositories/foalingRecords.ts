@@ -1,6 +1,7 @@
 import { FoalingRecord } from '@/models/types';
-import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
 import { getBreedingRecordById } from './breedingRecords';
 
 type FoalingRecordRow = {
@@ -34,12 +35,13 @@ function mapFoalingRecordRow(row: FoalingRecordRow): FoalingRecord {
 async function validateOptionalBreedingRecordForMare(
   breedingRecordId: string | null | undefined,
   mareId: string,
+  db?: RepoDb,
 ): Promise<void> {
   if (breedingRecordId == null) {
     return;
   }
 
-  const breedingRecord = await getBreedingRecordById(breedingRecordId);
+  const breedingRecord = await getBreedingRecordById(breedingRecordId, db);
 
   if (!breedingRecord) {
     throw new Error('Breeding record not found.');
@@ -59,13 +61,13 @@ export async function createFoalingRecord(input: {
   foalSex?: FoalingRecord['foalSex'];
   complications?: string | null;
   notes?: string | null;
-}): Promise<void> {
-  await validateOptionalBreedingRecordForMare(input.breedingRecordId, input.mareId);
+}, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await validateOptionalBreedingRecordForMare(input.breedingRecordId, input.mareId, handle);
 
-  const db = await getDb();
   const now = new Date().toISOString();
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     INSERT INTO foaling_records (
       id,
@@ -106,17 +108,17 @@ export async function updateFoalingRecord(
     complications?: string | null;
     notes?: string | null;
   },
+  db?: RepoDb,
 ): Promise<void> {
-  const existing = await getFoalingRecordById(id);
+  const handle = await resolveDb(db);
+  const existing = await getFoalingRecordById(id, handle);
   if (!existing) {
     throw new Error('Foaling record not found.');
   }
 
-  await validateOptionalBreedingRecordForMare(input.breedingRecordId, existing.mareId);
+  await validateOptionalBreedingRecordForMare(input.breedingRecordId, existing.mareId, handle);
 
-  const db = await getDb();
-
-  await db.runAsync(
+  await handle.runAsync(
     `
     UPDATE foaling_records
     SET
@@ -143,9 +145,9 @@ export async function updateFoalingRecord(
   emitDataInvalidation('foalingRecords');
 }
 
-export async function getFoalingRecordById(id: string): Promise<FoalingRecord | null> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<FoalingRecordRow>(
+export async function getFoalingRecordById(id: string, db?: RepoDb): Promise<FoalingRecord | null> {
+  const handle = await resolveDb(db);
+  const row = await handle.getFirstAsync<FoalingRecordRow>(
     `
     SELECT id, mare_id, breeding_record_id, date, outcome, foal_sex, complications, notes, created_at, updated_at
     FROM foaling_records
@@ -157,15 +159,15 @@ export async function getFoalingRecordById(id: string): Promise<FoalingRecord | 
   return row ? mapFoalingRecordRow(row) : null;
 }
 
-export async function deleteFoalingRecord(id: string): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM foaling_records WHERE id = ?;', [id]);
+export async function deleteFoalingRecord(id: string, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await handle.runAsync('DELETE FROM foaling_records WHERE id = ?;', [id]);
   emitDataInvalidation('foalingRecords');
 }
 
-export async function listAllFoalingRecords(): Promise<FoalingRecord[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<FoalingRecordRow>(
+export async function listAllFoalingRecords(db?: RepoDb): Promise<FoalingRecord[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<FoalingRecordRow>(
     `
     SELECT id, mare_id, breeding_record_id, date, outcome, foal_sex, complications, notes, created_at, updated_at
     FROM foaling_records
@@ -176,9 +178,9 @@ export async function listAllFoalingRecords(): Promise<FoalingRecord[]> {
   return rows.map(mapFoalingRecordRow);
 }
 
-export async function listFoalingRecordsByMare(mareId: string): Promise<FoalingRecord[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<FoalingRecordRow>(
+export async function listFoalingRecordsByMare(mareId: string, db?: RepoDb): Promise<FoalingRecord[]> {
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<FoalingRecordRow>(
     `
     SELECT id, mare_id, breeding_record_id, date, outcome, foal_sex, complications, notes, created_at, updated_at
     FROM foaling_records

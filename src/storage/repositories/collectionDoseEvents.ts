@@ -4,12 +4,13 @@ import {
   UpdateCollectionDoseEventInput,
   UUID,
 } from '@/models/types';
-import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { newId } from '@/utils/id';
 import {
   assertCollectionSemenVolumeCanSupportAllocation,
 } from './internal/collectionAllocation';
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
 
 type CollectionDoseEventRow = {
   id: string;
@@ -105,9 +106,10 @@ function buildCollectionIdPlaceholders(count: number): string {
 
 export async function listDoseEventsByCollection(
   collectionId: UUID,
+  db?: RepoDb,
 ): Promise<CollectionDoseEvent[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<CollectionDoseEventRow>(
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<CollectionDoseEventRow>(
     `
     SELECT
       id,
@@ -141,6 +143,7 @@ export async function listDoseEventsByCollection(
 
 export async function listDoseEventsByCollectionIds(
   collectionIds: readonly UUID[],
+  db?: RepoDb,
 ): Promise<Record<UUID, CollectionDoseEvent[]>> {
   const grouped: Record<UUID, CollectionDoseEvent[]> = {};
 
@@ -152,8 +155,8 @@ export async function listDoseEventsByCollectionIds(
     return grouped;
   }
 
-  const db = await getDb();
-  const rows = await db.getAllAsync<CollectionDoseEventRow>(
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<CollectionDoseEventRow>(
     `
     SELECT
       id,
@@ -193,8 +196,9 @@ export async function listDoseEventsByCollectionIds(
 
 export async function createDoseEvent(
   input: CreateCollectionDoseEventInput,
+  db?: RepoDb,
 ): Promise<CollectionDoseEvent> {
-  const db = await getDb();
+  const handle = await resolveDb(db);
   const now = new Date().toISOString();
   const id = newId();
   const eventType = input.eventType;
@@ -213,13 +217,13 @@ export async function createDoseEvent(
     'Dose extender volume',
   );
   await assertCollectionSemenVolumeCanSupportAllocation(
-    db,
+    handle,
     input.collectionId,
     doseSemenVolumeMl,
     doseCount,
   );
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     INSERT INTO collection_dose_events (
       id,
@@ -269,7 +273,7 @@ export async function createDoseEvent(
   );
   emitDataInvalidation('collectionDoseEvents');
 
-  const created = await getDoseEventById(id);
+  const created = await getDoseEventById(id, handle);
   if (!created) {
     throw new Error('Failed to create dose event.');
   }
@@ -279,8 +283,10 @@ export async function createDoseEvent(
 export async function updateDoseEvent(
   id: UUID,
   input: UpdateCollectionDoseEventInput,
+  db?: RepoDb,
 ): Promise<CollectionDoseEvent> {
-  const existing = await getDoseEventById(id);
+  const handle = await resolveDb(db);
+  const existing = await getDoseEventById(id, handle);
   if (!existing) {
     throw new Error('Dose event not found.');
   }
@@ -289,7 +295,6 @@ export async function updateDoseEvent(
     throw new Error('On-farm allocations must be edited through the breeding record.');
   }
 
-  const db = await getDb();
   const doseCount = normalizeRequiredDoseCount(
     input.doseCount === undefined ? existing.doseCount : input.doseCount,
   );
@@ -304,14 +309,14 @@ export async function updateDoseEvent(
     'Dose extender volume',
   );
   await assertCollectionSemenVolumeCanSupportAllocation(
-    db,
+    handle,
     existing.collectionId,
     doseSemenVolumeMl,
     doseCount,
     { excludeDoseEventId: id },
   );
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     UPDATE collection_dose_events
     SET
@@ -357,22 +362,22 @@ export async function updateDoseEvent(
   );
   emitDataInvalidation('collectionDoseEvents');
 
-  const updated = await getDoseEventById(id);
+  const updated = await getDoseEventById(id, handle);
   if (!updated) {
     throw new Error('Failed to update dose event.');
   }
   return updated;
 }
 
-export async function deleteDoseEvent(id: UUID): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM collection_dose_events WHERE id = ?;', [id]);
+export async function deleteDoseEvent(id: UUID, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await handle.runAsync('DELETE FROM collection_dose_events WHERE id = ?;', [id]);
   emitDataInvalidation('collectionDoseEvents');
 }
 
-async function getDoseEventById(id: UUID): Promise<CollectionDoseEvent | null> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<CollectionDoseEventRow>(
+async function getDoseEventById(id: UUID, db?: RepoDb): Promise<CollectionDoseEvent | null> {
+  const handle = await resolveDb(db);
+  const row = await handle.getFirstAsync<CollectionDoseEventRow>(
     `
     SELECT
       id,

@@ -1,44 +1,19 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
-import { useRecordForm } from '@/hooks/useRecordForm';
+import { usePregnancyCheckForm } from '@/hooks/usePregnancyCheckForm';
 import { PREGNANCY_RESULT_OPTIONS } from '@/models/enums';
 import { Screen } from '@/components/Screen';
-import {
-  BreedingRecord,
-  DEFAULT_GESTATION_LENGTH_DAYS,
-  PregnancyResult,
-  calculateDaysPostBreeding,
-  estimateFoalingDate,
-} from '@/models/types';
 import { formatLocalDate } from '@/utils/dates';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import {
-  createPregnancyCheck,
-  deletePregnancyCheck,
-  getMareById,
-  getPregnancyCheckById,
-  listBreedingRecordsByMare,
-  updatePregnancyCheck,
-} from '@/storage/repositories';
 import { borderRadius, colors, spacing, typography } from '@/theme';
-import { confirmDelete } from '@/utils/confirmDelete';
-import { newId } from '@/utils/id';
-import { validateLocalDate, validateLocalDateNotInFuture, validateRequired } from '@/utils/validation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PregnancyCheckForm'>;
 
-type ResultOption = PregnancyResult;
 type YesNo = 'yes' | 'no';
-
-type FormErrors = {
-  breedingRecordId?: string;
-  date?: string;
-};
 
 const YES_NO_OPTIONS: { label: string; value: YesNo }[] = [
   { label: 'Yes', value: 'yes' },
@@ -46,175 +21,34 @@ const YES_NO_OPTIONS: { label: string; value: YesNo }[] = [
 ];
 
 export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Element {
-  const mareId = route.params.mareId;
-  const pregnancyCheckId = route.params.pregnancyCheckId;
-  const isEdit = Boolean(pregnancyCheckId);
-
-  const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
-  const [gestationLengthDays, setGestationLengthDays] = useState(DEFAULT_GESTATION_LENGTH_DAYS);
-  const [breedingRecordId, setBreedingRecordId] = useState('');
-  const [date, setDate] = useState('');
-  const [result, setResult] = useState<ResultOption>('positive');
-  const [heartbeat, setHeartbeat] = useState<YesNo>('no');
-  const [notes, setNotes] = useState('');
-  const [errors, setErrors] = useState<FormErrors>({});
-  const { isLoading, isSaving, isDeleting, runLoad, runSave, runDelete } = useRecordForm({
-    initialLoading: true,
+  const {
+    isEdit,
+    today,
+    breedingRecords,
+    breedingRecordId,
+    date,
+    result,
+    heartbeat,
+    notes,
+    errors,
+    daysPostBreeding,
+    approxDueDate,
+    isLoading,
+    isSaving,
+    isDeleting,
+    setBreedingRecordId,
+    setDate,
+    setResult,
+    setHeartbeat,
+    setNotes,
+    onSave,
+    requestDelete,
+  } = usePregnancyCheckForm({
+    mareId: route.params.mareId,
+    pregnancyCheckId: route.params.pregnancyCheckId,
+    onGoBack: () => navigation.goBack(),
+    setTitle: (title) => navigation.setOptions({ title }),
   });
-  const today = new Date();
-
-  useEffect(() => {
-    navigation.setOptions({ title: isEdit ? 'Edit Pregnancy Check' : 'Add Pregnancy Check' });
-  }, [isEdit, navigation]);
-
-  useEffect(() => {
-    void runLoad(
-      async () => {
-        const [mare, records, existing] = await Promise.all([
-          getMareById(mareId),
-          listBreedingRecordsByMare(mareId),
-          pregnancyCheckId ? getPregnancyCheckById(pregnancyCheckId) : Promise.resolve(null),
-        ]);
-        if (!mare) {
-          Alert.alert('Mare not found', 'This mare no longer exists.');
-          navigation.goBack();
-          return;
-        }
-        if (pregnancyCheckId && !existing) {
-          Alert.alert('Record not found', 'This pregnancy check no longer exists.');
-          navigation.goBack();
-          return;
-        }
-
-        setGestationLengthDays(mare.gestationLengthDays);
-        setBreedingRecords(records);
-
-        if (existing) {
-          setBreedingRecordId(existing.breedingRecordId);
-          setDate(existing.date);
-          setResult(existing.result);
-          setHeartbeat(existing.heartbeatDetected ? 'yes' : 'no');
-          setNotes(existing.notes ?? '');
-        } else if (records.length > 0) {
-          setBreedingRecordId(records[0].id);
-        }
-      },
-      {
-        onError: (err: unknown) => {
-        const message = err instanceof Error ? err.message : 'Unable to load pregnancy-check form data.';
-        Alert.alert('Load error', message);
-        navigation.goBack();
-        },
-      },
-    );
-  }, [mareId, navigation, pregnancyCheckId, runLoad]);
-
-  useEffect(() => {
-    if (result === 'negative') {
-      setHeartbeat('no');
-    }
-  }, [result]);
-
-  const selectedBreedingRecord = useMemo(
-    () => breedingRecords.find((record) => record.id === breedingRecordId) ?? null,
-    [breedingRecordId, breedingRecords]
-  );
-
-  const daysPostBreeding = useMemo(() => {
-    if (!selectedBreedingRecord || !date.trim()) {
-      return null;
-    }
-
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
-      return null;
-    }
-
-    return calculateDaysPostBreeding(date.trim(), selectedBreedingRecord.date);
-  }, [date, selectedBreedingRecord]);
-
-  const approxDueDate = useMemo(() => {
-    if (!selectedBreedingRecord) {
-      return null;
-    }
-    return estimateFoalingDate(selectedBreedingRecord.date, gestationLengthDays);
-  }, [gestationLengthDays, selectedBreedingRecord]);
-
-  const validate = (): boolean => {
-    const dateError = validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date);
-
-    let relativeDateError: string | null = null;
-    if (!dateError && selectedBreedingRecord) {
-      const delta = calculateDaysPostBreeding(date.trim(), selectedBreedingRecord.date);
-      if (delta < 0) {
-        relativeDateError = 'Check date cannot be before breeding date.';
-      }
-    }
-
-    const nextErrors: FormErrors = {
-      breedingRecordId: validateRequired(breedingRecordId, 'Breeding record') ?? undefined,
-      date: (dateError ?? relativeDateError) ?? undefined,
-    };
-
-    setErrors(nextErrors);
-    return !nextErrors.breedingRecordId && !nextErrors.date;
-  };
-
-  const onSave = async (): Promise<void> => {
-    if (!validate()) {
-      return;
-    }
-
-    await runSave(
-      async () => {
-        const payload = {
-          breedingRecordId,
-          date: date.trim(),
-          result,
-          heartbeatDetected: result === 'positive' ? heartbeat === 'yes' : null,
-          notes: notes.trim() || null,
-        };
-
-        if (pregnancyCheckId) {
-          await updatePregnancyCheck(pregnancyCheckId, payload);
-        } else {
-          await createPregnancyCheck({ id: newId(), mareId, ...payload });
-        }
-
-        navigation.goBack();
-      },
-      {
-        onError: (err: unknown) => {
-          const message = err instanceof Error ? err.message : 'Failed to save pregnancy check.';
-          Alert.alert('Save failed', message);
-        },
-      },
-    );
-  };
-
-  const onDelete = (): void => {
-    if (!pregnancyCheckId) {
-      return;
-    }
-
-    confirmDelete({
-      title: 'Delete Pregnancy Check',
-      message: 'Delete this pregnancy check?',
-      onConfirm: async () => {
-        await runDelete(
-          async () => {
-            await deletePregnancyCheck(pregnancyCheckId);
-            navigation.goBack();
-          },
-          {
-            onError: (err: unknown) => {
-              const message = err instanceof Error ? err.message : 'Failed to delete pregnancy check.';
-              Alert.alert('Delete failed', message);
-            },
-          },
-        );
-      },
-    });
-  };
 
   if (isLoading) {
     return (
@@ -277,7 +111,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
         {isEdit ? (
           <DeleteButton
             label={isDeleting ? 'Deleting...' : 'Delete'}
-            onPress={onDelete}
+            onPress={requestDelete}
             disabled={isSaving || isDeleting}
           />
         ) : null}

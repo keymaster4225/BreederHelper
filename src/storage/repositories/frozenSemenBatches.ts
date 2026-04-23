@@ -5,11 +5,12 @@ import {
   UUID,
 } from '@/models/types';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
-import { getDb } from '@/storage/db';
 import { newId } from '@/utils/id';
 import {
   assertCollectionSemenVolumeCanSupportAllocation,
 } from './internal/collectionAllocation';
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
 import { getSemenCollectionById } from './semenCollections';
 import { getStallionById } from './stallions';
 
@@ -223,9 +224,10 @@ function buildCentrifugeWriteFields(
 
 async function getFrozenSemenBatchRowById(
   id: UUID,
+  db?: RepoDb,
 ): Promise<FrozenSemenBatchRow | null> {
-  const db = await getDb();
-  return db.getFirstAsync<FrozenSemenBatchRow>(
+  const handle = await resolveDb(db);
+  return handle.getFirstAsync<FrozenSemenBatchRow>(
     `
     SELECT
       id,
@@ -266,8 +268,9 @@ async function getFrozenSemenBatchRowById(
 async function assertValidCreateTarget(
   stallionId: UUID,
   collectionId: UUID | null,
+  db?: RepoDb,
 ): Promise<void> {
-  const stallion = await getStallionById(stallionId);
+  const stallion = await getStallionById(stallionId, db);
   if (!stallion) {
     throw new Error('Stallion not found.');
   }
@@ -279,7 +282,7 @@ async function assertValidCreateTarget(
     return;
   }
 
-  const collection = await getSemenCollectionById(collectionId);
+  const collection = await getSemenCollectionById(collectionId, db);
   if (!collection) {
     throw new Error('Collection not found.');
   }
@@ -320,11 +323,12 @@ function buildCollectionIdPlaceholders(count: number): string {
 
 export async function createFrozenSemenBatch(
   input: CreateFrozenSemenBatchInput,
+  db?: RepoDb,
 ): Promise<FrozenSemenBatch> {
   const collectionId = input.collectionId ?? null;
-  await assertValidCreateTarget(input.stallionId, collectionId);
+  const handle = await resolveDb(db);
+  await assertValidCreateTarget(input.stallionId, collectionId, handle);
 
-  const db = await getDb();
   const id = newId();
   const now = new Date().toISOString();
 
@@ -338,7 +342,7 @@ export async function createFrozenSemenBatch(
   );
   if (collectionId != null) {
     await assertCollectionSemenVolumeCanSupportAllocation(
-      db,
+      handle,
       collectionId,
       rawSemenVolumeUsedMl,
       1,
@@ -352,7 +356,7 @@ export async function createFrozenSemenBatch(
 
   const centrifuge = buildCentrifugeWriteFields(input.wasCentrifuged, input.centrifuge);
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     INSERT INTO frozen_semen_batches (
       id,
@@ -422,7 +426,7 @@ export async function createFrozenSemenBatch(
 
   emitDataInvalidation('all');
 
-  const created = await getFrozenSemenBatch(id);
+  const created = await getFrozenSemenBatch(id, handle);
   if (!created) {
     throw new Error('Failed to load created frozen semen batch.');
   }
@@ -433,15 +437,15 @@ export async function createFrozenSemenBatch(
 export async function updateFrozenSemenBatch(
   id: UUID,
   patch: UpdateFrozenSemenBatchInput,
+  db?: RepoDb,
 ): Promise<FrozenSemenBatch> {
   ensureUpdateImmutablesNotPatched(patch);
 
-  const existing = await getFrozenSemenBatch(id);
+  const handle = await resolveDb(db);
+  const existing = await getFrozenSemenBatch(id, handle);
   if (!existing) {
     throw new Error('Frozen semen batch not found.');
   }
-
-  const db = await getDb();
 
   const wasCentrifuged = patch.wasCentrifuged ?? existing.wasCentrifuged;
   const strawCount =
@@ -468,7 +472,7 @@ export async function updateFrozenSemenBatch(
 
   if (existing.collectionId != null) {
     await assertCollectionSemenVolumeCanSupportAllocation(
-      db,
+      handle,
       existing.collectionId,
       rawSemenVolumeUsedMl,
       1,
@@ -489,7 +493,7 @@ export async function updateFrozenSemenBatch(
     notes: patch.centrifuge?.notes ?? existing.centrifuge.notes,
   });
 
-  await db.runAsync(
+  await handle.runAsync(
     `
     UPDATE frozen_semen_batches
     SET
@@ -579,7 +583,7 @@ export async function updateFrozenSemenBatch(
 
   emitDataInvalidation('all');
 
-  const updated = await getFrozenSemenBatch(id);
+  const updated = await getFrozenSemenBatch(id, handle);
   if (!updated) {
     throw new Error('Failed to load updated frozen semen batch.');
   }
@@ -587,22 +591,23 @@ export async function updateFrozenSemenBatch(
   return updated;
 }
 
-export async function deleteFrozenSemenBatch(id: UUID): Promise<void> {
-  const db = await getDb();
-  await db.runAsync('DELETE FROM frozen_semen_batches WHERE id = ?;', [id]);
+export async function deleteFrozenSemenBatch(id: UUID, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  await handle.runAsync('DELETE FROM frozen_semen_batches WHERE id = ?;', [id]);
   emitDataInvalidation('all');
 }
 
-export async function getFrozenSemenBatch(id: UUID): Promise<FrozenSemenBatch | null> {
-  const row = await getFrozenSemenBatchRowById(id);
+export async function getFrozenSemenBatch(id: UUID, db?: RepoDb): Promise<FrozenSemenBatch | null> {
+  const row = await getFrozenSemenBatchRowById(id, db);
   return row ? mapRow(row) : null;
 }
 
 export async function listFrozenSemenBatchesByStallion(
   stallionId: UUID,
+  db?: RepoDb,
 ): Promise<FrozenSemenBatch[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<FrozenSemenBatchRow>(
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<FrozenSemenBatchRow>(
     `
     SELECT
       id,
@@ -645,9 +650,10 @@ export async function listFrozenSemenBatchesByStallion(
 
 export async function listFrozenSemenBatchesByCollection(
   collectionId: UUID,
+  db?: RepoDb,
 ): Promise<FrozenSemenBatch[]> {
-  const db = await getDb();
-  const rows = await db.getAllAsync<FrozenSemenBatchRow>(
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<FrozenSemenBatchRow>(
     `
     SELECT
       id,
@@ -690,6 +696,7 @@ export async function listFrozenSemenBatchesByCollection(
 
 export async function listFrozenSemenBatchesByCollectionIds(
   collectionIds: readonly UUID[],
+  db?: RepoDb,
 ): Promise<Record<UUID, FrozenSemenBatch[]>> {
   const grouped: Record<UUID, FrozenSemenBatch[]> = {};
 
@@ -701,8 +708,8 @@ export async function listFrozenSemenBatchesByCollectionIds(
     return grouped;
   }
 
-  const db = await getDb();
-  const rows = await db.getAllAsync<FrozenSemenBatchRow>(
+  const handle = await resolveDb(db);
+  const rows = await handle.getAllAsync<FrozenSemenBatchRow>(
     `
     SELECT
       id,

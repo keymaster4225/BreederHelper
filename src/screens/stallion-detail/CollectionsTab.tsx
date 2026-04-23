@@ -12,7 +12,6 @@ import {
   Stallion,
 } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { deleteDoseEvent, deleteFrozenSemenBatch } from '@/storage/repositories';
 import { colors, spacing, typography } from '@/theme';
 import {
   getCollectionCardTargetPostExtensionLabel,
@@ -33,6 +32,8 @@ type Props = {
   readonly mareNameById: Record<string, string>;
   readonly isDeleted: boolean;
   readonly onDoseEventsChanged: () => Promise<void>;
+  readonly onDeleteDoseEvent: (doseEventId: string) => Promise<void>;
+  readonly onDeleteFrozenBatch: (frozenBatchId: string) => Promise<void>;
   readonly navigation: NativeStackNavigationProp<RootStackParamList, 'StallionDetail'>;
 };
 
@@ -101,6 +102,8 @@ export function CollectionsTab({
   mareNameById,
   isDeleted,
   onDoseEventsChanged,
+  onDeleteDoseEvent,
+  onDeleteFrozenBatch,
   navigation,
 }: Props): JSX.Element {
   const [activeCollectionId, setActiveCollectionId] = useState<string | null>(null);
@@ -143,8 +146,7 @@ export function CollectionsTab({
           onPress: () => {
             void (async () => {
               try {
-                await deleteDoseEvent(event.id);
-                await onDoseEventsChanged();
+                await onDeleteDoseEvent(event.id);
               } catch (err) {
                 const message = err instanceof Error ? err.message : 'Unable to delete dose event.';
                 Alert.alert('Delete error', message);
@@ -168,8 +170,7 @@ export function CollectionsTab({
           onPress: () => {
             void (async () => {
               try {
-                await deleteFrozenSemenBatch(batch.id);
-                await onDoseEventsChanged();
+                await onDeleteFrozenBatch(batch.id);
               } catch (err) {
                 const message = err instanceof Error ? err.message : 'Unable to delete frozen batch.';
                 Alert.alert('Delete error', message);

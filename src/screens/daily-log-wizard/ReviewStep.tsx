@@ -11,9 +11,7 @@ import {
   OVARY_STRUCTURE_LABELS,
   UTERINE_TONE_CATEGORY_LABELS,
 } from '@/models/enums';
-import type {
-  DailyLogOvulationSource,
-} from '@/storage/repositories';
+import type { DailyLogOvulationSource } from '@/models/types';
 import {
   type DailyLogWizardLegacyNotes,
   type DailyLogWizardOvaryDraft,

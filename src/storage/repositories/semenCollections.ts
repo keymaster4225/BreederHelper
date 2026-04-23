@@ -1,7 +1,8 @@
 import { SemenCollection } from '@/models/types';
-import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { assertCollectionRawVolumeCanBeUpdated } from './internal/collectionAllocation';
+import type { RepoDb } from './internal/dbTypes';
+import { resolveDb } from './internal/resolveDb';
 import { getStallionById } from './stallions';
 
 type SemenCollectionRow = {
@@ -42,10 +43,11 @@ function mapRow(row: SemenCollectionRow): SemenCollection {
 export async function listSemenCollectionsByStallion(
   stallionId: string,
   options?: { limit?: number },
+  db?: RepoDb,
 ): Promise<SemenCollection[]> {
-  const db = await getDb();
+  const handle = await resolveDb(db);
   const limit = options?.limit ?? 1000;
-  const rows = await db.getAllAsync<SemenCollectionRow>(
+  const rows = await handle.getAllAsync<SemenCollectionRow>(
     `SELECT * FROM semen_collections
      WHERE stallion_id = ?
      ORDER BY collection_date DESC
@@ -57,9 +59,10 @@ export async function listSemenCollectionsByStallion(
 
 export async function getSemenCollectionById(
   id: string,
+  db?: RepoDb,
 ): Promise<SemenCollection | null> {
-  const db = await getDb();
-  const row = await db.getFirstAsync<SemenCollectionRow>(
+  const handle = await resolveDb(db);
+  const row = await handle.getFirstAsync<SemenCollectionRow>(
     'SELECT * FROM semen_collections WHERE id = ?;',
     [id],
   );
@@ -78,8 +81,9 @@ export async function createSemenCollection(input: {
   targetSpermMillionsPerDose?: number | null;
   targetPostExtensionConcentrationMillionsPerMl?: number | null;
   notes?: string | null;
-}): Promise<void> {
-  const stallion = await getStallionById(input.stallionId);
+}, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  const stallion = await getStallionById(input.stallionId, handle);
   if (!stallion) {
     throw new Error('Stallion not found.');
   }
@@ -87,10 +91,9 @@ export async function createSemenCollection(input: {
     throw new Error('Cannot add collection for a deleted stallion.');
   }
 
-  const db = await getDb();
   const now = new Date().toISOString();
 
-  await db.runAsync(
+  await handle.runAsync(
     `INSERT INTO semen_collections (
       id, stallion_id, collection_date,
       raw_volume_ml, extender_type, concentration_millions_per_ml,
@@ -130,11 +133,12 @@ export async function updateSemenCollection(
     targetPostExtensionConcentrationMillionsPerMl?: number | null;
     notes?: string | null;
   },
+  db?: RepoDb,
 ): Promise<void> {
-  const db = await getDb();
-  await assertCollectionRawVolumeCanBeUpdated(db, id, input.rawVolumeMl ?? null);
+  const handle = await resolveDb(db);
+  await assertCollectionRawVolumeCanBeUpdated(handle, id, input.rawVolumeMl ?? null);
 
-  await db.runAsync(
+  await handle.runAsync(
     `UPDATE semen_collections
      SET
        collection_date = ?,
@@ -165,24 +169,24 @@ export async function updateSemenCollection(
   emitDataInvalidation('semenCollections');
 }
 
-export async function deleteSemenCollection(id: string): Promise<void> {
-  const linked = await isSemenCollectionLinked(id);
+export async function deleteSemenCollection(id: string, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  const linked = await isSemenCollectionLinked(id, handle);
   if (linked) {
     throw new Error('This collection is linked to breeding or frozen records and cannot be deleted.');
   }
 
-  const db = await getDb();
-  await db.runAsync('DELETE FROM semen_collections WHERE id = ?;', [id]);
+  await handle.runAsync('DELETE FROM semen_collections WHERE id = ?;', [id]);
   emitDataInvalidation('semenCollections');
 }
 
-export async function isSemenCollectionLinked(id: string): Promise<boolean> {
-  const db = await getDb();
-  const breedingRow = await db.getFirstAsync<{ count: number }>(
+export async function isSemenCollectionLinked(id: string, db?: RepoDb): Promise<boolean> {
+  const handle = await resolveDb(db);
+  const breedingRow = await handle.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) as count FROM breeding_records WHERE collection_id = ?;',
     [id],
   );
-  const frozenRow = await db.getFirstAsync<{ count: number }>(
+  const frozenRow = await handle.getFirstAsync<{ count: number }>(
     'SELECT COUNT(*) as count FROM frozen_semen_batches WHERE collection_id = ?;',
     [id],
   );

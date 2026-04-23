@@ -56,6 +56,8 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
     isLoading,
     error,
     loadData,
+    deleteDoseEventRecord,
+    deleteFrozenBatchRecord,
   } = useStallionDetailData({ stallionId, setTitle: handleSetTitle });
 
   useEffect(() => {
@@ -121,6 +123,8 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
               mareNameById={mareNameById}
               isDeleted={isDeleted}
               onDoseEventsChanged={loadData}
+              onDeleteDoseEvent={deleteDoseEventRecord}
+              onDeleteFrozenBatch={deleteFrozenBatchRecord}
               navigation={navigation}
             />
             <BreedingHistoryTab

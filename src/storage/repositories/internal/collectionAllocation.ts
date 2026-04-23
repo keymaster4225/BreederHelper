@@ -1,6 +1,6 @@
-import type * as SQLite from 'expo-sqlite';
-
 import { computeAllocationSummary } from '@/utils/collectionAllocation';
+
+import type { RepoDb } from './dbTypes';
 
 type CollectionRawVolumeRow = {
   raw_volume_ml: number | null;
@@ -20,7 +20,7 @@ export type AllocatedSemenVolumeOptions = {
 };
 
 export async function getCollectionRawVolumeMl(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   collectionId: string,
 ): Promise<number | null> {
   const row = await db.getFirstAsync<CollectionRawVolumeRow>(
@@ -36,7 +36,7 @@ export async function getCollectionRawVolumeMl(
 }
 
 export async function getAllocatedSemenVolumeForCollectionDb(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   collectionId: string,
   options?: AllocatedSemenVolumeOptions,
 ): Promise<number> {
@@ -80,7 +80,7 @@ export async function getAllocatedSemenVolumeForCollectionDb(
 }
 
 export async function assertCollectionSemenVolumeCanSupportAllocation(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   collectionId: string,
   doseSemenVolumeMl: number | null,
   doseCount: number,
@@ -112,7 +112,7 @@ export async function assertCollectionSemenVolumeCanSupportAllocation(
 }
 
 export async function assertCollectionRawVolumeCanBeUpdated(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   collectionId: string,
   nextRawVolumeMl: number | null,
 ): Promise<void> {
@@ -127,7 +127,7 @@ export async function assertCollectionRawVolumeCanBeUpdated(
 }
 
 export async function assertCollectionSemenVolumeWithinCap(
-  db: SQLite.SQLiteDatabase,
+  db: RepoDb,
   collectionId: string,
 ): Promise<void> {
   const rawVolumeMl = await getCollectionRawVolumeMl(db, collectionId);

@@ -89,6 +89,7 @@ Recent UX/domain decisions reflected in code:
 - Status badges: `src/components/StatusBadge.tsx`
 - Domain types: `src/models/types.ts`
 - Repositories: `src/storage/repositories/*`
+- Backup pipeline: `src/storage/backup/*`
 - Migrations: `src/storage/migrations/*`
 - Validation/date helpers: `src/utils/validation.ts`, `src/utils/dates.ts`
 - Theme: `src/theme.ts`
@@ -140,9 +141,12 @@ If bundling/native module errors appear:
 - Keep local date storage normalized as `YYYY-MM-DD`.
 - Keep business logic in repositories/utils, not directly in UI components.
 - Home, foal form, medication form, and mare detail screens now delegate load/save/delete orchestration to hooks in `src/hooks/`, with reusable pure derivation in selectors/utils.
+- Top-level screens and reusable child UI components should not import `@/storage/repositories` or `@/storage/dataInvalidation` directly.
+- Repository access belongs in hooks under `src/hooks/`.
+- `useRecordForm` is a hook-internal helper, not a screen-level helper.
 - Add migration + repository + type updates together for schema changes.
 - For behavior changes, update tests where practical (`validation.test.ts`, repository tests).
-- When adding a new persisted entity, also extend the backup pipeline: `src/utils/backup/types.ts`, `serialize.ts`, `restore.ts`, `validate.ts`, `safetyBackups.ts`, `testFixtures.ts`, plus their `*.test.ts` round-trip and validation coverage. Restore order must respect FK dependencies.
+- When adding a new persisted entity, also extend the backup pipeline under `src/storage/backup/`: `types.ts`, `serialize.ts`, `restore.ts`, `validate.ts`, `safetyBackups.ts`, `testFixtures.ts`, plus their `*.test.ts` round-trip and validation coverage. Restore order must respect FK dependencies.
 - When a new entity is surfaced in an existing screen (cards, allocations, tabs), extend that screen's `*.screen.test.tsx` for the new render paths, navigation, and soft-delete (`isDeleted`) gating.
 - When a domain field uses an enum-with-`'Other'` pattern (e.g. extender, color), add a display formatter to `src/utils/outcomeDisplay.ts` (or a sibling `*Display.ts` file) plus a test that covers both enum and `'Other:<freetext>'` rendering.
 - New screens count toward the screen-coverage CI threshold (see commit `48e3c52`); each needs at least one happy-path and one error-path screen test.

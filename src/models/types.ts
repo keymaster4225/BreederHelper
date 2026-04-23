@@ -250,6 +250,8 @@ export interface UterineFluidPocket {
   updatedAt: ISODateTime;
 }
 
+export type DailyLogOvulationSource = 'legacy' | 'structured';
+
 export interface DailyLog {
   id: UUID;
   mareId: UUID;

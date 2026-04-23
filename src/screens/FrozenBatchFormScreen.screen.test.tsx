@@ -220,7 +220,7 @@ it('deletes after confirm dialog action', async () => {
 });
 
 it('shows centrifuge card expanded for centrifuged batches and allows collapsing', async () => {
-  repositories.getFrozenSemenBatch.mockResolvedValueOnce({
+  repositories.getFrozenSemenBatch.mockResolvedValue({
     id: 'batch-2',
     stallionId: 'stallion-1',
     collectionId: 'col-1',

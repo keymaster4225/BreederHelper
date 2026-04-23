@@ -182,7 +182,7 @@ it('shows delete button in edit mode', async () => {
 });
 
 it('shows the total-mode missing-motility warning without blocking edit mode', async () => {
-  repositories.getSemenCollectionById.mockResolvedValueOnce({
+  repositories.getSemenCollectionById.mockResolvedValue({
     id: 'col-2',
     stallionId: 'st-1',
     collectionDate: '2026-04-01',

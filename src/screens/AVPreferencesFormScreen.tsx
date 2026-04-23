@@ -1,99 +1,40 @@
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { useEffect } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { PrimaryButton } from '@/components/Buttons';
 import { FormField, FormTextInput, formStyles } from '@/components/FormControls';
+import { useAVPreferencesForm } from '@/hooks/useAVPreferencesForm';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import { getStallionById, updateStallion } from '@/storage/repositories';
 import { colors } from '@/theme';
-import {
-  parseOptionalInteger,
-  parseOptionalNumber,
-  validateNumberRange,
-} from '@/utils/validation';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'AVPreferencesForm'>;
 
-type FormErrors = {
-  avTemperatureF?: string;
-  avWaterVolumeMl?: string;
-};
-
 export function AVPreferencesFormScreen({ navigation, route }: Props): JSX.Element {
-  const { stallionId } = route.params;
-
-  const [avTemperatureF, setAvTemperatureF] = useState('');
-  const [avType, setAvType] = useState('');
-  const [avLinerType, setAvLinerType] = useState('');
-  const [avWaterVolumeMl, setAvWaterVolumeMl] = useState('');
-  const [avNotes, setAvNotes] = useState('');
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-
   useEffect(() => {
-    void (async () => {
-      try {
-        const record = await getStallionById(stallionId);
-        if (record) {
-          setAvTemperatureF(record.avTemperatureF != null ? String(record.avTemperatureF) : '');
-          setAvType(record.avType ?? '');
-          setAvLinerType(record.avLinerType ?? '');
-          setAvWaterVolumeMl(record.avWaterVolumeMl != null ? String(record.avWaterVolumeMl) : '');
-          setAvNotes(record.avNotes ?? '');
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-  }, [stallionId]);
+    navigation.setOptions({ title: 'AV Preferences' });
+  }, [navigation]);
 
-  const validate = (): FormErrors => {
-    const errs: FormErrors = {};
-    errs.avTemperatureF =
-      validateNumberRange(parseOptionalNumber(avTemperatureF), 'Temperature', 0, 250) ?? undefined;
-    errs.avWaterVolumeMl =
-      validateNumberRange(parseOptionalInteger(avWaterVolumeMl), 'Water Volume', 0, 9999) ?? undefined;
-    return errs;
-  };
-
-  const onSave = async (): Promise<void> => {
-    const errs = validate();
-    setErrors(errs);
-    if (Object.values(errs).some(Boolean)) return;
-
-    setIsSaving(true);
-    try {
-      const record = await getStallionById(stallionId);
-      if (!record) {
-        Alert.alert('Error', 'Stallion not found.');
-        return;
-      }
-
-      await updateStallion(stallionId, {
-        name: record.name,
-        breed: record.breed,
-        registrationNumber: record.registrationNumber,
-        sire: record.sire,
-        dam: record.dam,
-        notes: record.notes,
-        dateOfBirth: record.dateOfBirth,
-        avTemperatureF: parseOptionalNumber(avTemperatureF),
-        avType: avType.trim() || null,
-        avLinerType: avLinerType.trim() || null,
-        avWaterVolumeMl: parseOptionalInteger(avWaterVolumeMl),
-        avNotes: avNotes.trim() || null,
-      });
-      navigation.goBack();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save AV preferences.';
-      Alert.alert('Save error', message);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const {
+    avTemperatureF,
+    avType,
+    avLinerType,
+    avWaterVolumeMl,
+    avNotes,
+    errors,
+    isLoading,
+    isSaving,
+    setAvTemperatureF,
+    setAvType,
+    setAvLinerType,
+    setAvWaterVolumeMl,
+    setAvNotes,
+    onSave,
+  } = useAVPreferencesForm({
+    stallionId: route.params.stallionId,
+    onGoBack: () => navigation.goBack(),
+  });
 
   if (isLoading) {
     return (

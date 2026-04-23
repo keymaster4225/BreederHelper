@@ -7,7 +7,7 @@ import { PrimaryButton, SecondaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { useDataBackup } from '@/hooks/useDataBackup';
 import { RootStackParamList } from '@/navigation/AppNavigator';
-import type { RestoreBackupResult, SafetySnapshotSummary } from '@/utils/backup/types';
+import type { RestoreBackupResult, SafetySnapshotSummary } from '@/storage/backup';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'DataBackup'>;

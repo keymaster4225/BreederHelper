@@ -8,7 +8,6 @@ vi.mock('@/utils/id', () => ({
   newId: vi.fn(),
 }));
 
-import { getDb } from '@/storage/db';
 import { newId } from '@/utils/id';
 import {
   createCollectionWithAllocations,
@@ -258,6 +257,9 @@ function createFakeDb() {
         });
       }
     },
+    async getAllAsync<T>(): Promise<T[]> {
+      return [];
+    },
     async getFirstAsync<T>(sql: string, params: unknown[] = []): Promise<T | null> {
       const stmt = normalized(sql);
 
@@ -319,10 +321,11 @@ function createFakeDb() {
 
 describe('collection wizard repository', () => {
   beforeEach(() => {
-    vi.mocked(getDb).mockResolvedValue(createFakeDb() as unknown as Awaited<ReturnType<typeof getDb>>);
+    vi.clearAllMocks();
   });
 
   it('creates a collection plus mixed shipped and on-farm allocations in one transaction', async () => {
+    const fakeDb = createFakeDb();
     vi.mocked(newId)
       .mockReturnValueOnce('collection-1')
       .mockReturnValueOnce('event-1')
@@ -365,13 +368,11 @@ describe('collection wizard repository', () => {
           notes: 'Bred in barn 2',
         },
       ],
-    });
+    }, fakeDb);
 
     expect(result.collectionId).toBe('collection-1');
     expect(result.breedingRecordIds).toEqual(['breeding-1']);
 
-    const db = await getDb();
-    const fakeDb = db as unknown as ReturnType<typeof createFakeDb>;
     expect(fakeDb.collections.size).toBe(1);
     expect(fakeDb.breedingRecords.size).toBe(1);
     expect(fakeDb.doseEvents.size).toBe(2);
@@ -391,6 +392,7 @@ describe('collection wizard repository', () => {
   });
 
   it('returns allocated semen volume totals for a collection', async () => {
+    const fakeDb = createFakeDb();
     vi.mocked(newId)
       .mockReturnValueOnce('collection-1')
       .mockReturnValueOnce('event-1')
@@ -433,12 +435,13 @@ describe('collection wizard repository', () => {
         },
       ],
       onFarmRows: [],
-    });
+    }, fakeDb);
 
-    await expect(getAllocatedSemenVolumeForCollection('collection-1')).resolves.toBe(13);
+    await expect(getAllocatedSemenVolumeForCollection('collection-1', undefined, fakeDb)).resolves.toBe(13);
   });
 
   it('rejects duplicate on-farm mares in one wizard session', async () => {
+    const fakeDb = createFakeDb();
     vi.mocked(newId).mockReturnValue('collection-1');
 
     await expect(
@@ -453,11 +456,12 @@ describe('collection wizard repository', () => {
           { mareId: 'mare-1', eventDate: '2026-04-02', doseSemenVolumeMl: 4 },
           { mareId: 'mare-1', eventDate: '2026-04-03', doseSemenVolumeMl: 4 },
         ],
-      }),
+      }, fakeDb),
     ).rejects.toThrow('A mare can only be selected once per collection wizard.');
   });
 
   it('rolls back the whole transaction if an on-farm mare lookup fails', async () => {
+    const fakeDb = createFakeDb();
     vi.mocked(newId)
       .mockReturnValueOnce('collection-1')
       .mockReturnValueOnce('event-1')
@@ -493,17 +497,16 @@ describe('collection wizard repository', () => {
             doseSemenVolumeMl: 3,
           },
         ],
-      }),
+      }, fakeDb),
     ).rejects.toThrow('Mare not found.');
 
-    const db = await getDb();
-    const fakeDb = db as unknown as ReturnType<typeof createFakeDb>;
     expect(fakeDb.collections.size).toBe(0);
     expect(fakeDb.breedingRecords.size).toBe(0);
     expect(fakeDb.doseEvents.size).toBe(0);
   });
 
   it('rejects allocations that exceed the collection total volume', async () => {
+    const fakeDb = createFakeDb();
     vi.mocked(newId).mockReturnValue('collection-1');
 
     await expect(
@@ -530,11 +533,12 @@ describe('collection wizard repository', () => {
           },
         ],
         onFarmRows: [],
-      }),
+      }, fakeDb),
     ).rejects.toThrow('Allocated semen volume cannot exceed the collection total volume.');
   });
 
   it('rejects on-farm rows with dose count values other than one', async () => {
+    const fakeDb = createFakeDb();
     vi.mocked(newId).mockReturnValue('collection-1');
 
     await expect(
@@ -553,7 +557,7 @@ describe('collection wizard repository', () => {
             doseCount: 2,
           },
         ],
-      }),
+      }, fakeDb),
     ).rejects.toThrow('On-farm allocations must always use a dose count of 1.');
   });
 });

@@ -1,119 +1,66 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 
-import { FLUID_LOCATION_VALUES } from '@/models/enums';
-import type {
-  CervicalFirmness,
-  DailyLogDetail,
-  FluidLocation,
-  FollicleState,
-  OvaryConsistency,
-  OvaryStructure,
-  UterineToneCategory,
-} from '@/models/types';
-import {
-  createDailyLog,
-  deleteDailyLog,
-  getDailyLogById,
-  type DailyLogOvulationSource,
-  updateDailyLog,
-} from '@/storage/repositories';
+import type { DailyLogDetail, DailyLogOvulationSource, FluidLocation, FollicleState, OvaryConsistency, OvaryStructure, UterineToneCategory, CervicalFirmness } from '@/models/types';
+import { createDailyLog, deleteDailyLog, getDailyLogById, updateDailyLog } from '@/storage/repositories';
 import { confirmDelete } from '@/utils/confirmDelete';
 import { toLocalDate } from '@/utils/dates';
 import { newId } from '@/utils/id';
-import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validation';
 
+import {
+  DAILY_LOG_WIZARD_STEPS,
+  SCORE_OPTIONS,
+  TRI_STATE_OPTIONS,
+} from './dailyLogWizard/constants';
+import {
+  buildDailyLogPayload,
+  createEmptyErrors,
+  createEmptyOvaryDraft,
+  createEmptyUterusDraft,
+  hydrateDailyLogWizardRecord,
+} from './dailyLogWizard/mappers';
+import {
+  fromTriStateOption,
+  toTriStateOption,
+} from './dailyLogWizard/measurementUtils';
+import {
+  validateBasics,
+  validateOvary,
+  validateUterus,
+} from './dailyLogWizard/validation';
 import { useRecordForm } from './useRecordForm';
 
-export const DAILY_LOG_WIZARD_STEPS = [
-  'Basics',
-  'Right Ovary',
-  'Left Ovary',
-  'Uterus',
-  'Review',
-] as const;
+import type {
+  DailyLogWizardErrors,
+  DailyLogWizardFluidPocketDraft,
+  DailyLogWizardLegacyNotes,
+  DailyLogWizardMeasurementDraft,
+  DailyLogWizardOvaryDraft,
+  DailyLogWizardUterusDraft,
+  ScoreOption,
+  TriStateOption,
+} from './dailyLogWizard/types';
 
-export type ScoreOption = '' | '0' | '1' | '2' | '3' | '4' | '5';
+export {
+  DAILY_LOG_WIZARD_STEPS,
+  SCORE_OPTIONS,
+  TRI_STATE_OPTIONS,
+  fromTriStateOption,
+  toTriStateOption,
+};
 
-export type TriStateOption = 'unknown' | 'no' | 'yes';
-
-export const SCORE_OPTIONS: readonly { label: string; value: ScoreOption }[] = [
-  { label: 'N/A', value: '' },
-  { label: '0', value: '0' },
-  { label: '1', value: '1' },
-  { label: '2', value: '2' },
-  { label: '3', value: '3' },
-  { label: '4', value: '4' },
-  { label: '5', value: '5' },
-] as const;
-
-export const TRI_STATE_OPTIONS: readonly { label: string; value: TriStateOption }[] = [
-  { label: 'Unknown', value: 'unknown' },
-  { label: 'No', value: 'no' },
-  { label: 'Yes', value: 'yes' },
-] as const;
-
-const FLUID_LOCATION_SET = new Set<string>(FLUID_LOCATION_VALUES);
+export type {
+  DailyLogWizardErrors,
+  DailyLogWizardFluidPocketDraft,
+  DailyLogWizardLegacyNotes,
+  DailyLogWizardMeasurementDraft,
+  DailyLogWizardOvaryDraft,
+  DailyLogWizardUterusDraft,
+  ScoreOption,
+  TriStateOption,
+};
 
 type OvarySide = 'right' | 'left';
-
-export type DailyLogWizardMeasurementDraft = {
-  clientId: string;
-  value: string;
-};
-
-export type DailyLogWizardOvaryDraft = {
-  ovulation: boolean | null;
-  follicleState: FollicleState | null;
-  follicleMeasurements: DailyLogWizardMeasurementDraft[];
-  consistency: OvaryConsistency | null;
-  structures: OvaryStructure[];
-};
-
-export type DailyLogWizardFluidPocketDraft = {
-  clientId: string;
-  id?: string;
-  depthMm: number;
-  location: FluidLocation;
-  createdAt?: string;
-  updatedAt?: string;
-};
-
-export type DailyLogWizardUterusDraft = {
-  edema: ScoreOption;
-  uterineToneCategory: UterineToneCategory | null;
-  cervicalFirmness: CervicalFirmness | null;
-  dischargeObserved: boolean | null;
-  dischargeNotes: string;
-  uterineCysts: string;
-  fluidPockets: DailyLogWizardFluidPocketDraft[];
-};
-
-export type DailyLogWizardLegacyNotes = {
-  rightOvary: string | null;
-  leftOvary: string | null;
-  uterineTone: string | null;
-};
-
-type BasicsErrors = {
-  date?: string;
-};
-
-type OvaryStepErrors = {
-  measurements?: string;
-};
-
-type UterusStepErrors = {
-  dischargeNotes?: string;
-  fluidPockets?: string;
-};
-
-export type DailyLogWizardErrors = {
-  basics: BasicsErrors;
-  rightOvary: OvaryStepErrors;
-  leftOvary: OvaryStepErrors;
-  uterus: UterusStepErrors;
-};
 
 type UseDailyLogWizardArgs = {
   mareId: string;
@@ -126,161 +73,6 @@ type UpsertFluidPocketInput = {
   depthMm: number;
   location: FluidLocation;
 };
-
-function createEmptyOvaryDraft(): DailyLogWizardOvaryDraft {
-  return {
-    ovulation: null,
-    follicleState: null,
-    follicleMeasurements: [],
-    consistency: null,
-    structures: [],
-  };
-}
-
-function createEmptyUterusDraft(): DailyLogWizardUterusDraft {
-  return {
-    edema: '',
-    uterineToneCategory: null,
-    cervicalFirmness: null,
-    dischargeObserved: null,
-    dischargeNotes: '',
-    uterineCysts: '',
-    fluidPockets: [],
-  };
-}
-
-function createEmptyErrors(): DailyLogWizardErrors {
-  return {
-    basics: {},
-    rightOvary: {},
-    leftOvary: {},
-    uterus: {},
-  };
-}
-
-export function toTriStateOption(value: boolean | null | undefined): TriStateOption {
-  if (value === true) {
-    return 'yes';
-  }
-
-  if (value === false) {
-    return 'no';
-  }
-
-  return 'unknown';
-}
-
-export function fromTriStateOption(value: TriStateOption): boolean | null {
-  if (value === 'yes') {
-    return true;
-  }
-
-  if (value === 'no') {
-    return false;
-  }
-
-  return null;
-}
-
-function toScoreOption(value: number | null | undefined): ScoreOption {
-  if (value == null || !Number.isInteger(value) || value < 0 || value > 5) {
-    return '';
-  }
-
-  return String(value) as ScoreOption;
-}
-
-function fromScoreOption(value: ScoreOption): number | null {
-  if (!value) {
-    return null;
-  }
-
-  return Number(value);
-}
-
-type ParsedMeasurements = {
-  values: number[];
-  hasInvalid: boolean;
-};
-
-const FOLLICLE_MEASUREMENT_INPUT_PATTERN = /^\d*\.?\d*$/;
-
-function hasAtMostOneDecimalPlace(value: number): boolean {
-  const scaled = value * 10;
-  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
-}
-
-function parseMeasurementTextValue(value: string): number | null {
-  const trimmed = value.trim();
-  if (!trimmed || trimmed === '.') {
-    return null;
-  }
-
-  if (!FOLLICLE_MEASUREMENT_INPUT_PATTERN.test(trimmed)) {
-    return null;
-  }
-
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100 || !hasAtMostOneDecimalPlace(parsed)) {
-    return null;
-  }
-
-  return parsed;
-}
-
-function collectValidMeasurements(
-  rows: readonly DailyLogWizardMeasurementDraft[],
-): ParsedMeasurements {
-  const values: number[] = [];
-  let hasInvalid = false;
-
-  for (const row of rows) {
-    const trimmed = row.value.trim();
-    if (!trimmed) {
-      continue;
-    }
-
-    const parsed = parseMeasurementTextValue(trimmed);
-    if (parsed == null) {
-      hasInvalid = true;
-      continue;
-    }
-
-    values.push(parsed);
-  }
-
-  return { values, hasInvalid };
-}
-
-function mapMeasurementsToDraftRows(values: readonly number[] | undefined): DailyLogWizardMeasurementDraft[] {
-  if (!values || values.length === 0) {
-    return [];
-  }
-
-  return values.map((value) => ({
-    clientId: newId(),
-    value: String(value),
-  }));
-}
-
-function mapFluidPockets(record: DailyLogDetail): DailyLogWizardFluidPocketDraft[] {
-  return record.uterineFluidPockets.map((pocket) => ({
-    clientId: pocket.id,
-    id: pocket.id,
-    depthMm: pocket.depthMm,
-    location: pocket.location,
-    createdAt: pocket.createdAt,
-    updatedAt: pocket.updatedAt,
-  }));
-}
-
-function inferInitialOvulationSource(record: DailyLogDetail): DailyLogOvulationSource {
-  if (record.rightOvaryOvulation == null && record.leftOvaryOvulation == null) {
-    return 'legacy';
-  }
-
-  return 'structured';
-}
 
 export function useDailyLogWizard({
   mareId,
@@ -322,41 +114,16 @@ export function useDailyLogWizard({
   }, [isEdit, setTitle]);
 
   const hydrateFromRecord = useCallback((record: DailyLogDetail): void => {
-    setDate(record.date);
-    setTeasingScore(toScoreOption(record.teasingScore));
-
-    setRightOvary({
-      ovulation: record.rightOvaryOvulation ?? null,
-      follicleState: record.rightOvaryFollicleState ?? null,
-      follicleMeasurements: mapMeasurementsToDraftRows(record.rightOvaryFollicleMeasurementsMm),
-      consistency: record.rightOvaryConsistency ?? null,
-      structures: [...(record.rightOvaryStructures ?? [])],
-    });
-    setLeftOvary({
-      ovulation: record.leftOvaryOvulation ?? null,
-      follicleState: record.leftOvaryFollicleState ?? null,
-      follicleMeasurements: mapMeasurementsToDraftRows(record.leftOvaryFollicleMeasurementsMm),
-      consistency: record.leftOvaryConsistency ?? null,
-      structures: [...(record.leftOvaryStructures ?? [])],
-    });
-    setUterus({
-      edema: toScoreOption(record.edema),
-      uterineToneCategory: record.uterineToneCategory ?? null,
-      cervicalFirmness: record.cervicalFirmness ?? null,
-      dischargeObserved: record.dischargeObserved ?? null,
-      dischargeNotes: record.dischargeNotes ?? '',
-      uterineCysts: record.uterineCysts ?? '',
-      fluidPockets: mapFluidPockets(record),
-    });
-    setNotes(record.notes ?? '');
-
-    setLegacyNotes({
-      rightOvary: record.rightOvary ?? null,
-      leftOvary: record.leftOvary ?? null,
-      uterineTone: record.uterineTone ?? null,
-    });
-    setLegacyOvulationDetected(record.ovulationDetected ?? null);
-    setOvulationSource(inferInitialOvulationSource(record));
+    const hydrated = hydrateDailyLogWizardRecord(record);
+    setDate(hydrated.date);
+    setTeasingScore(hydrated.teasingScore);
+    setRightOvary(hydrated.rightOvary);
+    setLeftOvary(hydrated.leftOvary);
+    setUterus(hydrated.uterus);
+    setNotes(hydrated.notes);
+    setLegacyNotes(hydrated.legacyNotes);
+    setLegacyOvulationDetected(hydrated.legacyOvulationDetected);
+    setOvulationSource(hydrated.ovulationSource);
     setErrors(createEmptyErrors());
   }, []);
 
@@ -380,8 +147,8 @@ export function useDailyLogWizard({
         setCurrentStepIndex(DAILY_LOG_WIZARD_STEPS.length - 1);
       },
       {
-        onError: (err: unknown) => {
-          const message = err instanceof Error ? err.message : 'Unable to load daily log.';
+        onError: (error: unknown) => {
+          const message = error instanceof Error ? error.message : 'Unable to load daily log.';
           Alert.alert('Load error', message);
           onGoBack();
         },
@@ -534,55 +301,34 @@ export function useDailyLogWizard({
     [],
   );
 
-  const setEdema = useCallback(
-    (value: ScoreOption): void => {
-      updateUterus((current) => ({ ...current, edema: value }));
-    },
-    [updateUterus],
-  );
+  const setEdema = useCallback((value: ScoreOption): void => {
+    updateUterus((current) => ({ ...current, edema: value }));
+  }, [updateUterus]);
 
-  const setUterineToneCategory = useCallback(
-    (value: UterineToneCategory | null): void => {
-      updateUterus((current) => ({ ...current, uterineToneCategory: value }));
-    },
-    [updateUterus],
-  );
+  const setUterineToneCategory = useCallback((value: UterineToneCategory | null): void => {
+    updateUterus((current) => ({ ...current, uterineToneCategory: value }));
+  }, [updateUterus]);
 
-  const setCervicalFirmness = useCallback(
-    (value: CervicalFirmness | null): void => {
-      updateUterus((current) => ({ ...current, cervicalFirmness: value }));
-    },
-    [updateUterus],
-  );
+  const setCervicalFirmness = useCallback((value: CervicalFirmness | null): void => {
+    updateUterus((current) => ({ ...current, cervicalFirmness: value }));
+  }, [updateUterus]);
 
-  const setDischargeObserved = useCallback(
-    (value: boolean | null): void => {
-      updateUterus((current) => ({ ...current, dischargeObserved: value }));
-      setErrors((current) => ({ ...current, uterus: { ...current.uterus, dischargeNotes: undefined } }));
-    },
-    [updateUterus],
-  );
+  const setDischargeObserved = useCallback((value: boolean | null): void => {
+    updateUterus((current) => ({ ...current, dischargeObserved: value }));
+    setErrors((current) => ({ ...current, uterus: { ...current.uterus, dischargeNotes: undefined } }));
+  }, [updateUterus]);
 
-  const setDischargeNotes = useCallback(
-    (value: string): void => {
-      updateUterus((current) => ({ ...current, dischargeNotes: value }));
-      setErrors((current) => ({ ...current, uterus: { ...current.uterus, dischargeNotes: undefined } }));
-    },
-    [updateUterus],
-  );
+  const setDischargeNotes = useCallback((value: string): void => {
+    updateUterus((current) => ({ ...current, dischargeNotes: value }));
+    setErrors((current) => ({ ...current, uterus: { ...current.uterus, dischargeNotes: undefined } }));
+  }, [updateUterus]);
 
-  const setUterineCysts = useCallback(
-    (value: string): void => {
-      updateUterus((current) => ({ ...current, uterineCysts: value }));
-    },
-    [updateUterus],
-  );
+  const setUterineCysts = useCallback((value: string): void => {
+    updateUterus((current) => ({ ...current, uterineCysts: value }));
+  }, [updateUterus]);
 
   const upsertFluidPocket = useCallback(
     (value: UpsertFluidPocketInput, clientId?: string): void => {
-      const nextDepth = value.depthMm;
-      const nextLocation = value.location;
-
       updateUterus((current) => {
         if (!clientId) {
           return {
@@ -591,8 +337,8 @@ export function useDailyLogWizard({
               ...current.fluidPockets,
               {
                 clientId: newId(),
-                depthMm: nextDepth,
-                location: nextLocation,
+                depthMm: value.depthMm,
+                location: value.location,
               },
             ],
           };
@@ -607,8 +353,8 @@ export function useDailyLogWizard({
           updated = true;
           return {
             ...row,
-            depthMm: nextDepth,
-            location: nextLocation,
+            depthMm: value.depthMm,
+            location: value.location,
           };
         });
 
@@ -620,95 +366,63 @@ export function useDailyLogWizard({
     [updateUterus],
   );
 
-  const removeFluidPocket = useCallback(
-    (clientId: string): void => {
-      updateUterus((current) => ({
-        ...current,
-        fluidPockets: current.fluidPockets.filter((row) => row.clientId !== clientId),
-      }));
-    },
-    [updateUterus],
-  );
+  const removeFluidPocket = useCallback((clientId: string): void => {
+    updateUterus((current) => ({
+      ...current,
+      fluidPockets: current.fluidPockets.filter((row) => row.clientId !== clientId),
+    }));
+  }, [updateUterus]);
 
-  const validateBasicsStep = useCallback((): boolean => {
-    const nextErrors: BasicsErrors = {
-      date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
-    };
+  const applyBasicsValidation = useCallback((): boolean => {
+    const nextErrors = validateBasics(date);
     setErrors((current) => ({ ...current, basics: nextErrors }));
     return !nextErrors.date;
   }, [date]);
 
-  const validateOvaryStep = useCallback(
+  const applyOvaryValidation = useCallback(
     (side: OvarySide): boolean => {
-      const draft = side === 'right' ? rightOvary : leftOvary;
-      let measurementsError: string | undefined;
-
-      if (draft.follicleState === 'measured') {
-        const measurements = collectValidMeasurements(draft.follicleMeasurements);
-        if (measurements.values.length === 0) {
-          measurementsError = 'Enter a valid follicle size (0-100 mm, up to 1 decimal place).';
-        } else if (measurements.hasInvalid) {
-          measurementsError = 'Follicle size must be between 0 and 100 mm with at most 1 decimal place.';
-        }
-      }
-
-      const stepErrors: OvaryStepErrors = {
-        measurements: measurementsError,
-      };
+      const nextErrors = validateOvary(side === 'right' ? rightOvary : leftOvary);
       setErrors((current) => ({
         ...current,
-        [side === 'right' ? 'rightOvary' : 'leftOvary']: stepErrors,
+        [side === 'right' ? 'rightOvary' : 'leftOvary']: nextErrors,
       }));
-
-      return !measurementsError;
+      return !nextErrors.measurements;
     },
     [leftOvary, rightOvary],
   );
 
-  const validateUterusStep = useCallback((): boolean => {
-    let dischargeNotesError: string | undefined;
-    let fluidPocketsError: string | undefined;
-
-    if (uterus.dischargeObserved === true && !uterus.dischargeNotes.trim()) {
-      dischargeNotesError = 'Discharge notes are required when discharge is observed.';
-    }
-
-    for (const row of uterus.fluidPockets) {
-      if (!Number.isInteger(row.depthMm) || row.depthMm <= 0 || !FLUID_LOCATION_SET.has(row.location)) {
-        fluidPocketsError = 'Each fluid pocket needs a valid depth and location.';
-        break;
-      }
-    }
-
-    const nextErrors: UterusStepErrors = {
-      dischargeNotes: dischargeNotesError,
-      fluidPockets: fluidPocketsError,
-    };
+  const applyUterusValidation = useCallback((): boolean => {
+    const nextErrors = validateUterus(uterus);
     setErrors((current) => ({ ...current, uterus: nextErrors }));
-    return !dischargeNotesError && !fluidPocketsError;
+    return !nextErrors.dischargeNotes && !nextErrors.fluidPockets;
   }, [uterus]);
 
   const validateStep = useCallback(
     (stepIndex: number): boolean => {
       if (stepIndex === 0) {
-        return validateBasicsStep();
+        return applyBasicsValidation();
       }
 
       if (stepIndex === 1) {
-        return validateOvaryStep('right');
+        return applyOvaryValidation('right');
       }
 
       if (stepIndex === 2) {
-        return validateOvaryStep('left');
+        return applyOvaryValidation('left');
       }
 
       if (stepIndex === 3) {
-        return validateUterusStep();
+        return applyUterusValidation();
       }
 
-      return validateBasicsStep() && validateOvaryStep('right') && validateOvaryStep('left') && validateUterusStep();
+      return (
+        applyBasicsValidation() &&
+        applyOvaryValidation('right') &&
+        applyOvaryValidation('left') &&
+        applyUterusValidation()
+      );
     },
-    [validateBasicsStep, validateOvaryStep, validateUterusStep],
+    [applyBasicsValidation, applyOvaryValidation, applyUterusValidation],
   );
 
   const goNext = useCallback((): void => {
@@ -739,10 +453,10 @@ export function useDailyLogWizard({
   }, []);
 
   const save = useCallback(async (): Promise<void> => {
-    const basicsValid = validateBasicsStep();
-    const rightOvaryValid = validateOvaryStep('right');
-    const leftOvaryValid = validateOvaryStep('left');
-    const uterusValid = validateUterusStep();
+    const basicsValid = applyBasicsValidation();
+    const rightOvaryValid = applyOvaryValidation('right');
+    const leftOvaryValid = applyOvaryValidation('left');
+    const uterusValid = applyUterusValidation();
 
     if (!basicsValid) {
       setCurrentStepIndex(0);
@@ -766,51 +480,17 @@ export function useDailyLogWizard({
 
     await runSave(
       async () => {
-        const rightMeasurements = collectValidMeasurements(rightOvary.follicleMeasurements).values;
-        const leftMeasurements = collectValidMeasurements(leftOvary.follicleMeasurements).values;
-
-        const shouldPreserveLegacyOvulation =
-          isEdit &&
-          ovulationSource === 'legacy' &&
-          rightOvary.ovulation == null &&
-          leftOvary.ovulation == null;
-        const resolvedOvulationSource: DailyLogOvulationSource = shouldPreserveLegacyOvulation
-          ? 'legacy'
-          : 'structured';
-
-        const payload = {
-          date: date.trim(),
-          teasingScore: fromScoreOption(teasingScore),
-          rightOvaryOvulation: rightOvary.ovulation,
-          rightOvaryFollicleState: rightOvary.follicleState,
-          rightOvaryFollicleMeasurementsMm:
-            rightOvary.follicleState === 'measured' ? rightMeasurements : [],
-          rightOvaryConsistency: rightOvary.consistency,
-          rightOvaryStructures: rightOvary.structures,
-          leftOvaryOvulation: leftOvary.ovulation,
-          leftOvaryFollicleState: leftOvary.follicleState,
-          leftOvaryFollicleMeasurementsMm:
-            leftOvary.follicleState === 'measured' ? leftMeasurements : [],
-          leftOvaryConsistency: leftOvary.consistency,
-          leftOvaryStructures: leftOvary.structures,
-          ovulationSource: resolvedOvulationSource,
-          ovulationDetected:
-            resolvedOvulationSource === 'legacy' ? legacyOvulationDetected : undefined,
-          edema: fromScoreOption(uterus.edema),
-          uterineToneCategory: uterus.uterineToneCategory,
-          cervicalFirmness: uterus.cervicalFirmness,
-          dischargeObserved: uterus.dischargeObserved,
-          dischargeNotes: uterus.dischargeNotes.trim() || null,
-          uterineCysts: uterus.uterineCysts.trim() || null,
-          notes: notes.trim() || null,
-          uterineFluidPockets: uterus.fluidPockets.map((row) => ({
-            id: row.id,
-            depthMm: row.depthMm,
-            location: row.location,
-            createdAt: row.createdAt,
-            updatedAt: row.updatedAt,
-          })),
-        };
+        const payload = buildDailyLogPayload({
+          isEdit,
+          date,
+          teasingScore,
+          rightOvary,
+          leftOvary,
+          uterus,
+          notes,
+          legacyOvulationDetected,
+          ovulationSource,
+        });
 
         if (logId) {
           await updateDailyLog(logId, payload);
@@ -825,8 +505,8 @@ export function useDailyLogWizard({
         onGoBack();
       },
       {
-        onError: (err: unknown) => {
-          const message = err instanceof Error ? err.message : 'Failed to save daily log.';
+        onError: (error: unknown) => {
+          const message = error instanceof Error ? error.message : 'Failed to save daily log.';
           if (message.toLowerCase().includes('unique')) {
             Alert.alert('Duplicate date', 'A daily log already exists for this mare on that date.');
             return;
@@ -837,6 +517,9 @@ export function useDailyLogWizard({
       },
     );
   }, [
+    applyBasicsValidation,
+    applyOvaryValidation,
+    applyUterusValidation,
     date,
     isEdit,
     leftOvary,
@@ -850,9 +533,6 @@ export function useDailyLogWizard({
     runSave,
     teasingScore,
     uterus,
-    validateBasicsStep,
-    validateOvaryStep,
-    validateUterusStep,
   ]);
 
   const requestDelete = useCallback((): void => {
@@ -870,8 +550,8 @@ export function useDailyLogWizard({
             onGoBack();
           },
           {
-            onError: (err: unknown) => {
-              const message = err instanceof Error ? err.message : 'Failed to delete daily log.';
+            onError: (error: unknown) => {
+              const message = error instanceof Error ? error.message : 'Failed to delete daily log.';
               Alert.alert('Delete failed', message);
             },
           },

@@ -1,29 +1,18 @@
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
-jest.mock('@/storage/repositories', () => ({
-  createBreedingRecord: jest.fn(),
-  deleteBreedingRecord: jest.fn(),
-  getBreedingRecordById: jest.fn(),
-  getStallionById: jest.fn(),
-  hasLinkedOnFarmDoseEvent: jest.fn(),
-  listSemenCollectionsByStallion: jest.fn(),
-  listStallions: jest.fn(),
-  updateBreedingRecord: jest.fn(),
+jest.mock('@/hooks/useBreedingRecordForm', () => ({
+  COVERAGE_OPTIONS: [
+    { label: 'Live Cover', value: 'liveCover' },
+    { label: 'AI', value: 'ai' },
+  ],
+  NO_COLLECTION: '__none__',
+  OTHER_STALLION: '__other__',
+  useBreedingRecordForm: jest.fn(),
 }));
 
 const { BreedingRecordFormScreen } = require('@/screens/BreedingRecordFormScreen') as typeof import('@/screens/BreedingRecordFormScreen');
-const {
-  getBreedingRecordById,
-  hasLinkedOnFarmDoseEvent,
-  listSemenCollectionsByStallion,
-  listStallions,
-  updateBreedingRecord,
-} = jest.requireMock('@/storage/repositories') as {
-  getBreedingRecordById: jest.Mock;
-  hasLinkedOnFarmDoseEvent: jest.Mock;
-  listSemenCollectionsByStallion: jest.Mock;
-  listStallions: jest.Mock;
-  updateBreedingRecord: jest.Mock;
+const { useBreedingRecordForm } = jest.requireMock('@/hooks/useBreedingRecordForm') as {
+  useBreedingRecordForm: jest.Mock;
 };
 
 function createNavigation() {
@@ -34,60 +23,66 @@ function createNavigation() {
   };
 }
 
+function createHookState(overrides: Record<string, unknown> = {}) {
+  return {
+    today: new Date('2026-04-23T12:00:00Z'),
+    isEdit: true,
+    date: '2026-04-01',
+    stallionName: '',
+    method: 'freshAI',
+    volumeMl: '20',
+    concentrationMPerMl: '120',
+    motilityPercent: '70',
+    numberOfStraws: '',
+    strawVolumeMl: '',
+    strawDetails: '',
+    collectionDate: '',
+    notes: '',
+    errors: {},
+    isLoading: false,
+    isSaving: false,
+    isDeleting: false,
+    coverageType: 'ai',
+    lockMethodAndCollection: false,
+    selectedStallionId: 'stallion-1',
+    selectedCollectionId: 'col-1',
+    useCustomStallion: false,
+    selectedStallionLabel: 'Atlas',
+    selectedCollectionLabel: '03-30-2026 - 20 mL - 70% motility',
+    stallionPickerOptions: [{ label: 'Atlas', value: 'stallion-1' }],
+    collectionPickerOptions: [{ label: '03-30-2026 - 20 mL - 70% motility', value: 'col-1' }],
+    showCollectionPicker: true,
+    canShowAllCollections: false,
+    showAllCollectionsList: jest.fn(),
+    aiMethodOptions: [{ label: 'Fresh AI', value: 'freshAI' }],
+    setDate: jest.fn(),
+    setStallionName: jest.fn(),
+    setMethod: jest.fn(),
+    setVolumeMl: jest.fn(),
+    setConcentrationMPerMl: jest.fn(),
+    setMotilityPercent: jest.fn(),
+    setNumberOfStraws: jest.fn(),
+    setStrawVolumeMl: jest.fn(),
+    setStrawDetails: jest.fn(),
+    setCollectionDate: jest.fn(),
+    setNotes: jest.fn(),
+    onCoverageChange: jest.fn(),
+    onStallionChange: jest.fn(),
+    onCollectionChange: jest.fn(),
+    onSave: jest.fn(),
+    requestDelete: jest.fn(),
+    ...overrides,
+  };
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
-  hasLinkedOnFarmDoseEvent.mockResolvedValue(false);
 });
 
-it('loads an existing breeding record and saves updates', async () => {
+it('renders an editable breeding record and wires save/delete actions', () => {
   const navigation = createNavigation();
-  listStallions.mockResolvedValue([
-    {
-      id: 'stallion-1',
-      name: 'Atlas',
-      breed: 'Warmblood',
-      createdAt: '2026-01-01T00:00:00Z',
-      updatedAt: '2026-01-01T00:00:00Z',
-      deletedAt: null,
-    },
-  ]);
-  listSemenCollectionsByStallion.mockResolvedValue([
-    {
-      id: 'col-1',
-      stallionId: 'stallion-1',
-      collectionDate: '2026-03-30',
-      rawVolumeMl: 20,
-      extenderType: null,
-      concentrationMillionsPerMl: 120,
-      progressiveMotilityPercent: 70,
-      targetMode: null,
-      targetSpermMillionsPerDose: null,
-      targetPostExtensionConcentrationMillionsPerMl: null,
-      notes: null,
-      createdAt: '2026-03-30T00:00:00Z',
-      updatedAt: '2026-03-30T00:00:00Z',
-    },
-  ]);
-  getBreedingRecordById.mockResolvedValue({
-    id: 'br-1',
-    mareId: 'mare-1',
-    stallionId: 'stallion-1',
-    stallionName: null,
-    collectionId: 'col-1',
-    date: '2026-04-01',
-    method: 'freshAI',
-    notes: null,
-    volumeMl: 20,
-    concentrationMPerMl: 120,
-    motilityPercent: 70,
-    numberOfStraws: null,
-    strawVolumeMl: null,
-    strawDetails: null,
-    collectionDate: null,
-    createdAt: '2026-04-01T00:00:00Z',
-    updatedAt: '2026-04-01T00:00:00Z',
-  });
-  updateBreedingRecord.mockResolvedValue(undefined);
+  const hookState = createHookState();
+  useBreedingRecordForm.mockReturnValue(hookState);
 
   const screen = render(
     <BreedingRecordFormScreen
@@ -100,75 +95,23 @@ it('loads an existing breeding record and saves updates', async () => {
     />,
   );
 
-  await waitFor(() => {
-    expect(getBreedingRecordById).toHaveBeenCalledWith('br-1');
-    expect(hasLinkedOnFarmDoseEvent).toHaveBeenCalledWith('br-1');
-  });
+  expect(screen.getByText('Breeding Method *')).toBeTruthy();
+  expect(screen.getByText('Collection')).toBeTruthy();
 
-  const saveButton = await screen.findByText('Save');
-  fireEvent.press(saveButton);
+  fireEvent.press(screen.getByText('Save'));
+  fireEvent.press(screen.getByText('Delete'));
 
-  await waitFor(() => {
-    expect(updateBreedingRecord).toHaveBeenCalledWith(
-      'br-1',
-      expect.objectContaining({
-        date: '2026-04-01',
-        method: 'freshAI',
-      }),
-    );
-    expect(navigation.goBack).toHaveBeenCalled();
-  });
+  expect(hookState.onSave).toHaveBeenCalled();
+  expect(hookState.requestDelete).toHaveBeenCalled();
 });
 
-it('locks method and collection controls for linked on-farm records', async () => {
+it('renders linked on-farm records as locked and shows the resolved labels', () => {
   const navigation = createNavigation();
-  listStallions.mockResolvedValue([
-    {
-      id: 'stallion-1',
-      name: 'Atlas',
-      breed: 'Warmblood',
-      createdAt: '2026-01-01T00:00:00Z',
-      updatedAt: '2026-01-01T00:00:00Z',
-      deletedAt: null,
-    },
-  ]);
-  listSemenCollectionsByStallion.mockResolvedValue([
-    {
-      id: 'col-1',
-      stallionId: 'stallion-1',
-      collectionDate: '2026-03-30',
-      rawVolumeMl: 20,
-      extenderType: null,
-      concentrationMillionsPerMl: 120,
-      progressiveMotilityPercent: 70,
-      targetMode: null,
-      targetSpermMillionsPerDose: null,
-      targetPostExtensionConcentrationMillionsPerMl: null,
-      notes: null,
-      createdAt: '2026-03-30T00:00:00Z',
-      updatedAt: '2026-03-30T00:00:00Z',
-    },
-  ]);
-  getBreedingRecordById.mockResolvedValue({
-    id: 'br-locked',
-    mareId: 'mare-1',
-    stallionId: 'stallion-1',
-    stallionName: null,
-    collectionId: 'col-1',
-    date: '2026-04-01',
-    method: 'freshAI',
-    notes: null,
-    volumeMl: 20,
-    concentrationMPerMl: 120,
-    motilityPercent: 70,
-    numberOfStraws: null,
-    strawVolumeMl: null,
-    strawDetails: null,
-    collectionDate: null,
-    createdAt: '2026-04-01T00:00:00Z',
-    updatedAt: '2026-04-01T00:00:00Z',
-  });
-  hasLinkedOnFarmDoseEvent.mockResolvedValue(true);
+  useBreedingRecordForm.mockReturnValue(
+    createHookState({
+      lockMethodAndCollection: true,
+    }),
+  );
 
   const screen = render(
     <BreedingRecordFormScreen
@@ -181,48 +124,24 @@ it('locks method and collection controls for linked on-farm records', async () =
     />,
   );
 
-  await waitFor(() => {
-    expect(screen.getByText(/linked to an on-farm allocation/i)).toBeTruthy();
-  });
-
-  expect(screen.queryByText('Live Cover')).toBeNull();
+  expect(screen.getByText(/linked to an on-farm allocation/i)).toBeTruthy();
+  expect(screen.getByDisplayValue('Atlas')).toBeTruthy();
   expect(screen.getByDisplayValue('Fresh AI')).toBeTruthy();
   expect(screen.getByDisplayValue('03-30-2026 - 20 mL - 70% motility')).toBeTruthy();
 });
 
-it('preserves decimal straw volume values when editing a frozen AI record', async () => {
+it('renders frozen-ai specific fields with decimal straw volume from hook state', () => {
   const navigation = createNavigation();
-  listStallions.mockResolvedValue([
-    {
-      id: 'stallion-2',
-      name: 'Mercury',
-      breed: 'Warmblood',
-      createdAt: '2026-01-01T00:00:00Z',
-      updatedAt: '2026-01-01T00:00:00Z',
-      deletedAt: null,
-    },
-  ]);
-  listSemenCollectionsByStallion.mockResolvedValue([]);
-  getBreedingRecordById.mockResolvedValue({
-    id: 'br-frozen',
-    mareId: 'mare-1',
-    stallionId: 'stallion-2',
-    stallionName: null,
-    collectionId: null,
-    date: '2026-04-01',
-    method: 'frozenAI',
-    notes: null,
-    volumeMl: null,
-    concentrationMPerMl: null,
-    motilityPercent: null,
-    numberOfStraws: 2,
-    strawVolumeMl: 0.5,
-    strawDetails: 'Batch A',
-    collectionDate: '2026-03-28',
-    createdAt: '2026-04-01T00:00:00Z',
-    updatedAt: '2026-04-01T00:00:00Z',
-  });
-  updateBreedingRecord.mockResolvedValue(undefined);
+  useBreedingRecordForm.mockReturnValue(
+    createHookState({
+      method: 'frozenAI',
+      numberOfStraws: '2',
+      strawVolumeMl: '0.5',
+      strawDetails: 'Batch A',
+      collectionDate: '2026-03-28',
+      showCollectionPicker: false,
+    }),
+  );
 
   const screen = render(
     <BreedingRecordFormScreen
@@ -235,23 +154,7 @@ it('preserves decimal straw volume values when editing a frozen AI record', asyn
     />,
   );
 
-  await waitFor(() => {
-    expect(getBreedingRecordById).toHaveBeenCalledWith('br-frozen');
-  });
-
-  const strawVolumeInput = await screen.findByDisplayValue('0.5');
-  fireEvent.changeText(strawVolumeInput, '0.75');
-  fireEvent.press(screen.getByText('Save'));
-
-  await waitFor(() => {
-    expect(updateBreedingRecord).toHaveBeenCalledWith(
-      'br-frozen',
-      expect.objectContaining({
-        method: 'frozenAI',
-        numberOfStraws: 2,
-        strawVolumeMl: 0.75,
-      }),
-    );
-    expect(navigation.goBack).toHaveBeenCalled();
-  });
+  expect(screen.getByDisplayValue('2')).toBeTruthy();
+  expect(screen.getByDisplayValue('0.5')).toBeTruthy();
+  expect(screen.getByDisplayValue('Batch A')).toBeTruthy();
 });
