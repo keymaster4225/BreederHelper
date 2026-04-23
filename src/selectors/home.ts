@@ -62,7 +62,8 @@ export function buildPregnancyProjectionByMare({
         currentCheck,
         [...(logsByMare.get(mare.id) ?? [])],
         breedingById.get(currentCheck.breedingRecordId) ?? null,
-        today
+        today,
+        mare.gestationLengthDays
       )
     );
   }

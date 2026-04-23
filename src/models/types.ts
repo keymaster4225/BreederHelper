@@ -1,12 +1,19 @@
 ﻿import {
   BREEDING_METHOD_VALUES,
+  CERVICAL_FIRMNESS_VALUES,
+  COLLECTION_TARGET_MODE_VALUES,
   DOSE_EVENT_TYPE_VALUES,
+  FLUID_LOCATION_VALUES,
+  FOLLICLE_STATE_VALUES,
   FOAL_COLOR_VALUES,
   FOAL_MILESTONE_KEYS,
   FOAL_SEX_VALUES,
   FOALING_OUTCOME_VALUES,
   MEDICATION_ROUTE_VALUES,
+  OVARY_CONSISTENCY_VALUES,
+  OVARY_STRUCTURE_VALUES,
   PREGNANCY_RESULT_VALUES,
+  UTERINE_TONE_CATEGORY_VALUES,
 } from './enums';
 
 export type UUID = string;
@@ -107,22 +114,58 @@ export interface Stallion {
 
 export type DoseEventType = (typeof DOSE_EVENT_TYPE_VALUES)[number];
 
+export type CollectionTargetMode = (typeof COLLECTION_TARGET_MODE_VALUES)[number];
+
+export type FollicleState = (typeof FOLLICLE_STATE_VALUES)[number];
+
+export type OvaryConsistency = (typeof OVARY_CONSISTENCY_VALUES)[number];
+
+export type OvaryStructure = (typeof OVARY_STRUCTURE_VALUES)[number];
+
+export type UterineToneCategory = (typeof UTERINE_TONE_CATEGORY_VALUES)[number];
+
+export type CervicalFirmness = (typeof CERVICAL_FIRMNESS_VALUES)[number];
+
+export type FluidLocation = (typeof FLUID_LOCATION_VALUES)[number];
+
 export interface CollectionDoseEvent {
   id: UUID;
   collectionId: UUID;
   eventType: DoseEventType;
   recipient: string;
+  recipientPhone?: string | null;
+  recipientStreet?: string | null;
+  recipientCity?: string | null;
+  recipientState?: string | null;
+  recipientZip?: string | null;
+  carrierService?: string | null;
+  containerType?: string | null;
+  trackingNumber?: string | null;
+  breedingRecordId?: UUID | null;
+  doseSemenVolumeMl?: number | null;
+  doseExtenderVolumeMl?: number | null;
   doseCount: number | null;
   eventDate: LocalDate | null;
   notes: string | null;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
 }
 
 export interface CreateCollectionDoseEventInput {
   collectionId: UUID;
   eventType: DoseEventType;
   recipient: string;
+  recipientPhone?: string | null;
+  recipientStreet?: string | null;
+  recipientCity?: string | null;
+  recipientState?: string | null;
+  recipientZip?: string | null;
+  carrierService?: string | null;
+  containerType?: string | null;
+  trackingNumber?: string | null;
+  breedingRecordId?: UUID | null;
+  doseSemenVolumeMl?: number | null;
+  doseExtenderVolumeMl?: number | null;
   doseCount?: number | null;
   eventDate?: LocalDate | null;
   notes?: string | null;
@@ -137,14 +180,22 @@ export interface SemenCollection {
   stallionId: UUID;
   collectionDate: LocalDate;
   rawVolumeMl?: number | null;
-  totalVolumeMl?: number | null;
-  extenderVolumeMl?: number | null;
   extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
   progressiveMotilityPercent?: number | null;
-  doseCount?: number | null;
-  doseSizeMillions?: number | null;
+  targetMode?: CollectionTargetMode | null;
+  targetSpermMillionsPerDose?: number | null;
+  targetPostExtensionConcentrationMillionsPerMl?: number | null;
   notes?: string | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+export interface UterineFluidPocket {
+  id: UUID;
+  dailyLogId: UUID;
+  depthMm: number;
+  location: FluidLocation;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
 }
@@ -156,13 +207,31 @@ export interface DailyLog {
   teasingScore?: number | null; // 0-5
   rightOvary?: string | null;
   leftOvary?: string | null;
+  rightOvaryOvulation?: boolean | null;
+  rightOvaryFollicleState?: FollicleState | null;
+  rightOvaryFollicleMeasurementsMm?: readonly number[];
+  rightOvaryConsistency?: OvaryConsistency | null;
+  rightOvaryStructures?: readonly OvaryStructure[];
+  leftOvaryOvulation?: boolean | null;
+  leftOvaryFollicleState?: FollicleState | null;
+  leftOvaryFollicleMeasurementsMm?: readonly number[];
+  leftOvaryConsistency?: OvaryConsistency | null;
+  leftOvaryStructures?: readonly OvaryStructure[];
   ovulationDetected?: boolean | null;
   edema?: number | null; // 0-5
   uterineTone?: string | null;
+  uterineToneCategory?: UterineToneCategory | null;
+  cervicalFirmness?: CervicalFirmness | null;
+  dischargeObserved?: boolean | null;
+  dischargeNotes?: string | null;
   uterineCysts?: string | null;
   notes?: string | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
+}
+
+export interface DailyLogDetail extends DailyLog {
+  uterineFluidPockets: readonly UterineFluidPocket[];
 }
 
 export interface BreedingRecord {

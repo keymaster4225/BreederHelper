@@ -57,6 +57,20 @@ type DailyLogRow = {
   edema: number | null;
   uterine_tone: string | null;
   uterine_cysts: string | null;
+  right_ovary_ovulation: number | null;
+  right_ovary_follicle_state: string | null;
+  right_ovary_follicle_measurements_mm: string;
+  right_ovary_consistency: string | null;
+  right_ovary_structures: string;
+  left_ovary_ovulation: number | null;
+  left_ovary_follicle_state: string | null;
+  left_ovary_follicle_measurements_mm: string;
+  left_ovary_consistency: string | null;
+  left_ovary_structures: string;
+  uterine_tone_category: string | null;
+  cervical_firmness: string | null;
+  discharge_observed: number | null;
+  discharge_notes: string | null;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -139,6 +153,7 @@ type FakeDb = {
   runAsync: (sql: string, params?: unknown[]) => Promise<void>;
   getFirstAsync: <T>(sql: string, params?: unknown[]) => Promise<T | null>;
   getAllAsync: <T>(sql: string, params?: unknown[]) => Promise<T[]>;
+  withTransactionAsync: <T>(callback: () => Promise<T>) => Promise<T>;
 };
 
 function normalized(sql: string): string {
@@ -232,6 +247,20 @@ function createFakeDb(): FakeDb {
           edema,
           uterineTone,
           uterineCysts,
+          rightOvaryOvulation,
+          rightOvaryFollicleState,
+          rightOvaryFollicleMeasurementsMm,
+          rightOvaryConsistency,
+          rightOvaryStructures,
+          leftOvaryOvulation,
+          leftOvaryFollicleState,
+          leftOvaryFollicleMeasurementsMm,
+          leftOvaryConsistency,
+          leftOvaryStructures,
+          uterineToneCategory,
+          cervicalFirmness,
+          dischargeObserved,
+          dischargeNotes,
           notes,
           createdAt,
           updatedAt,
@@ -245,6 +274,20 @@ function createFakeDb(): FakeDb {
           number | null,
           number | null,
           string | null,
+          string | null,
+          number | null,
+          string | null,
+          string,
+          string | null,
+          string,
+          number | null,
+          string | null,
+          string,
+          string | null,
+          string,
+          string | null,
+          string | null,
+          number | null,
           string | null,
           string | null,
           string,
@@ -261,6 +304,20 @@ function createFakeDb(): FakeDb {
           edema,
           uterine_tone: uterineTone,
           uterine_cysts: uterineCysts,
+          right_ovary_ovulation: rightOvaryOvulation,
+          right_ovary_follicle_state: rightOvaryFollicleState,
+          right_ovary_follicle_measurements_mm: rightOvaryFollicleMeasurementsMm,
+          right_ovary_consistency: rightOvaryConsistency,
+          right_ovary_structures: rightOvaryStructures,
+          left_ovary_ovulation: leftOvaryOvulation,
+          left_ovary_follicle_state: leftOvaryFollicleState,
+          left_ovary_follicle_measurements_mm: leftOvaryFollicleMeasurementsMm,
+          left_ovary_consistency: leftOvaryConsistency,
+          left_ovary_structures: leftOvaryStructures,
+          uterine_tone_category: uterineToneCategory,
+          cervical_firmness: cervicalFirmness,
+          discharge_observed: dischargeObserved,
+          discharge_notes: dischargeNotes,
           notes,
           created_at: createdAt,
           updated_at: updatedAt,
@@ -278,6 +335,20 @@ function createFakeDb(): FakeDb {
           edema,
           uterineTone,
           uterineCysts,
+          rightOvaryOvulation,
+          rightOvaryFollicleState,
+          rightOvaryFollicleMeasurementsMm,
+          rightOvaryConsistency,
+          rightOvaryStructures,
+          leftOvaryOvulation,
+          leftOvaryFollicleState,
+          leftOvaryFollicleMeasurementsMm,
+          leftOvaryConsistency,
+          leftOvaryStructures,
+          uterineToneCategory,
+          cervicalFirmness,
+          dischargeObserved,
+          dischargeNotes,
           notes,
           updatedAt,
           id,
@@ -289,6 +360,20 @@ function createFakeDb(): FakeDb {
           number | null,
           number | null,
           string | null,
+          string | null,
+          number | null,
+          string | null,
+          string,
+          string | null,
+          string,
+          number | null,
+          string | null,
+          string,
+          string | null,
+          string,
+          string | null,
+          string | null,
+          number | null,
           string | null,
           string | null,
           string,
@@ -306,6 +391,20 @@ function createFakeDb(): FakeDb {
           edema,
           uterine_tone: uterineTone,
           uterine_cysts: uterineCysts,
+          right_ovary_ovulation: rightOvaryOvulation,
+          right_ovary_follicle_state: rightOvaryFollicleState,
+          right_ovary_follicle_measurements_mm: rightOvaryFollicleMeasurementsMm,
+          right_ovary_consistency: rightOvaryConsistency,
+          right_ovary_structures: rightOvaryStructures,
+          left_ovary_ovulation: leftOvaryOvulation,
+          left_ovary_follicle_state: leftOvaryFollicleState,
+          left_ovary_follicle_measurements_mm: leftOvaryFollicleMeasurementsMm,
+          left_ovary_consistency: leftOvaryConsistency,
+          left_ovary_structures: leftOvaryStructures,
+          uterine_tone_category: uterineToneCategory,
+          cervical_firmness: cervicalFirmness,
+          discharge_observed: dischargeObserved,
+          discharge_notes: dischargeNotes,
           notes,
           updated_at: updatedAt,
         });
@@ -691,6 +790,9 @@ function createFakeDb(): FakeDb {
       }
 
       return [];
+    },
+    async withTransactionAsync<T>(callback: () => Promise<T>): Promise<T> {
+      return callback();
     },
   };
 }

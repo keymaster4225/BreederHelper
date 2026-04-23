@@ -59,6 +59,127 @@ export const PREGNANCY_RESULT_OPTIONS = buildOptions(
   PREGNANCY_RESULT_LABELS,
 );
 
+export const FOLLICLE_STATE_VALUES = [
+  'notVisualized',
+  'small',
+  'medium',
+  'large',
+  'measured',
+  'postOvulatory',
+] as const;
+type FollicleStateValue = (typeof FOLLICLE_STATE_VALUES)[number];
+
+export const FOLLICLE_STATE_LABELS: Readonly<Record<FollicleStateValue, string>> = {
+  notVisualized: 'Not Visualized',
+  small: 'Small',
+  medium: 'Medium',
+  large: 'Large',
+  measured: 'Measured',
+  postOvulatory: 'Post Ovulatory',
+};
+
+export const FOLLICLE_STATE_OPTIONS = buildOptions(
+  FOLLICLE_STATE_VALUES,
+  FOLLICLE_STATE_LABELS,
+);
+
+export const OVARY_CONSISTENCY_VALUES = [
+  'soft',
+  'moderate',
+  'firm',
+  'veryFirm',
+] as const;
+type OvaryConsistencyValue = (typeof OVARY_CONSISTENCY_VALUES)[number];
+
+export const OVARY_CONSISTENCY_LABELS: Readonly<Record<OvaryConsistencyValue, string>> = {
+  soft: 'Soft',
+  moderate: 'Moderate',
+  firm: 'Firm',
+  veryFirm: 'Very Firm',
+};
+
+export const OVARY_CONSISTENCY_OPTIONS = buildOptions(
+  OVARY_CONSISTENCY_VALUES,
+  OVARY_CONSISTENCY_LABELS,
+);
+
+export const OVARY_STRUCTURE_VALUES = [
+  'multipleSmallFollicles',
+  'corpusLuteum',
+  'hemorrhagicAnovulatoryFollicle',
+  'follicularCyst',
+  'lutealTissue',
+  'adhesion',
+] as const;
+type OvaryStructureValue = (typeof OVARY_STRUCTURE_VALUES)[number];
+
+export const OVARY_STRUCTURE_LABELS: Readonly<Record<OvaryStructureValue, string>> = {
+  multipleSmallFollicles: 'Multiple Small Follicles',
+  corpusLuteum: 'Corpus Luteum',
+  hemorrhagicAnovulatoryFollicle: 'Hemorrhagic Anovulatory Follicle',
+  follicularCyst: 'Follicular Cyst',
+  lutealTissue: 'Luteal Tissue',
+  adhesion: 'Adhesion',
+};
+
+export const OVARY_STRUCTURE_OPTIONS = buildOptions(
+  OVARY_STRUCTURE_VALUES,
+  OVARY_STRUCTURE_LABELS,
+);
+
+export const UTERINE_TONE_CATEGORY_VALUES = ['flaccid', 'moderate', 'tight'] as const;
+type UterineToneCategoryValue = (typeof UTERINE_TONE_CATEGORY_VALUES)[number];
+
+export const UTERINE_TONE_CATEGORY_LABELS: Readonly<
+  Record<UterineToneCategoryValue, string>
+> = {
+  flaccid: 'Flaccid',
+  moderate: 'Moderate',
+  tight: 'Tight',
+};
+
+export const UTERINE_TONE_CATEGORY_OPTIONS = buildOptions(
+  UTERINE_TONE_CATEGORY_VALUES,
+  UTERINE_TONE_CATEGORY_LABELS,
+);
+
+export const CERVICAL_FIRMNESS_VALUES = ['soft', 'moderate', 'firm', 'closed'] as const;
+type CervicalFirmnessValue = (typeof CERVICAL_FIRMNESS_VALUES)[number];
+
+export const CERVICAL_FIRMNESS_LABELS: Readonly<Record<CervicalFirmnessValue, string>> = {
+  soft: 'Soft',
+  moderate: 'Moderate',
+  firm: 'Firm',
+  closed: 'Closed',
+};
+
+export const CERVICAL_FIRMNESS_OPTIONS = buildOptions(
+  CERVICAL_FIRMNESS_VALUES,
+  CERVICAL_FIRMNESS_LABELS,
+);
+
+export const FLUID_LOCATION_VALUES = [
+  'leftHorn',
+  'rightHorn',
+  'bothHorns',
+  'uterineBody',
+  'bifurcation',
+] as const;
+type FluidLocationValue = (typeof FLUID_LOCATION_VALUES)[number];
+
+export const FLUID_LOCATION_LABELS: Readonly<Record<FluidLocationValue, string>> = {
+  leftHorn: 'Left Horn',
+  rightHorn: 'Right Horn',
+  bothHorns: 'Both Horns',
+  uterineBody: 'Uterine Body',
+  bifurcation: 'Bifurcation',
+};
+
+export const FLUID_LOCATION_OPTIONS = buildOptions(
+  FLUID_LOCATION_VALUES,
+  FLUID_LOCATION_LABELS,
+);
+
 export const FOALING_OUTCOME_VALUES = [
   'liveFoal',
   'stillbirth',
@@ -185,10 +306,25 @@ type DoseEventTypeValue = (typeof DOSE_EVENT_TYPE_VALUES)[number];
 
 export const DOSE_EVENT_TYPE_LABELS: Readonly<Record<DoseEventTypeValue, string>> = {
   shipped: 'Shipped',
-  usedOnSite: 'Used on site',
+  usedOnSite: 'On-farm',
 };
 
 export const DOSE_EVENT_TYPE_OPTIONS = buildOptions(
   DOSE_EVENT_TYPE_VALUES,
   DOSE_EVENT_TYPE_LABELS,
+);
+
+export const COLLECTION_TARGET_MODE_VALUES = ['progressive', 'total'] as const;
+type CollectionTargetModeValue = (typeof COLLECTION_TARGET_MODE_VALUES)[number];
+
+export const COLLECTION_TARGET_MODE_LABELS: Readonly<
+  Record<CollectionTargetModeValue, string>
+> = {
+  progressive: 'Progressive',
+  total: 'Total',
+};
+
+export const COLLECTION_TARGET_MODE_OPTIONS = buildOptions(
+  COLLECTION_TARGET_MODE_VALUES,
+  COLLECTION_TARGET_MODE_LABELS,
 );

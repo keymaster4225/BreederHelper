@@ -4,16 +4,17 @@ import { getOnboardingComplete } from '@/utils/onboarding';
 import {
   BACKUP_SCHEMA_VERSION_CURRENT,
   type BackupBreedingRecordRow,
-  type BackupCollectionDoseEventRow,
+  type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV2,
+  type BackupEnvelopeV4,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
   type BackupMareRow,
   type BackupMedicationLogRow,
   type BackupPregnancyCheckRow,
-  type BackupSemenCollectionRow,
+  type BackupSemenCollectionRowV3,
   type BackupStallionRow,
+  type BackupUterineFluidRow,
 } from './types';
 
 type AppJsonShape = {
@@ -28,13 +29,14 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV2> {
+export async function serializeBackup(): Promise<BackupEnvelopeV4> {
   const db = await getDb();
 
   const [
     mares,
     stallions,
     dailyLogs,
+    uterineFluid,
     breedingRecords,
     pregnancyChecks,
     foalingRecords,
@@ -97,11 +99,38 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
         edema,
         uterine_tone,
         uterine_cysts,
+        right_ovary_ovulation,
+        right_ovary_follicle_state,
+        right_ovary_follicle_measurements_mm,
+        right_ovary_consistency,
+        right_ovary_structures,
+        left_ovary_ovulation,
+        left_ovary_follicle_state,
+        left_ovary_follicle_measurements_mm,
+        left_ovary_consistency,
+        left_ovary_structures,
+        uterine_tone_category,
+        cervical_firmness,
+        discharge_observed,
+        discharge_notes,
         notes,
         created_at,
         updated_at
       FROM daily_logs
       ORDER BY date DESC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupUterineFluidRow>(
+      `
+      SELECT
+        id,
+        daily_log_id,
+        depth_mm,
+        location,
+        created_at,
+        updated_at
+      FROM uterine_fluid
+      ORDER BY created_at DESC, id ASC;
       `,
     ),
     db.getAllAsync<BackupBreedingRecordRow>(
@@ -196,20 +225,19 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
       ORDER BY date DESC, id ASC;
       `,
     ),
-    db.getAllAsync<BackupSemenCollectionRow>(
+    db.getAllAsync<BackupSemenCollectionRowV3>(
       `
       SELECT
         id,
         stallion_id,
         collection_date,
         raw_volume_ml,
-        extended_volume_ml,
-        extender_volume_ml,
         extender_type,
         concentration_millions_per_ml,
         progressive_motility_percent,
-        dose_count,
-        dose_size_millions,
+        target_mode,
+        target_motile_sperm_millions_per_dose,
+        target_post_extension_concentration_millions_per_ml,
         notes,
         created_at,
         updated_at
@@ -217,13 +245,24 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
       ORDER BY collection_date DESC, id ASC;
       `,
     ),
-    db.getAllAsync<BackupCollectionDoseEventRow>(
+    db.getAllAsync<BackupCollectionDoseEventRowV3>(
       `
       SELECT
         id,
         collection_id,
         event_type,
         recipient,
+        recipient_phone,
+        recipient_street,
+        recipient_city,
+        recipient_state,
+        recipient_zip,
+        carrier_service,
+        container_type,
+        tracking_number,
+        breeding_record_id,
+        dose_semen_volume_ml,
+        dose_extender_volume_ml,
         dose_count,
         event_date,
         notes,
@@ -250,6 +289,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV2> {
       mares,
       stallions,
       daily_logs: dailyLogs,
+      uterine_fluid: uterineFluid,
       breeding_records: breedingRecords,
       pregnancy_checks: pregnancyChecks,
       foaling_records: foalingRecords,

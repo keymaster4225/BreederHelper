@@ -619,6 +619,280 @@ ADD COLUMN gestation_length_days INTEGER NOT NULL DEFAULT 340
 CHECK (gestation_length_days BETWEEN 300 AND 420);
 `;
 
+const migration018 = `
+CREATE TABLE collection_dose_events_new (
+  id TEXT PRIMARY KEY NOT NULL,
+  collection_id TEXT NOT NULL REFERENCES semen_collections(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL CHECK (event_type IN ('shipped', 'usedOnSite')),
+  recipient TEXT NOT NULL,
+  recipient_phone TEXT,
+  recipient_street TEXT,
+  recipient_city TEXT,
+  recipient_state TEXT,
+  recipient_zip TEXT,
+  carrier_service TEXT,
+  container_type TEXT,
+  tracking_number TEXT,
+  breeding_record_id TEXT REFERENCES breeding_records(id) ON DELETE CASCADE,
+  dose_count INTEGER CHECK (dose_count IS NULL OR dose_count > 0),
+  event_date TEXT CHECK (event_date IS NULL OR event_date GLOB '????-??-??'),
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+INSERT INTO collection_dose_events_new (
+  id,
+  collection_id,
+  event_type,
+  recipient,
+  recipient_phone,
+  recipient_street,
+  recipient_city,
+  recipient_state,
+  recipient_zip,
+  carrier_service,
+  container_type,
+  tracking_number,
+  breeding_record_id,
+  dose_count,
+  event_date,
+  notes,
+  created_at,
+  updated_at
+)
+SELECT
+  id,
+  collection_id,
+  event_type,
+  recipient,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  dose_count,
+  event_date,
+  notes,
+  created_at,
+  updated_at
+FROM collection_dose_events;
+
+DROP TABLE collection_dose_events;
+
+ALTER TABLE collection_dose_events_new RENAME TO collection_dose_events;
+
+CREATE INDEX IF NOT EXISTS idx_collection_dose_events_collection_id
+  ON collection_dose_events(collection_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_collection_dose_events_breeding_record_id
+  ON collection_dose_events(breeding_record_id);
+`;
+
+const migration019 = `
+CREATE TABLE semen_collections_new (
+  id TEXT PRIMARY KEY,
+  stallion_id TEXT NOT NULL,
+  collection_date TEXT NOT NULL,
+  raw_volume_ml REAL,
+  extender_type TEXT,
+  concentration_millions_per_ml REAL,
+  progressive_motility_percent INTEGER,
+  target_motile_sperm_millions_per_dose REAL,
+  target_post_extension_concentration_millions_per_ml REAL,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (collection_date GLOB '????-??-??'),
+  CHECK (raw_volume_ml IS NULL OR raw_volume_ml >= 0),
+  CHECK (extender_type IS NULL OR typeof(extender_type) = 'text'),
+  CHECK (concentration_millions_per_ml IS NULL OR concentration_millions_per_ml >= 0),
+  CHECK (progressive_motility_percent IS NULL OR progressive_motility_percent BETWEEN 0 AND 100),
+  CHECK (target_motile_sperm_millions_per_dose IS NULL OR target_motile_sperm_millions_per_dose >= 0),
+  CHECK (
+    target_post_extension_concentration_millions_per_ml IS NULL
+    OR target_post_extension_concentration_millions_per_ml >= 0
+  )
+);
+
+INSERT INTO semen_collections_new (
+  id,
+  stallion_id,
+  collection_date,
+  raw_volume_ml,
+  extender_type,
+  concentration_millions_per_ml,
+  progressive_motility_percent,
+  target_motile_sperm_millions_per_dose,
+  target_post_extension_concentration_millions_per_ml,
+  notes,
+  created_at,
+  updated_at
+)
+SELECT
+  id,
+  stallion_id,
+  collection_date,
+  raw_volume_ml,
+  extender_type,
+  concentration_millions_per_ml,
+  progressive_motility_percent,
+  NULL,
+  NULL,
+  notes,
+  created_at,
+  updated_at
+FROM semen_collections;
+
+DROP TABLE semen_collections;
+
+ALTER TABLE semen_collections_new RENAME TO semen_collections;
+
+CREATE INDEX IF NOT EXISTS idx_semen_collections_stallion_date
+  ON semen_collections (stallion_id, collection_date DESC);
+
+ALTER TABLE collection_dose_events
+  ADD COLUMN dose_semen_volume_ml REAL CHECK (dose_semen_volume_ml IS NULL OR dose_semen_volume_ml >= 0);
+
+ALTER TABLE collection_dose_events
+  ADD COLUMN dose_extender_volume_ml REAL CHECK (dose_extender_volume_ml IS NULL OR dose_extender_volume_ml >= 0);
+
+UPDATE collection_dose_events
+SET
+  notes = CASE
+    WHEN dose_count > 1 THEN
+      CASE
+        WHEN notes IS NULL OR TRIM(notes) = '' THEN
+          'Legacy migration: collapsed used-on-site dose count to 1 during collection volume rework.'
+        ELSE
+          notes || '\nLegacy migration: collapsed used-on-site dose count to 1 during collection volume rework.'
+      END
+    ELSE notes
+  END,
+  dose_count = 1,
+  dose_semen_volume_ml = NULL,
+  dose_extender_volume_ml = NULL
+WHERE event_type = 'usedOnSite';
+`;
+
+const migration020 = `
+ALTER TABLE semen_collections
+  ADD COLUMN target_mode TEXT
+  CHECK (target_mode IS NULL OR target_mode IN ('progressive', 'total'));
+
+UPDATE semen_collections
+SET target_mode = CASE
+  WHEN target_motile_sperm_millions_per_dose IS NOT NULL
+    OR target_post_extension_concentration_millions_per_ml IS NOT NULL
+  THEN 'progressive'
+  ELSE NULL
+END
+WHERE target_mode IS NULL;
+`;
+
+const migration021 = `
+ALTER TABLE daily_logs
+  ADD COLUMN right_ovary_ovulation INTEGER
+  CHECK (right_ovary_ovulation IS NULL OR right_ovary_ovulation IN (0, 1));
+
+ALTER TABLE daily_logs
+  ADD COLUMN right_ovary_follicle_state TEXT
+  CHECK (
+    right_ovary_follicle_state IS NULL
+    OR right_ovary_follicle_state IN (
+      'notVisualized',
+      'small',
+      'medium',
+      'large',
+      'measured',
+      'postOvulatory'
+    )
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN right_ovary_follicle_measurements_mm TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE daily_logs
+  ADD COLUMN right_ovary_consistency TEXT
+  CHECK (
+    right_ovary_consistency IS NULL
+    OR right_ovary_consistency IN ('soft', 'moderate', 'firm', 'veryFirm')
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN right_ovary_structures TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE daily_logs
+  ADD COLUMN left_ovary_ovulation INTEGER
+  CHECK (left_ovary_ovulation IS NULL OR left_ovary_ovulation IN (0, 1));
+
+ALTER TABLE daily_logs
+  ADD COLUMN left_ovary_follicle_state TEXT
+  CHECK (
+    left_ovary_follicle_state IS NULL
+    OR left_ovary_follicle_state IN (
+      'notVisualized',
+      'small',
+      'medium',
+      'large',
+      'measured',
+      'postOvulatory'
+    )
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN left_ovary_follicle_measurements_mm TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE daily_logs
+  ADD COLUMN left_ovary_consistency TEXT
+  CHECK (
+    left_ovary_consistency IS NULL
+    OR left_ovary_consistency IN ('soft', 'moderate', 'firm', 'veryFirm')
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN left_ovary_structures TEXT NOT NULL DEFAULT '[]';
+
+ALTER TABLE daily_logs
+  ADD COLUMN uterine_tone_category TEXT
+  CHECK (
+    uterine_tone_category IS NULL
+    OR uterine_tone_category IN ('flaccid', 'moderate', 'tight')
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN cervical_firmness TEXT
+  CHECK (
+    cervical_firmness IS NULL
+    OR cervical_firmness IN ('soft', 'moderate', 'firm', 'closed')
+  );
+
+ALTER TABLE daily_logs
+  ADD COLUMN discharge_observed INTEGER
+  CHECK (discharge_observed IS NULL OR discharge_observed IN (0, 1));
+
+ALTER TABLE daily_logs
+  ADD COLUMN discharge_notes TEXT;
+
+CREATE TABLE IF NOT EXISTS uterine_fluid (
+  id TEXT PRIMARY KEY,
+  daily_log_id TEXT NOT NULL REFERENCES daily_logs(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  depth_mm INTEGER NOT NULL CHECK (depth_mm > 0),
+  location TEXT NOT NULL
+    CHECK (location IN ('leftHorn', 'rightHorn', 'bothHorns', 'uterineBody', 'bifurcation')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_uterine_fluid_daily_log_id
+  ON uterine_fluid (daily_log_id, created_at DESC);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -742,6 +1016,50 @@ const migrations: Migration[] = [
     name: '017_mare_gestation_length_days',
     statements: splitStatements(migration017),
     shouldSkip: async (db) => hasColumn(db, 'mares', 'gestation_length_days'),
+  },
+  {
+    id: 18,
+    name: '018_collection_dose_event_shipping_details',
+    statements: splitStatements(migration018),
+    shouldSkip: async (db) => hasColumn(db, 'collection_dose_events', 'breeding_record_id'),
+  },
+  {
+    id: 19,
+    name: '019_collection_wizard_volume_rework',
+    statements: splitStatements(migration019),
+    requiresForeignKeysOff: true,
+    shouldSkip: async (db) =>
+      (await hasColumn(db, 'semen_collections', 'target_motile_sperm_millions_per_dose')) &&
+      (await hasColumn(db, 'collection_dose_events', 'dose_semen_volume_ml')) &&
+      (await hasColumn(db, 'collection_dose_events', 'dose_extender_volume_ml')),
+  },
+  {
+    id: 20,
+    name: '020_collection_target_mode',
+    statements: splitStatements(migration020),
+    shouldSkip: async (db) => hasColumn(db, 'semen_collections', 'target_mode'),
+  },
+  {
+    id: 21,
+    name: '021_daily_log_wizard',
+    statements: splitStatements(migration021),
+    shouldSkip: async (db) =>
+      (await hasColumn(db, 'daily_logs', 'right_ovary_ovulation')) &&
+      (await hasColumn(db, 'daily_logs', 'right_ovary_follicle_state')) &&
+      (await hasColumn(db, 'daily_logs', 'right_ovary_follicle_measurements_mm')) &&
+      (await hasColumn(db, 'daily_logs', 'right_ovary_consistency')) &&
+      (await hasColumn(db, 'daily_logs', 'right_ovary_structures')) &&
+      (await hasColumn(db, 'daily_logs', 'left_ovary_ovulation')) &&
+      (await hasColumn(db, 'daily_logs', 'left_ovary_follicle_state')) &&
+      (await hasColumn(db, 'daily_logs', 'left_ovary_follicle_measurements_mm')) &&
+      (await hasColumn(db, 'daily_logs', 'left_ovary_consistency')) &&
+      (await hasColumn(db, 'daily_logs', 'left_ovary_structures')) &&
+      (await hasColumn(db, 'daily_logs', 'uterine_tone_category')) &&
+      (await hasColumn(db, 'daily_logs', 'cervical_firmness')) &&
+      (await hasColumn(db, 'daily_logs', 'discharge_observed')) &&
+      (await hasColumn(db, 'daily_logs', 'discharge_notes')) &&
+      (await tableExists(db, 'uterine_fluid')) &&
+      (await indexExists(db, 'idx_uterine_fluid_daily_log_id')),
   },
 ];
 
@@ -986,6 +1304,18 @@ async function tableExists(
   const row = await db.getFirstAsync<{ name: string }>(
     "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?;",
     [tableName],
+  );
+
+  return row != null;
+}
+
+async function indexExists(
+  db: SQLite.SQLiteDatabase,
+  indexName: string,
+): Promise<boolean> {
+  const row = await db.getFirstAsync<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?;",
+    [indexName],
   );
 
   return row != null;

@@ -51,13 +51,12 @@ const makeCollection = (id: string, date: string, overrides?: Record<string, unk
   stallionId: 'st-1',
   collectionDate: date,
   rawVolumeMl: 50,
-  totalVolumeMl: 550,
-  extenderVolumeMl: 450,
   extenderType: 'INRA 96',
   concentrationMillionsPerMl: 200,
   progressiveMotilityPercent: 75,
-  doseCount: 10,
-  doseSizeMillions: 1,
+  targetMode: 'progressive',
+  targetSpermMillionsPerDose: 500,
+  targetPostExtensionConcentrationMillionsPerMl: 100,
   notes: null,
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
@@ -125,12 +124,141 @@ it('shows collection cards when collections exist', async () => {
     'col-1': [],
   });
   const screen = renderScreen();
-  await waitFor(() => expect(screen.getByText('50 mL')).toBeTruthy());
-  expect(screen.getByText('550 mL')).toBeTruthy();
-  expect(screen.getByText('450 mL')).toBeTruthy();
+  await waitFor(() => expect(screen.getByText('50.00 mL')).toBeTruthy());
   expect(screen.getByText('INRA 96')).toBeTruthy();
   expect(screen.getByText('75%')).toBeTruthy();
-  expect(screen.getByText('No dose events')).toBeTruthy();
+  expect(screen.getByText('500 M')).toBeTruthy();
+  expect(screen.getByText('100 M/mL')).toBeTruthy();
+});
+
+it('shows total-mode target labels on collection cards', async () => {
+  repositories.listSemenCollectionsByStallion.mockResolvedValue([
+    makeCollection('col-1', '2026-04-01', {
+      targetMode: 'total',
+      targetSpermMillionsPerDose: 500,
+    }),
+  ]);
+  repositories.listDoseEventsByCollectionIds.mockResolvedValue({
+    'col-1': [],
+  });
+
+  const screen = renderScreen();
+  await waitFor(() => expect(screen.getByText('Target Total / Dose')).toBeTruthy());
+  expect(screen.getByText('Target Post-Ext Total Concentration')).toBeTruthy();
+});
+
+it('shows shipped and on-farm volume details in allocation rows', async () => {
+  repositories.listSemenCollectionsByStallion.mockResolvedValue([
+    makeCollection('col-1', '2026-04-01'),
+  ]);
+  repositories.listBreedingRecordsForStallion.mockResolvedValue([
+    {
+      id: 'br-1',
+      mareId: 'mare-1',
+      stallionId: 'st-1',
+      stallionName: null,
+      collectionId: 'col-1',
+      date: '2026-04-02',
+      method: 'freshAI',
+      notes: null,
+      volumeMl: 4,
+      concentrationMPerMl: null,
+      motilityPercent: null,
+      numberOfStraws: null,
+      strawVolumeMl: null,
+      strawDetails: null,
+      collectionDate: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+  ]);
+  repositories.listMares.mockResolvedValue([
+    { id: 'mare-1', name: 'Nova', breed: 'Warmblood', createdAt: '', updatedAt: '' },
+  ]);
+  repositories.listDoseEventsByCollectionIds.mockResolvedValue({
+    'col-1': [
+      {
+        id: 'ship-1',
+        collectionId: 'col-1',
+        eventType: 'shipped',
+        recipient: 'Bluegrass Farm',
+        recipientPhone: '555-111-1111',
+        recipientStreet: '1 Main',
+        recipientCity: 'Lexington',
+        recipientState: 'KY',
+        recipientZip: '40511',
+        carrierService: 'FedEx',
+        containerType: 'Equitainer',
+        trackingNumber: 'TRACK-1',
+        breedingRecordId: null,
+        doseSemenVolumeMl: 3,
+        doseExtenderVolumeMl: 2,
+        doseCount: 2,
+        eventDate: '2026-04-02',
+        notes: null,
+        createdAt: '2026-04-02T00:00:00.000Z',
+        updatedAt: '2026-04-02T00:00:00.000Z',
+      },
+      {
+        id: 'farm-1',
+        collectionId: 'col-1',
+        eventType: 'usedOnSite',
+        recipient: 'Nova',
+        recipientPhone: null,
+        recipientStreet: null,
+        recipientCity: null,
+        recipientState: null,
+        recipientZip: null,
+        carrierService: null,
+        containerType: null,
+        trackingNumber: null,
+        breedingRecordId: 'br-1',
+        doseSemenVolumeMl: null,
+        doseExtenderVolumeMl: null,
+        doseCount: 1,
+        eventDate: '2026-04-02',
+        notes: null,
+        createdAt: '2026-04-02T00:00:00.000Z',
+        updatedAt: '2026-04-02T00:00:00.000Z',
+      },
+    ],
+  });
+
+  const screen = renderScreen();
+
+  await waitFor(() => expect(screen.getByText('Semen/Extender per dose: 3.00 mL + 2.00 mL')).toBeTruthy());
+  expect(screen.getByText('Total semen/extender: 6.00 mL + 4.00 mL')).toBeTruthy();
+  expect(screen.getByText('Semen used: not recorded')).toBeTruthy();
+});
+
+it('navigates to the collection wizard from Add Collection', async () => {
+  const screen = renderScreen();
+
+  await waitFor(() => expect(screen.getByText('Add Collection')).toBeTruthy());
+  fireEvent.press(screen.getByText('Add Collection'));
+
+  expect(screen.navigation.navigate).toHaveBeenCalledWith('CollectionCreateWizard', {
+    stallionId: 'st-1',
+  });
+});
+
+it('navigates to the collection form from a collection card edit button', async () => {
+  repositories.listSemenCollectionsByStallion.mockResolvedValue([
+    makeCollection('col-1', '2026-04-01'),
+  ]);
+  repositories.listDoseEventsByCollectionIds.mockResolvedValue({
+    'col-1': [],
+  });
+
+  const screen = renderScreen();
+
+  await waitFor(() => expect(screen.getByText('04-01-2026')).toBeTruthy());
+  fireEvent.press(screen.getByLabelText('Edit'));
+
+  expect(screen.navigation.navigate).toHaveBeenCalledWith('CollectionForm', {
+    stallionId: 'st-1',
+    collectionId: 'col-1',
+  });
 });
 
 it('hides Add Collection button when stallion is soft-deleted', async () => {

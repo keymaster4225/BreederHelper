@@ -102,6 +102,15 @@ Recent UX/domain decisions reflected in code:
 - FK behavior is restrictive (`ON DELETE RESTRICT`) for relational integrity.
 - Migration runner records applied migrations in `schema_migrations`.
 
+## Data Integrity Rules (from data-storage-hardening)
+
+- **Forward-compatible JSON columns**: When parsing JSON stored in TEXT columns (e.g. foal milestones), preserve unknown keys rather than stripping them. Backup restore must not destroy fields added by future app versions.
+- **Store state explicitly**: Never infer boolean state from absence of data. If a field can be true/false/unset, store the explicit value (e.g. ovulation state on daily logs).
+- **Preserve numeric precision**: Do not coerce numeric fields (e.g. straw volume) to integers when the domain allows decimals. Parse and store as-is.
+- **Canonicalize migrations across install paths**: Fresh installs and upgraded installs may produce different SQLite constraint representations. Migration repair logic must handle both and not over-apply or under-apply.
+- **Preserve legacy enum labels**: When centralizing or renaming enum values, map old stored values to their display strings. Never let raw old keys surface in the UI.
+- **All domain enums live in `src/models/enums.ts`**: Do not define enums inline in screen or repository files.
+
 ## Runbook
 
 Install:
@@ -129,6 +138,11 @@ If bundling/native module errors appear:
 - Home, foal form, medication form, and mare detail screens now delegate load/save/delete orchestration to hooks in `src/hooks/`, with reusable pure derivation in selectors/utils.
 - Add migration + repository + type updates together for schema changes.
 - For behavior changes, update tests where practical (`validation.test.ts`, repository tests).
+- When adding a new persisted entity, also extend the backup pipeline: `src/utils/backup/types.ts`, `serialize.ts`, `restore.ts`, `validate.ts`, `safetyBackups.ts`, `testFixtures.ts`, plus their `*.test.ts` round-trip and validation coverage. Restore order must respect FK dependencies.
+- When a new entity is surfaced in an existing screen (cards, allocations, tabs), extend that screen's `*.screen.test.tsx` for the new render paths, navigation, and soft-delete (`isDeleted`) gating.
+- When a domain field uses an enum-with-`'Other'` pattern (e.g. extender, color), add a display formatter to `src/utils/outcomeDisplay.ts` (or a sibling `*Display.ts` file) plus a test that covers both enum and `'Other:<freetext>'` rendering.
+- New screens count toward the screen-coverage CI threshold (see commit `48e3c52`); each needs at least one happy-path and one error-path screen test.
+- Every new icon-only button needs an `accessibilityLabel`.
 - Run `npm run typecheck`, `npm test`, `npm run test:screen`, and `npm run lint` before commit.
 - Import alias: `@/*` maps to `src/*` (configured in `tsconfig.json` + babel).
 

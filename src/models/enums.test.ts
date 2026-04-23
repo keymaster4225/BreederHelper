@@ -79,7 +79,7 @@ describe('shared enum definitions', () => {
 
     expect(DOSE_EVENT_TYPE_OPTIONS).toEqual([
       { label: 'Shipped', value: 'shipped' },
-      { label: 'Used on site', value: 'usedOnSite' },
+      { label: 'On-farm', value: 'usedOnSite' },
     ]);
 
     expect(FOAL_MILESTONE_KEYS).toEqual([

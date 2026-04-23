@@ -25,6 +25,7 @@ type StallionDetailData = {
   readonly collections: SemenCollection[];
   readonly linkedBreedings: BreedingRecord[];
   readonly legacyBreedings: BreedingRecord[];
+  readonly breedingRecordById: Record<string, BreedingRecord>;
   readonly doseEventsByCollectionId: Record<string, CollectionDoseEvent[]>;
   readonly mareNameById: Record<string, string>;
   readonly age: number | null;
@@ -45,6 +46,7 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
   const [collections, setCollections] = useState<SemenCollection[]>([]);
   const [linkedBreedings, setLinkedBreedings] = useState<BreedingRecord[]>([]);
   const [legacyBreedings, setLegacyBreedings] = useState<BreedingRecord[]>([]);
+  const [breedingRecordById, setBreedingRecordById] = useState<Record<string, BreedingRecord>>({});
   const [doseEventsByCollectionId, setDoseEventsByCollectionId] = useState<
     Record<string, CollectionDoseEvent[]>
   >({});
@@ -82,6 +84,12 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
       setLegacyBreedings(legacy);
       setDoseEventsByCollectionId(doseEvents);
 
+      const breedingLookup: Record<string, BreedingRecord> = {};
+      for (const record of linked) {
+        breedingLookup[record.id] = record;
+      }
+      setBreedingRecordById(breedingLookup);
+
       const nameMap: Record<string, string> = {};
       for (const mare of allMares) {
         nameMap[mare.id] = mare.name;
@@ -100,6 +108,7 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
     collections,
     linkedBreedings,
     legacyBreedings,
+    breedingRecordById,
     doseEventsByCollectionId,
     mareNameById,
     age,

@@ -5,6 +5,7 @@ jest.mock('@/storage/repositories', () => ({
   deleteBreedingRecord: jest.fn(),
   getBreedingRecordById: jest.fn(),
   getStallionById: jest.fn(),
+  hasLinkedOnFarmDoseEvent: jest.fn(),
   listSemenCollectionsByStallion: jest.fn(),
   listStallions: jest.fn(),
   updateBreedingRecord: jest.fn(),
@@ -13,11 +14,13 @@ jest.mock('@/storage/repositories', () => ({
 const { BreedingRecordFormScreen } = require('@/screens/BreedingRecordFormScreen') as typeof import('@/screens/BreedingRecordFormScreen');
 const {
   getBreedingRecordById,
+  hasLinkedOnFarmDoseEvent,
   listSemenCollectionsByStallion,
   listStallions,
   updateBreedingRecord,
 } = jest.requireMock('@/storage/repositories') as {
   getBreedingRecordById: jest.Mock;
+  hasLinkedOnFarmDoseEvent: jest.Mock;
   listSemenCollectionsByStallion: jest.Mock;
   listStallions: jest.Mock;
   updateBreedingRecord: jest.Mock;
@@ -33,6 +36,7 @@ function createNavigation() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  hasLinkedOnFarmDoseEvent.mockResolvedValue(false);
 });
 
 it('loads an existing breeding record and saves updates', async () => {
@@ -53,13 +57,12 @@ it('loads an existing breeding record and saves updates', async () => {
       stallionId: 'stallion-1',
       collectionDate: '2026-03-30',
       rawVolumeMl: 20,
-      totalVolumeMl: null,
-      extenderVolumeMl: null,
       extenderType: null,
       concentrationMillionsPerMl: 120,
       progressiveMotilityPercent: 70,
-      doseCount: 8,
-      doseSizeMillions: null,
+      targetMode: null,
+      targetSpermMillionsPerDose: null,
+      targetPostExtensionConcentrationMillionsPerMl: null,
       notes: null,
       createdAt: '2026-03-30T00:00:00Z',
       updatedAt: '2026-03-30T00:00:00Z',
@@ -99,6 +102,7 @@ it('loads an existing breeding record and saves updates', async () => {
 
   await waitFor(() => {
     expect(getBreedingRecordById).toHaveBeenCalledWith('br-1');
+    expect(hasLinkedOnFarmDoseEvent).toHaveBeenCalledWith('br-1');
   });
 
   const saveButton = await screen.findByText('Save');
@@ -114,6 +118,76 @@ it('loads an existing breeding record and saves updates', async () => {
     );
     expect(navigation.goBack).toHaveBeenCalled();
   });
+});
+
+it('locks method and collection controls for linked on-farm records', async () => {
+  const navigation = createNavigation();
+  listStallions.mockResolvedValue([
+    {
+      id: 'stallion-1',
+      name: 'Atlas',
+      breed: 'Warmblood',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+      deletedAt: null,
+    },
+  ]);
+  listSemenCollectionsByStallion.mockResolvedValue([
+    {
+      id: 'col-1',
+      stallionId: 'stallion-1',
+      collectionDate: '2026-03-30',
+      rawVolumeMl: 20,
+      extenderType: null,
+      concentrationMillionsPerMl: 120,
+      progressiveMotilityPercent: 70,
+      targetMode: null,
+      targetSpermMillionsPerDose: null,
+      targetPostExtensionConcentrationMillionsPerMl: null,
+      notes: null,
+      createdAt: '2026-03-30T00:00:00Z',
+      updatedAt: '2026-03-30T00:00:00Z',
+    },
+  ]);
+  getBreedingRecordById.mockResolvedValue({
+    id: 'br-locked',
+    mareId: 'mare-1',
+    stallionId: 'stallion-1',
+    stallionName: null,
+    collectionId: 'col-1',
+    date: '2026-04-01',
+    method: 'freshAI',
+    notes: null,
+    volumeMl: 20,
+    concentrationMPerMl: 120,
+    motilityPercent: 70,
+    numberOfStraws: null,
+    strawVolumeMl: null,
+    strawDetails: null,
+    collectionDate: null,
+    createdAt: '2026-04-01T00:00:00Z',
+    updatedAt: '2026-04-01T00:00:00Z',
+  });
+  hasLinkedOnFarmDoseEvent.mockResolvedValue(true);
+
+  const screen = render(
+    <BreedingRecordFormScreen
+      navigation={navigation as never}
+      route={{
+        key: 'BreedingRecordForm',
+        name: 'BreedingRecordForm',
+        params: { mareId: 'mare-1', breedingRecordId: 'br-locked' },
+      } as never}
+    />,
+  );
+
+  await waitFor(() => {
+    expect(screen.getByText(/linked to an on-farm allocation/i)).toBeTruthy();
+  });
+
+  expect(screen.queryByText('Live Cover')).toBeNull();
+  expect(screen.getByDisplayValue('Fresh AI')).toBeTruthy();
+  expect(screen.getByDisplayValue('03-30-2026 - 20 mL - 70% motility')).toBeTruthy();
 });
 
 it('preserves decimal straw volume values when editing a frozen AI record', async () => {

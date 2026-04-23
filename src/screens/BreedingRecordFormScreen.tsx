@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
@@ -14,6 +14,7 @@ import {
   deleteBreedingRecord,
   getBreedingRecordById,
   getStallionById,
+  hasLinkedOnFarmDoseEvent,
   listSemenCollectionsByStallion,
   listStallions,
   updateBreedingRecord,
@@ -22,6 +23,7 @@ import { colors } from '@/theme';
 import { confirmDelete } from '@/utils/confirmDelete';
 import { formatLocalDate } from '@/utils/dates';
 import { newId } from '@/utils/id';
+import { formatBreedingMethod } from '@/utils/outcomeDisplay';
 import {
   normalizeLocalDate,
   parseOptionalInteger,
@@ -59,9 +61,9 @@ const NO_COLLECTION = '__none__';
 
 function formatCollectionLabel(c: SemenCollection): string {
   const date = formatLocalDate(c.collectionDate, 'MM-DD-YYYY');
-  const doses = c.doseCount != null ? `${c.doseCount} doses` : '-';
+  const volume = c.rawVolumeMl != null ? `${c.rawVolumeMl} mL` : '-';
   const motility = c.progressiveMotilityPercent != null ? `${c.progressiveMotilityPercent}%` : '-';
-  return `${date} - ${doses} - ${motility} motility`;
+  return `${date} - ${volume} - ${motility} motility`;
 }
 
 export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Element {
@@ -95,6 +97,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   const [collections, setCollections] = useState<SemenCollection[]>([]);
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [showAllCollections, setShowAllCollections] = useState(false);
+  const [isLinkedOnFarmRecord, setIsLinkedOnFarmRecord] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({ title: isEdit ? 'Edit Breeding Record' : 'Add Breeding Record' });
@@ -110,7 +113,10 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
   // Load existing record
   useEffect(() => {
-    if (!breedingRecordId) return;
+    if (!breedingRecordId) {
+      setIsLinkedOnFarmRecord(false);
+      return;
+    }
 
     void runLoad(
       async () => {
@@ -131,6 +137,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         setStrawDetails(record.strawDetails ?? '');
         setCollectionDate(record.collectionDate ?? '');
         setNotes(record.notes ?? '');
+        setIsLinkedOnFarmRecord(await hasLinkedOnFarmDoseEvent(record.id));
 
         if (record.stallionId != null) {
           setSelectedStallionId(record.stallionId);
@@ -169,8 +176,23 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   }, [breedingRecordId, navigation, runLoad]);
 
   const coverageType: CoverageType = method === 'liveCover' ? 'liveCover' : 'ai';
+  const lockMethodAndCollection = isEdit && isLinkedOnFarmRecord;
+
+  const selectedStallionLabel = useCustomStallion
+    ? stallionName.trim()
+    : (stallions.find((stallion) => stallion.id === selectedStallionId)?.name ?? '');
+  const selectedCollection = selectedCollectionId
+    ? collections.find((collection) => collection.id === selectedCollectionId)
+    : null;
+  const selectedCollectionLabel = selectedCollection
+    ? formatCollectionLabel(selectedCollection)
+    : selectedCollectionId ?? 'None';
 
   const onCoverageChange = (coverage: CoverageType): void => {
+    if (lockMethodAndCollection) {
+      return;
+    }
+
     if (coverage === 'liveCover') {
       setMethod('liveCover');
       setSelectedCollectionId(null);
@@ -180,6 +202,10 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   };
 
   const onStallionChange = (value: string): void => {
+    if (lockMethodAndCollection) {
+      return;
+    }
+
     if (value === OTHER_STALLION) {
       setUseCustomStallion(true);
       setSelectedStallionId(null);
@@ -198,6 +224,10 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   };
 
   const onCollectionChange = (value: string): void => {
+    if (lockMethodAndCollection) {
+      return;
+    }
+
     if (value === NO_COLLECTION) {
       setSelectedCollectionId(null);
       return;
@@ -302,7 +332,10 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
           numberOfStraws: method === 'frozenAI' ? parsedStraws : null,
           strawVolumeMl: method === 'frozenAI' ? parsedStrawVolume : null,
           strawDetails: method === 'frozenAI' ? strawDetails.trim() || null : null,
-          collectionDate: method === 'shippedCooledAI' || method === 'frozenAI' ? normalizeLocalDate(collectionDate) : null,
+          collectionDate:
+            selectedCollectionId != null || method === 'shippedCooledAI' || method === 'frozenAI'
+              ? normalizeLocalDate(collectionDate)
+              : null,
         };
 
         if (breedingRecordId) {
@@ -361,20 +394,30 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     <Screen style={{ paddingTop: 0 }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
+        {lockMethodAndCollection ? (
+          <Text style={{ color: colors.onSurfaceVariant }}>
+            This record is linked to an on-farm allocation. Stallion, method, and collection are locked.
+          </Text>
+        ) : null}
+
         <FormField label="Date" required error={errors.date}>
           <FormDateInput value={date} onChange={setDate} placeholder="Select breeding date" maximumDate={today} />
         </FormField>
 
         <FormField label="Stallion" required error={errors.stallion}>
-          <FormPickerInput
-            value={selectedStallionId ?? (useCustomStallion ? OTHER_STALLION : '')}
-            onChange={onStallionChange}
-            options={stallionPickerOptions}
-            placeholder="Select stallion"
-          />
+          {lockMethodAndCollection ? (
+            <FormTextInput value={selectedStallionLabel || 'Unknown stallion'} editable={false} />
+          ) : (
+            <FormPickerInput
+              value={selectedStallionId ?? (useCustomStallion ? OTHER_STALLION : '')}
+              onChange={onStallionChange}
+              options={stallionPickerOptions}
+              placeholder="Select stallion"
+            />
+          )}
         </FormField>
 
-        {useCustomStallion ? (
+        {useCustomStallion && !lockMethodAndCollection ? (
           <FormField label="Stallion Name" required>
             <FormTextInput
               value={stallionName}
@@ -385,21 +428,31 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
         ) : null}
 
         <FormField label="Breeding Method" required>
-          <OptionSelector value={coverageType} onChange={onCoverageChange} options={COVERAGE_OPTIONS} />
-          {method !== 'liveCover' ? (
-            <OptionSelector value={method as AIMethod} onChange={setMethod} options={AI_BREEDING_METHOD_OPTIONS} />
-          ) : null}
+          {lockMethodAndCollection ? (
+            <FormTextInput value={formatBreedingMethod(method)} editable={false} />
+          ) : (
+            <>
+              <OptionSelector value={coverageType} onChange={onCoverageChange} options={COVERAGE_OPTIONS} />
+              {method !== 'liveCover' ? (
+                <OptionSelector value={method as AIMethod} onChange={setMethod} options={AI_BREEDING_METHOD_OPTIONS} />
+              ) : null}
+            </>
+          )}
         </FormField>
 
         {showCollectionPicker ? (
           <FormField label="Collection">
-            <FormPickerInput
-              value={selectedCollectionId ?? NO_COLLECTION}
-              onChange={onCollectionChange}
-              options={collectionPickerOptions}
-              placeholder="Select collection"
-              onShowAll={collections.length > 10 && !showAllCollections ? () => setShowAllCollections(true) : undefined}
-            />
+            {lockMethodAndCollection ? (
+              <FormTextInput value={selectedCollectionLabel} editable={false} />
+            ) : (
+              <FormPickerInput
+                value={selectedCollectionId ?? NO_COLLECTION}
+                onChange={onCollectionChange}
+                options={collectionPickerOptions}
+                placeholder="Select collection"
+                onShowAll={collections.length > 10 && !showAllCollections ? () => setShowAllCollections(true) : undefined}
+              />
+            )}
           </FormField>
         ) : null}
 

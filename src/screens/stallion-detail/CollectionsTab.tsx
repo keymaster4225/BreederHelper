@@ -4,12 +4,16 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { IconButton, PrimaryButton, SecondaryButton } from '@/components/Buttons';
 import { CardRow, EditIconButton, cardStyles } from '@/components/RecordCardParts';
-import { CollectionDoseEvent, SemenCollection, Stallion } from '@/models/types';
+import { BreedingRecord, CollectionDoseEvent, SemenCollection, Stallion } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { deleteDoseEvent } from '@/storage/repositories';
 import { colors, spacing, typography } from '@/theme';
+import {
+  getCollectionCardTargetPostExtensionLabel,
+  getCollectionCardTargetSpermLabel,
+} from '@/utils/collectionCalculatorCopy';
 import { formatLocalDate } from '@/utils/dates';
-import { formatDoseEventType } from '@/utils/outcomeDisplay';
+import { DOSE_EVENT_TYPE_LABELS } from '@/utils/outcomeDisplay';
 import { DoseEventModal } from './DoseEventModal';
 
 type Props = {
@@ -17,10 +21,20 @@ type Props = {
   readonly stallion: Stallion;
   readonly collections: readonly SemenCollection[];
   readonly doseEventsByCollectionId: Record<string, CollectionDoseEvent[]>;
+  readonly breedingRecordById: Record<string, BreedingRecord>;
+  readonly mareNameById: Record<string, string>;
   readonly isDeleted: boolean;
   readonly onDoseEventsChanged: () => Promise<void>;
   readonly navigation: NativeStackNavigationProp<RootStackParamList, 'StallionDetail'>;
 };
+
+function formatMl(value: number | null | undefined): string | null {
+  if (value == null) {
+    return null;
+  }
+
+  return `${value.toFixed(2)} mL`;
+}
 
 function hasAnyAvPref(s: Stallion): boolean {
   return (
@@ -37,6 +51,8 @@ export function CollectionsTab({
   stallion,
   collections,
   doseEventsByCollectionId,
+  breedingRecordById,
+  mareNameById,
   isDeleted,
   onDoseEventsChanged,
   navigation,
@@ -120,72 +136,170 @@ export function CollectionsTab({
         {!isDeleted ? (
           <PrimaryButton
             label="Add Collection"
-            onPress={() => navigation.navigate('CollectionForm', { stallionId })}
+            onPress={() => navigation.navigate('CollectionCreateWizard', { stallionId })}
           />
         ) : null}
 
         {collections.length > 0 ? (
           <View style={cardStyles.listWrap}>
-            {collections.map((c) => {
-              const events = doseEventsByCollectionId[c.id] ?? [];
+            {collections.map((collection) => {
+              const events = doseEventsByCollectionId[collection.id] ?? [];
 
               return (
-                <View key={c.id} style={cardStyles.card}>
+                <View key={collection.id} style={cardStyles.card}>
                   <View style={cardStyles.cardHeader}>
-                    <Text style={cardStyles.cardTitle}>{formatLocalDate(c.collectionDate, 'MM-DD-YYYY')}</Text>
-                    <EditIconButton onPress={() => navigation.navigate('CollectionForm', { stallionId, collectionId: c.id })} />
+                    <Text style={cardStyles.cardTitle}>
+                      {formatLocalDate(collection.collectionDate, 'MM-DD-YYYY')}
+                    </Text>
+                    <EditIconButton
+                      onPress={() =>
+                        navigation.navigate('CollectionForm', {
+                          stallionId,
+                          collectionId: collection.id,
+                        })
+                      }
+                    />
                   </View>
-                  <CardRow label="Raw Volume" value={c.rawVolumeMl != null ? `${c.rawVolumeMl} mL` : null} />
-                  <CardRow label="Total Volume" value={c.totalVolumeMl != null ? `${c.totalVolumeMl} mL` : null} />
-                  <CardRow label="Extender Volume" value={c.extenderVolumeMl != null ? `${c.extenderVolumeMl} mL` : null} />
-                  <CardRow label="Extender Type" value={c.extenderType} />
-                  <CardRow label="Concentration" value={c.concentrationMillionsPerMl != null ? `${c.concentrationMillionsPerMl} M/mL` : null} />
-                  <CardRow label="Motility" value={c.progressiveMotilityPercent != null ? `${c.progressiveMotilityPercent}%` : null} />
+                  <CardRow label="Raw Volume" value={formatMl(collection.rawVolumeMl)} />
+                  <CardRow label="Extender Type" value={collection.extenderType} />
                   <CardRow
-                    label="Doses"
+                    label="Concentration"
                     value={
-                      c.doseCount != null
-                        ? c.doseSizeMillions != null
-                          ? `${c.doseCount} x ${c.doseSizeMillions}M`
-                          : String(c.doseCount)
+                      collection.concentrationMillionsPerMl != null
+                        ? `${collection.concentrationMillionsPerMl} M/mL`
+                        : null
+                    }
+                  />
+                  <CardRow
+                    label="Motility"
+                    value={
+                      collection.progressiveMotilityPercent != null
+                        ? `${collection.progressiveMotilityPercent}%`
+                        : null
+                    }
+                  />
+                  <CardRow
+                    label={getCollectionCardTargetSpermLabel(collection.targetMode)}
+                    value={
+                      collection.targetSpermMillionsPerDose != null
+                        ? `${collection.targetSpermMillionsPerDose} M`
+                        : null
+                    }
+                  />
+                  <CardRow
+                    label={getCollectionCardTargetPostExtensionLabel(collection.targetMode)}
+                    value={
+                      collection.targetPostExtensionConcentrationMillionsPerMl != null
+                        ? `${collection.targetPostExtensionConcentrationMillionsPerMl} M/mL`
                         : null
                     }
                   />
 
                   <View style={styles.doseSection}>
                     <View style={styles.doseSectionHeader}>
-                      <Text style={styles.sectionTitle}>Dose Events</Text>
+                      <Text style={styles.sectionTitle}>Allocations</Text>
                       {!isDeleted ? (
-                        <SecondaryButton label="Add Event" onPress={() => handleAddEvent(c.id)} />
+                        <SecondaryButton label="Add Shipment" onPress={() => handleAddEvent(collection.id)} />
                       ) : null}
                     </View>
 
                     {events.length === 0 ? (
-                      <Text style={styles.mutedText}>No dose events</Text>
+                      <Text style={styles.mutedText}>No allocations recorded.</Text>
                     ) : (
                       <View style={styles.eventList}>
-                        {events.map((event) => (
-                          <View key={event.id} style={styles.eventRow}>
-                            <View style={styles.eventContent}>
-                              <Text style={styles.eventTitle}>
-                                {formatDoseEventType(event.eventType)}: {event.recipient}
-                              </Text>
-                              <Text style={styles.eventMeta}>
-                                {[
-                                  event.doseCount != null ? `${event.doseCount} doses` : null,
-                                  event.eventDate ? formatLocalDate(event.eventDate, 'MM-DD-YYYY') : null,
-                                ].filter(Boolean).join(' • ') || 'No extra details'}
-                              </Text>
-                              {event.notes ? <Text style={styles.eventNote}>{event.notes}</Text> : null}
-                            </View>
-                            {!isDeleted ? (
-                              <View style={styles.eventActions}>
-                                <IconButton icon={'\u270E'} onPress={() => handleEditEvent(event)} accessibilityLabel="Edit dose event" />
-                                <IconButton icon={'\u2715'} onPress={() => handleDeleteEvent(event)} accessibilityLabel="Delete dose event" />
+                        {events.map((event) => {
+                          const linkedBreeding = event.breedingRecordId
+                            ? breedingRecordById[event.breedingRecordId]
+                            : undefined;
+                          const linkedMareName = linkedBreeding
+                            ? (mareNameById[linkedBreeding.mareId] ?? event.recipient)
+                            : event.recipient;
+                          const isUsedOnSite = event.eventType === 'usedOnSite';
+                          const eventMeta = isUsedOnSite
+                            ? [
+                                event.doseCount != null ? `${event.doseCount} doses` : null,
+                                event.eventDate ? formatLocalDate(event.eventDate, 'MM-DD-YYYY') : null,
+                                'Fresh AI',
+                              ].filter(Boolean).join(' | ')
+                            : [
+                                event.doseCount != null ? `${event.doseCount} doses` : null,
+                                event.eventDate ? formatLocalDate(event.eventDate, 'MM-DD-YYYY') : null,
+                                event.carrierService ?? null,
+                                event.containerType ?? null,
+                              ].filter(Boolean).join(' | ');
+                          const titleLabel = `${DOSE_EVENT_TYPE_LABELS[event.eventType]}: ${linkedMareName}`;
+                          const shippedSemenPerDose = formatMl(event.doseSemenVolumeMl);
+                          const shippedExtenderPerDose = formatMl(event.doseExtenderVolumeMl);
+                          const shippedTotalSemen =
+                            event.doseCount != null && event.doseSemenVolumeMl != null
+                              ? formatMl(event.doseSemenVolumeMl * event.doseCount)
+                              : null;
+                          const shippedTotalExtender =
+                            event.doseCount != null && event.doseExtenderVolumeMl != null
+                              ? formatMl(event.doseExtenderVolumeMl * event.doseCount)
+                              : null;
+                          const content = (
+                            <>
+                              <View style={styles.eventContent}>
+                                <Text style={styles.eventTitle}>{titleLabel}</Text>
+                                <Text style={styles.eventMeta}>{eventMeta || 'No extra details'}</Text>
+                                {!isUsedOnSite && event.recipientCity && event.recipientState ? (
+                                  <Text style={styles.eventMeta}>{`${event.recipientCity}, ${event.recipientState}`}</Text>
+                                ) : null}
+                                {isUsedOnSite ? (
+                                  <Text style={styles.eventMeta}>
+                                    {event.doseSemenVolumeMl == null
+                                      ? 'Semen used: not recorded'
+                                      : `Semen used: ${event.doseSemenVolumeMl.toFixed(2)} mL`}
+                                  </Text>
+                                ) : (
+                                  <>
+                                    <Text style={styles.eventMeta}>
+                                      {shippedSemenPerDose != null && shippedExtenderPerDose != null
+                                        ? `Semen/Extender per dose: ${shippedSemenPerDose} + ${shippedExtenderPerDose}`
+                                        : 'Semen/Extender per dose: not recorded'}
+                                    </Text>
+                                    <Text style={styles.eventMeta}>
+                                      {shippedTotalSemen != null && shippedTotalExtender != null
+                                        ? `Total semen/extender: ${shippedTotalSemen} + ${shippedTotalExtender}`
+                                        : 'Total semen/extender: not recorded'}
+                                    </Text>
+                                  </>
+                                )}
+                                {event.notes ? <Text style={styles.eventNote}>{event.notes}</Text> : null}
                               </View>
-                            ) : null}
-                          </View>
-                        ))}
+                              {!isDeleted && !isUsedOnSite ? (
+                                <View style={styles.eventActions}>
+                                  <IconButton icon={'\u270E'} onPress={() => handleEditEvent(event)} accessibilityLabel="Edit shipment" />
+                                  <IconButton icon={'\u2715'} onPress={() => handleDeleteEvent(event)} accessibilityLabel="Delete shipment" />
+                                </View>
+                              ) : null}
+                            </>
+                          );
+
+                          if (isUsedOnSite && linkedBreeding) {
+                            return (
+                              <Pressable
+                                key={event.id}
+                                style={({ pressed }) => [styles.eventRow, pressed && styles.pressed]}
+                                onPress={() => navigation.navigate('BreedingRecordForm', {
+                                  mareId: linkedBreeding.mareId,
+                                  breedingRecordId: linkedBreeding.id,
+                                })}
+                                accessibilityRole="button"
+                                accessibilityLabel={`Open breeding record for ${linkedMareName}`}
+                              >
+                                {content}
+                              </Pressable>
+                            );
+                          }
+
+                          return (
+                            <View key={event.id} style={styles.eventRow}>
+                              {content}
+                            </View>
+                          );
+                        })}
                       </View>
                     )}
                   </View>

@@ -1,10 +1,14 @@
-import type { BackupEnvelopeV2 } from './types';
+import type {
+  BackupEnvelopeV2,
+  BackupEnvelopeV3,
+  BackupEnvelopeV4,
+} from './types';
 
 const BASE_TIMESTAMP = '2026-04-16T12:00:00.000Z';
 
-export function createBackupFixture(): BackupEnvelopeV2 {
+export function createBackupFixture(): BackupEnvelopeV4 {
   return {
-    schemaVersion: 2,
+    schemaVersion: 4,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -60,7 +64,31 @@ export function createBackupFixture(): BackupEnvelopeV2 {
           edema: 2,
           uterine_tone: null,
           uterine_cysts: null,
+          right_ovary_ovulation: 1,
+          right_ovary_follicle_state: 'measured',
+          right_ovary_follicle_measurements_mm: '[35]',
+          right_ovary_consistency: 'firm',
+          right_ovary_structures: '["corpusLuteum"]',
+          left_ovary_ovulation: null,
+          left_ovary_follicle_state: null,
+          left_ovary_follicle_measurements_mm: '[]',
+          left_ovary_consistency: null,
+          left_ovary_structures: '[]',
+          uterine_tone_category: 'moderate',
+          cervical_firmness: 'firm',
+          discharge_observed: 0,
+          discharge_notes: null,
           notes: null,
+          created_at: BASE_TIMESTAMP,
+          updated_at: BASE_TIMESTAMP,
+        },
+      ],
+      uterine_fluid: [
+        {
+          id: 'fluid-1',
+          daily_log_id: 'log-1',
+          depth_mm: 10,
+          location: 'leftHorn',
           created_at: BASE_TIMESTAMP,
           updated_at: BASE_TIMESTAMP,
         },
@@ -157,6 +185,105 @@ export function createBackupFixture(): BackupEnvelopeV2 {
           stallion_id: 'stallion-1',
           collection_date: '2026-04-01',
           raw_volume_ml: 100,
+          extender_type: 'INRA 96',
+          concentration_millions_per_ml: 200,
+          progressive_motility_percent: 70,
+          target_mode: 'progressive',
+          target_motile_sperm_millions_per_dose: 500,
+          target_post_extension_concentration_millions_per_ml: 100,
+          notes: null,
+          created_at: BASE_TIMESTAMP,
+          updated_at: BASE_TIMESTAMP,
+        },
+      ],
+      collection_dose_events: [
+        {
+          id: 'event-1',
+          collection_id: 'collection-1',
+          event_type: 'usedOnSite',
+          recipient: 'Maple',
+          recipient_phone: null,
+          recipient_street: null,
+          recipient_city: null,
+          recipient_state: null,
+          recipient_zip: null,
+          carrier_service: null,
+          container_type: null,
+          tracking_number: null,
+          breeding_record_id: 'breed-1',
+          dose_semen_volume_ml: 50,
+          dose_extender_volume_ml: null,
+          dose_count: 1,
+          event_date: '2026-04-02',
+          notes: null,
+          created_at: BASE_TIMESTAMP,
+          updated_at: BASE_TIMESTAMP,
+        },
+      ],
+    },
+  };
+}
+
+export function cloneBackupFixture(): BackupEnvelopeV4 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV4;
+}
+
+export function createBackupFixtureV3(): BackupEnvelopeV3 {
+  const backupV4 = createBackupFixture();
+
+  return {
+    schemaVersion: 3,
+    createdAt: backupV4.createdAt,
+    app: backupV4.app,
+    settings: backupV4.settings,
+    tables: {
+      mares: backupV4.tables.mares,
+      stallions: backupV4.tables.stallions,
+      daily_logs: backupV4.tables.daily_logs.map(
+        ({
+          right_ovary_ovulation: _rightOvaryOvulation,
+          right_ovary_follicle_state: _rightOvaryFollicleState,
+          right_ovary_follicle_measurements_mm: _rightOvaryFollicleMeasurementsMm,
+          right_ovary_consistency: _rightOvaryConsistency,
+          right_ovary_structures: _rightOvaryStructures,
+          left_ovary_ovulation: _leftOvaryOvulation,
+          left_ovary_follicle_state: _leftOvaryFollicleState,
+          left_ovary_follicle_measurements_mm: _leftOvaryFollicleMeasurementsMm,
+          left_ovary_consistency: _leftOvaryConsistency,
+          left_ovary_structures: _leftOvaryStructures,
+          uterine_tone_category: _uterineToneCategory,
+          cervical_firmness: _cervicalFirmness,
+          discharge_observed: _dischargeObserved,
+          discharge_notes: _dischargeNotes,
+          ...row
+        }) => row,
+      ),
+      breeding_records: backupV4.tables.breeding_records,
+      pregnancy_checks: backupV4.tables.pregnancy_checks,
+      foaling_records: backupV4.tables.foaling_records,
+      foals: backupV4.tables.foals,
+      medication_logs: backupV4.tables.medication_logs,
+      semen_collections: backupV4.tables.semen_collections,
+      collection_dose_events: backupV4.tables.collection_dose_events,
+    },
+  };
+}
+
+export function createBackupFixtureV2(): BackupEnvelopeV2 {
+  const backupV3 = createBackupFixtureV3();
+  return {
+    schemaVersion: 2,
+    createdAt: backupV3.createdAt,
+    app: backupV3.app,
+    settings: backupV3.settings,
+    tables: {
+      ...backupV3.tables,
+      semen_collections: [
+        {
+          id: 'collection-1',
+          stallion_id: 'stallion-1',
+          collection_date: '2026-04-01',
+          raw_volume_ml: 100,
           extended_volume_ml: 500,
           extender_volume_ml: 400,
           extender_type: 'INRA 96',
@@ -175,6 +302,15 @@ export function createBackupFixture(): BackupEnvelopeV2 {
           collection_id: 'collection-1',
           event_type: 'usedOnSite',
           recipient: 'Maple',
+          recipient_phone: null,
+          recipient_street: null,
+          recipient_city: null,
+          recipient_state: null,
+          recipient_zip: null,
+          carrier_service: null,
+          container_type: null,
+          tracking_number: null,
+          breeding_record_id: 'breed-1',
           dose_count: 1,
           event_date: '2026-04-02',
           notes: null,
@@ -184,8 +320,4 @@ export function createBackupFixture(): BackupEnvelopeV2 {
       ],
     },
   };
-}
-
-export function cloneBackupFixture(): BackupEnvelopeV2 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV2;
 }
