@@ -51,6 +51,7 @@ export type DailyLogWizardLegacyNotes = {
 
 export type BasicsErrors = {
   date?: string;
+  time?: string;
 };
 
 export type OvaryStepErrors = {

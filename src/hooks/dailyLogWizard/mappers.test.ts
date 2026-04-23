@@ -53,6 +53,7 @@ describe('daily log wizard mappers', () => {
     const hydrated = hydrateDailyLogWizardRecord(record);
 
     expect(hydrated.ovulationSource).toBe('legacy');
+    expect(hydrated.time).toBe('');
     expect(hydrated.legacyNotes).toEqual({
       rightOvary: 'legacy right',
       leftOvary: 'legacy left',
@@ -76,6 +77,7 @@ describe('daily log wizard mappers', () => {
     const payload = buildDailyLogPayload({
       isEdit: true,
       date: ' 2026-04-02 ',
+      time: ' 09:45 ',
       teasingScore: '4',
       rightOvary: {
         ovulation: null,
@@ -116,6 +118,7 @@ describe('daily log wizard mappers', () => {
 
     expect(payload).toMatchObject({
       date: '2026-04-02',
+      time: '09:45',
       teasingScore: 4,
       ovulationSource: 'legacy',
       ovulationDetected: true,
@@ -138,6 +141,7 @@ describe('daily log wizard mappers', () => {
     const payload = buildDailyLogPayload({
       isEdit: false,
       date: '2026-04-03',
+      time: '16:00',
       teasingScore: '',
       rightOvary: {
         ovulation: true,
@@ -172,6 +176,7 @@ describe('daily log wizard mappers', () => {
     });
 
     expect(payload.ovulationSource).toBe('structured');
+    expect(payload.time).toBe('16:00');
     expect(payload.ovulationDetected).toBeUndefined();
     expect(payload.rightOvaryFollicleMeasurementsMm).toEqual([35, 35.5]);
     expect(payload.leftOvaryFollicleMeasurementsMm).toEqual([]);

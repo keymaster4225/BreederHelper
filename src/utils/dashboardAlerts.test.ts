@@ -43,6 +43,7 @@ function makeDailyLog(overrides: Partial<DailyLog> = {}): DailyLog {
     id: 'log-1',
     mareId: 'mare-1',
     date: '2026-03-20',
+    time: null,
     createdAt: '2026-03-20T00:00:00Z',
     updatedAt: '2026-03-20T00:00:00Z',
     ...overrides,
@@ -511,6 +512,31 @@ describe('generateDashboardAlerts', () => {
       expect(ovAlerts).toHaveLength(0);
     });
 
+    it('does not alert when a later same-day follow-up log exists after ovulation', () => {
+      const mare = makeMare();
+      const ovLog = makeDailyLog({
+        id: 'log-ov',
+        date: '2026-03-25',
+        time: '08:00',
+        ovulationDetected: true,
+      });
+      const followUp = makeDailyLog({
+        id: 'log-followup',
+        date: '2026-03-25',
+        time: '14:00',
+      });
+
+      const result = generateDashboardAlerts(
+        makeInput({
+          mares: [mare],
+          dailyLogs: [ovLog, followUp],
+        })
+      );
+
+      const ovAlerts = result.filter((a) => a.kind === 'recentOvulation');
+      expect(ovAlerts).toHaveLength(0);
+    });
+
     it('does not alert when mare has no daily logs', () => {
       const mare = makeMare();
 
@@ -627,6 +653,32 @@ describe('generateDashboardAlerts', () => {
       const ovLog = makeDailyLog({
         id: 'log-ov',
         date: '2026-03-25',
+        ovulationDetected: true,
+      });
+
+      const result = generateDashboardAlerts(
+        makeInput({
+          mares: [mare],
+          dailyLogs: [heatLog, ovLog],
+        })
+      );
+
+      const heatAlerts = result.filter((a) => a.kind === 'heatActivity');
+      expect(heatAlerts).toHaveLength(0);
+    });
+
+    it('does not alert when a later same-day ovulation is recorded after a heat log', () => {
+      const mare = makeMare();
+      const heatLog = makeDailyLog({
+        id: 'log-heat',
+        date: '2026-03-25',
+        time: '08:00',
+        teasingScore: 5,
+      });
+      const ovLog = makeDailyLog({
+        id: 'log-ov',
+        date: '2026-03-25',
+        time: '16:00',
         ovulationDetected: true,
       });
 

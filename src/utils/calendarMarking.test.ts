@@ -5,6 +5,7 @@ import { BreedingRecord, DailyLog, FoalingRecord, MedicationLog, PregnancyCheck 
 
 function makeDailyLog(overrides: Partial<DailyLog> & { id: string; date: string; mareId: string }): DailyLog {
   return {
+    time: null,
     teasingScore: null,
     rightOvary: null,
     leftOvary: null,

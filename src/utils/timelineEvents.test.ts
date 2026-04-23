@@ -5,6 +5,7 @@ import { BreedingRecord, DailyLog, FoalingRecord, MedicationLog, PregnancyCheck 
 
 function makeDailyLog(overrides: Partial<DailyLog> & { id: string; date: string; mareId: string }): DailyLog {
   return {
+    time: null,
     teasingScore: null,
     rightOvary: null,
     leftOvary: null,
@@ -164,6 +165,32 @@ describe('buildTimelineEvents', () => {
       expect(march11[0].type).toBe('ovulation');
 
       expect(march10.map((e) => e.type)).toEqual(['foaling', 'pregnancyCheck', 'breeding', 'heat']);
+    });
+
+    it('sorts same-date daily log events by log time before daily-log type priority', () => {
+      const sameDate = '2026-03-10';
+      const logs = [
+        makeDailyLog({ id: 'log-heat-late', date: sameDate, mareId: MARE_ID, time: '16:00', teasingScore: 4 }),
+        makeDailyLog({ id: 'log-ovulation-early', date: sameDate, mareId: MARE_ID, time: '08:00', ovulationDetected: true }),
+      ];
+
+      const result = buildTimelineEvents(logs, [], [], []);
+
+      expect(result.map((event) => event.id)).toEqual(['log-heat-late', 'log-ovulation-early']);
+      expect(result.map((event) => event.type)).toEqual(['heat', 'ovulation']);
+    });
+
+    it('keeps cross-type priority ahead of same-date daily log events', () => {
+      const sameDate = '2026-03-10';
+      const logs = [
+        makeDailyLog({ id: 'log-heat-late', date: sameDate, mareId: MARE_ID, time: '16:00', teasingScore: 4 }),
+        makeDailyLog({ id: 'log-ovulation-early', date: sameDate, mareId: MARE_ID, time: '08:00', ovulationDetected: true }),
+      ];
+      const breedings = [makeBreedingRecord({ id: 'br-1', date: sameDate, mareId: MARE_ID })];
+
+      const result = buildTimelineEvents(logs, breedings, [], []);
+
+      expect(result.map((event) => event.id)).toEqual(['br-1', 'log-heat-late', 'log-ovulation-early']);
     });
   });
 

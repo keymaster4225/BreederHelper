@@ -14,6 +14,7 @@ import {
   estimateFoalingDate,
 } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
+import { formatDailyLogTime } from '@/utils/dailyLogTime';
 import { formatLocalDate } from '@/utils/dates';
 import { formatRoute } from '@/utils/medications';
 import { formatBreedingMethod, formatFoalSex, formatOutcome, getFoalSexColor, getOutcomeColor } from '@/utils/outcomeDisplay';
@@ -64,12 +65,16 @@ function EventTypeBadge({ type, result }: { type: TimelineEvent['type']; result?
   return <StatusBadge label={labels[type]} backgroundColor={bgColor} textColor="#FFFFFF" />;
 }
 
+function formatDailyLogEventTitle(log: DailyLog): string {
+  return `${log.date} at ${formatDailyLogTime(log.time)}`;
+}
+
 function HeatCard({ event, navigation, mareId }: { event: TimelineEvent; navigation: Props['navigation']; mareId: string }): JSX.Element {
   const log = event.data as DailyLog;
   return (
     <View style={cardStyles.card}>
       <View style={cardStyles.cardHeader}>
-        <Text style={cardStyles.cardTitle}>{event.date}</Text>
+        <Text style={cardStyles.cardTitle}>{formatDailyLogEventTitle(log)}</Text>
         <EditIconButton onPress={() => navigation.navigate('DailyLogForm', { mareId, logId: log.id })} />
       </View>
       <View style={cardStyles.cardRow}>
@@ -85,7 +90,7 @@ function OvulationCard({ event, navigation, mareId }: { event: TimelineEvent; na
   return (
     <View style={cardStyles.card}>
       <View style={cardStyles.cardHeader}>
-        <Text style={cardStyles.cardTitle}>{event.date}</Text>
+        <Text style={cardStyles.cardTitle}>{formatDailyLogEventTitle(log)}</Text>
         <EditIconButton onPress={() => navigation.navigate('DailyLogForm', { mareId, logId: log.id })} />
       </View>
       <View style={cardStyles.cardRow}>

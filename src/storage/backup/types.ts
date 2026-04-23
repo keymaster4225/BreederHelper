@@ -22,7 +22,8 @@ export const BACKUP_SCHEMA_VERSION_V3 = 3 as const;
 export const BACKUP_SCHEMA_VERSION_V4 = 4 as const;
 export const BACKUP_SCHEMA_VERSION_V5 = 5 as const;
 export const BACKUP_SCHEMA_VERSION_V6 = 6 as const;
-export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V6;
+export const BACKUP_SCHEMA_VERSION_V7 = 7 as const;
+export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V7;
 
 export const BACKUP_TABLE_NAMES = [
   'mares',
@@ -140,7 +141,7 @@ export type BackupDailyLogRowLegacy = {
   readonly updated_at: BackupIsoDateTime;
 };
 
-export type BackupDailyLogRow = BackupDailyLogRowLegacy & {
+export type BackupDailyLogRowV4 = BackupDailyLogRowLegacy & {
   readonly right_ovary_ovulation: 0 | 1 | null;
   readonly right_ovary_follicle_state: FollicleState | null;
   readonly right_ovary_follicle_measurements_mm: string;
@@ -156,6 +157,12 @@ export type BackupDailyLogRow = BackupDailyLogRowLegacy & {
   readonly discharge_observed: 0 | 1 | null;
   readonly discharge_notes: string | null;
 };
+
+export type BackupDailyLogRowV7 = BackupDailyLogRowV4 & {
+  readonly time: string | null;
+};
+
+export type BackupDailyLogRow = BackupDailyLogRowV7;
 
 export type BackupUterineFluidRow = {
   readonly id: string;
@@ -397,7 +404,7 @@ export type BackupTablesV3 = {
 export type BackupTablesV4 = {
   readonly mares: readonly BackupMareRowV2[];
   readonly stallions: readonly BackupStallionRow[];
-  readonly daily_logs: readonly BackupDailyLogRow[];
+  readonly daily_logs: readonly BackupDailyLogRowV4[];
   readonly uterine_fluid: readonly BackupUterineFluidRow[];
   readonly breeding_records: readonly BackupBreedingRecordRow[];
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
@@ -412,7 +419,7 @@ export type BackupTablesV4 = {
 export type BackupTablesV5 = {
   readonly mares: readonly BackupMareRowV2[];
   readonly stallions: readonly BackupStallionRow[];
-  readonly daily_logs: readonly BackupDailyLogRow[];
+  readonly daily_logs: readonly BackupDailyLogRowV4[];
   readonly uterine_fluid: readonly BackupUterineFluidRow[];
   readonly breeding_records: readonly BackupBreedingRecordRow[];
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
@@ -427,7 +434,22 @@ export type BackupTablesV5 = {
 export type BackupTablesV6 = {
   readonly mares: readonly BackupMareRowV6[];
   readonly stallions: readonly BackupStallionRow[];
-  readonly daily_logs: readonly BackupDailyLogRow[];
+  readonly daily_logs: readonly BackupDailyLogRowV4[];
+  readonly uterine_fluid: readonly BackupUterineFluidRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
+  readonly foaling_records: readonly BackupFoalingRecordRow[];
+  readonly foals: readonly BackupFoalRow[];
+  readonly medication_logs: readonly BackupMedicationLogRow[];
+  readonly semen_collections: readonly BackupSemenCollectionRowV3[];
+  readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
+  readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
+};
+
+export type BackupTablesV7 = {
+  readonly mares: readonly BackupMareRowV6[];
+  readonly stallions: readonly BackupStallionRow[];
+  readonly daily_logs: readonly BackupDailyLogRowV7[];
   readonly uterine_fluid: readonly BackupUterineFluidRow[];
   readonly breeding_records: readonly BackupBreedingRecordRow[];
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
@@ -487,13 +509,22 @@ export type BackupEnvelopeV6 = {
   readonly tables: BackupTablesV6;
 };
 
+export type BackupEnvelopeV7 = {
+  readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V7;
+  readonly createdAt: BackupIsoDateTime;
+  readonly app: BackupAppMetadata;
+  readonly settings: BackupSettings;
+  readonly tables: BackupTablesV7;
+};
+
 export type BackupEnvelope =
   | BackupEnvelopeV1
   | BackupEnvelopeV2
   | BackupEnvelopeV3
   | BackupEnvelopeV4
   | BackupEnvelopeV5
-  | BackupEnvelopeV6;
+  | BackupEnvelopeV6
+  | BackupEnvelopeV7;
 
 export type BackupPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;

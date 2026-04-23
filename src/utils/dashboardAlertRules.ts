@@ -1,4 +1,5 @@
 import { Foal, LocalDate, calculateDaysPostBreeding, estimateFoalingDate } from '@/models/types';
+import { isDailyLogAfter } from '@/utils/dailyLogTime';
 
 import { MareAlertContext } from '@/utils/dashboardAlertContext';
 import {
@@ -97,7 +98,9 @@ function checkRecentOvulation(
 
   if (!ovulationLog) return null;
 
-  const hasFollowUp = ctx.dailyLogsDesc.some((log) => log.date > ovulationLog.date);
+  const hasFollowUp = ctx.dailyLogsDesc.some(
+    (log) => log.id !== ovulationLog.id && isDailyLogAfter(log, ovulationLog),
+  );
   if (hasFollowUp) return null;
 
   return {
@@ -132,7 +135,7 @@ function checkHeatActivity(
   if (!heatLog) return null;
 
   const hasOvulation = ctx.dailyLogsDesc.some(
-    (log) => log.ovulationDetected && log.date >= heatLog.date,
+    (log) => log.id !== heatLog.id && log.ovulationDetected && isDailyLogAfter(log, heatLog),
   );
   if (hasOvulation) return null;
 

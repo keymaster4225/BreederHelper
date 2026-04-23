@@ -7,6 +7,7 @@ const BASE_LOG: DailyLog = {
   id: 'log-1',
   mareId: 'mare-1',
   date: '2026-04-21',
+  time: null,
   teasingScore: 3,
   rightOvary: 'legacy right',
   leftOvary: 'legacy left',

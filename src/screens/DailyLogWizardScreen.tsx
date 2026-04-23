@@ -84,9 +84,12 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
           {wizard.currentStepIndex === 0 ? (
             <BasicsStep
               date={wizard.date}
+              time={wizard.time}
               teasingScore={wizard.teasingScore}
               errors={wizard.errors.basics}
+              isTimeClearable={wizard.isTimeClearable}
               onDateChange={wizard.setDate}
+              onTimeChange={wizard.setTime}
               onTeasingScoreChange={wizard.setTeasingScore}
             />
           ) : null}
@@ -133,6 +136,7 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
           {wizard.currentStepIndex === 4 ? (
             <ReviewStep
               date={wizard.date}
+              time={wizard.time}
               teasingScore={wizard.teasingScore}
               rightOvary={wizard.rightOvary}
               leftOvary={wizard.leftOvary}

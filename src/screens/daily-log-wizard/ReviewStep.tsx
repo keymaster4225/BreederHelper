@@ -19,9 +19,11 @@ import {
   type ScoreOption,
 } from '@/hooks/useDailyLogWizard';
 import { borderRadius, colors, spacing, typography } from '@/theme';
+import { formatDailyLogTime } from '@/utils/dailyLogTime';
 
 type Props = {
   date: string;
+  time: string;
   teasingScore: ScoreOption;
   rightOvary: DailyLogWizardOvaryDraft;
   leftOvary: DailyLogWizardOvaryDraft;
@@ -165,6 +167,7 @@ function ReviewSection({
 
 export function ReviewStep({
   date,
+  time,
   teasingScore,
   rightOvary,
   leftOvary,
@@ -191,7 +194,7 @@ export function ReviewStep({
     <>
       <ReviewSection
         title="Basics"
-        summary={`Date: ${date}\nTeasing: ${formatScoreValue(teasingScore)}`}
+        summary={`Date: ${date}\nTime: ${formatDailyLogTime(time || null)}\nTeasing: ${formatScoreValue(teasingScore)}`}
         editLabel="Edit Basics"
         onEdit={() => onJumpToStep(0)}
       />

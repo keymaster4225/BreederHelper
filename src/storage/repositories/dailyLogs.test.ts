@@ -11,6 +11,7 @@ vi.mock('@/storage/dataInvalidation', () => ({
 import {
   createDailyLog,
   deleteDailyLog,
+  listAllDailyLogs,
   parseFollicleMeasurementsJson,
   parseOvaryStructuresJson,
   updateDailyLog,
@@ -32,11 +33,12 @@ function createFakeDb(): FakeDb {
   };
 }
 
-function createExistingDailyLogRow() {
+function createExistingDailyLogRow(overrides: Record<string, unknown> = {}) {
   return {
     id: 'log-1',
     mare_id: 'mare-1',
     date: '2026-04-01',
+    time: '08:15',
     teasing_score: null,
     right_ovary: 'legacy right',
     left_ovary: 'legacy left',
@@ -61,6 +63,7 @@ function createExistingDailyLogRow() {
     notes: null,
     created_at: '2026-04-01T00:00:00.000Z',
     updated_at: '2026-04-01T00:00:00.000Z',
+    ...overrides,
   };
 }
 
@@ -76,14 +79,27 @@ describe('daily log repository structured storage', () => {
       id: 'log-1',
       mareId: 'mare-1',
       date: '2026-04-01',
+      time: '08:00',
       ovulationDetected: true,
     }, db);
 
     expect(db.runAsync).toHaveBeenCalledTimes(1);
     const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[6]).toBe(1);
-    expect(params[10]).toBeNull();
-    expect(params[15]).toBeNull();
+    expect(params[3]).toBe('08:00');
+    expect(params[7]).toBe(1);
+    expect(params[11]).toBeNull();
+    expect(params[16]).toBeNull();
+  });
+
+  it('preserves existing time when update omits time', async () => {
+    db.getFirstAsync.mockResolvedValue(createExistingDailyLogRow());
+
+    await updateDailyLog('log-1', {
+      date: '2026-04-02',
+    }, db);
+
+    const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
+    expect(params[1]).toBe('08:15');
   });
 
   it('preserves existing global ovulation when update stays in legacy mode', async () => {
@@ -94,7 +110,7 @@ describe('daily log repository structured storage', () => {
     }, db);
 
     const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[4]).toBe(1);
+    expect(params[5]).toBe(1);
   });
 
   it('derives compatibility ovulation from structured side values when structured mode is active', async () => {
@@ -108,9 +124,9 @@ describe('daily log repository structured storage', () => {
     }, db);
 
     const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[4]).toBe(1);
-    expect(params[8]).toBe(1);
-    expect(params[13]).toBeNull();
+    expect(params[5]).toBe(1);
+    expect(params[9]).toBe(1);
+    expect(params[14]).toBeNull();
   });
 
   it('stores empty measurement arrays when follicle state is not measured', async () => {
@@ -118,12 +134,13 @@ describe('daily log repository structured storage', () => {
       id: 'log-1',
       mareId: 'mare-1',
       date: '2026-04-01',
+      time: '08:00',
       rightOvaryFollicleState: 'large',
       rightOvaryFollicleMeasurementsMm: [35, 36],
     }, db);
 
     const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[12]).toBe('[]');
+    expect(params[13]).toBe('[]');
   });
 
   it('normalizes discharge notes dependency on dischargeObserved', async () => {
@@ -136,8 +153,8 @@ describe('daily log repository structured storage', () => {
     }, db);
 
     const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[20]).toBe(0);
-    expect(params[21]).toBeNull();
+    expect(params[21]).toBe(0);
+    expect(params[22]).toBeNull();
   });
 
   it('replaces fluid pockets in the same transaction as parent update', async () => {
@@ -152,6 +169,75 @@ describe('daily log repository structured storage', () => {
     expect(db.runAsync.mock.calls[0]?.[0]).toContain('UPDATE daily_logs');
     expect(db.runAsync.mock.calls[1]?.[0]).toContain('DELETE FROM uterine_fluid');
     expect(db.runAsync.mock.calls[2]?.[0]).toContain('INSERT INTO uterine_fluid');
+  });
+
+  it('rejects create when time is missing', async () => {
+    await expect(
+      createDailyLog({
+        id: 'log-1',
+        mareId: 'mare-1',
+        date: '2026-04-01',
+      } as never, db),
+    ).rejects.toThrow('Daily log time is required.');
+  });
+
+  it('rejects create when time is invalid', async () => {
+    await expect(
+      createDailyLog({
+        id: 'log-1',
+        mareId: 'mare-1',
+        date: '2026-04-01',
+        time: '29:30',
+      }, db),
+    ).rejects.toThrow('Daily log time must be a valid HH:MM value.');
+  });
+
+  it('allows an untimed legacy row to remain untimed on update', async () => {
+    db.getFirstAsync.mockResolvedValue(createExistingDailyLogRow({ time: null }));
+
+    await updateDailyLog('log-1', {
+      date: '2026-04-02',
+      time: null,
+    }, db);
+
+    const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
+    expect(params[1]).toBeNull();
+  });
+
+  it('allows an untimed legacy row to gain a valid time', async () => {
+    db.getFirstAsync.mockResolvedValue(createExistingDailyLogRow({ time: null }));
+
+    await updateDailyLog('log-1', {
+      date: '2026-04-02',
+      time: '16:45',
+    }, db);
+
+    const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
+    expect(params[1]).toBe('16:45');
+  });
+
+  it('rejects clearing a timed row back to null', async () => {
+    db.getFirstAsync.mockResolvedValue(createExistingDailyLogRow({ time: '16:45' }));
+
+    await expect(
+      updateDailyLog('log-1', {
+        date: '2026-04-02',
+        time: null,
+      }, db),
+    ).rejects.toThrow('Timed daily logs cannot be cleared back to untimed.');
+  });
+
+  it('orders listAllDailyLogs with timed rows before untimed rows on the same day', async () => {
+    db.getAllAsync.mockResolvedValue([
+      createExistingDailyLogRow({ id: 'afternoon', time: '16:00', created_at: '2026-04-01T16:00:00.000Z' }),
+      createExistingDailyLogRow({ id: 'morning', time: '08:00', created_at: '2026-04-01T08:00:00.000Z' }),
+      createExistingDailyLogRow({ id: 'untimed', time: null, created_at: '2026-04-01T07:00:00.000Z' }),
+    ]);
+
+    const result = await listAllDailyLogs(db);
+
+    expect(result.map((log) => log.id)).toEqual(['afternoon', 'morning', 'untimed']);
+    expect(db.getAllAsync.mock.calls[0]?.[0]).toContain('CASE WHEN time IS NULL THEN 1 ELSE 0 END');
   });
 
   it('deletes uterine fluid children before deleting the daily log parent row', async () => {

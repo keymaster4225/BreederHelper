@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import type { DailyLogDetail, DailyLogOvulationSource, FluidLocation, FollicleState, OvaryConsistency, OvaryStructure, UterineToneCategory, CervicalFirmness } from '@/models/types';
 import { createDailyLog, deleteDailyLog, getDailyLogById, updateDailyLog } from '@/storage/repositories';
 import { confirmDelete } from '@/utils/confirmDelete';
+import { getCurrentTimeHHMM } from '@/utils/dailyLogTime';
 import { toLocalDate } from '@/utils/dates';
 import { newId } from '@/utils/id';
 
@@ -74,6 +75,37 @@ type UpsertFluidPocketInput = {
   location: FluidLocation;
 };
 
+const REQUIRED_TIME_ERROR = 'Time is required.';
+const INVALID_TIME_ERROR = 'Time must be a valid HH:MM value.';
+const DUPLICATE_TIME_ERROR = 'A daily log already exists for this mare at that date and time.';
+
+function getBasicsTimeErrorForSaveFailure(message: string): string | null {
+  const normalized = message.toLowerCase();
+
+  if (message.includes('Daily log time is required.')) {
+    return REQUIRED_TIME_ERROR;
+  }
+
+  if (
+    message.includes('Daily log time must be a valid HH:MM value.') ||
+    message.includes('Timed daily logs cannot be cleared back to untimed.')
+  ) {
+    return INVALID_TIME_ERROR;
+  }
+
+  if (
+    (normalized.includes('unique') &&
+      normalized.includes('daily_logs') &&
+      normalized.includes('date') &&
+      normalized.includes('time')) ||
+    normalized.includes('idx_daily_logs_mare_date_time_unique')
+  ) {
+    return DUPLICATE_TIME_ERROR;
+  }
+
+  return null;
+}
+
 export function useDailyLogWizard({
   mareId,
   logId,
@@ -87,6 +119,7 @@ export function useDailyLogWizard({
 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [date, setDate] = useState<string>(() => (isEdit ? '' : toLocalDate(today)));
+  const [time, setTime] = useState<string>(() => (isEdit ? '' : getCurrentTimeHHMM(today)));
   const [teasingScore, setTeasingScore] = useState<ScoreOption>('');
   const [rightOvary, setRightOvary] = useState<DailyLogWizardOvaryDraft>(createEmptyOvaryDraft);
   const [leftOvary, setLeftOvary] = useState<DailyLogWizardOvaryDraft>(createEmptyOvaryDraft);
@@ -97,6 +130,7 @@ export function useDailyLogWizard({
     leftOvary: null,
     uterineTone: null,
   });
+  const [isTimeClearable, setIsTimeClearable] = useState(false);
   const [legacyOvulationDetected, setLegacyOvulationDetected] = useState<boolean | null>(null);
   const [ovulationSource, setOvulationSource] = useState<DailyLogOvulationSource>('structured');
   const [errors, setErrors] = useState<DailyLogWizardErrors>(createEmptyErrors);
@@ -123,12 +157,14 @@ export function useDailyLogWizard({
   const hydrateFromRecord = useCallback((record: DailyLogDetail): void => {
     const hydrated = hydrateDailyLogWizardRecord(record);
     setDate(hydrated.date);
+    setTime(hydrated.time);
     setTeasingScore(hydrated.teasingScore);
     setRightOvary(hydrated.rightOvary);
     setLeftOvary(hydrated.leftOvary);
     setUterus(hydrated.uterus);
     setNotes(hydrated.notes);
     setLegacyNotes(hydrated.legacyNotes);
+    setIsTimeClearable(record.time == null);
     setLegacyOvulationDetected(hydrated.legacyOvulationDetected);
     setOvulationSource(hydrated.ovulationSource);
     setErrors(createEmptyErrors());
@@ -138,6 +174,8 @@ export function useDailyLogWizard({
     if (!logId) {
       setIsLoading(false);
       setCurrentStepIndex(0);
+      setTime(getCurrentTimeHHMM(today));
+      setIsTimeClearable(false);
       return;
     }
 
@@ -161,7 +199,7 @@ export function useDailyLogWizard({
         },
       },
     );
-  }, [hydrateFromRecord, logId, runLoad, setIsLoading]);
+  }, [hydrateFromRecord, logId, runLoad, setIsLoading, today]);
 
   const setOvaryForSide = useCallback(
     (side: OvarySide, updater: (current: DailyLogWizardOvaryDraft) => DailyLogWizardOvaryDraft): void => {
@@ -381,10 +419,10 @@ export function useDailyLogWizard({
   }, [updateUterus]);
 
   const applyBasicsValidation = useCallback((): boolean => {
-    const nextErrors = validateBasics(date);
+    const nextErrors = validateBasics(date, time, isTimeClearable);
     setErrors((current) => ({ ...current, basics: nextErrors }));
-    return !nextErrors.date;
-  }, [date]);
+    return !nextErrors.date && !nextErrors.time;
+  }, [date, isTimeClearable, time]);
 
   const applyOvaryValidation = useCallback(
     (side: OvarySide): boolean => {
@@ -459,6 +497,17 @@ export function useDailyLogWizard({
     }));
   }, []);
 
+  const setTimeValue = useCallback((value: string): void => {
+    setTime(value);
+    setErrors((current) => ({
+      ...current,
+      basics: {
+        ...current.basics,
+        time: undefined,
+      },
+    }));
+  }, []);
+
   const save = useCallback(async (): Promise<void> => {
     const basicsValid = applyBasicsValidation();
     const rightOvaryValid = applyOvaryValidation('right');
@@ -490,6 +539,7 @@ export function useDailyLogWizard({
         const payload = buildDailyLogPayload({
           isEdit,
           date,
+          time,
           teasingScore,
           rightOvary,
           leftOvary,
@@ -502,10 +552,15 @@ export function useDailyLogWizard({
         if (logId) {
           await updateDailyLog(logId, payload);
         } else {
+          if (payload.time == null) {
+            throw new Error('Daily log time is required.');
+          }
+
           await createDailyLog({
             id: newId(),
             mareId,
             ...payload,
+            time: payload.time,
           });
         }
 
@@ -514,8 +569,16 @@ export function useDailyLogWizard({
       {
         onError: (error: unknown) => {
           const message = error instanceof Error ? error.message : 'Failed to save daily log.';
-          if (message.toLowerCase().includes('unique')) {
-            Alert.alert('Duplicate date', 'A daily log already exists for this mare on that date.');
+          const timeError = getBasicsTimeErrorForSaveFailure(message);
+          if (timeError) {
+            setErrors((current) => ({
+              ...current,
+              basics: {
+                ...current.basics,
+                time: timeError,
+              },
+            }));
+            setCurrentStepIndex(0);
             return;
           }
 
@@ -529,6 +592,7 @@ export function useDailyLogWizard({
     applyUterusValidation,
     date,
     isEdit,
+    time,
     leftOvary,
     legacyOvulationDetected,
     logId,
@@ -572,6 +636,7 @@ export function useDailyLogWizard({
     currentStepIndex,
     currentStepTitle: DAILY_LOG_WIZARD_STEPS[currentStepIndex],
     date,
+    time,
     teasingScore,
     rightOvary,
     leftOvary,
@@ -580,12 +645,14 @@ export function useDailyLogWizard({
     legacyNotes,
     legacyOvulationDetected,
     ovulationSource,
+    isTimeClearable,
     errors,
     today,
     isLoading,
     isSaving,
     isDeleting,
     setDate: setDateValue,
+    setTime: setTimeValue,
     setTeasingScore,
     setNotes,
     setOvaryOvulation,

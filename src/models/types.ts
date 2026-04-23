@@ -257,6 +257,7 @@ export interface DailyLog {
   id: UUID;
   mareId: UUID;
   date: LocalDate;
+  time: string | null;
   teasingScore?: number | null; // 0-5
   rightOvary?: string | null;
   leftOvary?: string | null;

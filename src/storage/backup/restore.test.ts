@@ -32,6 +32,7 @@ import {
   createBackupFixtureV3,
   createBackupFixtureV4,
   createBackupFixtureV5,
+  createBackupFixtureV6,
 } from './testFixtures';
 import { restoreBackup } from './restore';
 import { validateBackup, validateBackupJson } from './validate';
@@ -64,7 +65,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 6,
+        schemaVersion: 7,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -73,7 +74,7 @@ describe('restoreBackup', () => {
       fileUri: 'file:///snapshot.json',
       createdAt: backup.createdAt,
       mareCount: 1,
-      schemaVersion: 6,
+      schemaVersion: 7,
     });
 
     const result = await restoreBackup(JSON.stringify(backup), {
@@ -127,6 +128,9 @@ describe('restoreBackup', () => {
     const breedingInsertParams = (breedingInsertCall?.[1] ?? []) as unknown[];
     expect(breedingInsertParams[12]).toBe(0.5);
     expect(sqlCalls[17]).toContain('INSERT INTO daily_logs');
+    const dailyLogInsertCall = db.runAsync.mock.calls[17] as unknown[] | undefined;
+    const dailyLogInsertParams = (dailyLogInsertCall?.[1] ?? []) as unknown[];
+    expect(dailyLogInsertParams[3]).toBe('08:30');
     expect(sqlCalls[18]).toContain('INSERT INTO uterine_fluid');
     expect(sqlCalls[19]).toContain('INSERT INTO medication_logs');
     expect(sqlCalls[20]).toContain('INSERT INTO pregnancy_checks');
@@ -162,7 +166,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 6,
+        schemaVersion: 7,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -203,7 +207,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 6,
+        schemaVersion: 7,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -242,7 +246,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 6,
+        schemaVersion: 7,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -280,7 +284,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 6,
+        schemaVersion: 7,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -397,6 +401,43 @@ describe('restoreBackup', () => {
     expect((mareInsertCall?.[1] as unknown[] | undefined)?.[6]).toBe(0);
   });
 
+  it('defaults daily_log time to null when restoring a v6 backup', async () => {
+    const backup = createBackupFixtureV6();
+    const db = {
+      runAsync: vi.fn(async () => undefined),
+      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
+        await callback();
+      }),
+    };
+
+    vi.mocked(validateBackup).mockReturnValue({
+      ok: true,
+      backup,
+      preview: {
+        createdAt: backup.createdAt,
+        mareCount: 1,
+        stallionCount: 1,
+        dailyLogCount: 1,
+        onboardingComplete: true,
+        schemaVersion: 6,
+      },
+    });
+    vi.mocked(getDb).mockResolvedValue(db as never);
+    vi.mocked(setOnboardingCompleteValue).mockResolvedValue(undefined);
+
+    const result = await restoreBackup(backup, { skipSafetySnapshot: true });
+
+    expect(result).toEqual({
+      ok: true,
+      safetySnapshotCreated: false,
+    });
+    const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
+    const dailyLogInsertCall = runCalls.find(([sql]) =>
+      typeof sql === 'string' && sql.includes('INSERT INTO daily_logs'),
+    );
+    expect((dailyLogInsertCall?.[1] as unknown[] | undefined)?.[3]).toBeNull();
+  });
+
   it('normalizes frozen semen batches to empty when restoring a v4 backup', async () => {
     const backup = createBackupFixtureV4();
     const db = {
@@ -486,20 +527,21 @@ describe('restoreBackup', () => {
       );
       const dailyLogInsertParams = (dailyLogInsertCall?.[1] as unknown[] | undefined) ?? [];
 
-      expect(dailyLogInsertParams[10]).toBeNull();
+      expect(dailyLogInsertParams[3]).toBeNull();
       expect(dailyLogInsertParams[11]).toBeNull();
-      expect(dailyLogInsertParams[12]).toBe('[]');
-      expect(dailyLogInsertParams[13]).toBeNull();
-      expect(dailyLogInsertParams[14]).toBe('[]');
-      expect(dailyLogInsertParams[15]).toBeNull();
+      expect(dailyLogInsertParams[12]).toBeNull();
+      expect(dailyLogInsertParams[13]).toBe('[]');
+      expect(dailyLogInsertParams[14]).toBeNull();
+      expect(dailyLogInsertParams[15]).toBe('[]');
       expect(dailyLogInsertParams[16]).toBeNull();
-      expect(dailyLogInsertParams[17]).toBe('[]');
-      expect(dailyLogInsertParams[18]).toBeNull();
-      expect(dailyLogInsertParams[19]).toBe('[]');
-      expect(dailyLogInsertParams[20]).toBeNull();
+      expect(dailyLogInsertParams[17]).toBeNull();
+      expect(dailyLogInsertParams[18]).toBe('[]');
+      expect(dailyLogInsertParams[19]).toBeNull();
+      expect(dailyLogInsertParams[20]).toBe('[]');
       expect(dailyLogInsertParams[21]).toBeNull();
       expect(dailyLogInsertParams[22]).toBeNull();
       expect(dailyLogInsertParams[23]).toBeNull();
+      expect(dailyLogInsertParams[24]).toBeNull();
 
       const uterineFluidInsertCall = runCalls.find(([sql]) =>
         typeof sql === 'string' && sql.includes('INSERT INTO uterine_fluid'),

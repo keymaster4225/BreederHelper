@@ -18,9 +18,12 @@ function createFakeDb(options: {
   semenCollectionsColumns?: string[];
   collectionDoseEventColumns?: string[];
   dailyLogsColumns?: string[];
+  dailyLogsSql?: string;
   mareColumns?: string[];
   hasUterineFluidTable?: boolean;
   hasUterineFluidIndex?: boolean;
+  hasDailyLogsTimedUniqueIndex?: boolean;
+  hasDailyLogsUntimedUniqueIndex?: boolean;
   hasFrozenSemenBatchesTable?: boolean;
   hasFrozenSemenBatchesStallionIndex?: boolean;
   hasFrozenSemenBatchesCollectionIndex?: boolean;
@@ -39,6 +42,36 @@ function createFakeDb(options: {
   const runCalls: Array<{ sql: string; params: unknown[] }> = [];
   let foreignKeysEnabled = true;
   let breedingRecordsSql = options.breedingRecordsSql;
+  const latestDailyLogsColumns = [
+    'id',
+    'mare_id',
+    'date',
+    'time',
+    'teasing_score',
+    'right_ovary',
+    'left_ovary',
+    'ovulation_detected',
+    'edema',
+    'uterine_tone',
+    'uterine_cysts',
+    'notes',
+    'created_at',
+    'updated_at',
+    'right_ovary_ovulation',
+    'right_ovary_follicle_state',
+    'right_ovary_follicle_measurements_mm',
+    'right_ovary_consistency',
+    'right_ovary_structures',
+    'left_ovary_ovulation',
+    'left_ovary_follicle_state',
+    'left_ovary_follicle_measurements_mm',
+    'left_ovary_consistency',
+    'left_ovary_structures',
+    'uterine_tone_category',
+    'cervical_firmness',
+    'discharge_observed',
+    'discharge_notes',
+  ];
   let stallionsSql = options.stallionsSql ?? `
     CREATE TABLE stallions (
       id TEXT PRIMARY KEY,
@@ -68,12 +101,29 @@ function createFakeDb(options: {
     )
   `;
   let pendingBreedingRecordsSql: string | null = null;
+  let dailyLogsColumns = [...(options.dailyLogsColumns ?? latestDailyLogsColumns)];
+  let dailyLogsSql = options.dailyLogsSql ?? `
+    CREATE TABLE daily_logs (
+      id TEXT PRIMARY KEY,
+      mare_id TEXT NOT NULL,
+      date TEXT NOT NULL,
+      time TEXT
+    )
+  `;
   let breedingRecordRows = new Map(
     (options.breedingRecordRows ?? []).map((row) => [row.id, { ...row }]),
   );
   let pendingBreedingRecordRows: Map<string, { id: string; straw_volume_ml: number | null }> | null = null;
   let pendingStallionsSql: string | null = null;
   let pendingSemenCollectionsSql: string | null = null;
+  let pendingDailyLogsSql: string | null = null;
+  let hasUterineFluidTable = options.hasUterineFluidTable ?? true;
+  let hasUterineFluidIndex = options.hasUterineFluidIndex ?? true;
+  let hasDailyLogsTimedUniqueIndex = options.hasDailyLogsTimedUniqueIndex ?? true;
+  let hasDailyLogsUntimedUniqueIndex = options.hasDailyLogsUntimedUniqueIndex ?? true;
+  let hasFrozenSemenBatchesTable = options.hasFrozenSemenBatchesTable ?? false;
+  let hasFrozenSemenBatchesStallionIndex = options.hasFrozenSemenBatchesStallionIndex ?? false;
+  let hasFrozenSemenBatchesCollectionIndex = options.hasFrozenSemenBatchesCollectionIndex ?? false;
 
   const db = {
     async execAsync(sql: string): Promise<void> {
@@ -102,6 +152,18 @@ function createFakeDb(options: {
         );
       }
 
+      if (trimmed.startsWith('CREATE TABLE daily_logs_new')) {
+        pendingDailyLogsSql = trimmed.replace(/^CREATE TABLE daily_logs_new/i, 'CREATE TABLE daily_logs');
+      }
+
+      const addDailyLogColumnMatch = /^ALTER TABLE daily_logs\s+ADD COLUMN\s+([a-z_]+)/i.exec(trimmed);
+      if (addDailyLogColumnMatch) {
+        const [, columnName] = addDailyLogColumnMatch;
+        if (!dailyLogsColumns.includes(columnName)) {
+          dailyLogsColumns.push(columnName);
+        }
+      }
+
       if (trimmed === 'ALTER TABLE breeding_records_new RENAME TO breeding_records;' && pendingBreedingRecordsSql) {
         breedingRecordsSql = pendingBreedingRecordsSql;
         pendingBreedingRecordsSql = null;
@@ -127,6 +189,12 @@ function createFakeDb(options: {
         pendingSemenCollectionsSql = null;
       }
 
+      if (trimmed === 'ALTER TABLE daily_logs_new RENAME TO daily_logs;' && pendingDailyLogsSql) {
+        dailyLogsSql = pendingDailyLogsSql;
+        pendingDailyLogsSql = null;
+        dailyLogsColumns = [...latestDailyLogsColumns];
+      }
+
       if (trimmed === 'PRAGMA foreign_keys = OFF;') {
         foreignKeysEnabled = false;
       }
@@ -141,6 +209,34 @@ function createFakeDb(options: {
         foreignKeysEnabled
       ) {
         throw new Error('FOREIGN KEY constraint failed');
+      }
+
+      if (trimmed.startsWith('CREATE TABLE IF NOT EXISTS uterine_fluid')) {
+        hasUterineFluidTable = true;
+      }
+
+      if (trimmed.startsWith('CREATE INDEX IF NOT EXISTS idx_uterine_fluid_daily_log_id')) {
+        hasUterineFluidIndex = true;
+      }
+
+      if (trimmed.startsWith('CREATE TABLE frozen_semen_batches')) {
+        hasFrozenSemenBatchesTable = true;
+      }
+
+      if (trimmed.startsWith('CREATE INDEX IF NOT EXISTS idx_frozen_semen_batches_stallion_id')) {
+        hasFrozenSemenBatchesStallionIndex = true;
+      }
+
+      if (trimmed.startsWith('CREATE INDEX IF NOT EXISTS idx_frozen_semen_batches_collection_id')) {
+        hasFrozenSemenBatchesCollectionIndex = true;
+      }
+
+      if (trimmed.startsWith('CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_logs_mare_date_time_unique')) {
+        hasDailyLogsTimedUniqueIndex = true;
+      }
+
+      if (trimmed.startsWith('CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_logs_mare_date_untimed_unique')) {
+        hasDailyLogsUntimedUniqueIndex = true;
       }
     },
     async runAsync(sql: string, params: unknown[] = []): Promise<void> {
@@ -168,6 +264,9 @@ function createFakeDb(options: {
         }
         if (tableName === 'semen_collections') {
           return { sql: semenCollectionsSql } as T;
+        }
+        if (tableName === 'daily_logs') {
+          return { sql: dailyLogsSql } as T;
         }
         return null;
       }
@@ -199,13 +298,10 @@ function createFakeDb(options: {
         if (tableName === 'semen_collections_old' && options.hasSemenCollectionsOld) {
           return { name: tableName } as T;
         }
-        if (tableName === 'uterine_fluid' && (options.hasUterineFluidTable ?? true)) {
+        if (tableName === 'uterine_fluid' && hasUterineFluidTable) {
           return { name: tableName } as T;
         }
-        if (
-          tableName === 'frozen_semen_batches' &&
-          (options.hasFrozenSemenBatchesTable ?? false)
-        ) {
+        if (tableName === 'frozen_semen_batches' && hasFrozenSemenBatchesTable) {
           return { name: tableName } as T;
         }
         return null;
@@ -213,19 +309,19 @@ function createFakeDb(options: {
 
       if (trimmed === "SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?;") {
         const [indexName] = params as [string];
-        if (indexName === 'idx_uterine_fluid_daily_log_id' && (options.hasUterineFluidIndex ?? true)) {
+        if (indexName === 'idx_uterine_fluid_daily_log_id' && hasUterineFluidIndex) {
           return { name: indexName } as T;
         }
-        if (
-          indexName === 'idx_frozen_semen_batches_stallion_id' &&
-          (options.hasFrozenSemenBatchesStallionIndex ?? false)
-        ) {
+        if (indexName === 'idx_daily_logs_mare_date_time_unique' && hasDailyLogsTimedUniqueIndex) {
           return { name: indexName } as T;
         }
-        if (
-          indexName === 'idx_frozen_semen_batches_collection_id' &&
-          (options.hasFrozenSemenBatchesCollectionIndex ?? false)
-        ) {
+        if (indexName === 'idx_daily_logs_mare_date_untimed_unique' && hasDailyLogsUntimedUniqueIndex) {
+          return { name: indexName } as T;
+        }
+        if (indexName === 'idx_frozen_semen_batches_stallion_id' && hasFrozenSemenBatchesStallionIndex) {
+          return { name: indexName } as T;
+        }
+        if (indexName === 'idx_frozen_semen_batches_collection_id' && hasFrozenSemenBatchesCollectionIndex) {
           return { name: indexName } as T;
         }
         return null;
@@ -289,36 +385,7 @@ function createFakeDb(options: {
         return columns.map((name) => ({ name } as T));
       }
       if (trimmed === 'PRAGMA table_info(daily_logs);') {
-        const columns = options.dailyLogsColumns ?? [
-          'id',
-          'mare_id',
-          'date',
-          'teasing_score',
-          'right_ovary',
-          'left_ovary',
-          'ovulation_detected',
-          'edema',
-          'uterine_tone',
-          'uterine_cysts',
-          'notes',
-          'created_at',
-          'updated_at',
-          'right_ovary_ovulation',
-          'right_ovary_follicle_state',
-          'right_ovary_follicle_measurements_mm',
-          'right_ovary_consistency',
-          'right_ovary_structures',
-          'left_ovary_ovulation',
-          'left_ovary_follicle_state',
-          'left_ovary_follicle_measurements_mm',
-          'left_ovary_consistency',
-          'left_ovary_structures',
-          'uterine_tone_category',
-          'cervical_firmness',
-          'discharge_observed',
-          'discharge_notes',
-        ];
-        return columns.map((name) => ({ name } as T));
+        return dailyLogsColumns.map((name) => ({ name } as T));
       }
       if (trimmed === 'PRAGMA foreign_key_check;') {
         return (options.foreignKeyCheckRows ?? []) as T[];
@@ -610,7 +677,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([21, 22, 23]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([21, 22, 23, 24]);
   });
 
   it('applies migration022 when frozen_semen_batches artifacts are missing', async () => {
@@ -658,7 +725,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([22, 23]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([22, 23, 24]);
   });
 
   it('skips migration019 when target and dose volume columns already exist', async () => {
@@ -714,7 +781,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20, 21, 22, 23]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20, 21, 22, 23, 24]);
   });
 
   it('skips the repair migration when breeding_records already references semen_collections', async () => {
@@ -753,7 +820,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24]);
   });
 
   it('runs the repair migration when the legacy table still exists even if breeding_records already looks correct', async () => {
@@ -894,7 +961,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20, 21, 22, 23]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20, 21, 22, 23, 24]);
   });
 
   it('rebuilds stallions and semen_collections when canonical constraint checks are missing', async () => {
@@ -996,7 +1063,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE stallions_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20, 21, 22, 23]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20, 21, 22, 23, 24]);
   });
 
   it('fails the canonical repair migration with a targeted error when legacy stallion rows are invalid', async () => {
@@ -1064,5 +1131,92 @@ describe('applyMigrations', () => {
       execCalls.some((sql) => sql.includes('CHECK (is_recipient IN (0, 1))')),
     ).toBe(true);
     expect(runCalls.some(({ params }) => params[0] === 23)).toBe(true);
+  });
+
+  it('rebuilds daily_logs with time and partial unique indexes in migration024', async () => {
+    const { db, execCalls, queryCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 23 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY
+        )
+      `,
+      dailyLogsColumns: [
+        'id',
+        'mare_id',
+        'date',
+        'teasing_score',
+        'right_ovary',
+        'left_ovary',
+        'ovulation_detected',
+        'edema',
+        'uterine_tone',
+        'uterine_cysts',
+        'notes',
+        'created_at',
+        'updated_at',
+        'right_ovary_ovulation',
+        'right_ovary_follicle_state',
+        'right_ovary_follicle_measurements_mm',
+        'right_ovary_consistency',
+        'right_ovary_structures',
+        'left_ovary_ovulation',
+        'left_ovary_follicle_state',
+        'left_ovary_follicle_measurements_mm',
+        'left_ovary_consistency',
+        'left_ovary_structures',
+        'uterine_tone_category',
+        'cervical_firmness',
+        'discharge_observed',
+        'discharge_notes',
+      ],
+      hasDailyLogsTimedUniqueIndex: false,
+      hasDailyLogsUntimedUniqueIndex: false,
+    });
+
+    await applyMigrations(db as never);
+
+    expect(execCalls).toContain('PRAGMA foreign_keys = OFF;');
+    expect(execCalls).toContain('PRAGMA foreign_keys = ON;');
+    expect(queryCalls).toContain('PRAGMA foreign_key_check;');
+    const createTableSql = execCalls.find((sql) => sql.includes('CREATE TABLE daily_logs_new'));
+    expect(createTableSql).toContain('time TEXT');
+    expect(createTableSql).toContain("substr(time, 1, 2) BETWEEN '00' AND '23'");
+    expect(createTableSql).toContain('ovulation_detected IS NULL OR ovulation_detected IN (0, 1)');
+    const copySql = execCalls.find((sql) => sql.startsWith('INSERT INTO daily_logs_new'));
+    expect(copySql).toContain("COALESCE(right_ovary_follicle_measurements_mm, '[]')");
+    expect(copySql).toContain("COALESCE(left_ovary_structures, '[]')");
+    expect(copySql).toContain('CASE WHEN ovulation_detected IN (0, 1) THEN ovulation_detected ELSE NULL END');
+    expect(execCalls.some((sql) => sql.includes('DROP TABLE daily_logs;'))).toBe(true);
+    expect(execCalls.some((sql) => sql.includes('ALTER TABLE daily_logs_new RENAME TO daily_logs;'))).toBe(true);
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_logs_mare_date_time_unique'),
+      ),
+    ).toBe(true);
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_logs_mare_date_untimed_unique'),
+      ),
+    ).toBe(true);
+    expect(runCalls.some(({ params }) => params[0] === 24)).toBe(true);
+  });
+
+  it('skips migration024 when time and both partial unique indexes already exist', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 23 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY
+        )
+      `,
+      hasDailyLogsTimedUniqueIndex: true,
+      hasDailyLogsUntimedUniqueIndex: true,
+    });
+
+    await applyMigrations(db as never);
+
+    expect(execCalls).toHaveLength(1);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([24]);
   });
 });

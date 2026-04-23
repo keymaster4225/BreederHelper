@@ -4,13 +4,14 @@ import type {
   BackupEnvelopeV4,
   BackupEnvelopeV5,
   BackupEnvelopeV6,
+  BackupEnvelopeV7,
 } from './types';
 
 const BASE_TIMESTAMP = '2026-04-16T12:00:00.000Z';
 
-export function createBackupFixture(): BackupEnvelopeV6 {
+export function createBackupFixture(): BackupEnvelopeV7 {
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -60,6 +61,7 @@ export function createBackupFixture(): BackupEnvelopeV6 {
           id: 'log-1',
           mare_id: 'mare-1',
           date: '2026-04-10',
+          time: '08:30',
           teasing_score: 3,
           right_ovary: '35mm',
           left_ovary: null,
@@ -259,12 +261,37 @@ export function createBackupFixture(): BackupEnvelopeV6 {
   };
 }
 
-export function cloneBackupFixture(): BackupEnvelopeV6 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV6;
+export function cloneBackupFixture(): BackupEnvelopeV7 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV7;
+}
+
+export function createBackupFixtureV6(): BackupEnvelopeV6 {
+  const backupV7 = createBackupFixture();
+
+  return {
+    schemaVersion: 6,
+    createdAt: backupV7.createdAt,
+    app: backupV7.app,
+    settings: backupV7.settings,
+    tables: {
+      mares: backupV7.tables.mares,
+      stallions: backupV7.tables.stallions,
+      daily_logs: backupV7.tables.daily_logs.map(({ time: _time, ...row }) => row),
+      uterine_fluid: backupV7.tables.uterine_fluid,
+      breeding_records: backupV7.tables.breeding_records,
+      pregnancy_checks: backupV7.tables.pregnancy_checks,
+      foaling_records: backupV7.tables.foaling_records,
+      foals: backupV7.tables.foals,
+      medication_logs: backupV7.tables.medication_logs,
+      semen_collections: backupV7.tables.semen_collections,
+      collection_dose_events: backupV7.tables.collection_dose_events,
+      frozen_semen_batches: backupV7.tables.frozen_semen_batches,
+    },
+  };
 }
 
 export function createBackupFixtureV5(): BackupEnvelopeV5 {
-  const backupV6 = createBackupFixture();
+  const backupV6 = createBackupFixtureV6();
 
   return {
     schemaVersion: 5,
