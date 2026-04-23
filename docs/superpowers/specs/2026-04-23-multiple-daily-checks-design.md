@@ -177,7 +177,7 @@ All of these operate on date, not time:
   - New wizard: defaults to the current local time.
   - Edit of timestamped log: loads the log's time.
   - Edit of legacy NULL-time log: starts blank; saving while blank preserves NULL.
-- Input control: new `FormTimeInput` component wrapping `@react-native-community/datetimepicker` with `mode="time"`, mirroring the pattern of `FormDateInput`. Display in the user's local 12-hour format (e.g., `2:05 PM`); store internally as `HH:MM`.
+- Input control: new `FormTimeInput` component wrapping `@react-native-community/datetimepicker` with `mode="time"`, mirroring the pattern of `FormDateInput`. Store internally as 24-hour `HH:MM`; display as 12-hour `h:mm a` (e.g., `4:15 PM`), matching the English-only UI copy used elsewhere. No locale switching in this feature.
 - Needs `accessibilityLabel` per project convention.
 
 ### Daily Log Wizard — `ReviewStep.tsx`
@@ -218,7 +218,7 @@ All of these operate on date, not time:
   - New wizard: current local time as `HH:MM`.
   - Edit of timestamped log: that log's `time`.
   - Edit of legacy log: `null` / empty.
-- Validation: time required on create; optional on legacy edit.
+- Validation: extend the basics-step `errors` object (currently `{ date?: string }`) with `time?: string`. Time is required on create; optional on legacy edit (empty string preserves NULL).
 - Pass `time` to `createDailyLog` / `updateDailyLog`.
 
 ### Backup pipeline (`src/storage/backup/`)
