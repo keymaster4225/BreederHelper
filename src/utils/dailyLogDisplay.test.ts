@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { DailyLog } from '@/models/types';
-import { buildOvarySummary, buildUterusSummary } from './dailyLogDisplay';
+import { buildOvaryDetailLines, buildOvarySummary, buildUterusSummary } from './dailyLogDisplay';
 
 const BASE_LOG: DailyLog = {
   id: 'log-1',
@@ -53,6 +53,31 @@ describe('dailyLogDisplay', () => {
     expect(summary).toContain('Measurements 34, 36 mm');
     expect(summary).toContain('Consistency Firm');
     expect(summary).toContain('Structures Corpus Luteum');
+  });
+
+  it('builds structured ovary detail lines for compact card display', () => {
+    expect(
+      buildOvaryDetailLines(
+        {
+          ...BASE_LOG,
+          rightOvaryOvulation: false,
+          rightOvaryFollicleState: 'measured',
+          rightOvaryFollicleMeasurementsMm: [34, 36],
+          rightOvaryConsistency: 'firm',
+          rightOvaryStructures: ['corpusLuteum', 'hemorrhagicAnovulatoryFollicle'],
+        },
+        'right',
+      ),
+    ).toEqual([
+      { label: 'Ovulation', value: 'No' },
+      { label: 'Follicles', value: '34 mm, 36 mm' },
+      { label: 'Consistency', value: 'Firm' },
+      { label: 'Structures', value: 'Corpus Luteum, Hemorrhagic Anovulatory Follicle' },
+    ]);
+  });
+
+  it('builds legacy ovary detail notes when no structured data exists', () => {
+    expect(buildOvaryDetailLines(BASE_LOG, 'right')).toEqual([{ label: 'Notes', value: 'legacy right' }]);
   });
 
   it('falls back to legacy ovary text when no structured data exists', () => {

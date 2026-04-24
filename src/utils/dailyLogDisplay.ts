@@ -9,6 +9,11 @@ import {
 
 type OvarySide = 'right' | 'left';
 
+export type DailyLogDetailLine = {
+  readonly label: string;
+  readonly value: string;
+};
+
 function hasText(value: string | null | undefined): boolean {
   return Boolean(value?.trim());
 }
@@ -69,6 +74,42 @@ function buildStructuredOvarySummary(log: DailyLog, side: OvarySide): string {
   return parts.join(' • ');
 }
 
+function buildStructuredOvaryDetails(log: DailyLog, side: OvarySide): DailyLogDetailLine[] {
+  const ovulation =
+    side === 'right' ? log.rightOvaryOvulation ?? null : log.leftOvaryOvulation ?? null;
+  const follicleState =
+    side === 'right'
+      ? log.rightOvaryFollicleState ?? null
+      : log.leftOvaryFollicleState ?? null;
+  const measurements =
+    side === 'right'
+      ? log.rightOvaryFollicleMeasurementsMm ?? []
+      : log.leftOvaryFollicleMeasurementsMm ?? [];
+  const consistency =
+    side === 'right' ? log.rightOvaryConsistency ?? null : log.leftOvaryConsistency ?? null;
+  const structures =
+    side === 'right' ? log.rightOvaryStructures ?? [] : log.leftOvaryStructures ?? [];
+
+  const rows: DailyLogDetailLine[] = [];
+  if (ovulation != null) {
+    rows.push({ label: 'Ovulation', value: ovulation ? 'Yes' : 'No' });
+  }
+  if (measurements.length > 0) {
+    rows.push({ label: 'Follicles', value: measurements.map((value) => `${value} mm`).join(', ') });
+  } else if (follicleState) {
+    rows.push({ label: 'Follicle', value: formatFollicleState(follicleState) });
+  }
+  if (consistency) {
+    rows.push({ label: 'Consistency', value: formatOvaryConsistency(consistency) });
+  }
+  const structuresText = formatOvaryStructures(structures);
+  if (structuresText) {
+    rows.push({ label: 'Structures', value: structuresText });
+  }
+
+  return rows;
+}
+
 function appendCysts(baseSummary: string, uterineCysts: string | null | undefined): string {
   if (!hasText(uterineCysts)) {
     return baseSummary;
@@ -90,6 +131,20 @@ export function buildOvarySummary(log: DailyLog, side: OvarySide): string {
 
   const legacyValue = side === 'right' ? log.rightOvary : log.leftOvary;
   return legacyValue?.trim() ?? '';
+}
+
+export function buildOvaryDetailLines(log: DailyLog, side: OvarySide): DailyLogDetailLine[] {
+  const structuredRows = buildStructuredOvaryDetails(log, side);
+  if (structuredRows.length > 0) {
+    return structuredRows;
+  }
+
+  const legacyValue = side === 'right' ? log.rightOvary : log.leftOvary;
+  if (!hasText(legacyValue)) {
+    return [];
+  }
+
+  return [{ label: 'Notes', value: legacyValue?.trim() ?? '' }];
 }
 
 export function buildUterusSummary(log: DailyLog): string {
