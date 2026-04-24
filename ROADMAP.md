@@ -37,6 +37,8 @@ Features that deepen mare reproductive recordkeeping beyond what the current dai
   Recurring user ask. Needs a design pass: how cysts are located on the uterus, how they're tracked over time, and whether they live on the daily log or as a separate longitudinal record.
 - **P1 — Fluid tracking** (`TODO:11`)
   Not yet scoped. Needs a detail workshop — which fluids, where in the workflow they're recorded, and what actions the app should prompt (see related P2 under *Proactive workflow*).
+- **P1 — Breeding record timestamps**
+  Add a time field to breeding records, like timed daily log checks, so same-day services can be recorded and ordered accurately. Open question: whether time should be required on new records or optional for backward compatibility with existing breeding entries.
 - **P2 — Mare ovulation trends** (`TODO:19`)
   Analytics view. Blocked on data volume — needs enough historical ovulation logs per mare to be useful.
 
@@ -72,6 +74,8 @@ Features that make the app tell the user what to do next, rather than only recor
 
 - **P1 — Photos on mares, foals, and ultrasound screen** (`TODO:21`)
   Scope decision needed up front: per-entity single photo vs photo gallery, local-only vs synced. Storage approach should be decided before implementation.
+- **P1 — Daily log photo attachments**
+  Let users attach one or more pictures at the end of the daily log workflow, alongside the free-text `Notes` field. Open questions: whether this is a simple gallery per log or a broader attachment model, and whether photos stay local-only or need future sync support.
 
 ### Theme: Scheduling & visibility
 
@@ -166,5 +170,7 @@ When a roadmap item is completed and merged to `main`:
 
 ## Change log for this document
 
+- 2026-04-23 — Added *Breeding record timestamps* under Mare care depth (P1).
+- 2026-04-23 — Added *Daily log photo attachments* under Media & attachments (P1).
 - 2026-04-23 — Added *Outside-mare breeding records from stallion section* under Stallion depth (P1).
 - 2026-04-23 — Initial roadmap extracted from flat `TODO` + planning memory + Brooks audits.
