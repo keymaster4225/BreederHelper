@@ -1,12 +1,28 @@
-import type { ScoreOption, TriStateOption } from './types';
+import type { DailyLogWizardStepDescriptor, ScoreOption, TriStateOption } from './types';
 
-export const DAILY_LOG_WIZARD_STEPS = [
-  'Basics',
-  'Right Ovary',
-  'Left Ovary',
-  'Uterus',
-  'Review',
+export const BASE_DAILY_LOG_WIZARD_STEPS: readonly DailyLogWizardStepDescriptor[] = [
+  { id: 'basics', title: 'Basics' },
+  { id: 'rightOvary', title: 'Right Ovary' },
+  { id: 'leftOvary', title: 'Left Ovary' },
+  { id: 'uterus', title: 'Uterus' },
+  { id: 'review', title: 'Review' },
 ] as const;
+
+export function buildDailyLogWizardSteps(
+  includeFlushStep: boolean,
+): readonly DailyLogWizardStepDescriptor[] {
+  if (!includeFlushStep) {
+    return BASE_DAILY_LOG_WIZARD_STEPS;
+  }
+
+  return [
+    ...BASE_DAILY_LOG_WIZARD_STEPS.slice(0, 4),
+    { id: 'flush', title: 'Flush' },
+    BASE_DAILY_LOG_WIZARD_STEPS[4],
+  ];
+}
+
+export const DAILY_LOG_WIZARD_STEPS = BASE_DAILY_LOG_WIZARD_STEPS.map((step) => step.title);
 
 export const SCORE_OPTIONS: readonly { label: string; value: ScoreOption }[] = [
   { label: 'N/A', value: '' },

@@ -23,7 +23,7 @@ describe('validateBackup', () => {
     expect(result.preview.mareCount).toBe(1);
     expect(result.preview.dailyLogCount).toBe(1);
     expect(result.preview.onboardingComplete).toBe(true);
-    expect(result.preview.schemaVersion).toBe(7);
+    expect(result.preview.schemaVersion).toBe(8);
   });
 
   it('accepts v1 backups without gestation length on mare rows', () => {
@@ -351,6 +351,110 @@ describe('validateBackup', () => {
     expect(result.error.message).toContain('references missing daily log');
   });
 
+  it('rejects invalid uterine flush fields in v8 backups', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        uterine_flushes: backup.tables.uterine_flushes.map((row) => ({
+          ...row,
+          base_solution: ' ',
+          total_volume_ml: 0,
+        })),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('uterine_flushes');
+    expect(result.error.field).toBe('base_solution');
+  });
+
+  it('rejects invalid uterine flush product fields in v8 backups', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        uterine_flush_products: backup.tables.uterine_flush_products.map((row) => ({
+          ...row,
+          dose: '',
+        })),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('uterine_flush_products');
+    expect(result.error.field).toBe('dose');
+  });
+
+  it('requires v8 uterine flush and linked medication rows to reference existing daily logs', () => {
+    const backup = cloneBackupFixture();
+    const missingFlushDailyLog = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        uterine_flushes: backup.tables.uterine_flushes.map((row) => ({
+          ...row,
+          daily_log_id: 'missing-log',
+        })),
+      },
+    });
+    expect(missingFlushDailyLog.ok).toBe(false);
+    if (missingFlushDailyLog.ok) {
+      throw new Error('Expected validation failure');
+    }
+    expect(missingFlushDailyLog.error.table).toBe('uterine_flushes');
+    expect(missingFlushDailyLog.error.field).toBe('daily_log_id');
+
+    const missingMedicationDailyLog = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        medication_logs: backup.tables.medication_logs.map((row) => ({
+          ...row,
+          source_daily_log_id: 'missing-log',
+        })),
+      },
+    });
+    expect(missingMedicationDailyLog.ok).toBe(false);
+    if (missingMedicationDailyLog.ok) {
+      throw new Error('Expected validation failure');
+    }
+    expect(missingMedicationDailyLog.error.table).toBe('medication_logs');
+    expect(missingMedicationDailyLog.error.field).toBe('source_daily_log_id');
+  });
+
+  it('requires v8 uterine flush product rows to reference existing flush rows', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        uterine_flush_products: backup.tables.uterine_flush_products.map((row) => ({
+          ...row,
+          uterine_flush_id: 'missing-flush',
+        })),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('uterine_flush_products');
+    expect(result.error.field).toBe('uterine_flush_id');
+  });
+
   it('requires collection dose events to reference an existing breeding record when provided', () => {
     const backup = cloneBackupFixture();
     const result = validateBackup({
@@ -561,7 +665,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 8,
+      schemaVersion: 9,
     });
 
     const result = validateBackupJson(jsonText);

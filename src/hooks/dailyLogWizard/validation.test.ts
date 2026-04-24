@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateBasics, validateOvary, validateUterus } from './validation';
+import { validateBasics, validateFlush, validateOvary, validateUterus } from './validation';
 
 describe('daily log wizard validation helpers', () => {
   it('requires a valid non-future basics date', () => {
@@ -66,5 +66,52 @@ describe('daily log wizard validation helpers', () => {
     expect(result.fluidPockets).toBe(
       'Each fluid pocket needs a valid depth and location.',
     );
+  });
+
+  it('requires a flush decision when uterine fluid is recorded', () => {
+    const result = validateUterus(
+      {
+        edema: '',
+        uterineToneCategory: null,
+        cervicalFirmness: null,
+        dischargeObserved: null,
+        dischargeNotes: '',
+        uterineCysts: '',
+        fluidPockets: [
+          {
+            clientId: 'pocket-1',
+            depthMm: 6,
+            location: 'uterineBody',
+          },
+        ],
+      },
+      null,
+    );
+
+    expect(result.flushDecision).toBe('Choose Yes or No for same-visit flush.');
+  });
+
+  it('validates required flush fields and product rows', () => {
+    expect(
+      validateFlush({
+        baseSolution: '',
+        totalVolumeMl: '0',
+        notes: '',
+        products: [{ clientId: 'product-1', productName: 'Saline', dose: '', notes: '' }],
+      }),
+    ).toEqual({
+      baseSolution: 'Base solution is required.',
+      totalVolumeMl: 'Total volume must be greater than 0 with at most 1 decimal place.',
+      products: 'Each flush product needs a name and dose.',
+    });
+
+    expect(
+      validateFlush({
+        baseSolution: 'LRS',
+        totalVolumeMl: '500.5',
+        notes: '',
+        products: [{ clientId: 'product-1', productName: 'Saline', dose: '500 mL', notes: '' }],
+      }),
+    ).toEqual({});
   });
 });

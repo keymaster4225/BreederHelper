@@ -57,7 +57,10 @@ export function buildDashboardAlertContext(input: DashboardInput): DashboardAler
   const breedingsByMare = groupByMareId(input.breedingRecords);
   const checksByMare = groupByMareId(input.pregnancyChecks);
   const foalingsByMare = groupByMareId(input.foalingRecords);
-  const medsByMare = groupByMareId(input.medicationLogs ?? []);
+  const manualMedicationLogs = (input.medicationLogs ?? []).filter(
+    (log) => log.sourceDailyLogId == null,
+  );
+  const medsByMare = groupByMareId(manualMedicationLogs);
 
   const foalByFoalingRecordId = new Map<string, Foal>();
   for (const foal of input.foals ?? []) {

@@ -7,6 +7,7 @@ import type { MedicationRoute } from '@/models/types';
 export { MEDICATION_ROUTE_OPTIONS };
 
 export const PREDEFINED_MEDICATIONS = [
+  'Saline',
   'Regumate',
   'Deslorelin',
   'Oxytocin',

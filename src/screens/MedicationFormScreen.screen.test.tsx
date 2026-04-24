@@ -12,7 +12,7 @@ jest.mock('@/storage/repositories', () => ({
 const repositories = jest.requireMock('@/storage/repositories') as Record<string, jest.Mock>;
 
 function renderScreen(params?: Record<string, unknown>) {
-  const navigation = { goBack: jest.fn(), setOptions: jest.fn() };
+  const navigation = { goBack: jest.fn(), replace: jest.fn(), setOptions: jest.fn() };
   const route = {
     key: 'MedicationForm',
     name: 'MedicationForm',
@@ -51,6 +51,7 @@ it('loads edit state and persists route deselection', async () => {
     dose: '10 mL',
     route: 'oral',
     notes: 'Evening dose',
+    sourceDailyLogId: null,
     createdAt: '2026-03-30T00:00:00.000Z',
     updatedAt: '2026-03-30T00:00:00.000Z',
   });
@@ -64,4 +65,29 @@ it('loads edit state and persists route deselection', async () => {
 
   await waitFor(() => expect(repositories.updateMedicationLog).toHaveBeenCalled());
   expect(repositories.updateMedicationLog.mock.calls[0][1].route).toBeNull();
+});
+
+it('redirects linked flush medication logs back to the source daily log', async () => {
+  repositories.getMedicationLogById.mockResolvedValue({
+    id: 'med-1',
+    mareId: 'mare-1',
+    date: '2026-03-30',
+    medicationName: 'Saline',
+    dose: '500 mL',
+    route: 'intrauterine',
+    notes: 'Daily log flush',
+    sourceDailyLogId: 'log-1',
+    createdAt: '2026-03-30T00:00:00.000Z',
+    updatedAt: '2026-03-30T00:00:00.000Z',
+  });
+
+  const screen = renderScreen({ medicationLogId: 'med-1' });
+
+  await waitFor(() =>
+    expect(screen.navigation.replace).toHaveBeenCalledWith('DailyLogForm', {
+      mareId: 'mare-1',
+      logId: 'log-1',
+    }),
+  );
+  expect(repositories.updateMedicationLog).not.toHaveBeenCalled();
 });

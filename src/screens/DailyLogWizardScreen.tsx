@@ -19,6 +19,7 @@ import { useDailyLogWizard } from '@/hooks/useDailyLogWizard';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { colors, spacing, typography } from '@/theme';
 import { BasicsStep } from './daily-log-wizard/BasicsStep';
+import { FlushStep } from './daily-log-wizard/FlushStep';
 import { OvaryStep } from './daily-log-wizard/OvaryStep';
 import { ReviewStep } from './daily-log-wizard/ReviewStep';
 import { UterusStep } from './daily-log-wizard/UterusStep';
@@ -77,11 +78,11 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
           <View style={styles.stepHeader}>
-            <Text style={styles.stepCount}>{`Step ${wizard.currentStepIndex + 1} of 5`}</Text>
+            <Text style={styles.stepCount}>{`Step ${wizard.currentStepIndex + 1} of ${wizard.steps.length}`}</Text>
             <Text style={styles.stepTitle}>{wizard.currentStepTitle}</Text>
           </View>
 
-          {wizard.currentStepIndex === 0 ? (
+          {wizard.currentStepId === 'basics' ? (
             <BasicsStep
               date={wizard.date}
               time={wizard.time}
@@ -94,7 +95,7 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
             />
           ) : null}
 
-          {wizard.currentStepIndex === 1 ? (
+          {wizard.currentStepId === 'rightOvary' ? (
             <OvaryStep
               side="right"
               ovary={wizard.rightOvary}
@@ -106,7 +107,7 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
             />
           ) : null}
 
-          {wizard.currentStepIndex === 2 ? (
+          {wizard.currentStepId === 'leftOvary' ? (
             <OvaryStep
               side="left"
               ovary={wizard.leftOvary}
@@ -118,22 +119,37 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
             />
           ) : null}
 
-          {wizard.currentStepIndex === 3 ? (
+          {wizard.currentStepId === 'uterus' ? (
             <UterusStep
               uterus={wizard.uterus}
               errors={wizard.errors.uterus}
+              flushDecision={wizard.flushDecision}
               onEdemaChange={wizard.setEdema}
               onUterineToneCategoryChange={wizard.setUterineToneCategory}
               onCervicalFirmnessChange={wizard.setCervicalFirmness}
               onDischargeObservedChange={wizard.setDischargeObserved}
               onDischargeNotesChange={wizard.setDischargeNotes}
               onUterineCystsChange={wizard.setUterineCysts}
+              onFlushDecisionChange={wizard.setFlushDecision}
               onUpsertFluidPocket={wizard.upsertFluidPocket}
               onRemoveFluidPocket={wizard.removeFluidPocket}
             />
           ) : null}
 
-          {wizard.currentStepIndex === 4 ? (
+          {wizard.currentStepId === 'flush' ? (
+            <FlushStep
+              flush={wizard.flush}
+              errors={wizard.errors.flush}
+              onBaseSolutionChange={wizard.setFlushBaseSolution}
+              onTotalVolumeMlChange={wizard.setFlushTotalVolumeMl}
+              onNotesChange={wizard.setFlushNotes}
+              onAddProduct={wizard.addFlushProduct}
+              onUpdateProduct={wizard.updateFlushProduct}
+              onRemoveProduct={wizard.removeFlushProduct}
+            />
+          ) : null}
+
+          {wizard.currentStepId === 'review' ? (
             <ReviewStep
               date={wizard.date}
               time={wizard.time}
@@ -141,6 +157,8 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
               rightOvary={wizard.rightOvary}
               leftOvary={wizard.leftOvary}
               uterus={wizard.uterus}
+              flushDecision={wizard.flushDecision}
+              flush={wizard.flush}
               notes={wizard.notes}
               legacyNotes={wizard.legacyNotes}
               legacyOvulationDetected={wizard.legacyOvulationDetected}
@@ -157,7 +175,7 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
             />
           ) : null}
 
-          {wizard.currentStepIndex < 4 ? (
+          {wizard.currentStepId !== 'review' ? (
             <View style={styles.actions}>
               {wizard.currentStepIndex > 0 ? (
                 <SecondaryButton

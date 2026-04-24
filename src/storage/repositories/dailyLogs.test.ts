@@ -91,6 +91,48 @@ describe('daily log repository structured storage', () => {
     expect(params[16]).toBeNull();
   });
 
+  it('creates flush rows and linked medication rows with the daily log', async () => {
+    await createDailyLog(
+      {
+        id: 'log-flush',
+        mareId: 'mare-1',
+        date: '2026-04-01',
+        time: '08:00',
+        uterineFlush: {
+          id: 'flush-1',
+          baseSolution: 'LRS',
+          totalVolumeMl: 1000,
+          notes: 'Clear return',
+          products: [
+            {
+              id: 'product-1',
+              productName: 'Saline',
+              dose: '1000 mL',
+              notes: 'warmed',
+            },
+          ],
+        },
+      },
+      db,
+    );
+
+    expect(db.runAsync).toHaveBeenCalledTimes(5);
+    expect(db.runAsync.mock.calls[0]?.[0]).toContain('INSERT INTO daily_logs');
+    expect(db.runAsync.mock.calls[1]?.[0]).toContain('INSERT INTO uterine_flushes');
+    expect(db.runAsync.mock.calls[2]?.[0]).toContain('INSERT INTO uterine_flush_products');
+    expect(db.runAsync.mock.calls[3]?.[0]).toContain('DELETE FROM medication_logs');
+    expect(db.runAsync.mock.calls[4]?.[0]).toContain('INSERT INTO medication_logs');
+
+    const medicationParams = db.runAsync.mock.calls[4]?.[1] as unknown[];
+    expect(medicationParams[1]).toBe('mare-1');
+    expect(medicationParams[2]).toBe('2026-04-01');
+    expect(medicationParams[3]).toBe('Saline');
+    expect(medicationParams[4]).toBe('1000 mL');
+    expect(medicationParams[5]).toBe('intrauterine');
+    expect(medicationParams[6]).toContain('LRS, 1000 mL total');
+    expect(medicationParams[7]).toBe('log-flush');
+  });
+
   it('preserves existing time when update omits time', async () => {
     db.getFirstAsync.mockResolvedValue(createExistingDailyLogRow());
 
@@ -165,10 +207,11 @@ describe('daily log repository structured storage', () => {
       uterineFluidPockets: [{ id: 'pocket-1', depthMm: 5, location: 'leftHorn' }],
     }, db);
 
-    expect(db.runAsync).toHaveBeenCalledTimes(3);
+    expect(db.runAsync).toHaveBeenCalledTimes(4);
     expect(db.runAsync.mock.calls[0]?.[0]).toContain('UPDATE daily_logs');
     expect(db.runAsync.mock.calls[1]?.[0]).toContain('DELETE FROM uterine_fluid');
     expect(db.runAsync.mock.calls[2]?.[0]).toContain('INSERT INTO uterine_fluid');
+    expect(db.runAsync.mock.calls[3]?.[0]).toContain('DELETE FROM medication_logs');
   });
 
   it('rejects create when time is missing', async () => {
@@ -243,9 +286,10 @@ describe('daily log repository structured storage', () => {
   it('deletes uterine fluid children before deleting the daily log parent row', async () => {
     await deleteDailyLog('log-1', db);
 
-    expect(db.runAsync).toHaveBeenCalledTimes(2);
-    expect(db.runAsync.mock.calls[0]?.[0]).toContain('DELETE FROM uterine_fluid');
-    expect(db.runAsync.mock.calls[1]?.[0]).toContain('DELETE FROM daily_logs');
+    expect(db.runAsync).toHaveBeenCalledTimes(3);
+    expect(db.runAsync.mock.calls[0]?.[0]).toContain('DELETE FROM medication_logs');
+    expect(db.runAsync.mock.calls[1]?.[0]).toContain('DELETE FROM uterine_fluid');
+    expect(db.runAsync.mock.calls[2]?.[0]).toContain('DELETE FROM daily_logs');
   });
 });
 

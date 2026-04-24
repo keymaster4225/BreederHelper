@@ -20,6 +20,7 @@ import {
   TRI_STATE_OPTIONS,
   type DailyLogWizardFluidPocketDraft,
   type DailyLogWizardUterusDraft,
+  type FlushDecision,
   type ScoreOption,
   type TriStateOption,
 } from '@/hooks/useDailyLogWizard';
@@ -37,13 +38,16 @@ type Props = {
   errors: {
     dischargeNotes?: string;
     fluidPockets?: string;
+    flushDecision?: string;
   };
+  flushDecision: FlushDecision;
   onEdemaChange: (value: ScoreOption) => void;
   onUterineToneCategoryChange: (value: UterineToneCategory | null) => void;
   onCervicalFirmnessChange: (value: CervicalFirmness | null) => void;
   onDischargeObservedChange: (value: boolean | null) => void;
   onDischargeNotesChange: (value: string) => void;
   onUterineCystsChange: (value: string) => void;
+  onFlushDecisionChange: (value: FlushDecision) => void;
   onUpsertFluidPocket: (value: FluidPocketInput, clientId?: string) => void;
   onRemoveFluidPocket: (clientId: string) => void;
 };
@@ -55,12 +59,14 @@ function formatFluidPocketRow(row: DailyLogWizardFluidPocketDraft): string {
 export function UterusStep({
   uterus,
   errors,
+  flushDecision,
   onEdemaChange,
   onUterineToneCategoryChange,
   onCervicalFirmnessChange,
   onDischargeObservedChange,
   onDischargeNotesChange,
   onUterineCystsChange,
+  onFlushDecisionChange,
   onUpsertFluidPocket,
   onRemoveFluidPocket,
 }: Props): JSX.Element {
@@ -192,6 +198,23 @@ export function UterusStep({
           </Pressable>
         </View>
       </FormField>
+
+      {uterus.fluidPockets.length > 0 ? (
+        <FormField
+          label="Was a uterine flush performed during this visit?"
+          required
+          error={errors.flushDecision}
+        >
+          <OptionSelector<Exclude<FlushDecision, null>>
+            value={flushDecision}
+            onChange={onFlushDecisionChange}
+            options={[
+              { label: 'Yes', value: 'yes' },
+              { label: 'No', value: 'no' },
+            ]}
+          />
+        </FormField>
+      ) : null}
 
       <FormField label="Uterine Cysts">
         <FormTextInput

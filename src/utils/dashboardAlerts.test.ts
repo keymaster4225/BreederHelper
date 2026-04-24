@@ -98,6 +98,7 @@ function makeMedLog(overrides: Partial<MedicationLog> = {}): MedicationLog {
     dose: null,
     route: null,
     notes: null,
+    sourceDailyLogId: null,
     createdAt: '2026-03-20T00:00:00Z',
     updatedAt: '2026-03-20T00:00:00Z',
     ...overrides,
@@ -978,6 +979,22 @@ describe('generateDashboardAlerts', () => {
           medicationLogs: [],
           today: '2026-03-26',
         })
+      );
+
+      expect(alerts.filter((a) => a.kind === 'medicationGap')).toHaveLength(0);
+    });
+
+    it('ignores flush-linked medication logs when checking for gaps', () => {
+      const alerts = generateDashboardAlerts(
+        makeInput({
+          mares: [makeMare()],
+          medicationLogs: [
+            makeMedLog({ id: 'med-1', date: '2026-03-23', sourceDailyLogId: 'log-1' }),
+            makeMedLog({ id: 'med-2', date: '2026-03-24', sourceDailyLogId: 'log-2' }),
+            makeMedLog({ id: 'med-3', date: '2026-03-25', sourceDailyLogId: 'log-3' }),
+          ],
+          today: '2026-03-26',
+        }),
       );
 
       expect(alerts.filter((a) => a.kind === 'medicationGap')).toHaveLength(0);

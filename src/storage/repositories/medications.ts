@@ -12,8 +12,20 @@ type MedicationLogRow = {
   dose: string | null;
   route: string | null;
   notes: string | null;
+  source_daily_log_id: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type MedicationLogInsertInput = {
+  id: string;
+  mareId: string;
+  date: LocalDate;
+  medicationName: string;
+  dose?: string | null;
+  route?: MedicationRoute | null;
+  notes?: string | null;
+  sourceDailyLogId?: string | null;
 };
 
 function mapMedicationLogRow(row: MedicationLogRow): MedicationLog {
@@ -25,27 +37,30 @@ function mapMedicationLogRow(row: MedicationLogRow): MedicationLog {
     dose: row.dose,
     route: row.route as MedicationRoute | null,
     notes: row.notes,
+    sourceDailyLogId: row.source_daily_log_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
-export async function createMedicationLog(input: {
-  id: string;
-  mareId: string;
-  date: LocalDate;
-  medicationName: string;
-  dose?: string | null;
-  route?: MedicationRoute | null;
-  notes?: string | null;
-}, db?: RepoDb): Promise<void> {
-  const handle = await resolveDb(db);
-  const now = new Date().toISOString();
-
-  await handle.runAsync(
+export async function insertMedicationLogWithoutInvalidation(
+  db: RepoDb,
+  input: MedicationLogInsertInput,
+  now = new Date().toISOString(),
+): Promise<void> {
+  await db.runAsync(
     `INSERT INTO medication_logs (
-      id, mare_id, date, medication_name, dose, route, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      id,
+      mare_id,
+      date,
+      medication_name,
+      dose,
+      route,
+      notes,
+      source_daily_log_id,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     [
       input.id,
       input.mareId,
@@ -54,17 +69,34 @@ export async function createMedicationLog(input: {
       input.dose ?? null,
       input.route ?? null,
       input.notes ?? null,
+      input.sourceDailyLogId ?? null,
       now,
       now,
     ],
   );
+}
+
+export async function deleteMedicationLogsBySourceDailyLogId(
+  db: RepoDb,
+  sourceDailyLogId: string,
+): Promise<void> {
+  await db.runAsync('DELETE FROM medication_logs WHERE source_daily_log_id = ?;', [
+    sourceDailyLogId,
+  ]);
+}
+
+export async function createMedicationLog(input: MedicationLogInsertInput, db?: RepoDb): Promise<void> {
+  const handle = await resolveDb(db);
+  const now = new Date().toISOString();
+
+  await insertMedicationLogWithoutInvalidation(handle, { ...input, sourceDailyLogId: null }, now);
   emitDataInvalidation('medicationLogs');
 }
 
 export async function getMedicationLogById(id: string, db?: RepoDb): Promise<MedicationLog | null> {
   const handle = await resolveDb(db);
   const row = await handle.getFirstAsync<MedicationLogRow>(
-    `SELECT id, mare_id, date, medication_name, dose, route, notes, created_at, updated_at
+    `SELECT id, mare_id, date, medication_name, dose, route, notes, source_daily_log_id, created_at, updated_at
      FROM medication_logs WHERE id = ?;`,
     [id],
   );
@@ -75,7 +107,7 @@ export async function getMedicationLogById(id: string, db?: RepoDb): Promise<Med
 export async function listMedicationLogsByMare(mareId: string, db?: RepoDb): Promise<MedicationLog[]> {
   const handle = await resolveDb(db);
   const rows = await handle.getAllAsync<MedicationLogRow>(
-    `SELECT id, mare_id, date, medication_name, dose, route, notes, created_at, updated_at
+    `SELECT id, mare_id, date, medication_name, dose, route, notes, source_daily_log_id, created_at, updated_at
      FROM medication_logs WHERE mare_id = ? ORDER BY date DESC;`,
     [mareId],
   );
@@ -86,7 +118,7 @@ export async function listMedicationLogsByMare(mareId: string, db?: RepoDb): Pro
 export async function listAllMedicationLogs(db?: RepoDb): Promise<MedicationLog[]> {
   const handle = await resolveDb(db);
   const rows = await handle.getAllAsync<MedicationLogRow>(
-    `SELECT id, mare_id, date, medication_name, dose, route, notes, created_at, updated_at
+    `SELECT id, mare_id, date, medication_name, dose, route, notes, source_daily_log_id, created_at, updated_at
      FROM medication_logs ORDER BY date DESC;`,
   );
 

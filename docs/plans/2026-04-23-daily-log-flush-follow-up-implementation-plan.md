@@ -45,7 +45,7 @@ This plan is grounded in the current codebase:
   - `src/screens/mare-detail/MedicationsTab.tsx`
   - `src/screens/mare-detail/TimelineTab.tsx`
   - `src/screens/MedicationFormScreen.tsx`
-- Home screen dashboard data currently loads through `src/hooks/useHomeScreenData.ts`.
+- Dashboard alert data currently loads through `src/hooks/useDashboardData.ts`, which includes `listAllMedicationLogs()` for medication-gap heuristics.
 - SQLite-backed integration coverage already exists in:
   - `src/storage/migrations/index.test.ts`
   - `src/storage/repositories/dailyLogs.test.ts`
@@ -161,13 +161,15 @@ Implement in eight waves so contract-setting changes land before wizard and rout
 - Add migration `025_daily_log_flush_follow_up`.
 - Create table `uterine_flushes`.
 - Create table `uterine_flush_products`.
-- Alter `medication_logs` to add `source_daily_log_id`.
+- Alter `medication_logs` to add `source_daily_log_id TEXT NULL REFERENCES daily_logs(id) ON UPDATE CASCADE ON DELETE RESTRICT`.
 - Add an index on `medication_logs(source_daily_log_id)`.
+- Add idempotence/skip checks for both flush tables, `medication_logs.source_daily_log_id`, and the `source_daily_log_id` index so partially upgraded local schemas do not fail on rerun.
 - Ensure foreign keys remain restrictive and consistent with the existing relational model.
 - Add migration tests for:
   - fresh schema contains both new flush tables
-  - fresh schema contains `medication_logs.source_daily_log_id`
+  - fresh schema contains `medication_logs.source_daily_log_id` with the daily-log foreign key and index
   - upgrade from `024` preserves existing data
+  - partially present flush/linkage artifacts are skipped or completed safely
   - rerunning migration logic is harmless
 
 **Acceptance criteria**
@@ -198,6 +200,8 @@ Implement in eight waves so contract-setting changes land before wizard and rout
 - Add `BACKUP_SCHEMA_VERSION_V8`.
 - Make `BACKUP_SCHEMA_VERSION_CURRENT = V8`.
 - Add `uterine_flushes` and `uterine_flush_products` to backup table-name lists and insert/delete ordering.
+- Insert order must place daily logs before flush rows, flush rows before flush product rows, and all referenced rows before linked medication rows.
+- Delete order must remove linked medication rows, flush product rows, and flush rows before daily logs.
 - Extend backup row types for:
   - `BackupUterineFlushRow`
   - `BackupUterineFlushProductRow`
@@ -213,6 +217,10 @@ Implement in eight waves so contract-setting changes land before wizard and rout
   - positive `total_volume_ml`
   - non-empty `product_name`
   - non-empty `dose`
+- Add V8 cross-table validation for:
+  - `uterine_flushes.daily_log_id` references an existing daily log
+  - `uterine_flush_products.uterine_flush_id` references an existing uterine flush
+  - non-null `medication_logs.source_daily_log_id` references an existing daily log
 
 **Acceptance criteria**
 
@@ -277,6 +285,8 @@ Implement in eight waves so contract-setting changes land before wizard and rout
   - delete all medication logs with `source_daily_log_id = dailyLogId`
   - recreate them from the current flush products
   - do that inside the same transaction
+- Do not call public medication CRUD helpers from inside the daily-log transaction if they emit `medicationLogs` invalidation immediately.
+- Use transaction-friendly internal medication helpers, or add a no-emit path, so linked medication rows are deleted and recreated atomically without pre-commit invalidation.
 - On delete:
   - delete linked medication logs
   - delete flush product rows
@@ -284,6 +294,7 @@ Implement in eight waves so contract-setting changes land before wizard and rout
   - delete uterine fluid rows
   - delete daily log row
 - Emit both `dailyLogs` and `medicationLogs` invalidation events after successful create, update, and delete.
+- Emit invalidation only after the daily-log transaction succeeds.
 
 **Acceptance criteria**
 
@@ -307,6 +318,8 @@ Implement in eight waves so contract-setting changes land before wizard and rout
 **Implementation**
 
 - Add `source_daily_log_id` row mapping and CRUD support to `src/storage/repositories/medications.ts`.
+- Keep public medication CRUD behavior unchanged for manual rows, including existing invalidation semantics.
+- Provide transaction-friendly helpers or an explicit no-emit option for daily-log-owned generated rows.
 - Ensure linked medication rows map as:
   - `mareId = dailyLog.mareId`
   - `date = dailyLog.date`
@@ -434,6 +447,8 @@ Implement in eight waves so contract-setting changes land before wizard and rout
   - `Source: Daily log flush`
 - In `MedicationFormScreen` or `useMedicationForm`, detect linked medication rows loaded directly by ID.
 - Redirect linked rows back to the source daily log instead of allowing direct edit.
+- Default implementation: keep navigation ownership in `MedicationFormScreen`; after loading a linked medication row, call `navigation.replace('DailyLogForm', { mareId, logId: sourceDailyLogId })`.
+- If the guard lives in `useMedicationForm` instead, pass an explicit callback such as `onOpenSourceDailyLog(sourceDailyLogId)` rather than trying to navigate from inside the hook.
 
 **Acceptance criteria**
 
@@ -446,8 +461,9 @@ Implement in eight waves so contract-setting changes land before wizard and rout
 
 - Modify: `src/hooks/useMareDetailData.ts` if detail hydration needs the new field on medication logs
 - Modify: `src/hooks/useMareCalendarData.ts` only if filtering or source labels need extra data handling
-- Modify: `src/hooks/useHomeScreenData.ts`
+- Modify: `src/hooks/useDashboardData.ts` if dashboard loading or invalidation needs adjustment after medication linkage is added
 - Modify: `src/utils/dashboardAlerts.ts`
+- Modify: `src/utils/dashboardAlertContext.ts` or `src/utils/dashboardAlertRules.ts` if filtering linked medication rows is cleaner before or inside medication-gap derivation
 - Modify: `src/utils/calendarMarking.ts` only if source-linked medication tests need explicit coverage
 - Modify: `src/utils/timelineEvents.ts` only if source-linked medication labels surface there
 - Modify tests:
@@ -486,13 +502,16 @@ Implement in eight waves so contract-setting changes land before wizard and rout
 
 - Migration:
   - fresh schema contains flush tables and medication linkage
+  - medication linkage has the expected daily-log foreign key and index
   - upgrade through `025` preserves existing data
+  - partial migration artifacts are skipped or completed safely
   - rerun is harmless
 - Backup:
   - V8 serialize includes flush tables and `source_daily_log_id`
   - V8 restore round-trips exactly
   - V1-V7 restore with empty flush tables and null medication linkage
   - validation rejects invalid flush fields
+  - validation rejects flush rows and linked medication rows that reference missing parents
 - Repository:
   - create daily log with flush creates flush rows and linked medication rows
   - update replaces flush rows and linked medication rows

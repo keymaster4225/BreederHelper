@@ -120,6 +120,7 @@ Add a new migration `025_daily_log_flush_follow_up` that introduces:
 Alter `medication_logs` to add:
 
 - `source_daily_log_id TEXT NULL`
+- foreign key to `daily_logs(id)` with `ON UPDATE CASCADE ON DELETE RESTRICT`
 
 Also add an index on `source_daily_log_id` so linked medication regeneration and routing checks stay efficient.
 
@@ -218,6 +219,12 @@ Validation rules for backup import should reject:
 - non-positive `total_volume_ml`
 - empty `product_name`
 - empty `dose`
+
+Validation should also enforce V8 cross-table references:
+
+- each `uterine_flushes.daily_log_id` references an existing daily log
+- each `uterine_flush_products.uterine_flush_id` references an existing uterine flush
+- each non-null `medication_logs.source_daily_log_id` references an existing daily log
 
 ## UI And Routing Behavior
 

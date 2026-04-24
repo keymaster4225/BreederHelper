@@ -9,6 +9,7 @@ import { toLocalDate } from '@/utils/dates';
 import { newId } from '@/utils/id';
 
 import {
+  buildDailyLogWizardSteps,
   DAILY_LOG_WIZARD_STEPS,
   SCORE_OPTIONS,
   TRI_STATE_OPTIONS,
@@ -16,6 +17,7 @@ import {
 import {
   buildDailyLogPayload,
   createEmptyErrors,
+  createEmptyFlushDraft,
   createEmptyOvaryDraft,
   createEmptyUterusDraft,
   hydrateDailyLogWizardRecord,
@@ -26,6 +28,7 @@ import {
 } from './dailyLogWizard/measurementUtils';
 import {
   validateBasics,
+  validateFlush,
   validateOvary,
   validateUterus,
 } from './dailyLogWizard/validation';
@@ -33,12 +36,16 @@ import { useRecordForm } from './useRecordForm';
 
 import type {
   DailyLogWizardErrors,
+  DailyLogWizardFlushDraft,
+  DailyLogWizardFlushProductDraft,
   DailyLogWizardFluidPocketDraft,
   DailyLogWizardLegacyNotes,
   DailyLogWizardMeasurementDraft,
   DailyLogWizardOvaryDraft,
+  DailyLogWizardStepId,
   DailyLogWizardUterusDraft,
   ScoreOption,
+  FlushDecision,
   TriStateOption,
 } from './dailyLogWizard/types';
 
@@ -52,12 +59,16 @@ export {
 
 export type {
   DailyLogWizardErrors,
+  DailyLogWizardFlushDraft,
+  DailyLogWizardFlushProductDraft,
   DailyLogWizardFluidPocketDraft,
   DailyLogWizardLegacyNotes,
   DailyLogWizardMeasurementDraft,
   DailyLogWizardOvaryDraft,
+  DailyLogWizardStepId,
   DailyLogWizardUterusDraft,
   ScoreOption,
+  FlushDecision,
   TriStateOption,
 };
 
@@ -116,6 +127,7 @@ export function useDailyLogWizard({
   const today = useMemo(() => new Date(), []);
   const onGoBackRef = useRef(onGoBack);
   const setTitleRef = useRef(setTitle);
+  const hadPersistedFlushRef = useRef(false);
 
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [date, setDate] = useState<string>(() => (isEdit ? '' : toLocalDate(today)));
@@ -124,6 +136,8 @@ export function useDailyLogWizard({
   const [rightOvary, setRightOvary] = useState<DailyLogWizardOvaryDraft>(createEmptyOvaryDraft);
   const [leftOvary, setLeftOvary] = useState<DailyLogWizardOvaryDraft>(createEmptyOvaryDraft);
   const [uterus, setUterus] = useState<DailyLogWizardUterusDraft>(createEmptyUterusDraft);
+  const [flushDecision, setFlushDecisionState] = useState<FlushDecision>(null);
+  const [flush, setFlush] = useState<DailyLogWizardFlushDraft>(createEmptyFlushDraft);
   const [notes, setNotes] = useState('');
   const [legacyNotes, setLegacyNotes] = useState<DailyLogWizardLegacyNotes>({
     rightOvary: null,
@@ -134,6 +148,17 @@ export function useDailyLogWizard({
   const [legacyOvulationDetected, setLegacyOvulationDetected] = useState<boolean | null>(null);
   const [ovulationSource, setOvulationSource] = useState<DailyLogOvulationSource>('structured');
   const [errors, setErrors] = useState<DailyLogWizardErrors>(createEmptyErrors);
+  const steps = useMemo(
+    () => buildDailyLogWizardSteps(flushDecision === 'yes' && uterus.fluidPockets.length > 0),
+    [flushDecision, uterus.fluidPockets.length],
+  );
+  const currentStep = steps[Math.min(currentStepIndex, steps.length - 1)] ?? steps[0];
+  const currentStepId = currentStep.id;
+  const getStepIndex = useCallback(
+    (stepId: DailyLogWizardStepId): number =>
+      Math.max(0, steps.findIndex((step) => step.id === stepId)),
+    [steps],
+  );
 
   const {
     isLoading,
@@ -154,6 +179,10 @@ export function useDailyLogWizard({
     setTitleRef.current(isEdit ? 'Edit Daily Log' : 'Add Daily Log');
   }, [isEdit]);
 
+  useEffect(() => {
+    setCurrentStepIndex((current) => Math.min(current, steps.length - 1));
+  }, [steps.length]);
+
   const hydrateFromRecord = useCallback((record: DailyLogDetail): void => {
     const hydrated = hydrateDailyLogWizardRecord(record);
     setDate(hydrated.date);
@@ -162,6 +191,9 @@ export function useDailyLogWizard({
     setRightOvary(hydrated.rightOvary);
     setLeftOvary(hydrated.leftOvary);
     setUterus(hydrated.uterus);
+    setFlushDecisionState(hydrated.flushDecision);
+    setFlush(hydrated.flush);
+    hadPersistedFlushRef.current = record.uterineFlush != null;
     setNotes(hydrated.notes);
     setLegacyNotes(hydrated.legacyNotes);
     setIsTimeClearable(record.time == null);
@@ -176,6 +208,9 @@ export function useDailyLogWizard({
       setCurrentStepIndex(0);
       setTime(getCurrentTimeHHMM(today));
       setIsTimeClearable(false);
+      setFlushDecisionState(null);
+      setFlush(createEmptyFlushDraft());
+      hadPersistedFlushRef.current = false;
       return;
     }
 
@@ -189,7 +224,10 @@ export function useDailyLogWizard({
         }
 
         hydrateFromRecord(record);
-        setCurrentStepIndex(DAILY_LOG_WIZARD_STEPS.length - 1);
+        setCurrentStepIndex(
+          buildDailyLogWizardSteps(record.uterineFlush != null && record.uterineFluidPockets.length > 0)
+            .length - 1,
+        );
       },
       {
         onError: (error: unknown) => {
@@ -412,11 +450,123 @@ export function useDailyLogWizard({
   );
 
   const removeFluidPocket = useCallback((clientId: string): void => {
-    updateUterus((current) => ({
+    const applyRemoval = (): void => {
+      updateUterus((current) => {
+        const nextPockets = current.fluidPockets.filter((row) => row.clientId !== clientId);
+        if (nextPockets.length === 0) {
+          setFlushDecisionState(null);
+        }
+        return {
+          ...current,
+          fluidPockets: nextPockets,
+        };
+      });
+    };
+
+    if (
+      hadPersistedFlushRef.current &&
+      flushDecision === 'yes' &&
+      uterus.fluidPockets.length === 1 &&
+      uterus.fluidPockets[0]?.clientId === clientId
+    ) {
+      Alert.alert(
+        'Clear flush data?',
+        'Removing the last fluid pocket will clear the saved flush details for this daily log.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Clear', style: 'destructive', onPress: applyRemoval },
+        ],
+      );
+      return;
+    }
+
+    applyRemoval();
+  }, [flushDecision, updateUterus, uterus.fluidPockets]);
+
+  const setFlushDecision = useCallback(
+    (value: FlushDecision): void => {
+      if (value === 'yes' && flush.products.length === 0) {
+        setFlush(createEmptyFlushDraft());
+      }
+
+      if (value === 'no' && hadPersistedFlushRef.current && flushDecision === 'yes') {
+        Alert.alert(
+          'Clear flush data?',
+          'Changing this answer to No will clear the saved flush details for this daily log.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Clear', style: 'destructive', onPress: () => setFlushDecisionState('no') },
+          ],
+        );
+        return;
+      }
+
+      setFlushDecisionState(value);
+      setErrors((current) => ({
+        ...current,
+        uterus: { ...current.uterus, flushDecision: undefined },
+      }));
+    },
+    [flush.products.length, flushDecision],
+  );
+
+  const updateFlush = useCallback(
+    (updater: (current: DailyLogWizardFlushDraft) => DailyLogWizardFlushDraft): void => {
+      setFlush((current) => updater(current));
+      setErrors((current) => ({ ...current, flush: {} }));
+    },
+    [],
+  );
+
+  const setFlushBaseSolution = useCallback(
+    (value: string): void => updateFlush((current) => ({ ...current, baseSolution: value })),
+    [updateFlush],
+  );
+
+  const setFlushTotalVolumeMl = useCallback(
+    (value: string): void => updateFlush((current) => ({ ...current, totalVolumeMl: value })),
+    [updateFlush],
+  );
+
+  const setFlushNotes = useCallback(
+    (value: string): void => updateFlush((current) => ({ ...current, notes: value })),
+    [updateFlush],
+  );
+
+  const addFlushProduct = useCallback((): void => {
+    updateFlush((current) => ({
       ...current,
-      fluidPockets: current.fluidPockets.filter((row) => row.clientId !== clientId),
+      products: [
+        ...current.products,
+        { clientId: newId(), productName: '', dose: '', notes: '' },
+      ],
     }));
-  }, [updateUterus]);
+  }, [updateFlush]);
+
+  const updateFlushProduct = useCallback(
+    (
+      clientId: string,
+      patch: Partial<Pick<DailyLogWizardFlushProductDraft, 'dose' | 'notes' | 'productName'>>,
+    ): void => {
+      updateFlush((current) => ({
+        ...current,
+        products: current.products.map((product) =>
+          product.clientId === clientId ? { ...product, ...patch } : product,
+        ),
+      }));
+    },
+    [updateFlush],
+  );
+
+  const removeFlushProduct = useCallback(
+    (clientId: string): void => {
+      updateFlush((current) => ({
+        ...current,
+        products: current.products.filter((product) => product.clientId !== clientId),
+      }));
+    },
+    [updateFlush],
+  );
 
   const applyBasicsValidation = useCallback((): boolean => {
     const nextErrors = validateBasics(date, time, isTimeClearable);
@@ -437,37 +587,55 @@ export function useDailyLogWizard({
   );
 
   const applyUterusValidation = useCallback((): boolean => {
-    const nextErrors = validateUterus(uterus);
+    const nextErrors = validateUterus(uterus, flushDecision);
     setErrors((current) => ({ ...current, uterus: nextErrors }));
-    return !nextErrors.dischargeNotes && !nextErrors.fluidPockets;
-  }, [uterus]);
+    return !nextErrors.dischargeNotes && !nextErrors.fluidPockets && !nextErrors.flushDecision;
+  }, [flushDecision, uterus]);
+
+  const applyFlushValidation = useCallback((): boolean => {
+    if (flushDecision !== 'yes' || uterus.fluidPockets.length === 0) {
+      setErrors((current) => ({ ...current, flush: {} }));
+      return true;
+    }
+
+    const nextErrors = validateFlush(flush);
+    setErrors((current) => ({ ...current, flush: nextErrors }));
+    return !nextErrors.baseSolution && !nextErrors.totalVolumeMl && !nextErrors.products;
+  }, [flush, flushDecision, uterus.fluidPockets.length]);
 
   const validateStep = useCallback(
     (stepIndex: number): boolean => {
-      if (stepIndex === 0) {
+      const stepId = steps[stepIndex]?.id;
+
+      if (stepId === 'basics') {
         return applyBasicsValidation();
       }
 
-      if (stepIndex === 1) {
+      if (stepId === 'rightOvary') {
         return applyOvaryValidation('right');
       }
 
-      if (stepIndex === 2) {
+      if (stepId === 'leftOvary') {
         return applyOvaryValidation('left');
       }
 
-      if (stepIndex === 3) {
+      if (stepId === 'uterus') {
         return applyUterusValidation();
+      }
+
+      if (stepId === 'flush') {
+        return applyFlushValidation();
       }
 
       return (
         applyBasicsValidation() &&
         applyOvaryValidation('right') &&
         applyOvaryValidation('left') &&
-        applyUterusValidation()
+        applyUterusValidation() &&
+        applyFlushValidation()
       );
     },
-    [applyBasicsValidation, applyOvaryValidation, applyUterusValidation],
+    [applyBasicsValidation, applyFlushValidation, applyOvaryValidation, applyUterusValidation, steps],
   );
 
   const goNext = useCallback((): void => {
@@ -475,16 +643,16 @@ export function useDailyLogWizard({
       return;
     }
 
-    setCurrentStepIndex((current) => Math.min(current + 1, DAILY_LOG_WIZARD_STEPS.length - 1));
-  }, [currentStepIndex, validateStep]);
+    setCurrentStepIndex((current) => Math.min(current + 1, steps.length - 1));
+  }, [currentStepIndex, steps.length, validateStep]);
 
   const goBack = useCallback((): void => {
     setCurrentStepIndex((current) => Math.max(current - 1, 0));
   }, []);
 
   const goToStep = useCallback((stepIndex: number): void => {
-    setCurrentStepIndex(Math.max(0, Math.min(stepIndex, DAILY_LOG_WIZARD_STEPS.length - 1)));
-  }, []);
+    setCurrentStepIndex(Math.max(0, Math.min(stepIndex, steps.length - 1)));
+  }, [steps.length]);
 
   const setDateValue = useCallback((value: string): void => {
     setDate(value);
@@ -513,24 +681,30 @@ export function useDailyLogWizard({
     const rightOvaryValid = applyOvaryValidation('right');
     const leftOvaryValid = applyOvaryValidation('left');
     const uterusValid = applyUterusValidation();
+    const flushValid = applyFlushValidation();
 
     if (!basicsValid) {
-      setCurrentStepIndex(0);
+      setCurrentStepIndex(getStepIndex('basics'));
       return;
     }
 
     if (!rightOvaryValid) {
-      setCurrentStepIndex(1);
+      setCurrentStepIndex(getStepIndex('rightOvary'));
       return;
     }
 
     if (!leftOvaryValid) {
-      setCurrentStepIndex(2);
+      setCurrentStepIndex(getStepIndex('leftOvary'));
       return;
     }
 
     if (!uterusValid) {
-      setCurrentStepIndex(3);
+      setCurrentStepIndex(getStepIndex('uterus'));
+      return;
+    }
+
+    if (!flushValid) {
+      setCurrentStepIndex(getStepIndex('flush'));
       return;
     }
 
@@ -544,6 +718,9 @@ export function useDailyLogWizard({
           rightOvary,
           leftOvary,
           uterus,
+          flushDecision,
+          flush,
+          hadPersistedFlush: hadPersistedFlushRef.current,
           notes,
           legacyOvulationDetected,
           ovulationSource,
@@ -578,7 +755,7 @@ export function useDailyLogWizard({
                 time: timeError,
               },
             }));
-            setCurrentStepIndex(0);
+            setCurrentStepIndex(getStepIndex('basics'));
             return;
           }
 
@@ -588,9 +765,13 @@ export function useDailyLogWizard({
     );
   }, [
     applyBasicsValidation,
+    applyFlushValidation,
     applyOvaryValidation,
     applyUterusValidation,
     date,
+    flush,
+    flushDecision,
+    getStepIndex,
     isEdit,
     time,
     leftOvary,
@@ -634,13 +815,17 @@ export function useDailyLogWizard({
   return {
     isEdit,
     currentStepIndex,
-    currentStepTitle: DAILY_LOG_WIZARD_STEPS[currentStepIndex],
+    currentStepTitle: currentStep.title,
+    currentStepId,
+    steps,
     date,
     time,
     teasingScore,
     rightOvary,
     leftOvary,
     uterus,
+    flushDecision,
+    flush,
     notes,
     legacyNotes,
     legacyOvulationDetected,
@@ -671,6 +856,13 @@ export function useDailyLogWizard({
     setUterineCysts,
     upsertFluidPocket,
     removeFluidPocket,
+    setFlushDecision,
+    setFlushBaseSolution,
+    setFlushTotalVolumeMl,
+    setFlushNotes,
+    addFlushProduct,
+    updateFlushProduct,
+    removeFlushProduct,
     goNext,
     goBack,
     goToStep,

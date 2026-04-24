@@ -11,6 +11,21 @@ export type ScoreOption = '' | '0' | '1' | '2' | '3' | '4' | '5';
 
 export type TriStateOption = 'unknown' | 'no' | 'yes';
 
+export type DailyLogWizardStepId =
+  | 'basics'
+  | 'rightOvary'
+  | 'leftOvary'
+  | 'uterus'
+  | 'flush'
+  | 'review';
+
+export type DailyLogWizardStepDescriptor = {
+  id: DailyLogWizardStepId;
+  title: string;
+};
+
+export type FlushDecision = 'yes' | 'no' | null;
+
 export type DailyLogWizardMeasurementDraft = {
   clientId: string;
   value: string;
@@ -43,6 +58,26 @@ export type DailyLogWizardUterusDraft = {
   fluidPockets: DailyLogWizardFluidPocketDraft[];
 };
 
+export type DailyLogWizardFlushProductDraft = {
+  clientId: string;
+  id?: string;
+  productName: string;
+  dose: string;
+  notes: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type DailyLogWizardFlushDraft = {
+  id?: string;
+  baseSolution: string;
+  totalVolumeMl: string;
+  notes: string;
+  products: DailyLogWizardFlushProductDraft[];
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type DailyLogWizardLegacyNotes = {
   rightOvary: string | null;
   leftOvary: string | null;
@@ -61,6 +96,13 @@ export type OvaryStepErrors = {
 export type UterusStepErrors = {
   dischargeNotes?: string;
   fluidPockets?: string;
+  flushDecision?: string;
+};
+
+export type FlushStepErrors = {
+  baseSolution?: string;
+  totalVolumeMl?: string;
+  products?: string;
 };
 
 export type DailyLogWizardErrors = {
@@ -68,4 +110,5 @@ export type DailyLogWizardErrors = {
   rightOvary: OvaryStepErrors;
   leftOvary: OvaryStepErrors;
   uterus: UterusStepErrors;
+  flush: FlushStepErrors;
 };

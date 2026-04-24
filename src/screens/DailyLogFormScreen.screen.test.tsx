@@ -48,10 +48,23 @@ function createNavigation() {
 }
 
 function createWizardMock(overrides: Record<string, unknown> = {}) {
+  const steps = [
+    { id: 'basics', title: 'Basics' },
+    { id: 'rightOvary', title: 'Right Ovary' },
+    { id: 'leftOvary', title: 'Left Ovary' },
+    { id: 'uterus', title: 'Uterus' },
+    { id: 'review', title: 'Review' },
+  ];
+  const currentStepIndex =
+    typeof overrides.currentStepIndex === 'number' ? overrides.currentStepIndex : 0;
+  const currentStep = steps[currentStepIndex] ?? steps[0];
+
   return {
     isEdit: false,
-    currentStepIndex: 0,
-    currentStepTitle: 'Basics',
+    currentStepIndex,
+    currentStepId: currentStep.id,
+    currentStepTitle: currentStep.title,
+    steps,
     date: '2026-04-21',
     time: '08:30',
     teasingScore: '',
@@ -92,6 +105,14 @@ function createWizardMock(overrides: Record<string, unknown> = {}) {
       rightOvary: {},
       leftOvary: {},
       uterus: {},
+      flush: {},
+    },
+    flushDecision: null,
+    flush: {
+      baseSolution: '',
+      totalVolumeMl: '',
+      notes: '',
+      products: [{ clientId: 'product-1', productName: 'Saline', dose: '', notes: '' }],
     },
     today: new Date(),
     isLoading: false,
@@ -117,6 +138,13 @@ function createWizardMock(overrides: Record<string, unknown> = {}) {
     setUterineCysts: jest.fn(),
     upsertFluidPocket: jest.fn(),
     removeFluidPocket: jest.fn(),
+    setFlushDecision: jest.fn(),
+    setFlushBaseSolution: jest.fn(),
+    setFlushTotalVolumeMl: jest.fn(),
+    setFlushNotes: jest.fn(),
+    addFlushProduct: jest.fn(),
+    updateFlushProduct: jest.fn(),
+    removeFlushProduct: jest.fn(),
     goNext: jest.fn(),
     goBack: jest.fn(),
     goToStep: jest.fn(),

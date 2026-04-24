@@ -48,6 +48,7 @@ describe('daily log wizard mappers', () => {
           updatedAt: '2026-04-01T00:00:00.000Z',
         },
       ],
+      uterineFlush: null,
     };
 
     const hydrated = hydrateDailyLogWizardRecord(record);
@@ -111,6 +112,14 @@ describe('daily log wizard mappers', () => {
           },
         ],
       },
+      flushDecision: 'no',
+      flush: {
+        baseSolution: '',
+        totalVolumeMl: '',
+        notes: '',
+        products: [],
+      },
+      hadPersistedFlush: false,
       notes: '  keep note  ',
       legacyOvulationDetected: true,
       ovulationSource: 'legacy',
@@ -170,6 +179,14 @@ describe('daily log wizard mappers', () => {
         uterineCysts: '',
         fluidPockets: [],
       },
+      flushDecision: null,
+      flush: {
+        baseSolution: '',
+        totalVolumeMl: '',
+        notes: '',
+        products: [],
+      },
+      hadPersistedFlush: false,
       notes: '',
       legacyOvulationDetected: null,
       ovulationSource: 'structured',

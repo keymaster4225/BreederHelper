@@ -58,7 +58,7 @@ describe('safetyBackups', () => {
     expect(ensureDirectoryExists).toHaveBeenCalledWith('file:///mock-documents/safety-snapshots/');
     expect(writeJsonFile).toHaveBeenCalledWith(
       `file:///mock-documents/safety-snapshots/snapshot-${backup.createdAt}.json`,
-      expect.stringContaining('"schemaVersion": 7'),
+      expect.stringContaining('"schemaVersion": 8'),
     );
     expect(deleteFile).toHaveBeenCalledWith('file:///mock-documents/safety-snapshots/snapshot-d.json');
   });
@@ -88,7 +88,7 @@ describe('safetyBackups', () => {
     vi.mocked(listDirectoryFiles).mockRejectedValue(new Error('directory unavailable'));
 
     await expect(createSafetySnapshot()).resolves.toMatchObject({
-      schemaVersion: 7,
+      schemaVersion: 8,
       mareCount: 1,
     });
   });

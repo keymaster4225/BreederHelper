@@ -15,6 +15,15 @@ type Props = {
 };
 
 export function MedicationsTab({ mareId, medicationLogs, navigation }: Props): JSX.Element {
+  const openMedicationSource = (log: MedicationLog): void => {
+    if (log.sourceDailyLogId) {
+      navigation.navigate('DailyLogForm', { mareId, logId: log.sourceDailyLogId });
+      return;
+    }
+
+    navigation.navigate('MedicationForm', { mareId, medicationLogId: log.id });
+  };
+
   return (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -32,10 +41,11 @@ export function MedicationsTab({ mareId, medicationLogs, navigation }: Props): J
             <View style={cardStyles.cardHeader}>
               <Text style={cardStyles.cardTitle}>{log.date}</Text>
               <EditIconButton
-                onPress={() => navigation.navigate('MedicationForm', { mareId, medicationLogId: log.id })}
+                onPress={() => openMedicationSource(log)}
               />
             </View>
             <CardRow label="Medication" value={log.medicationName} />
+            {log.sourceDailyLogId ? <CardRow label="Source" value="Daily log flush" /> : null}
             {log.dose ? <CardRow label="Dose" value={log.dose} /> : null}
             {log.route ? <CardRow label="Route" value={formatRoute(log.route)} /> : null}
           </View>

@@ -214,16 +214,26 @@ function MedicationCard({ event, navigation, mareId }: {
   mareId: string;
 }): JSX.Element {
   const log = event.data as MedicationLog;
+  const handleEdit = (): void => {
+    if (log.sourceDailyLogId) {
+      navigation.navigate('DailyLogForm', { mareId, logId: log.sourceDailyLogId });
+      return;
+    }
+
+    navigation.navigate('MedicationForm', { mareId, medicationLogId: log.id });
+  };
+
   return (
     <View style={cardStyles.card}>
       <View style={cardStyles.cardHeader}>
         <Text style={cardStyles.cardTitle}>{event.date}</Text>
-        <EditIconButton onPress={() => navigation.navigate('MedicationForm', { mareId, medicationLogId: log.id })} />
+        <EditIconButton onPress={handleEdit} />
       </View>
       <View style={cardStyles.cardRow}>
         <EventTypeBadge type="medication" />
         <Text style={styles.cardDetail}>{log.medicationName}</Text>
       </View>
+      {log.sourceDailyLogId ? <CardRow label="Source" value="Daily log flush" /> : null}
       {log.dose ? <CardRow label="Dose" value={log.dose} /> : null}
       {log.route ? <CardRow label="Route" value={formatRoute(log.route)} /> : null}
     </View>

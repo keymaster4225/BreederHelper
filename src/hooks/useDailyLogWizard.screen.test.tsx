@@ -66,6 +66,7 @@ function createDailyLogDetail(overrides: Partial<DailyLogDetail> = {}): DailyLog
     createdAt: '2026-04-01T08:30:00.000Z',
     updatedAt: '2026-04-01T08:30:00.000Z',
     uterineFluidPockets: [],
+    uterineFlush: null,
     ...overrides,
   };
 }
@@ -192,5 +193,36 @@ describe('useDailyLogWizard', () => {
     expect(repositories.createDailyLog).not.toHaveBeenCalled();
     expect(result.current.currentStepIndex).toBe(0);
     expect(result.current.errors.basics.time).toBe('Time is required.');
+  });
+
+  it('adds a flush step when a fluid pocket is marked as flushed', async () => {
+    const { result } = renderHook(() =>
+      useDailyLogWizard({
+        mareId: 'mare-1',
+        onGoBack: jest.fn(),
+        setTitle: jest.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.upsertFluidPocket({ depthMm: 6, location: 'uterineBody' });
+      result.current.setFlushDecision('yes');
+    });
+
+    expect(result.current.steps.map((step) => step.title)).toEqual([
+      'Basics',
+      'Right Ovary',
+      'Left Ovary',
+      'Uterus',
+      'Flush',
+      'Review',
+    ]);
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.currentStepId).toBe('flush');
+    expect(result.current.errors.flush.baseSolution).toBe('Base solution is required.');
   });
 });

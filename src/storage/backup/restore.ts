@@ -10,6 +10,7 @@ import {
   BACKUP_SCHEMA_VERSION_V5,
   BACKUP_SCHEMA_VERSION_V6,
   BACKUP_SCHEMA_VERSION_V7,
+  BACKUP_SCHEMA_VERSION_V8,
 } from './types';
 import type {
   BackupCollectionDoseEventRowV2,
@@ -21,7 +22,7 @@ import type {
   BackupEnvelope,
   BackupEnvelopeV4,
   BackupEnvelopeV5,
-  BackupEnvelopeV7,
+  BackupEnvelopeV8,
   BackupFoalingRecordRow,
   BackupFoalRow,
   BackupFrozenSemenBatchRow,
@@ -29,11 +30,14 @@ import type {
   BackupMareRowV2,
   BackupMareRowV6,
   BackupMedicationLogRow,
+  BackupMedicationLogRowV7,
   BackupPregnancyCheckRow,
   BackupSemenCollectionRowV2,
   BackupSemenCollectionRowV3,
   BackupStallionRow,
   BackupUterineFluidRow,
+  BackupUterineFlushProductRow,
+  BackupUterineFlushRow,
   RestoreBackupResult,
 } from './types';
 import { validateBackup, validateBackupJson } from './validate';
@@ -58,6 +62,8 @@ type NormalizedBackupForRestore = {
     readonly breeding_records: readonly BackupBreedingRecordRow[];
     readonly daily_logs: readonly BackupDailyLogRow[];
     readonly uterine_fluid: readonly BackupUterineFluidRow[];
+    readonly uterine_flushes: readonly BackupUterineFlushRow[];
+    readonly uterine_flush_products: readonly BackupUterineFlushProductRow[];
     readonly medication_logs: readonly BackupMedicationLogRow[];
     readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
     readonly foaling_records: readonly BackupFoalingRecordRow[];
@@ -130,8 +136,10 @@ async function deleteManagedTables(db: Awaited<ReturnType<typeof getDb>>): Promi
   await db.runAsync('DELETE FROM foals;');
   await db.runAsync('DELETE FROM pregnancy_checks;');
   await db.runAsync('DELETE FROM uterine_fluid;');
-  await db.runAsync('DELETE FROM foaling_records;');
   await db.runAsync('DELETE FROM medication_logs;');
+  await db.runAsync('DELETE FROM uterine_flush_products;');
+  await db.runAsync('DELETE FROM uterine_flushes;');
+  await db.runAsync('DELETE FROM foaling_records;');
   await db.runAsync('DELETE FROM daily_logs;');
   await db.runAsync('DELETE FROM breeding_records;');
   await db.runAsync('DELETE FROM semen_collections;');
@@ -163,6 +171,12 @@ async function insertManagedTables(
   }
   for (const row of backup.tables.uterine_fluid) {
     await insertUterineFluid(db, row);
+  }
+  for (const row of backup.tables.uterine_flushes) {
+    await insertUterineFlush(db, row);
+  }
+  for (const row of backup.tables.uterine_flush_products) {
+    await insertUterineFlushProduct(db, row);
   }
   for (const row of backup.tables.medication_logs) {
     await insertMedicationLog(db, row);
@@ -516,6 +530,62 @@ async function insertUterineFluid(
   );
 }
 
+async function insertUterineFlush(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupUterineFlushRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO uterine_flushes (
+      id,
+      daily_log_id,
+      base_solution,
+      total_volume_ml,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.daily_log_id,
+      row.base_solution,
+      row.total_volume_ml,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertUterineFlushProduct(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupUterineFlushProductRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO uterine_flush_products (
+      id,
+      uterine_flush_id,
+      product_name,
+      dose,
+      notes,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.uterine_flush_id,
+      row.product_name,
+      row.dose,
+      row.notes,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
 async function insertMedicationLog(
   db: Awaited<ReturnType<typeof getDb>>,
   row: BackupMedicationLogRow,
@@ -530,9 +600,10 @@ async function insertMedicationLog(
       dose,
       route,
       notes,
+      source_daily_log_id,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
@@ -542,6 +613,7 @@ async function insertMedicationLog(
       row.dose,
       row.route,
       row.notes,
+      row.source_daily_log_id,
       row.created_at,
       row.updated_at,
     ],
@@ -704,8 +776,8 @@ async function insertCollectionDoseEvent(
 }
 
 function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForRestore {
-  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V7) {
-    return backup as BackupEnvelopeV7;
+  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V8) {
+    return backup as BackupEnvelopeV8;
   }
 
   const mares: readonly BackupMareRowV6[] =
@@ -740,6 +812,9 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
     backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V5
       ? (backup as BackupEnvelopeV5).tables.frozen_semen_batches
       : [];
+  const medicationLogs: readonly BackupMedicationLogRow[] = backup.tables.medication_logs.map(
+    (row) => normalizeMedicationLogRow(row as BackupMedicationLogRow | BackupMedicationLogRowV7),
+  );
 
   return {
     settings: backup.settings,
@@ -750,13 +825,24 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
       breeding_records: backup.tables.breeding_records,
       daily_logs: dailyLogs,
       uterine_fluid: uterineFluid,
-      medication_logs: backup.tables.medication_logs,
+      uterine_flushes: [],
+      uterine_flush_products: [],
+      medication_logs: medicationLogs,
       pregnancy_checks: backup.tables.pregnancy_checks,
       foaling_records: backup.tables.foaling_records,
       foals: backup.tables.foals,
       collection_dose_events: collectionDoseEvents,
       frozen_semen_batches: frozenSemenBatches,
     },
+  };
+}
+
+function normalizeMedicationLogRow(
+  row: BackupMedicationLogRow | BackupMedicationLogRowV7,
+): BackupMedicationLogRow {
+  return {
+    ...row,
+    source_daily_log_id: 'source_daily_log_id' in row ? row.source_daily_log_id : null,
   };
 }
 

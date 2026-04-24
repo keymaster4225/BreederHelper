@@ -6,7 +6,7 @@ import {
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV7,
+  type BackupEnvelopeV8,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
   type BackupFrozenSemenBatchRow,
@@ -16,6 +16,8 @@ import {
   type BackupSemenCollectionRowV3,
   type BackupStallionRow,
   type BackupUterineFluidRow,
+  type BackupUterineFlushProductRow,
+  type BackupUterineFlushRow,
 } from './types';
 
 type AppJsonShape = {
@@ -30,7 +32,7 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV7> {
+export async function serializeBackup(): Promise<BackupEnvelopeV8> {
   const db = await getDb();
 
   const [
@@ -38,6 +40,8 @@ export async function serializeBackup(): Promise<BackupEnvelopeV7> {
     stallions,
     dailyLogs,
     uterineFluid,
+    uterineFlushes,
+    uterineFlushProducts,
     breedingRecords,
     pregnancyChecks,
     foalingRecords,
@@ -142,6 +146,34 @@ export async function serializeBackup(): Promise<BackupEnvelopeV7> {
       ORDER BY created_at DESC, id ASC;
       `,
     ),
+    db.getAllAsync<BackupUterineFlushRow>(
+      `
+      SELECT
+        id,
+        daily_log_id,
+        base_solution,
+        total_volume_ml,
+        notes,
+        created_at,
+        updated_at
+      FROM uterine_flushes
+      ORDER BY created_at DESC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupUterineFlushProductRow>(
+      `
+      SELECT
+        id,
+        uterine_flush_id,
+        product_name,
+        dose,
+        notes,
+        created_at,
+        updated_at
+      FROM uterine_flush_products
+      ORDER BY created_at ASC, id ASC;
+      `,
+    ),
     db.getAllAsync<BackupBreedingRecordRow>(
       `
       SELECT
@@ -228,6 +260,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV7> {
         dose,
         route,
         notes,
+        source_daily_log_id,
         created_at,
         updated_at
       FROM medication_logs
@@ -334,6 +367,8 @@ export async function serializeBackup(): Promise<BackupEnvelopeV7> {
       stallions,
       daily_logs: dailyLogs,
       uterine_fluid: uterineFluid,
+      uterine_flushes: uterineFlushes,
+      uterine_flush_products: uterineFlushProducts,
       breeding_records: breedingRecords,
       pregnancy_checks: pregnancyChecks,
       foaling_records: foalingRecords,

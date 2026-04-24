@@ -25,6 +25,7 @@ import {
   BACKUP_SCHEMA_VERSION_V5,
   BACKUP_SCHEMA_VERSION_V6,
   BACKUP_SCHEMA_VERSION_V7,
+  BACKUP_SCHEMA_VERSION_V8,
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupEnvelope,
@@ -41,6 +42,7 @@ import {
   type BackupTablesV5,
   type BackupTablesV6,
   type BackupTablesV7,
+  type BackupTablesV8,
   type ValidateBackupError,
   type ValidateBackupResult,
 } from './types';
@@ -70,11 +72,13 @@ type BackupTables =
   | BackupTablesV4
   | BackupTablesV5
   | BackupTablesV6
-  | BackupTablesV7;
+  | BackupTablesV7
+  | BackupTablesV8;
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;
   readonly dailyLogIds: ReadonlySet<string>;
+  readonly uterineFlushIds: ReadonlySet<string>;
   readonly stallionIds: ReadonlySet<string>;
   readonly breedingById: ReadonlyMap<string, BackupBreedingRecordRow>;
   readonly foalingById: ReadonlyMap<string, BackupFoalingRecordRow>;
@@ -118,7 +122,8 @@ export function validateBackup(input: unknown): ValidateBackupResult {
     schemaVersion !== BACKUP_SCHEMA_VERSION_V4 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V5 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V6 &&
-    schemaVersion !== BACKUP_SCHEMA_VERSION_V7
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V7 &&
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V8
   ) {
     return validationFailure(
       'unsupported_schema_version',
@@ -199,11 +204,17 @@ export function validateBackup(input: unknown): ValidateBackupResult {
                     ...baseEnvelopeFields,
                     tables: tableArrays.tables as BackupTablesV6,
                   }
-              : {
-                  schemaVersion: BACKUP_SCHEMA_VERSION_V7,
-                  ...baseEnvelopeFields,
-                  tables: tableArrays.tables as BackupTablesV7,
-                };
+              : schemaVersion === BACKUP_SCHEMA_VERSION_V7
+                ? {
+                    schemaVersion: BACKUP_SCHEMA_VERSION_V7,
+                    ...baseEnvelopeFields,
+                    tables: tableArrays.tables as BackupTablesV7,
+                  }
+                : {
+                    schemaVersion: BACKUP_SCHEMA_VERSION_V8,
+                    ...baseEnvelopeFields,
+                    tables: tableArrays.tables as BackupTablesV8,
+                  };
 
   const rowError = validateRows(backup.tables, schemaVersion);
   if (rowError) {
@@ -268,6 +279,9 @@ function getTableArrays(
   if (schemaVersion >= BACKUP_SCHEMA_VERSION_V5) {
     requiredTables.push('frozen_semen_batches');
   }
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V8) {
+    requiredTables.push('uterine_flushes', 'uterine_flush_products');
+  }
 
   for (const tableName of requiredTables) {
     if (!Array.isArray(tables[tableName])) {
@@ -307,6 +321,19 @@ function validateRows(
       if (error) return error;
     }
   }
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V8) {
+    const flushRows = (tables as BackupTablesV8).uterine_flushes;
+    for (let index = 0; index < flushRows.length; index += 1) {
+      const error = validateUterineFlushRow(flushRows[index], index);
+      if (error) return error;
+    }
+
+    const productRows = (tables as BackupTablesV8).uterine_flush_products;
+    for (let index = 0; index < productRows.length; index += 1) {
+      const error = validateUterineFlushProductRow(productRows[index], index);
+      if (error) return error;
+    }
+  }
   for (let index = 0; index < tables.breeding_records.length; index += 1) {
     const error = validateBreedingRecordRow(tables.breeding_records[index], index);
     if (error) return error;
@@ -324,7 +351,7 @@ function validateRows(
     if (error) return error;
   }
   for (let index = 0; index < tables.medication_logs.length; index += 1) {
-    const error = validateMedicationLogRow(tables.medication_logs[index], index);
+    const error = validateMedicationLogRow(tables.medication_logs[index], index, schemaVersion);
     if (error) return error;
   }
   for (let index = 0; index < tables.semen_collections.length; index += 1) {
@@ -593,6 +620,80 @@ function validateUterineFluidRow(row: unknown, rowIndex: number): ValidateBackup
   return null;
 }
 
+function validateUterineFlushRow(row: unknown, rowIndex: number): ValidateBackupResult | null {
+  if (!isRecord(row)) {
+    return rowFailure('uterine_flushes', rowIndex, 'row', 'must be an object');
+  }
+
+  if (!isNonEmptyString(row.id)) return rowFailure('uterine_flushes', rowIndex, 'id', 'is required');
+  if (!isNonEmptyString(row.daily_log_id)) {
+    return rowFailure('uterine_flushes', rowIndex, 'daily_log_id', 'is required');
+  }
+  if (!isNonEmptyString(row.base_solution) || row.base_solution.trim().length === 0) {
+    return rowFailure('uterine_flushes', rowIndex, 'base_solution', 'is required');
+  }
+  if (
+    !isFiniteNumber(row.total_volume_ml) ||
+    row.total_volume_ml <= 0 ||
+    !hasAtMostOneDecimalPlace(row.total_volume_ml)
+  ) {
+    return rowFailure(
+      'uterine_flushes',
+      rowIndex,
+      'total_volume_ml',
+      'must be > 0 with at most one decimal place',
+    );
+  }
+  if (!isNullableString(row.notes)) {
+    return rowFailure('uterine_flushes', rowIndex, 'notes', 'must be a string or null');
+  }
+  if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
+    return rowFailure(
+      'uterine_flushes',
+      rowIndex,
+      'timestamps',
+      'created_at and updated_at are required',
+    );
+  }
+
+  return null;
+}
+
+function validateUterineFlushProductRow(
+  row: unknown,
+  rowIndex: number,
+): ValidateBackupResult | null {
+  if (!isRecord(row)) {
+    return rowFailure('uterine_flush_products', rowIndex, 'row', 'must be an object');
+  }
+
+  if (!isNonEmptyString(row.id)) {
+    return rowFailure('uterine_flush_products', rowIndex, 'id', 'is required');
+  }
+  if (!isNonEmptyString(row.uterine_flush_id)) {
+    return rowFailure('uterine_flush_products', rowIndex, 'uterine_flush_id', 'is required');
+  }
+  if (!isNonEmptyString(row.product_name) || row.product_name.trim().length === 0) {
+    return rowFailure('uterine_flush_products', rowIndex, 'product_name', 'is required');
+  }
+  if (!isNonEmptyString(row.dose) || row.dose.trim().length === 0) {
+    return rowFailure('uterine_flush_products', rowIndex, 'dose', 'is required');
+  }
+  if (!isNullableString(row.notes)) {
+    return rowFailure('uterine_flush_products', rowIndex, 'notes', 'must be a string or null');
+  }
+  if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
+    return rowFailure(
+      'uterine_flush_products',
+      rowIndex,
+      'timestamps',
+      'created_at and updated_at are required',
+    );
+  }
+
+  return null;
+}
+
 function validateBreedingRecordRow(row: unknown, rowIndex: number): ValidateBackupResult | null {
   if (!isRecord(row)) {
     return rowFailure('breeding_records', rowIndex, 'row', 'must be an object');
@@ -739,7 +840,11 @@ function validateFoalRow(row: unknown, rowIndex: number): ValidateBackupResult |
   return null;
 }
 
-function validateMedicationLogRow(row: unknown, rowIndex: number): ValidateBackupResult | null {
+function validateMedicationLogRow(
+  row: unknown,
+  rowIndex: number,
+  schemaVersion: number,
+): ValidateBackupResult | null {
   if (!isRecord(row)) {
     return rowFailure('medication_logs', rowIndex, 'row', 'must be an object');
   }
@@ -755,6 +860,17 @@ function validateMedicationLogRow(row: unknown, rowIndex: number): ValidateBacku
     return rowFailure('medication_logs', rowIndex, 'route', 'must be a supported route or null');
   }
   if (!isNullableString(row.notes)) return rowFailure('medication_logs', rowIndex, 'notes', 'must be a string or null');
+  if (
+    schemaVersion >= BACKUP_SCHEMA_VERSION_V8 &&
+    !isNullableString(row.source_daily_log_id)
+  ) {
+    return rowFailure(
+      'medication_logs',
+      rowIndex,
+      'source_daily_log_id',
+      'must be a string or null',
+    );
+  }
   if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
     return rowFailure('medication_logs', rowIndex, 'timestamps', 'created_at and updated_at are required');
   }
@@ -1299,6 +1415,10 @@ function buildIndexes(
   return {
     mareIds: new Set(tables.mares.map((row) => row.id)),
     dailyLogIds: new Set(tables.daily_logs.map((row) => row.id)),
+    uterineFlushIds:
+      'uterine_flushes' in tables
+        ? new Set(tables.uterine_flushes.map((row) => row.id))
+        : new Set(),
     stallionIds: new Set(tables.stallions.map((row) => row.id)),
     breedingById: new Map(tables.breeding_records.map((row) => [row.id, row])),
     foalingById: new Map(tables.foaling_records.map((row) => [row.id, row])),
@@ -1326,6 +1446,16 @@ function validateCrossTableRules(
       ? ensureUniqueIds(
           'uterine_fluid',
           (tables as BackupTablesV4).uterine_fluid.map((row) => row.id),
+        )
+      : null) ??
+    (schemaVersion >= BACKUP_SCHEMA_VERSION_V8
+      ? ensureUniqueIds(
+          'uterine_flushes',
+          (tables as BackupTablesV8).uterine_flushes.map((row) => row.id),
+        ) ??
+        ensureUniqueIds(
+          'uterine_flush_products',
+          (tables as BackupTablesV8).uterine_flush_products.map((row) => row.id),
         )
       : null) ??
     (schemaVersion >= BACKUP_SCHEMA_VERSION_V5
@@ -1405,6 +1535,19 @@ function validateCrossTableRules(
     if (!indexes.mareIds.has(row.mare_id)) {
       return rowFailure('medication_logs', index, 'mare_id', 'references missing mare');
     }
+    if (
+      schemaVersion >= BACKUP_SCHEMA_VERSION_V8 &&
+      'source_daily_log_id' in row &&
+      row.source_daily_log_id != null &&
+      !indexes.dailyLogIds.has(row.source_daily_log_id)
+    ) {
+      return rowFailure(
+        'medication_logs',
+        index,
+        'source_daily_log_id',
+        'references missing daily log',
+      );
+    }
   }
 
   for (let index = 0; index < tables.pregnancy_checks.length; index += 1) {
@@ -1477,6 +1620,34 @@ function validateCrossTableRules(
       const row = uterineFluidRows[index];
       if (!indexes.dailyLogIds.has(row.daily_log_id)) {
         return rowFailure('uterine_fluid', index, 'daily_log_id', 'references missing daily log');
+      }
+    }
+  }
+
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V8) {
+    const flushRows = (tables as BackupTablesV8).uterine_flushes;
+    const flushDailyLogIds = new Set<string>();
+    for (let index = 0; index < flushRows.length; index += 1) {
+      const row = flushRows[index];
+      if (!indexes.dailyLogIds.has(row.daily_log_id)) {
+        return rowFailure('uterine_flushes', index, 'daily_log_id', 'references missing daily log');
+      }
+      if (flushDailyLogIds.has(row.daily_log_id)) {
+        return rowFailure('uterine_flushes', index, 'daily_log_id', 'duplicate daily_log_id');
+      }
+      flushDailyLogIds.add(row.daily_log_id);
+    }
+
+    const productRows = (tables as BackupTablesV8).uterine_flush_products;
+    for (let index = 0; index < productRows.length; index += 1) {
+      const row = productRows[index];
+      if (!indexes.uterineFlushIds.has(row.uterine_flush_id)) {
+        return rowFailure(
+          'uterine_flush_products',
+          index,
+          'uterine_flush_id',
+          'references missing uterine flush',
+        );
       }
     }
   }
@@ -1627,6 +1798,11 @@ function isNullableStringEnum(
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
+}
+
+function hasAtMostOneDecimalPlace(value: number): boolean {
+  const scaled = value * 10;
+  return Math.abs(scaled - Math.round(scaled)) < 1e-9;
 }
 
 function isNullableFiniteNumber(value: unknown): value is number | null {

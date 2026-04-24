@@ -5,10 +5,12 @@ import { newId } from '@/utils/id';
 import { collectValidMeasurements, fromScoreOption, toScoreOption } from './measurementUtils';
 import type {
   DailyLogWizardErrors,
+  DailyLogWizardFlushDraft,
   DailyLogWizardFluidPocketDraft,
   DailyLogWizardLegacyNotes,
   DailyLogWizardOvaryDraft,
   DailyLogWizardUterusDraft,
+  FlushDecision,
 } from './types';
 
 export function createEmptyOvaryDraft(): DailyLogWizardOvaryDraft {
@@ -33,12 +35,29 @@ export function createEmptyUterusDraft(): DailyLogWizardUterusDraft {
   };
 }
 
+export function createEmptyFlushDraft(): DailyLogWizardFlushDraft {
+  return {
+    baseSolution: '',
+    totalVolumeMl: '',
+    notes: '',
+    products: [
+      {
+        clientId: newId(),
+        productName: 'Saline',
+        dose: '',
+        notes: '',
+      },
+    ],
+  };
+}
+
 export function createEmptyErrors(): DailyLogWizardErrors {
   return {
     basics: {},
     rightOvary: {},
     leftOvary: {},
     uterus: {},
+    flush: {},
   };
 }
 
@@ -62,6 +81,42 @@ function mapFluidPockets(record: DailyLogDetail): DailyLogWizardFluidPocketDraft
     createdAt: pocket.createdAt,
     updatedAt: pocket.updatedAt,
   }));
+}
+
+function mapFlushDraft(record: DailyLogDetail): DailyLogWizardFlushDraft {
+  if (!record.uterineFlush) {
+    return createEmptyFlushDraft();
+  }
+
+  return {
+    id: record.uterineFlush.id,
+    baseSolution: record.uterineFlush.baseSolution,
+    totalVolumeMl: String(record.uterineFlush.totalVolumeMl),
+    notes: record.uterineFlush.notes ?? '',
+    createdAt: record.uterineFlush.createdAt,
+    updatedAt: record.uterineFlush.updatedAt,
+    products: record.uterineFlush.products.map((product) => ({
+      clientId: product.id,
+      id: product.id,
+      productName: product.productName,
+      dose: product.dose,
+      notes: product.notes ?? '',
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    })),
+  };
+}
+
+function inferFlushDecision(record: DailyLogDetail): FlushDecision {
+  if (record.uterineFlush) {
+    return 'yes';
+  }
+
+  if (record.uterineFluidPockets.length > 0) {
+    return 'no';
+  }
+
+  return null;
 }
 
 function inferInitialOvulationSource(record: DailyLogDetail): DailyLogOvulationSource {
@@ -106,6 +161,8 @@ export function hydrateDailyLogWizardRecord(record: DailyLogDetail) {
       uterineCysts: record.uterineCysts ?? '',
       fluidPockets: mapFluidPockets(record),
     },
+    flushDecision: inferFlushDecision(record),
+    flush: mapFlushDraft(record),
     notes: record.notes ?? '',
     legacyNotes,
     legacyOvulationDetected: record.ovulationDetected ?? null,
@@ -121,6 +178,9 @@ type BuildDailyLogPayloadArgs = {
   rightOvary: DailyLogWizardOvaryDraft;
   leftOvary: DailyLogWizardOvaryDraft;
   uterus: DailyLogWizardUterusDraft;
+  flushDecision: FlushDecision;
+  flush: DailyLogWizardFlushDraft;
+  hadPersistedFlush: boolean;
   notes: string;
   legacyOvulationDetected: boolean | null;
   ovulationSource: DailyLogOvulationSource;
@@ -134,6 +194,9 @@ export function buildDailyLogPayload({
   rightOvary,
   leftOvary,
   uterus,
+  flushDecision,
+  flush,
+  hadPersistedFlush,
   notes,
   legacyOvulationDetected,
   ovulationSource,
@@ -149,6 +212,33 @@ export function buildDailyLogPayload({
   const resolvedOvulationSource: DailyLogOvulationSource = shouldPreserveLegacyOvulation
     ? 'legacy'
     : 'structured';
+
+  const hasFluidPockets = uterus.fluidPockets.length > 0;
+  const trimmedFlushProducts = flush.products
+    .map((product) => ({
+      id: product.id,
+      productName: product.productName.trim(),
+      dose: product.dose.trim(),
+      notes: product.notes.trim() || null,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    }))
+    .filter((product) => product.productName || product.dose || product.notes);
+  const parsedFlushVolume = Number(flush.totalVolumeMl.trim());
+  const uterineFlush =
+    hasFluidPockets && flushDecision === 'yes'
+      ? {
+          id: flush.id,
+          baseSolution: flush.baseSolution.trim(),
+          totalVolumeMl: parsedFlushVolume,
+          notes: flush.notes.trim() || null,
+          products: trimmedFlushProducts,
+          createdAt: flush.createdAt,
+          updatedAt: flush.updatedAt,
+        }
+      : hadPersistedFlush
+        ? null
+        : undefined;
 
   return {
     date: date.trim(),
@@ -182,5 +272,6 @@ export function buildDailyLogPayload({
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     })),
+    uterineFlush,
   };
 }

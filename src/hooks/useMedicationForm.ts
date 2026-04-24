@@ -19,6 +19,7 @@ type UseMedicationFormArgs = {
   readonly mareId: string;
   readonly medicationLogId?: string;
   readonly onGoBack: () => void;
+  readonly onOpenSourceDailyLog?: (sourceDailyLogId: string) => void;
   readonly setTitle: (title: string) => void;
 };
 
@@ -48,10 +49,12 @@ export function useMedicationForm({
   mareId,
   medicationLogId,
   onGoBack,
+  onOpenSourceDailyLog,
   setTitle,
 }: UseMedicationFormArgs): UseMedicationFormResult {
   const isEdit = Boolean(medicationLogId);
   const onGoBackRef = useRef(onGoBack);
+  const onOpenSourceDailyLogRef = useRef(onOpenSourceDailyLog);
   const setTitleRef = useRef(setTitle);
 
   const [selectedMed, setSelectedMed] = useState<MedSelection | null>(null);
@@ -67,8 +70,9 @@ export function useMedicationForm({
 
   useEffect(() => {
     onGoBackRef.current = onGoBack;
+    onOpenSourceDailyLogRef.current = onOpenSourceDailyLog;
     setTitleRef.current = setTitle;
-  }, [onGoBack, setTitle]);
+  }, [onGoBack, onOpenSourceDailyLog, setTitle]);
 
   useEffect(() => {
     setTitleRef.current(isEdit ? 'Edit Medication' : 'Add Medication');
@@ -85,6 +89,11 @@ export function useMedicationForm({
         if (!record) {
           Alert.alert('Not found', 'This medication log no longer exists.');
           onGoBackRef.current();
+          return;
+        }
+
+        if (record.sourceDailyLogId) {
+          onOpenSourceDailyLogRef.current?.(record.sourceDailyLogId);
           return;
         }
 

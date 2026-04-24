@@ -116,6 +116,34 @@ describe('serializeBackup', () => {
           ];
         }
 
+        if (sql.includes('FROM uterine_flushes')) {
+          return [
+            {
+              id: 'flush-1',
+              daily_log_id: 'log-1',
+              base_solution: 'LRS',
+              total_volume_ml: 1000,
+              notes: 'Clear return',
+              created_at: '2026-04-10T00:00:00.000Z',
+              updated_at: '2026-04-10T00:00:00.000Z',
+            },
+          ];
+        }
+
+        if (sql.includes('FROM uterine_flush_products')) {
+          return [
+            {
+              id: 'flush-product-1',
+              uterine_flush_id: 'flush-1',
+              product_name: 'Saline',
+              dose: '1000 mL',
+              notes: null,
+              created_at: '2026-04-10T00:00:00.000Z',
+              updated_at: '2026-04-10T00:00:00.000Z',
+            },
+          ];
+        }
+
         if (sql.includes('FROM breeding_records')) {
           return [
             {
@@ -168,7 +196,20 @@ describe('serializeBackup', () => {
         }
 
         if (sql.includes('FROM medication_logs')) {
-          return [];
+          return [
+            {
+              id: 'med-1',
+              mare_id: 'mare-1',
+              date: '2026-04-10',
+              medication_name: 'Saline',
+              dose: '1000 mL',
+              route: 'intrauterine',
+              notes: 'Daily log flush: LRS, 1000 mL total.',
+              source_daily_log_id: 'log-1',
+              created_at: '2026-04-10T00:00:00.000Z',
+              updated_at: '2026-04-10T00:00:00.000Z',
+            },
+          ];
         }
 
         if (sql.includes('FROM semen_collections')) {
@@ -263,7 +304,7 @@ describe('serializeBackup', () => {
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(7);
+    expect(backup.schemaVersion).toBe(8);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
     expect(backup.tables.mares[0]?.gestation_length_days).toBe(345);
@@ -279,6 +320,9 @@ describe('serializeBackup', () => {
     expect(backup.tables.daily_logs[0]?.cervical_firmness).toBe('closed');
     expect(backup.tables.uterine_fluid[0]?.daily_log_id).toBe('log-1');
     expect(backup.tables.uterine_fluid[0]?.depth_mm).toBe(14);
+    expect(backup.tables.uterine_flushes[0]?.base_solution).toBe('LRS');
+    expect(backup.tables.uterine_flush_products[0]?.product_name).toBe('Saline');
+    expect(backup.tables.medication_logs[0]?.source_daily_log_id).toBe('log-1');
     expect(backup.tables.collection_dose_events[0]?.recipient_phone).toBe('555-0101');
     expect(backup.tables.collection_dose_events[0]?.breeding_record_id).toBe('breed-1');
     expect(backup.tables.collection_dose_events[0]?.dose_semen_volume_ml).toBe(50);
@@ -289,6 +333,6 @@ describe('serializeBackup', () => {
     ).toBe(500);
     expect(backup.tables.frozen_semen_batches[0]?.id).toBe('frozen-1');
     expect(backup.tables.frozen_semen_batches[0]?.extender).toBe('BotuCrio');
-    expect(db.getAllAsync).toHaveBeenCalledTimes(12);
+    expect(db.getAllAsync).toHaveBeenCalledTimes(14);
   });
 });

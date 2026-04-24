@@ -1148,6 +1148,43 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_logs_mare_date_untimed_unique
   WHERE time IS NULL;
 `;
 
+const migration025 = `
+CREATE TABLE IF NOT EXISTS uterine_flushes (
+  id TEXT PRIMARY KEY,
+  daily_log_id TEXT NOT NULL UNIQUE,
+  base_solution TEXT NOT NULL,
+  total_volume_ml REAL NOT NULL,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (daily_log_id) REFERENCES daily_logs(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (TRIM(base_solution) <> ''),
+  CHECK (
+    total_volume_ml > 0
+    AND ABS(total_volume_ml * 10 - ROUND(total_volume_ml * 10)) < 0.0000001
+  )
+);
+
+CREATE TABLE IF NOT EXISTS uterine_flush_products (
+  id TEXT PRIMARY KEY,
+  uterine_flush_id TEXT NOT NULL,
+  product_name TEXT NOT NULL,
+  dose TEXT NOT NULL,
+  notes TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (uterine_flush_id) REFERENCES uterine_flushes(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (TRIM(product_name) <> ''),
+  CHECK (TRIM(dose) <> '')
+);
+
+CREATE INDEX IF NOT EXISTS idx_uterine_flush_products_flush_id
+  ON uterine_flush_products (uterine_flush_id);
+
+CREATE INDEX IF NOT EXISTS idx_medication_logs_source_daily_log_id
+  ON medication_logs (source_daily_log_id);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -1341,6 +1378,17 @@ const migrations: Migration[] = [
       (await indexExists(db, 'idx_daily_logs_mare_date_time_unique')) &&
       (await indexExists(db, 'idx_daily_logs_mare_date_untimed_unique')),
   },
+  {
+    id: 25,
+    name: '025_daily_log_flush_follow_up',
+    statements: splitStatements(migration025),
+    beforeApply: async (db) => ensureMedicationSourceDailyLogColumn(db),
+    shouldSkip: async (db) =>
+      (await tableExists(db, 'uterine_flushes')) &&
+      (await tableExists(db, 'uterine_flush_products')) &&
+      (await hasColumn(db, 'medication_logs', 'source_daily_log_id')) &&
+      (await indexExists(db, 'idx_medication_logs_source_daily_log_id')),
+  },
 ];
 
 export async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -1455,6 +1503,20 @@ async function hasColumn(
 ): Promise<boolean> {
   const rows = await db.getAllAsync<{ name: string }>(`PRAGMA table_info(${tableName});`);
   return rows.some((row) => row.name === columnName);
+}
+
+async function ensureMedicationSourceDailyLogColumn(
+  db: SQLite.SQLiteDatabase,
+): Promise<void> {
+  if (await hasColumn(db, 'medication_logs', 'source_daily_log_id')) {
+    return;
+  }
+
+  await db.execAsync(`
+    ALTER TABLE medication_logs
+      ADD COLUMN source_daily_log_id TEXT
+        REFERENCES daily_logs(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+  `);
 }
 
 async function tableDefinitionReferences(

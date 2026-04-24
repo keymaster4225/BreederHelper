@@ -14,8 +14,10 @@ import {
 import type { DailyLogOvulationSource } from '@/models/types';
 import {
   type DailyLogWizardLegacyNotes,
+  type DailyLogWizardFlushDraft,
   type DailyLogWizardOvaryDraft,
   type DailyLogWizardUterusDraft,
+  type FlushDecision,
   type ScoreOption,
 } from '@/hooks/useDailyLogWizard';
 import { borderRadius, colors, spacing, typography } from '@/theme';
@@ -28,6 +30,8 @@ type Props = {
   rightOvary: DailyLogWizardOvaryDraft;
   leftOvary: DailyLogWizardOvaryDraft;
   uterus: DailyLogWizardUterusDraft;
+  flushDecision: FlushDecision;
+  flush: DailyLogWizardFlushDraft;
   notes: string;
   legacyNotes: DailyLogWizardLegacyNotes;
   legacyOvulationDetected: boolean | null;
@@ -135,6 +139,30 @@ function formatUterusSummary(uterus: DailyLogWizardUterusDraft): string {
   return rows.join('\n');
 }
 
+function formatFlushSummary(flush: DailyLogWizardFlushDraft): string {
+  const rows: string[] = [];
+  rows.push(`Base solution: ${flush.baseSolution.trim() || 'Not entered'}`);
+  rows.push(`Total volume: ${flush.totalVolumeMl.trim() || 'Not entered'} mL`);
+
+  if (flush.products.length > 0) {
+    rows.push(
+      `Products: ${flush.products
+        .map((product) => {
+          const name = product.productName.trim() || 'Unnamed product';
+          const dose = product.dose.trim() || 'dose not entered';
+          return `${name} (${dose})`;
+        })
+        .join('; ')}`,
+    );
+  }
+
+  if (flush.notes.trim()) {
+    rows.push(`Notes: ${flush.notes.trim()}`);
+  }
+
+  return rows.join('\n');
+}
+
 type ReviewSectionProps = {
   title: string;
   summary: string;
@@ -172,6 +200,8 @@ export function ReviewStep({
   rightOvary,
   leftOvary,
   uterus,
+  flushDecision,
+  flush,
   notes,
   legacyNotes,
   legacyOvulationDetected,
@@ -219,6 +249,15 @@ export function ReviewStep({
         editLabel="Edit Uterus"
         onEdit={() => onJumpToStep(3)}
       />
+
+      {uterus.fluidPockets.length > 0 && flushDecision === 'yes' ? (
+        <ReviewSection
+          title="Flush"
+          summary={formatFlushSummary(flush)}
+          editLabel="Edit Flush"
+          onEdit={() => onJumpToStep(4)}
+        />
+      ) : null}
 
       {legacyValuesExist ? (
         <View style={cardStyles.card}>

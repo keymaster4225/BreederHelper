@@ -46,6 +46,8 @@ export function MedicationFormScreen({ navigation, route }: Props): JSX.Element 
     mareId,
     medicationLogId,
     onGoBack: () => navigation.goBack(),
+    onOpenSourceDailyLog: (sourceDailyLogId) =>
+      navigation.replace('DailyLogForm', { mareId, logId: sourceDailyLogId }),
     setTitle: (title) => navigation.setOptions({ title }),
   });
 

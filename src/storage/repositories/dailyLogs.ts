@@ -13,17 +13,29 @@ import type {
   FollicleState,
   OvaryConsistency,
   OvaryStructure,
+  UterineFlush,
   UterineToneCategory,
 } from '@/models/types';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { normalizeDailyLogTime } from '@/utils/dailyLogTime';
+import { newId } from '@/utils/id';
 
 import {
-  deleteByDailyLogId,
+  deleteByDailyLogId as deleteUterineFluidByDailyLogId,
   listByDailyLogId,
-  replaceByDailyLogId,
+  replaceByDailyLogId as replaceUterineFluidByDailyLogId,
   type ReplaceUterineFluidPocketInput,
 } from './uterineFluid';
+import {
+  deleteByDailyLogId as deleteUterineFlushByDailyLogId,
+  getByDailyLogId as getUterineFlushByDailyLogId,
+  replaceByDailyLogId as replaceUterineFlushByDailyLogId,
+  type ReplaceUterineFlushInput,
+} from './uterineFlushes';
+import {
+  deleteMedicationLogsBySourceDailyLogId,
+  insertMedicationLogWithoutInvalidation,
+} from './medications';
 import type { RepoDb } from './internal/dbTypes';
 import { resolveDb } from './internal/resolveDb';
 
@@ -86,6 +98,7 @@ type DailyLogFieldsInput = {
   notes?: string | null;
   ovulationSource?: DailyLogOvulationSource;
   uterineFluidPockets?: readonly ReplaceUterineFluidPocketInput[];
+  uterineFlush?: ReplaceUterineFlushInput | null;
 };
 
 export type DailyLogCreateInput = DailyLogFieldsInput & {
@@ -428,6 +441,54 @@ function resolveUpdateTime(input: DailyLogUpdateInput, existing: DailyLogRow | n
   return normalized;
 }
 
+function buildFlushMedicationNotes(
+  flush: UterineFlush,
+  product: UterineFlush['products'][number],
+): string {
+  const lines = [
+    `Daily log flush: ${flush.baseSolution}, ${flush.totalVolumeMl} mL total.`,
+  ];
+
+  const productNote = product.notes?.trim() ?? '';
+  if (productNote.length > 0) {
+    lines.push(`Product note: ${productNote}`);
+  }
+
+  return lines.join('\n');
+}
+
+async function syncLinkedFlushMedicationLogs(
+  db: RepoDb,
+  dailyLogId: string,
+  mareId: string,
+  date: string,
+  flush: UterineFlush | null,
+  now: string,
+): Promise<void> {
+  await deleteMedicationLogsBySourceDailyLogId(db, dailyLogId);
+
+  if (!flush) {
+    return;
+  }
+
+  for (const product of flush.products) {
+    await insertMedicationLogWithoutInvalidation(
+      db,
+      {
+        id: newId(),
+        mareId,
+        date,
+        medicationName: product.productName,
+        dose: product.dose,
+        route: 'intrauterine',
+        notes: buildFlushMedicationNotes(flush, product),
+        sourceDailyLogId: dailyLogId,
+      },
+      now,
+    );
+  }
+}
+
 export async function createDailyLog(input: DailyLogCreateInput, db?: RepoDb): Promise<void> {
   const handle = await resolveDb(db);
   const now = new Date().toISOString();
@@ -507,11 +568,22 @@ export async function createDailyLog(input: DailyLogCreateInput, db?: RepoDb): P
     );
 
     if (input.uterineFluidPockets && input.uterineFluidPockets.length > 0) {
-      await replaceByDailyLogId(handle, input.id, input.uterineFluidPockets, now);
+      await replaceUterineFluidByDailyLogId(handle, input.id, input.uterineFluidPockets, now);
+    }
+
+    if (input.uterineFlush) {
+      const flush = await replaceUterineFlushByDailyLogId(
+        handle,
+        input.id,
+        input.uterineFlush,
+        now,
+      );
+      await syncLinkedFlushMedicationLogs(handle, input.id, input.mareId, input.date, flush, now);
     }
   });
 
   emitDataInvalidation('dailyLogs');
+  emitDataInvalidation('medicationLogs');
 }
 
 export async function updateDailyLog(
@@ -528,6 +600,9 @@ export async function updateDailyLog(
     `,
     [id],
   );
+  if (!existing) {
+    throw new Error('Daily log not found.');
+  }
 
   const ovulation = resolveOvulationValues(input, existing);
   const now = new Date().toISOString();
@@ -607,11 +682,31 @@ export async function updateDailyLog(
     );
 
     if (input.uterineFluidPockets !== undefined) {
-      await replaceByDailyLogId(handle, id, input.uterineFluidPockets, now);
+      await replaceUterineFluidByDailyLogId(handle, id, input.uterineFluidPockets, now);
     }
+
+    let flush: UterineFlush | null;
+    if (input.uterineFlush === undefined) {
+      flush = await getUterineFlushByDailyLogId(handle, id);
+    } else if (input.uterineFlush === null) {
+      await deleteUterineFlushByDailyLogId(handle, id);
+      flush = null;
+    } else {
+      flush = await replaceUterineFlushByDailyLogId(handle, id, input.uterineFlush, now);
+    }
+
+    await syncLinkedFlushMedicationLogs(
+      handle,
+      id,
+      existing.mare_id,
+      input.date,
+      flush,
+      now,
+    );
   });
 
   emitDataInvalidation('dailyLogs');
+  emitDataInvalidation('medicationLogs');
 }
 
 export async function getDailyLogById(id: string, db?: RepoDb): Promise<DailyLogDetail | null> {
@@ -630,19 +725,24 @@ export async function getDailyLogById(id: string, db?: RepoDb): Promise<DailyLog
   }
 
   const uterineFluidPockets = await listByDailyLogId(handle, id);
+  const uterineFlush = await getUterineFlushByDailyLogId(handle, id);
   return {
     ...mapDailyLogRow(row),
     uterineFluidPockets,
+    uterineFlush,
   };
 }
 
 export async function deleteDailyLog(id: string, db?: RepoDb): Promise<void> {
   const handle = await resolveDb(db);
   await handle.withTransactionAsync(async () => {
-    await deleteByDailyLogId(handle, id);
+    await deleteMedicationLogsBySourceDailyLogId(handle, id);
+    await deleteUterineFlushByDailyLogId(handle, id);
+    await deleteUterineFluidByDailyLogId(handle, id);
     await handle.runAsync('DELETE FROM daily_logs WHERE id = ?;', [id]);
   });
   emitDataInvalidation('dailyLogs');
+  emitDataInvalidation('medicationLogs');
 }
 
 export async function listAllDailyLogs(db?: RepoDb): Promise<DailyLog[]> {

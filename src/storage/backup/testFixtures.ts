@@ -4,14 +4,14 @@ import type {
   BackupEnvelopeV4,
   BackupEnvelopeV5,
   BackupEnvelopeV6,
-  BackupEnvelopeV7,
+  BackupEnvelopeV8,
 } from './types';
 
 const BASE_TIMESTAMP = '2026-04-16T12:00:00.000Z';
 
-export function createBackupFixture(): BackupEnvelopeV7 {
+export function createBackupFixture(): BackupEnvelopeV8 {
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -98,6 +98,28 @@ export function createBackupFixture(): BackupEnvelopeV7 {
           updated_at: BASE_TIMESTAMP,
         },
       ],
+      uterine_flushes: [
+        {
+          id: 'flush-1',
+          daily_log_id: 'log-1',
+          base_solution: 'LRS',
+          total_volume_ml: 1000,
+          notes: 'Clear return',
+          created_at: BASE_TIMESTAMP,
+          updated_at: BASE_TIMESTAMP,
+        },
+      ],
+      uterine_flush_products: [
+        {
+          id: 'flush-product-1',
+          uterine_flush_id: 'flush-1',
+          product_name: 'Saline',
+          dose: '1000 mL',
+          notes: null,
+          created_at: BASE_TIMESTAMP,
+          updated_at: BASE_TIMESTAMP,
+        },
+      ],
       breeding_records: [
         {
           id: 'breed-1',
@@ -180,6 +202,7 @@ export function createBackupFixture(): BackupEnvelopeV7 {
           dose: '10mL',
           route: 'oral',
           notes: null,
+          source_daily_log_id: null,
           created_at: BASE_TIMESTAMP,
           updated_at: BASE_TIMESTAMP,
         },
@@ -261,8 +284,8 @@ export function createBackupFixture(): BackupEnvelopeV7 {
   };
 }
 
-export function cloneBackupFixture(): BackupEnvelopeV7 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV7;
+export function cloneBackupFixture(): BackupEnvelopeV8 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV8;
 }
 
 export function createBackupFixtureV6(): BackupEnvelopeV6 {
@@ -282,7 +305,9 @@ export function createBackupFixtureV6(): BackupEnvelopeV6 {
       pregnancy_checks: backupV7.tables.pregnancy_checks,
       foaling_records: backupV7.tables.foaling_records,
       foals: backupV7.tables.foals,
-      medication_logs: backupV7.tables.medication_logs,
+      medication_logs: backupV7.tables.medication_logs.map(
+        ({ source_daily_log_id: _sourceDailyLogId, ...row }) => row,
+      ),
       semen_collections: backupV7.tables.semen_collections,
       collection_dose_events: backupV7.tables.collection_dose_events,
       frozen_semen_batches: backupV7.tables.frozen_semen_batches,

@@ -44,6 +44,7 @@ export interface MedicationLog {
   dose: string | null;
   route: MedicationRoute | null;
   notes: string | null;
+  sourceDailyLogId: UUID | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
 }
@@ -251,6 +252,27 @@ export interface UterineFluidPocket {
   updatedAt: ISODateTime;
 }
 
+export interface UterineFlushProduct {
+  id: UUID;
+  uterineFlushId: UUID;
+  productName: string;
+  dose: string;
+  notes: string | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+export interface UterineFlush {
+  id: UUID;
+  dailyLogId: UUID;
+  baseSolution: string;
+  totalVolumeMl: number;
+  notes: string | null;
+  products: readonly UterineFlushProduct[];
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
 export type DailyLogOvulationSource = 'legacy' | 'structured';
 
 export interface DailyLog {
@@ -286,6 +308,7 @@ export interface DailyLog {
 
 export interface DailyLogDetail extends DailyLog {
   uterineFluidPockets: readonly UterineFluidPocket[];
+  uterineFlush: UterineFlush | null;
 }
 
 export interface BreedingRecord {

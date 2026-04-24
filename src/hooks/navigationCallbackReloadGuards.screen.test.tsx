@@ -33,6 +33,13 @@ jest.mock('./dailyLogWizard/mappers', () => ({
     rightOvary: {},
     leftOvary: {},
     uterus: {},
+    flush: {},
+  })),
+  createEmptyFlushDraft: jest.fn(() => ({
+    baseSolution: '',
+    totalVolumeMl: '',
+    notes: '',
+    products: [{ clientId: 'product-1', productName: 'Saline', dose: '', notes: '' }],
   })),
   createEmptyOvaryDraft: jest.fn(() => ({
     ovulation: null,
@@ -76,6 +83,13 @@ jest.mock('./dailyLogWizard/mappers', () => ({
       dischargeNotes: '',
       uterineCysts: '',
       fluidPockets: [],
+    },
+    flushDecision: null,
+    flush: {
+      baseSolution: '',
+      totalVolumeMl: '',
+      notes: '',
+      products: [{ clientId: 'product-1', productName: 'Saline', dose: '', notes: '' }],
     },
     notes: 'Original note',
     legacyNotes: {
@@ -162,6 +176,8 @@ describe('navigation callback reload guards', () => {
   it('does not reload the daily log wizard when callback props change identity', async () => {
     repositories.getDailyLogById.mockResolvedValue({
       id: 'log-1',
+      uterineFluidPockets: [],
+      uterineFlush: null,
     });
 
     const { result, rerender } = renderHook<
@@ -423,6 +439,7 @@ describe('navigation callback reload guards', () => {
       dose: '10 mL',
       route: 'oral',
       notes: 'Original med note',
+      sourceDailyLogId: null,
     });
 
     const { result, rerender } = renderHook<
