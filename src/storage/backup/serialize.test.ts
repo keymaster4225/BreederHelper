@@ -8,8 +8,13 @@ vi.mock('@/utils/onboarding', () => ({
   getOnboardingComplete: vi.fn(),
 }));
 
+vi.mock('@/utils/clockPreferences', () => ({
+  getClockPreference: vi.fn(),
+}));
+
 import { getDb } from '@/storage/db';
 import { getOnboardingComplete } from '@/utils/onboarding';
+import { getClockPreference } from '@/utils/clockPreferences';
 
 import { serializeBackup } from './serialize';
 
@@ -300,13 +305,15 @@ describe('serializeBackup', () => {
 
     vi.mocked(getDb).mockResolvedValue(db as never);
     vi.mocked(getOnboardingComplete).mockResolvedValue(false);
+    vi.mocked(getClockPreference).mockResolvedValue('24h');
 
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(8);
+    expect(backup.schemaVersion).toBe(9);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
+    expect(backup.settings.clockPreference).toBe('24h');
     expect(backup.tables.mares[0]?.gestation_length_days).toBe(345);
     expect(backup.tables.mares[0]?.is_recipient).toBe(1);
     expect(backup.tables.mares[0]?.deleted_at).toBe('2026-04-01T00:00:00.000Z');

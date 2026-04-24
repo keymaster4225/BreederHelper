@@ -4,14 +4,14 @@ import type {
   BackupEnvelopeV4,
   BackupEnvelopeV5,
   BackupEnvelopeV6,
-  BackupEnvelopeV8,
+  BackupEnvelopeV9,
 } from './types';
 
 const BASE_TIMESTAMP = '2026-04-16T12:00:00.000Z';
 
-export function createBackupFixture(): BackupEnvelopeV8 {
+export function createBackupFixture(): BackupEnvelopeV9 {
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -19,6 +19,7 @@ export function createBackupFixture(): BackupEnvelopeV8 {
     },
     settings: {
       onboardingComplete: true,
+      clockPreference: 'system',
     },
     tables: {
       mares: [
@@ -284,8 +285,8 @@ export function createBackupFixture(): BackupEnvelopeV8 {
   };
 }
 
-export function cloneBackupFixture(): BackupEnvelopeV8 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV8;
+export function cloneBackupFixture(): BackupEnvelopeV9 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV9;
 }
 
 export function createBackupFixtureV6(): BackupEnvelopeV6 {

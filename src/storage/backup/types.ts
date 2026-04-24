@@ -15,6 +15,7 @@ import type {
   StrawColor,
   UterineToneCategory,
 } from '@/models/types';
+import type { ClockPreference } from '@/utils/clockPreferences';
 
 export const BACKUP_SCHEMA_VERSION_V1 = 1 as const;
 export const BACKUP_SCHEMA_VERSION_V2 = 2 as const;
@@ -24,7 +25,8 @@ export const BACKUP_SCHEMA_VERSION_V5 = 5 as const;
 export const BACKUP_SCHEMA_VERSION_V6 = 6 as const;
 export const BACKUP_SCHEMA_VERSION_V7 = 7 as const;
 export const BACKUP_SCHEMA_VERSION_V8 = 8 as const;
-export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V8;
+export const BACKUP_SCHEMA_VERSION_V9 = 9 as const;
+export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V9;
 
 export const BACKUP_TABLE_NAMES = [
   'mares',
@@ -89,6 +91,7 @@ export type BackupAppMetadata = {
 
 export type BackupSettings = {
   readonly onboardingComplete: boolean;
+  readonly clockPreference?: ClockPreference;
 };
 
 export type BackupMareRowV1 = {
@@ -509,6 +512,8 @@ export type BackupTablesV8 = {
   readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
 };
 
+export type BackupTablesV9 = BackupTablesV8;
+
 export type BackupEnvelopeV1 = {
   readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V1;
   readonly createdAt: BackupIsoDateTime;
@@ -573,6 +578,14 @@ export type BackupEnvelopeV8 = {
   readonly tables: BackupTablesV8;
 };
 
+export type BackupEnvelopeV9 = {
+  readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V9;
+  readonly createdAt: BackupIsoDateTime;
+  readonly app: BackupAppMetadata;
+  readonly settings: BackupSettings;
+  readonly tables: BackupTablesV9;
+};
+
 export type BackupEnvelope =
   | BackupEnvelopeV1
   | BackupEnvelopeV2
@@ -581,7 +594,8 @@ export type BackupEnvelope =
   | BackupEnvelopeV5
   | BackupEnvelopeV6
   | BackupEnvelopeV7
-  | BackupEnvelopeV8;
+  | BackupEnvelopeV8
+  | BackupEnvelopeV9;
 
 export type BackupPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;

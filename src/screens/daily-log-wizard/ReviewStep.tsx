@@ -22,6 +22,7 @@ import {
 } from '@/hooks/useDailyLogWizard';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 import { formatDailyLogTime } from '@/utils/dailyLogTime';
+import { useClockDisplayMode } from '@/hooks/useClockPreference';
 
 type Props = {
   date: string;
@@ -214,6 +215,7 @@ export function ReviewStep({
   onSave,
   onDelete,
 }: Props): JSX.Element {
+  const clockDisplayMode = useClockDisplayMode();
   const legacyValuesExist =
     Boolean(legacyNotes.rightOvary) ||
     Boolean(legacyNotes.leftOvary) ||
@@ -224,7 +226,7 @@ export function ReviewStep({
     <>
       <ReviewSection
         title="Basics"
-        summary={`Date: ${date}\nTime: ${formatDailyLogTime(time || null)}\nTeasing: ${formatScoreValue(teasingScore)}`}
+        summary={`Date: ${date}\nTime: ${formatDailyLogTime(time || null, clockDisplayMode)}\nTeasing: ${formatScoreValue(teasingScore)}`}
         editLabel="Edit Basics"
         onEdit={() => onJumpToStep(0)}
       />

@@ -1,12 +1,13 @@
 import { getDb } from '@/storage/db';
 import { getOnboardingComplete } from '@/utils/onboarding';
+import { getClockPreference } from '@/utils/clockPreferences';
 
 import {
   BACKUP_SCHEMA_VERSION_CURRENT,
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV8,
+  type BackupEnvelopeV9,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
   type BackupFrozenSemenBatchRow,
@@ -32,7 +33,7 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV8> {
+export async function serializeBackup(): Promise<BackupEnvelopeV9> {
   const db = await getDb();
 
   const [
@@ -51,6 +52,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV8> {
     collectionDoseEvents,
     frozenSemenBatches,
     onboardingComplete,
+    clockPreference,
   ] = await Promise.all([
     db.getAllAsync<BackupMareRow>(
       `
@@ -350,6 +352,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV8> {
       `,
     ),
     getOnboardingComplete(),
+    getClockPreference(),
   ]);
 
   return {
@@ -361,6 +364,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV8> {
     },
     settings: {
       onboardingComplete,
+      clockPreference,
     },
     tables: {
       mares,

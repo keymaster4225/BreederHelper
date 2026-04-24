@@ -11,6 +11,7 @@ import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { colors, spacing, typography } from '../../theme';
 import { buildOvaryDetailLines, buildUterusSummary, type DailyLogDetailLine } from '../../utils/dailyLogDisplay';
 import { compareDailyLogsDesc, formatDailyLogTime } from '../../utils/dailyLogTime';
+import { useClockDisplayMode } from '@/hooks/useClockPreference';
 
 type Props = {
   mareId: string;
@@ -93,6 +94,7 @@ function OvaryDisclosure({
 
 export function DailyLogsTab({ mareId, dailyLogs, navigation }: Props): JSX.Element {
   const groupedLogs = groupDailyLogsByDate(dailyLogs);
+  const clockDisplayMode = useClockDisplayMode();
 
   return (
     <View style={styles.page}>
@@ -114,7 +116,7 @@ export function DailyLogsTab({ mareId, dailyLogs, navigation }: Props): JSX.Elem
               return (
                 <View key={log.id} style={cardStyles.card}>
                   <View style={cardStyles.cardHeader}>
-                    <Text style={cardStyles.cardTitle}>{formatDailyLogTime(log.time)}</Text>
+                    <Text style={cardStyles.cardTitle}>{formatDailyLogTime(log.time, clockDisplayMode)}</Text>
                     <EditIconButton onPress={() => navigation.navigate('DailyLogForm', { mareId, logId: log.id })} />
                   </View>
                   <View style={cardStyles.cardRow}>

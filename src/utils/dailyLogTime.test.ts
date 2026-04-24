@@ -69,9 +69,16 @@ describe('formatDailyLogTime', () => {
     expect(formatDailyLogTime('16:15')).toBe('4:15 PM');
   });
 
+  it('formats times in 24-hour display form', () => {
+    expect(formatDailyLogTime('00:00', '24h')).toBe('00:00');
+    expect(formatDailyLogTime('12:00', '24h')).toBe('12:00');
+    expect(formatDailyLogTime('16:15', '24h')).toBe('16:15');
+  });
+
   it('returns dash for null or invalid values', () => {
     expect(formatDailyLogTime(null)).toBe('-');
     expect(formatDailyLogTime('99:99')).toBe('-');
+    expect(formatDailyLogTime('99:99', '24h')).toBe('-');
   });
 });
 

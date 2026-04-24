@@ -4,11 +4,23 @@ import type { DailyLog } from '@/models/types';
 
 import { TimelineTab } from './TimelineTab';
 
+jest.mock('@/hooks/useClockPreference', () => ({
+  useClockDisplayMode: jest.fn(() => '12h'),
+}));
+
+const { useClockDisplayMode } = jest.requireMock('@/hooks/useClockPreference') as {
+  useClockDisplayMode: jest.Mock;
+};
+
 function createNavigation() {
   return {
     navigate: jest.fn(),
   };
 }
+
+beforeEach(() => {
+  useClockDisplayMode.mockReturnValue('12h');
+});
 
 function makeDailyLog(overrides: Partial<DailyLog> & { id: string; date: string }): DailyLog {
   const { id, date, ...rest } = overrides;
@@ -131,4 +143,31 @@ it('shows same-day daily log events with distinct time titles in newest-first or
 
   const tree = JSON.stringify(screen.toJSON());
   expect(tree.indexOf('2026-04-23 at 4:00 PM')).toBeLessThan(tree.indexOf('2026-04-23 at 8:00 AM'));
+});
+
+it('shows daily log event times in 24-hour format when selected', () => {
+  useClockDisplayMode.mockReturnValue('24h');
+  const navigation = createNavigation();
+
+  const screen = render(
+    <TimelineTab
+      mareId="mare-1"
+      gestationLengthDays={340}
+      dailyLogs={[
+        makeDailyLog({ id: 'log-morning-heat', date: '2026-04-23', time: '08:00', teasingScore: 5 }),
+        makeDailyLog({ id: 'log-afternoon-ovulation', date: '2026-04-23', time: '16:00', ovulationDetected: true }),
+      ]}
+      breedingRecords={[]}
+      pregnancyChecks={[]}
+      foalingRecords={[]}
+      medicationLogs={[]}
+      foalByFoalingRecordId={{}}
+      stallionNameById={{}}
+      breedingById={{}}
+      navigation={navigation as never}
+    />,
+  );
+
+  expect(screen.getByText('2026-04-23 at 16:00')).toBeTruthy();
+  expect(screen.getByText('2026-04-23 at 08:00')).toBeTruthy();
 });

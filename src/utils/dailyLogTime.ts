@@ -5,6 +5,8 @@ export type DailyLogComparable = {
   id: string;
 };
 
+export type TimeDisplayMode = '12h' | '24h';
+
 const DAILY_LOG_TIME_PATTERN = /^(\d{2}):(\d{2})$/;
 
 export function isDailyLogTime(value: string): boolean {
@@ -38,7 +40,7 @@ export function getCurrentTimeHHMM(date: Date = new Date()): string {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-export function formatDailyLogTime(time: string | null): string {
+export function formatDailyLogTime(time: string | null, displayMode: TimeDisplayMode = '12h'): string {
   if (time == null) {
     return '-';
   }
@@ -46,6 +48,10 @@ export function formatDailyLogTime(time: string | null): string {
   const normalized = normalizeDailyLogTime(time);
   if (normalized === null) {
     return '-';
+  }
+
+  if (displayMode === '24h') {
+    return normalized;
   }
 
   const [hoursText, minutes] = normalized.split(':');

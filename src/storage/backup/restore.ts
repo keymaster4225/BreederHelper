@@ -2,6 +2,7 @@ import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { getDb } from '@/storage/db';
 import { DEFAULT_GESTATION_LENGTH_DAYS } from '@/models/types';
 import { setOnboardingCompleteValue } from '@/utils/onboarding';
+import { normalizeClockPreference, setClockPreference } from '@/utils/clockPreferences';
 
 import { createSafetySnapshot } from './safetyBackups';
 import {
@@ -11,6 +12,7 @@ import {
   BACKUP_SCHEMA_VERSION_V6,
   BACKUP_SCHEMA_VERSION_V7,
   BACKUP_SCHEMA_VERSION_V8,
+  BACKUP_SCHEMA_VERSION_V9,
 } from './types';
 import type {
   BackupCollectionDoseEventRowV2,
@@ -23,6 +25,7 @@ import type {
   BackupEnvelopeV4,
   BackupEnvelopeV5,
   BackupEnvelopeV8,
+  BackupEnvelopeV9,
   BackupFoalingRecordRow,
   BackupFoalRow,
   BackupFrozenSemenBatchRow,
@@ -54,6 +57,7 @@ const EMPTY_JSON_ARRAY_TEXT = '[]';
 type NormalizedBackupForRestore = {
   readonly settings: {
     readonly onboardingComplete: boolean;
+    readonly clockPreference: 'system' | '12h' | '24h';
   };
   readonly tables: {
     readonly mares: readonly BackupMareRowV6[];
@@ -109,9 +113,10 @@ export async function restoreBackup(
     try {
       options.onStepChange?.('Updating app settings...');
       await setOnboardingCompleteValue(backupForRestore.settings.onboardingComplete);
+      await setClockPreference(backupForRestore.settings.clockPreference);
     } catch {
       warningMessage =
-        'Breeding data was restored, but onboarding state could not be updated. Close and reopen the app if the home screen looks incorrect.';
+        'Breeding data was restored, but app settings could not be updated. Close and reopen the app if the home screen looks incorrect.';
     }
 
     emitDataInvalidation('all');
@@ -776,8 +781,15 @@ async function insertCollectionDoseEvent(
 }
 
 function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForRestore {
-  if (backup.schemaVersion === BACKUP_SCHEMA_VERSION_V8) {
-    return backup as BackupEnvelopeV8;
+  if (
+    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V8 ||
+    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V9
+  ) {
+    const currentBackup = backup as BackupEnvelopeV8 | BackupEnvelopeV9;
+    return {
+      settings: normalizeBackupSettings(currentBackup.settings),
+      tables: currentBackup.tables,
+    };
   }
 
   const mares: readonly BackupMareRowV6[] =
@@ -817,7 +829,7 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
   );
 
   return {
-    settings: backup.settings,
+    settings: normalizeBackupSettings(backup.settings),
     tables: {
       mares,
       stallions: backup.tables.stallions,
@@ -843,6 +855,13 @@ function normalizeMedicationLogRow(
   return {
     ...row,
     source_daily_log_id: 'source_daily_log_id' in row ? row.source_daily_log_id : null,
+  };
+}
+
+function normalizeBackupSettings(settings: BackupEnvelope['settings']): NormalizedBackupForRestore['settings'] {
+  return {
+    onboardingComplete: settings.onboardingComplete,
+    clockPreference: normalizeClockPreference(settings.clockPreference),
   };
 }
 

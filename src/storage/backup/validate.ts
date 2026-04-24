@@ -26,6 +26,7 @@ import {
   BACKUP_SCHEMA_VERSION_V6,
   BACKUP_SCHEMA_VERSION_V7,
   BACKUP_SCHEMA_VERSION_V8,
+  BACKUP_SCHEMA_VERSION_V9,
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupEnvelope,
@@ -43,10 +44,12 @@ import {
   type BackupTablesV6,
   type BackupTablesV7,
   type BackupTablesV8,
+  type BackupTablesV9,
   type ValidateBackupError,
   type ValidateBackupResult,
 } from './types';
 import { normalizeDailyLogTime } from '@/utils/dailyLogTime';
+import { normalizeClockPreference } from '@/utils/clockPreferences';
 
 const BREEDING_METHODS = new Set(BREEDING_METHOD_VALUES);
 const PREGNANCY_RESULTS = new Set(PREGNANCY_RESULT_VALUES);
@@ -73,7 +76,8 @@ type BackupTables =
   | BackupTablesV5
   | BackupTablesV6
   | BackupTablesV7
-  | BackupTablesV8;
+  | BackupTablesV8
+  | BackupTablesV9;
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;
@@ -123,7 +127,8 @@ export function validateBackup(input: unknown): ValidateBackupResult {
     schemaVersion !== BACKUP_SCHEMA_VERSION_V5 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V6 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V7 &&
-    schemaVersion !== BACKUP_SCHEMA_VERSION_V8
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V8 &&
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V9
   ) {
     return validationFailure(
       'unsupported_schema_version',
@@ -144,7 +149,7 @@ export function validateBackup(input: unknown): ValidateBackupResult {
   if (!isRecord(input.settings)) {
     return validationFailure('missing_key', 'Backup is missing settings.');
   }
-  const settingsError = validateSettings(input.settings);
+  const settingsError = validateSettings(input.settings, schemaVersion);
   if (settingsError) {
     return settingsError;
   }
@@ -210,10 +215,16 @@ export function validateBackup(input: unknown): ValidateBackupResult {
                     ...baseEnvelopeFields,
                     tables: tableArrays.tables as BackupTablesV7,
                   }
-                : {
+                : schemaVersion === BACKUP_SCHEMA_VERSION_V8
+                  ? {
                     schemaVersion: BACKUP_SCHEMA_VERSION_V8,
                     ...baseEnvelopeFields,
                     tables: tableArrays.tables as BackupTablesV8,
+                  }
+                  : {
+                    schemaVersion: BACKUP_SCHEMA_VERSION_V9,
+                    ...baseEnvelopeFields,
+                    tables: tableArrays.tables as BackupTablesV9,
                   };
 
   const rowError = validateRows(backup.tables, schemaVersion);
@@ -245,11 +256,20 @@ export function buildBackupPreview(backup: BackupEnvelope): BackupPreviewSummary
   };
 }
 
-function validateSettings(settings: Record<string, unknown>): ValidateBackupResult | null {
+function validateSettings(settings: Record<string, unknown>, schemaVersion: number): ValidateBackupResult | null {
   if (typeof settings.onboardingComplete !== 'boolean') {
     return validationFailure(
       'invalid_shape',
       'Backup settings.onboardingComplete must be a boolean.',
+    );
+  }
+  if (
+    schemaVersion >= BACKUP_SCHEMA_VERSION_V9 &&
+    normalizeClockPreference(settings.clockPreference) !== settings.clockPreference
+  ) {
+    return validationFailure(
+      'invalid_shape',
+      'Backup settings.clockPreference must be system, 12h, or 24h.',
     );
   }
   return null;

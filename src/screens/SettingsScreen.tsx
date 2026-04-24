@@ -7,19 +7,68 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList, TabParamList } from '@/navigation/AppNavigator';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
+import { ClockPreference } from '@/utils/clockPreferences';
+import { useClockPreference } from '@/hooks/useClockPreference';
 
 type Props = CompositeScreenProps<
   BottomTabScreenProps<TabParamList, 'Settings'>,
   NativeStackScreenProps<RootStackParamList>
 >;
 
+const CLOCK_OPTIONS: readonly { label: string; value: ClockPreference; accessibilityLabel: string }[] = [
+  { label: 'System Default', value: 'system', accessibilityLabel: 'Use system default clock format' },
+  { label: '12-hour', value: '12h', accessibilityLabel: 'Use 12-hour clock format' },
+  { label: '24-hour', value: '24h', accessibilityLabel: 'Use 24-hour clock format' },
+];
+
 export function SettingsScreen({ navigation }: Props): JSX.Element {
+  const { clockPreference, clockDisplayMode, setClockPreference } = useClockPreference();
+
   return (
     <Screen>
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.title}>Settings</Text>
-          <Text style={styles.subtitle}>Manage backup files and restore local breeding data.</Text>
+          <Text style={styles.subtitle}>Manage display preferences, backup files, and local breeding data.</Text>
+        </View>
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Clock Format</Text>
+              <Text style={styles.sectionSubtitle}>
+                Current display: {clockDisplayMode === '24h' ? '24-hour' : '12-hour'}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.optionGroup}>
+            {CLOCK_OPTIONS.map((option) => {
+              const active = option.value === clockPreference;
+              return (
+                <Pressable
+                  key={option.value}
+                  accessibilityLabel={option.accessibilityLabel}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active }}
+                  onPress={() => {
+                    void setClockPreference(option.value);
+                  }}
+                  style={({ pressed }) => [
+                    styles.option,
+                    active && styles.optionActive,
+                    pressed && styles.optionPressed,
+                  ]}
+                >
+                  <Text style={[styles.optionText, active && styles.optionTextActive]}>
+                    {option.label}
+                  </Text>
+                  {active ? (
+                    <MaterialCommunityIcons name="check-circle" size={18} color={colors.primary} />
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         <Pressable
@@ -56,6 +105,51 @@ const styles = StyleSheet.create({
   subtitle: {
     ...typography.bodyMedium,
     color: colors.onSurfaceVariant,
+  },
+  section: {
+    gap: spacing.sm,
+  },
+  sectionHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    ...typography.titleMedium,
+    color: colors.onSurface,
+  },
+  sectionSubtitle: {
+    ...typography.bodySmall,
+    color: colors.onSurfaceVariant,
+  },
+  optionGroup: {
+    gap: spacing.sm,
+  },
+  option: {
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 48,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  optionActive: {
+    backgroundColor: colors.primaryContainer,
+    borderColor: colors.primary,
+  },
+  optionPressed: {
+    opacity: 0.85,
+  },
+  optionText: {
+    ...typography.labelLarge,
+    color: colors.onSurface,
+  },
+  optionTextActive: {
+    color: colors.primary,
   },
   card: {
     alignItems: 'center',

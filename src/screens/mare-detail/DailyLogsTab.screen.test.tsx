@@ -4,11 +4,23 @@ import type { DailyLog } from '@/models/types';
 
 import { DailyLogsTab } from './DailyLogsTab';
 
+jest.mock('@/hooks/useClockPreference', () => ({
+  useClockDisplayMode: jest.fn(() => '12h'),
+}));
+
+const { useClockDisplayMode } = jest.requireMock('@/hooks/useClockPreference') as {
+  useClockDisplayMode: jest.Mock;
+};
+
 function createNavigation() {
   return {
     navigate: jest.fn(),
   };
 }
+
+beforeEach(() => {
+  useClockDisplayMode.mockReturnValue('12h');
+});
 
 function makeDailyLog(overrides: Partial<DailyLog> & { id: string; date: string }): DailyLog {
   const { id, date, ...rest } = overrides;
@@ -66,6 +78,24 @@ it('groups same-day logs under one header and shows distinct time titles in newe
 
   const tree = JSON.stringify(screen.toJSON());
   expect(tree.indexOf('4:00 PM')).toBeLessThan(tree.indexOf('8:00 AM'));
+});
+
+it('renders daily log times in 24-hour format when selected', () => {
+  useClockDisplayMode.mockReturnValue('24h');
+
+  const screen = render(
+    <DailyLogsTab
+      mareId="mare-1"
+      dailyLogs={[
+        makeDailyLog({ id: 'log-morning', date: '2026-04-23', time: '08:00' }),
+        makeDailyLog({ id: 'log-afternoon', date: '2026-04-23', time: '16:00' }),
+      ]}
+      navigation={createNavigation() as never}
+    />,
+  );
+
+  expect(screen.getByText('16:00')).toBeTruthy();
+  expect(screen.getByText('08:00')).toBeTruthy();
 });
 
 it('renders structured ovary details in an expandable ovary row', () => {

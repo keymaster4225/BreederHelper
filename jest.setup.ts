@@ -33,6 +33,24 @@ jest.mock('react-native-calendars', () => {
 
 jest.mock('@react-native-community/datetimepicker', () => 'DateTimePicker');
 
+jest.mock('@react-native-async-storage/async-storage', () => {
+  const mockAsyncStorage = {
+    getItem: jest.fn().mockResolvedValue(null),
+    setItem: jest.fn().mockResolvedValue(undefined),
+    removeItem: jest.fn().mockResolvedValue(undefined),
+  };
+
+  return {
+    ...mockAsyncStorage,
+    default: mockAsyncStorage,
+  };
+});
+
+jest.mock('expo-localization', () => ({
+  useCalendars: () => [{ uses24hourClock: false }],
+  getCalendars: () => [{ uses24hourClock: false }],
+}));
+
 jest.mock('expo-font', () => ({
   isLoaded: () => true,
   loadAsync: jest.fn(),

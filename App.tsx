@@ -7,6 +7,7 @@ import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
 import { useAppBootstrap } from './src/storage/useAppBootstrap';
+import { ClockPreferenceProvider } from './src/hooks/useClockPreference';
 
 const SPLASH_DURATION_MS = 1200;
 
@@ -69,7 +70,9 @@ export default function App(): JSX.Element | null {
 
   return (
     <SafeAreaProvider>
-      <AppNavigator />
+      <ClockPreferenceProvider>
+        <AppNavigator />
+      </ClockPreferenceProvider>
     </SafeAreaProvider>
   );
 }

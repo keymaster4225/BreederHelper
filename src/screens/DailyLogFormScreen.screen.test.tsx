@@ -34,8 +34,15 @@ jest.mock('@/hooks/useDailyLogWizard', () => {
   };
 });
 
+jest.mock('@/hooks/useClockPreference', () => ({
+  useClockDisplayMode: jest.fn(() => '12h'),
+}));
+
 const { useDailyLogWizard } = jest.requireMock('@/hooks/useDailyLogWizard') as {
   useDailyLogWizard: jest.Mock;
+};
+const { useClockDisplayMode } = jest.requireMock('@/hooks/useClockPreference') as {
+  useClockDisplayMode: jest.Mock;
 };
 const { DailyLogFormScreen } = require('@/screens/DailyLogFormScreen') as typeof import('@/screens/DailyLogFormScreen');
 
@@ -175,6 +182,7 @@ function renderScreen(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  useClockDisplayMode.mockReturnValue('12h');
 });
 
 it('renders basics step and advances with Next', () => {
@@ -209,6 +217,19 @@ it('renders review step actions and triggers save/delete callbacks', () => {
 
   expect(wizard.save).toHaveBeenCalledTimes(1);
   expect(wizard.requestDelete).toHaveBeenCalledTimes(1);
+});
+
+it('renders review step time in 24-hour format when selected', () => {
+  useClockDisplayMode.mockReturnValue('24h');
+
+  const { screen } = renderScreen({
+    currentStepIndex: 4,
+    currentStepTitle: 'Review',
+    isEdit: true,
+    time: '14:05',
+  });
+
+  expect(screen.getByText(/Time: 14:05/)).toBeTruthy();
 });
 
 it('shows an inline time error from the hook on the basics step', () => {

@@ -12,6 +12,12 @@ vi.mock('@/utils/onboarding', () => ({
   setOnboardingCompleteValue: vi.fn(),
 }));
 
+vi.mock('@/utils/clockPreferences', () => ({
+  normalizeClockPreference: (value: unknown) =>
+    value === 'system' || value === '12h' || value === '24h' ? value : 'system',
+  setClockPreference: vi.fn(),
+}));
+
 vi.mock('./safetyBackups', () => ({
   createSafetySnapshot: vi.fn(),
 }));
@@ -24,6 +30,7 @@ vi.mock('./validate', () => ({
 import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { setOnboardingCompleteValue } from '@/utils/onboarding';
+import { setClockPreference } from '@/utils/clockPreferences';
 
 import { createSafetySnapshot } from './safetyBackups';
 import {
@@ -65,7 +72,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 8,
+        schemaVersion: 9,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -74,7 +81,7 @@ describe('restoreBackup', () => {
       fileUri: 'file:///snapshot.json',
       createdAt: backup.createdAt,
       mareCount: 1,
-      schemaVersion: 8,
+      schemaVersion: 9,
     });
 
     const result = await restoreBackup(JSON.stringify(backup), {
@@ -149,8 +156,44 @@ describe('restoreBackup', () => {
     expect(collectionInsertParams[13]).toBe(50);
     expect(collectionInsertParams[14]).toBeNull();
     expect(setOnboardingCompleteValue).toHaveBeenCalledWith(true);
+    expect(setClockPreference).toHaveBeenCalledWith('system');
     expect(emitDataInvalidation).toHaveBeenCalledTimes(1);
     expect(emitDataInvalidation).toHaveBeenCalledWith('all');
+  });
+
+  it('restores the clock preference from current backups', async () => {
+    const backup = {
+      ...cloneBackupFixture(),
+      settings: {
+        onboardingComplete: true,
+        clockPreference: '24h' as const,
+      },
+    };
+    const db = {
+      runAsync: vi.fn(async () => undefined),
+      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
+        await callback();
+      }),
+    };
+
+    vi.mocked(validateBackup).mockReturnValue({
+      ok: true,
+      backup,
+      preview: {
+        createdAt: backup.createdAt,
+        mareCount: 1,
+        stallionCount: 1,
+        dailyLogCount: 1,
+        onboardingComplete: true,
+        schemaVersion: 9,
+      },
+    });
+    vi.mocked(getDb).mockResolvedValue(db as never);
+
+    const result = await restoreBackup(backup, { skipSafetySnapshot: true });
+
+    expect(result.ok).toBe(true);
+    expect(setClockPreference).toHaveBeenCalledWith('24h');
   });
 
   it('skips safety snapshot creation when restoring from a safety snapshot', async () => {
@@ -263,7 +306,7 @@ describe('restoreBackup', () => {
     if (!result.ok) {
       throw new Error('Expected restore success');
     }
-    expect(result.warningMessage).toContain('onboarding state could not be updated');
+    expect(result.warningMessage).toContain('app settings could not be updated');
     expect(emitDataInvalidation).toHaveBeenCalledWith('all');
   });
 

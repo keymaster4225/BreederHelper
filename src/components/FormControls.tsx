@@ -4,6 +4,7 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 
 import { formatDailyLogTime, getCurrentTimeHHMM, normalizeDailyLogTime } from '@/utils/dailyLogTime';
 import { formatLocalDate, fromLocalDate, toLocalDate } from '@/utils/dates';
+import { useClockDisplayMode } from '@/hooks/useClockPreference';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type FormFieldProps = {
@@ -128,6 +129,7 @@ export function FormTimeInput({
   accessibilityLabel = 'Select time',
 }: FormTimeInputProps): JSX.Element {
   const [showPicker, setShowPicker] = useState(false);
+  const clockDisplayMode = useClockDisplayMode();
   const normalizedValue = useMemo(() => normalizeDailyLogTime(value), [value]);
   const pickerValue = useMemo(() => getTimePickerValue(value), [value]);
 
@@ -155,7 +157,7 @@ export function FormTimeInput({
         accessibilityRole="button"
       >
         <Text style={normalizedValue ? styles.dateValue : styles.datePlaceholder}>
-          {normalizedValue ? formatDailyLogTime(normalizedValue) : placeholder}
+          {normalizedValue ? formatDailyLogTime(normalizedValue, clockDisplayMode) : placeholder}
         </Text>
       </Pressable>
       {clearable && normalizedValue ? (
@@ -173,6 +175,7 @@ export function FormTimeInput({
           value={pickerValue}
           mode="time"
           display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          is24Hour={clockDisplayMode === '24h'}
           onChange={onPickerChange}
         />
       ) : null}

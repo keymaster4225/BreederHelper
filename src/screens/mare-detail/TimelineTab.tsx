@@ -16,6 +16,7 @@ import {
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { formatDailyLogTime } from '@/utils/dailyLogTime';
 import { formatLocalDate } from '@/utils/dates';
+import { useClockDisplayMode } from '@/hooks/useClockPreference';
 import { formatRoute } from '@/utils/medications';
 import { formatBreedingMethod, formatFoalSex, formatOutcome, getFoalSexColor, getOutcomeColor } from '@/utils/outcomeDisplay';
 import { buildTimelineEvents, TimelineEvent } from '@/utils/timelineEvents';
@@ -65,16 +66,26 @@ function EventTypeBadge({ type, result }: { type: TimelineEvent['type']; result?
   return <StatusBadge label={labels[type]} backgroundColor={bgColor} textColor="#FFFFFF" />;
 }
 
-function formatDailyLogEventTitle(log: DailyLog): string {
-  return `${log.date} at ${formatDailyLogTime(log.time)}`;
+function formatDailyLogEventTitle(log: DailyLog, clockDisplayMode: '12h' | '24h'): string {
+  return `${log.date} at ${formatDailyLogTime(log.time, clockDisplayMode)}`;
 }
 
-function HeatCard({ event, navigation, mareId }: { event: TimelineEvent; navigation: Props['navigation']; mareId: string }): JSX.Element {
+function HeatCard({
+  event,
+  navigation,
+  mareId,
+  clockDisplayMode,
+}: {
+  event: TimelineEvent;
+  navigation: Props['navigation'];
+  mareId: string;
+  clockDisplayMode: '12h' | '24h';
+}): JSX.Element {
   const log = event.data as DailyLog;
   return (
     <View style={cardStyles.card}>
       <View style={cardStyles.cardHeader}>
-        <Text style={cardStyles.cardTitle}>{formatDailyLogEventTitle(log)}</Text>
+        <Text style={cardStyles.cardTitle}>{formatDailyLogEventTitle(log, clockDisplayMode)}</Text>
         <EditIconButton onPress={() => navigation.navigate('DailyLogForm', { mareId, logId: log.id })} />
       </View>
       <View style={cardStyles.cardRow}>
@@ -85,12 +96,22 @@ function HeatCard({ event, navigation, mareId }: { event: TimelineEvent; navigat
   );
 }
 
-function OvulationCard({ event, navigation, mareId }: { event: TimelineEvent; navigation: Props['navigation']; mareId: string }): JSX.Element {
+function OvulationCard({
+  event,
+  navigation,
+  mareId,
+  clockDisplayMode,
+}: {
+  event: TimelineEvent;
+  navigation: Props['navigation'];
+  mareId: string;
+  clockDisplayMode: '12h' | '24h';
+}): JSX.Element {
   const log = event.data as DailyLog;
   return (
     <View style={cardStyles.card}>
       <View style={cardStyles.cardHeader}>
-        <Text style={cardStyles.cardTitle}>{formatDailyLogEventTitle(log)}</Text>
+        <Text style={cardStyles.cardTitle}>{formatDailyLogEventTitle(log, clockDisplayMode)}</Text>
         <EditIconButton onPress={() => navigation.navigate('DailyLogForm', { mareId, logId: log.id })} />
       </View>
       <View style={cardStyles.cardRow}>
@@ -248,6 +269,7 @@ function TimelineCard({
   stallionNameById,
   breedingById,
   foalByFoalingRecordId,
+  clockDisplayMode,
 }: {
   event: TimelineEvent;
   navigation: Props['navigation'];
@@ -256,12 +278,13 @@ function TimelineCard({
   stallionNameById: Readonly<Record<string, string>>;
   breedingById: Readonly<Record<string, BreedingRecord>>;
   foalByFoalingRecordId: Readonly<Record<string, Foal>>;
+  clockDisplayMode: '12h' | '24h';
 }): JSX.Element {
   switch (event.type) {
     case 'heat':
-      return <HeatCard event={event} navigation={navigation} mareId={mareId} />;
+      return <HeatCard event={event} navigation={navigation} mareId={mareId} clockDisplayMode={clockDisplayMode} />;
     case 'ovulation':
-      return <OvulationCard event={event} navigation={navigation} mareId={mareId} />;
+      return <OvulationCard event={event} navigation={navigation} mareId={mareId} clockDisplayMode={clockDisplayMode} />;
     case 'breeding':
       return <BreedingCard event={event} navigation={navigation} mareId={mareId} stallionNameById={stallionNameById} />;
     case 'pregnancyCheck':
@@ -295,6 +318,7 @@ export function TimelineTab({
   navigation,
 }: Props): JSX.Element {
   const events = buildTimelineEvents(dailyLogs, breedingRecords, pregnancyChecks, foalingRecords, medicationLogs);
+  const clockDisplayMode = useClockDisplayMode();
 
   return (
     <View style={styles.page}>
@@ -314,6 +338,7 @@ export function TimelineTab({
             stallionNameById={stallionNameById}
             breedingById={breedingById}
             foalByFoalingRecordId={foalByFoalingRecordId}
+            clockDisplayMode={clockDisplayMode}
           />
         ))}
       </ScrollView>
