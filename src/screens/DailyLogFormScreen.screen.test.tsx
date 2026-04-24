@@ -39,11 +39,15 @@ const { useDailyLogWizard } = jest.requireMock('@/hooks/useDailyLogWizard') as {
 };
 const { DailyLogFormScreen } = require('@/screens/DailyLogFormScreen') as typeof import('@/screens/DailyLogFormScreen');
 
+type BeforeRemoveEvent = { preventDefault: jest.Mock };
+type BeforeRemoveListener = (event: BeforeRemoveEvent) => void;
+
 function createNavigation() {
   return {
     navigate: jest.fn(),
     setOptions: jest.fn(),
     goBack: jest.fn(),
+    addListener: jest.fn((_eventName: string, _listener: BeforeRemoveListener) => jest.fn()),
   };
 }
 
@@ -237,4 +241,59 @@ it('passes mareId and logId through the hook args', () => {
       setTitle: expect.any(Function),
     }),
   );
+});
+
+it('uses wizard back instead of leaving the screen when stack back is pressed on the flush step', () => {
+  const { navigation, wizard } = renderScreen({
+    currentStepIndex: 4,
+    currentStepId: 'flush',
+    currentStepTitle: 'Flush',
+    steps: [
+      { id: 'basics', title: 'Basics' },
+      { id: 'rightOvary', title: 'Right Ovary' },
+      { id: 'leftOvary', title: 'Left Ovary' },
+      { id: 'uterus', title: 'Uterus' },
+      { id: 'flush', title: 'Flush' },
+      { id: 'review', title: 'Review' },
+    ],
+  });
+  const beforeRemoveCall = navigation.addListener.mock.calls.find(
+    ([eventName]) => eventName === 'beforeRemove',
+  );
+  expect(beforeRemoveCall).toBeTruthy();
+  if (!beforeRemoveCall) {
+    throw new Error('Expected DailyLogFormScreen to register a beforeRemove listener.');
+  }
+
+  const event: BeforeRemoveEvent = { preventDefault: jest.fn() };
+  const beforeRemove = beforeRemoveCall[1];
+  beforeRemove(event);
+
+  expect(event.preventDefault).toHaveBeenCalledTimes(1);
+  expect(wizard.goBack).toHaveBeenCalledTimes(1);
+  expect(navigation.goBack).not.toHaveBeenCalled();
+});
+
+it('allows saved daily logs to leave the screen from later wizard steps', () => {
+  const { navigation, wizard } = renderScreen({
+    currentStepIndex: 4,
+    currentStepId: 'review',
+    currentStepTitle: 'Review',
+  });
+  const hookArgs = useDailyLogWizard.mock.calls[0]?.[0] as { onGoBack: () => void };
+  const beforeRemoveCall = navigation.addListener.mock.calls.find(
+    ([eventName]) => eventName === 'beforeRemove',
+  );
+  if (!beforeRemoveCall) {
+    throw new Error('Expected DailyLogFormScreen to register a beforeRemove listener.');
+  }
+
+  hookArgs.onGoBack();
+  const event: BeforeRemoveEvent = { preventDefault: jest.fn() };
+  const beforeRemove = beforeRemoveCall[1];
+  beforeRemove(event);
+
+  expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  expect(event.preventDefault).not.toHaveBeenCalled();
+  expect(wizard.goBack).not.toHaveBeenCalled();
 });

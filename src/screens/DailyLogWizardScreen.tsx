@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -27,7 +27,9 @@ import { UterusStep } from './daily-log-wizard/UterusStep';
 type Props = NativeStackScreenProps<RootStackParamList, 'DailyLogForm'>;
 
 export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element {
+  const allowScreenExitRef = useRef(false);
   const handleGoBack = useCallback(() => {
+    allowScreenExitRef.current = true;
     navigation.goBack();
   }, [navigation]);
   const handleSetTitle = useCallback(
@@ -43,6 +45,17 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
     onGoBack: handleGoBack,
     setTitle: handleSetTitle,
   });
+
+  useEffect(() => {
+    return navigation.addListener('beforeRemove', (event) => {
+      if (allowScreenExitRef.current || wizard.currentStepIndex === 0) {
+        return;
+      }
+
+      event.preventDefault();
+      wizard.goBack();
+    });
+  }, [navigation, wizard.currentStepIndex, wizard.goBack]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
