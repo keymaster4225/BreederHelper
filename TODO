@@ -2,6 +2,14 @@ setting to change between 12/24h clock
 
 ability to change what due date is based off of (240, 245, etc).
 
+when clicking a breeding record on the mare summary, it should take you to a summary of that breeding event. similar to the edit screen, but not editable
+
+add collection screen very difficult to scroll.  another wizard?
+
+on add collection workflow, on farm dose allocation needs an option for an outside mare, not ust the ones added to the app
+
+remove 'optional' from all the text input fields.  if they don't have an asterisk, they know they're optional
+
 frozen semen inventory
 
 frozen semen: decrement straws-remaining when straws are used in a breeding (consumption tracking)

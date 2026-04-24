@@ -1,6 +1,6 @@
 # BreedWise Roadmap
 
-> Last updated: 2026-04-23
+> Last updated: 2026-04-24
 >
 > This document is the prioritized plan for BreedWise. The flat `TODO` file is now a raw inbox — new ideas get dumped there, then triaged into this roadmap during a periodic sweep. See [Intake & triage process](#intake--triage-process).
 
@@ -33,13 +33,15 @@ The `feature/collection-wizard` branch exists but has not been merged — its cu
 
 Features that deepen mare reproductive recordkeeping beyond what the current daily log + pregnancy check flow captures.
 
-- **P0 — Cyst mapping** (`TODO:29`)
+- **P0 — Cyst mapping** (`TODO:37`)
   Recurring user ask. Needs a design pass: how cysts are located on the uterus, how they're tracked over time, and whether they live on the daily log or as a separate longitudinal record.
-- **P1 — Fluid tracking** (`TODO:11`)
+- **P1 — Fluid tracking** (`TODO:19`)
   Not yet scoped. Needs a detail workshop — which fluids, where in the workflow they're recorded, and what actions the app should prompt (see related P2 under *Proactive workflow*).
+- **P1 — Breeding event detail view** (`TODO:5`)
+  Tapping a breeding record from the mare summary should open a read-only detail screen for that service, similar to the edit screen but without editable controls. Design questions: whether the detail view includes an edit affordance, related pregnancy-check links, and any stallion-side navigation.
 - **P1 — Breeding record timestamps**
   Add a time field to breeding records, like timed daily log checks, so same-day services can be recorded and ordered accurately. Open question: whether time should be required on new records or optional for backward compatibility with existing breeding entries.
-- **P2 — Mare ovulation trends** (`TODO:19`)
+- **P2 — Mare ovulation trends** (`TODO:27`)
   Analytics view. Blocked on data volume — needs enough historical ovulation logs per mare to be useful.
 
 ### Theme: Stallion depth
@@ -48,13 +50,17 @@ Features that extend stallion records beyond current collection + frozen batch t
 
 - **P1 — Outside-mare breeding records from stallion section**
   Allow recording a breeding against a stallion without requiring the mare to exist in the database. Use case: the user is the stallion owner and an outside mare arrives to be bred — they want to log the service without creating a full mare record. Design questions: (a) minimum fields to capture for an outside mare (name? owner? registration?), (b) whether the record can later be "upgraded" / linked if that mare is eventually added to the database, (c) how outside-mare services render on the stallion's breeding history alongside mare-linked records, (d) whether straw-consumption tracking and fertility-trend analytics include these records or only in-database services.
-- **P1 — Stallion fertility trends** (`TODO:17`)
+- **P1 — Collection entry wizard / scrollability rework** (`TODO:7`)
+  The add-collection screen is difficult to scroll. Rework the flow into a wizard or otherwise split the form into easier sections. Review the existing `feature/collection-wizard` branch before starting, since it may already solve part of this.
+- **P1 — Outside-mare allocation in collection workflow** (`TODO:9`)
+  On-farm dose allocation in the add-collection workflow should allow an outside mare, not only mares already saved in the app. Coordinate this with the broader outside-mare breeding-record design so the same outside-mare fields and display rules are reused.
+- **P1 — Stallion fertility trends** (`TODO:25`)
   Analytics view. Like mare ovulation trends, benefits from accumulated data — but the per-stallion slice may be useful sooner because a single stallion covers many mares.
-- **P1 — Frozen semen straw consumption** (`TODO:7`)
+- **P1 — Frozen semen straw consumption** (`TODO:15`)
   Decrement `strawsRemaining` on a batch when straws are used in a breeding record. Currently inventory is tracked at batch level but not debited on use.
-- **P2 — Frozen semen low-inventory alerts** (`TODO:9`)
+- **P2 — Frozen semen low-inventory alerts** (`TODO:17`)
   Dashboard alert when a batch drops below a configurable threshold. Depends on consumption tracking above.
-- **P2 — Frozen semen bulk-edit / multi-batch operations** (`TODO:15`)
+- **P2 — Frozen semen bulk-edit / multi-batch operations** (`TODO:23`)
   UX for managing multiple batches at once (e.g. moving many to a different tank).
 - **P2 — Stallion hub Phase 3**
   Meds/health tab, home-screen stallion section, per-stallion analytics surface. Carries over from the earlier stallion-hub planning memory.
@@ -63,23 +69,23 @@ Features that extend stallion records beyond current collection + frozen batch t
 
 Features that make the app tell the user what to do next, rather than only recording what the user already did.
 
-- **P0 — In-app reminders** (`TODO:23`)
+- **P0 — In-app reminders** (`TODO:31`)
   User-set reminders for next scan, next meds dose, etc. Foundational: later features (smart prompts, auto-scheduled events) build on the reminder primitive.
-- **P1 — Auto-scheduled events from recorded actions** (`TODO:27`)
+- **P1 — Auto-scheduled events from recorded actions** (`TODO:35`)
   Recording a breeding → auto-adds 14-day and 30-day pregnancy checks. Recording a foaling → auto-adds IgG test, first vet check. Depends on reminders being in place.
-- **P2 — Conditional smart prompts** (`TODO:25`)
+- **P2 — Conditional smart prompts** (`TODO:33`)
   Example: fluid detected on a daily log → prompt user to flush/infuse. Needs design — which conditions, how prompts are delivered, how they're dismissed. Depends on fluid tracking shipping first.
 
 ### Theme: Media & attachments
 
-- **P1 — Photos on mares, foals, and ultrasound screen** (`TODO:21`)
+- **P1 — Photos on mares, foals, and ultrasound screen** (`TODO:29`)
   Scope decision needed up front: per-entity single photo vs photo gallery, local-only vs synced. Storage approach should be decided before implementation.
 - **P1 — Daily log photo attachments**
   Let users attach one or more pictures at the end of the daily log workflow, alongside the free-text `Notes` field. Open questions: whether this is a simple gallery per log or a broader attachment model, and whether photos stay local-only or need future sync support.
 
 ### Theme: Scheduling & visibility
 
-- **P1 — Calendar-at-a-glance across all mares** (`TODO:13`)
+- **P1 — Calendar-at-a-glance across all mares** (`TODO:21`)
   Visual design is the main unknown. Existing per-mare `MareCalendarScreen` is the starting point.
 - **P2 — 12h / 24h clock toggle** (`TODO:1`)
   Global setting. Small scope once a settings-screen pattern exists.
@@ -92,6 +98,8 @@ Cross-cutting UX and structural features that aren't a single user-visible featu
   Continuation of the bottom-tab migration (Phases 1-2 shipped 2026-04-05).
 - **P1 — Archive / soft-delete UX for mares and stallions**
   Users want to hide retired animals without losing the historical record. Some soft-delete plumbing already exists (`isDeleted` gating in tests) — this is the UX surface.
+- **P1 — Remove "optional" labels from text inputs** (`TODO:11`)
+  Form labels should rely on required-field asterisks instead of spelling out "optional" on every optional text input. Likely belongs in shared form controls first, then any screen-local labels that bypass the shared component.
 
 ---
 
@@ -170,6 +178,10 @@ When a roadmap item is completed and merged to `main`:
 
 ## Change log for this document
 
+- 2026-04-24 — Added *Breeding event detail view* under Mare care depth (P1).
+- 2026-04-24 — Added *Collection entry wizard / scrollability rework* under Stallion depth (P1).
+- 2026-04-24 — Added *Outside-mare allocation in collection workflow* under Stallion depth (P1).
+- 2026-04-24 — Added *Remove "optional" labels from text inputs* under Foundational polish (P1).
 - 2026-04-23 — Added *Breeding record timestamps* under Mare care depth (P1).
 - 2026-04-23 — Added *Daily log photo attachments* under Media & attachments (P1).
 - 2026-04-23 — Added *Outside-mare breeding records from stallion section* under Stallion depth (P1).
