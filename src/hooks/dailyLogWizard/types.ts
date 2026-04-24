@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from 'react';
 import type {
   CervicalFirmness,
   FluidLocation,
@@ -23,6 +24,8 @@ export type DailyLogWizardStepDescriptor = {
   id: DailyLogWizardStepId;
   title: string;
 };
+
+export type DailyLogWizardOvarySide = 'right' | 'left';
 
 export type FlushDecision = 'yes' | 'no' | null;
 
@@ -111,4 +114,11 @@ export type DailyLogWizardErrors = {
   leftOvary: OvaryStepErrors;
   uterus: UterusStepErrors;
   flush: FlushStepErrors;
+};
+
+export type DailyLogWizardSetErrors = Dispatch<SetStateAction<DailyLogWizardErrors>>;
+
+export type UpsertFluidPocketInput = {
+  depthMm: number;
+  location: FluidLocation;
 };
