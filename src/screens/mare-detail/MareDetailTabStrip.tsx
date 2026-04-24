@@ -2,14 +2,6 @@ import { Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { borderRadius, colors, spacing, typography } from '@/theme';
 
-export const TAB_KEY_TO_INDEX: Record<string, number> = {
-  dailyLogs: 0,
-  breeding: 1,
-  pregnancy: 2,
-  foaling: 3,
-  meds: 4,
-};
-
 type MareDetailTabStripProps = {
   readonly tabs: readonly { label: string }[];
   readonly activeTabIndex: number;

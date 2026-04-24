@@ -8,6 +8,7 @@ import type { PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 import { useMareDetailData } from '@/hooks/useMareDetailData';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
+import { getMareDetailTabIndex } from '@/screens/detailTabRoutes';
 import { colors, spacing } from '@/theme';
 import {
   BreedingTab,
@@ -29,17 +30,9 @@ const TAB_OPTIONS = [
   { label: 'Meds' },
 ] as const;
 
-const TAB_KEY_TO_INDEX: Record<string, number> = {
-  dailyLogs: 0,
-  breeding: 1,
-  pregnancy: 2,
-  foaling: 3,
-  meds: 4,
-};
-
 export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   const mareId = route.params.mareId;
-  const initialTabIndex = TAB_KEY_TO_INDEX[route.params.initialTab ?? ''] ?? 0;
+  const initialTabIndex = getMareDetailTabIndex(route.params.initialTab);
   const [activeTabIndex, setActiveTabIndex] = useState(initialTabIndex);
   const pagerRef = useRef<PagerView>(null);
   const handleSetTitle = useCallback((title: string) => {

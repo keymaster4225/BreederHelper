@@ -87,8 +87,6 @@ Features that make the app tell the user what to do next, rather than only recor
 
 - **P1 — Calendar-at-a-glance across all mares** (`TODO:21`)
   Visual design is the main unknown. Existing per-mare `MareCalendarScreen` is the starting point.
-- **P2 — 12h / 24h clock toggle** (`TODO:1`)
-  Global setting. Small scope once a settings-screen pattern exists.
 
 ### Theme: Foundational polish
 
@@ -107,8 +105,6 @@ Cross-cutting UX and structural features that aren't a single user-visible featu
 
 Sourced from the most recent architecture audits ([`BROOKS_AUDIT_2026-04-23-corrected.md`](./BROOKS_AUDIT_2026-04-23-corrected.md), [`ARCHITECTURE_AUDIT.md`](./ARCHITECTURE_AUDIT.md)). Verified against `main` at `710ad97` before writing this section. Items already remediated by the architecture remediation commit (`a2e95d2`) have been dropped.
 
-- **P1 — Extract per-step state from `useDailyLogWizard`**
-  Currently 680 LoC at `src/hooks/useDailyLogWizard.ts`. Growing every time a wizard step is added; blocks future wizard changes. High long-term payoff.
 - **P1 — DB test seam**
   `src/storage/db.ts` is a singleton with no injection point. Repository tests that need a swappable DB currently have to work around it. Warranted before the next round of repository work.
 - **P2 — Screen → hook policy consistency**
@@ -182,6 +178,7 @@ When a roadmap item is completed and merged to `main`:
 - 2026-04-24 — Added *Collection entry wizard / scrollability rework* under Stallion depth (P1).
 - 2026-04-24 — Added *Outside-mare allocation in collection workflow* under Stallion depth (P1).
 - 2026-04-24 — Added *Remove "optional" labels from text inputs* under Foundational polish (P1).
+- 2026-04-24 — Pruned completed or de-scoped items from the active roadmap.
 - 2026-04-23 — Added *Breeding record timestamps* under Mare care depth (P1).
 - 2026-04-23 — Added *Daily log photo attachments* under Media & attachments (P1).
 - 2026-04-23 — Added *Outside-mare breeding records from stallion section* under Stallion depth (P1).

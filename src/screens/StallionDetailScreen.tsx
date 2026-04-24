@@ -9,6 +9,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useStallionDetailData } from '@/hooks/useStallionDetailData';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
+import { getStallionDetailTabIndex } from '@/screens/detailTabRoutes';
 import { colors, spacing } from '@/theme';
 import { MareDetailTabStrip } from '@/screens/mare-detail/MareDetailTabStrip';
 import {
@@ -26,15 +27,9 @@ const TAB_OPTIONS = [
   { label: 'Frozen' },
 ] as const;
 
-const TAB_KEY_TO_INDEX: Record<string, number> = {
-  collections: 0,
-  breeding: 1,
-  frozen: 2,
-};
-
 export function StallionDetailScreen({ navigation, route }: Props): JSX.Element {
   const stallionId = route.params.stallionId;
-  const initialTabIndex = TAB_KEY_TO_INDEX[route.params.initialTab ?? ''] ?? 0;
+  const initialTabIndex = getStallionDetailTabIndex(route.params.initialTab);
   const [activeTabIndex, setActiveTabIndex] = useState(initialTabIndex);
   const pagerRef = useRef<PagerView>(null);
 

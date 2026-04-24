@@ -2,6 +2,10 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 
 import { StallionDetailScreen } from '@/screens/StallionDetailScreen';
 
+jest.mock('@/screens/stallion-detail/DoseEventModal', () => ({
+  DoseEventModal: () => null,
+}));
+
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
   const mockReact = require('react');
