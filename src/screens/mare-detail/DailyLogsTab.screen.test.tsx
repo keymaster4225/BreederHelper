@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
 import type { DailyLog } from '@/models/types';
 
@@ -66,4 +66,37 @@ it('groups same-day logs under one header and shows distinct time titles in newe
 
   const tree = JSON.stringify(screen.toJSON());
   expect(tree.indexOf('4:00 PM')).toBeLessThan(tree.indexOf('8:00 AM'));
+});
+
+it('renders structured ovary details in an expandable ovary row', () => {
+  const screen = render(
+    <DailyLogsTab
+      mareId="mare-1"
+      dailyLogs={[
+        makeDailyLog({
+          id: 'log-structured',
+          date: '2026-04-23',
+          rightOvaryOvulation: false,
+          rightOvaryFollicleState: 'measured',
+          rightOvaryFollicleMeasurementsMm: [34, 36],
+          rightOvaryConsistency: 'firm',
+          rightOvaryStructures: ['corpusLuteum', 'hemorrhagicAnovulatoryFollicle'],
+        }),
+      ]}
+      navigation={createNavigation() as never}
+    />,
+  );
+
+  expect(screen.getByText('Right ovary')).toBeTruthy();
+  expect(screen.queryByText('34 mm, 36 mm')).toBeNull();
+  expect(screen.queryByText('Follicles')).toBeNull();
+
+  fireEvent.press(screen.getByLabelText('Show Right ovary details'));
+
+  expect(screen.getByText('Follicles')).toBeTruthy();
+  expect(screen.getByText('34 mm, 36 mm')).toBeTruthy();
+  expect(screen.getByText('Consistency')).toBeTruthy();
+  expect(screen.getByText('Firm')).toBeTruthy();
+  expect(screen.getByText('Structures')).toBeTruthy();
+  expect(screen.getByText('Corpus Luteum, Hemorrhagic Anovulatory Follicle')).toBeTruthy();
 });

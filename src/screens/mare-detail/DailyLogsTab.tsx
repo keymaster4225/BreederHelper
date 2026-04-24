@@ -1,13 +1,15 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { PrimaryButton } from '../../components/Buttons';
 import { StatusBadge } from '../../components/StatusBadge';
 import { CardRow, EditIconButton, ScoreBadge, cardStyles } from '../../components/RecordCardParts';
 import type { DailyLog } from '../../models/types';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
-import { colors, spacing } from '../../theme';
-import { buildOvarySummary, buildUterusSummary } from '../../utils/dailyLogDisplay';
+import { colors, spacing, typography } from '../../theme';
+import { buildOvaryDetailLines, buildUterusSummary, type DailyLogDetailLine } from '../../utils/dailyLogDisplay';
 import { compareDailyLogsDesc, formatDailyLogTime } from '../../utils/dailyLogTime';
 
 type Props = {
@@ -39,6 +41,56 @@ function groupDailyLogsByDate(dailyLogs: readonly DailyLog[]): DailyLogGroup[] {
   return groups;
 }
 
+function OvaryDisclosure({
+  title,
+  details,
+}: {
+  title: string;
+  details: readonly DailyLogDetailLine[];
+}): JSX.Element {
+  const [expanded, setExpanded] = useState(false);
+  const canExpand = details.length > 0;
+
+  if (!canExpand) {
+    return (
+      <View style={[styles.ovaryDisclosure, styles.ovaryDisclosureEmpty]}>
+        <Text style={styles.ovaryTitle}>{title}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.ovaryDisclosure}>
+      <Pressable
+        accessibilityLabel={`${expanded ? 'Hide' : 'Show'} ${title} details`}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((current) => !current)}
+        style={({ pressed }) => [styles.ovaryDisclosureHeader, pressed && styles.ovaryDisclosurePressed]}
+      >
+        <View style={styles.ovaryDisclosureText}>
+          <Text style={styles.ovaryTitle}>{title}</Text>
+        </View>
+        <MaterialCommunityIcons
+          name={expanded ? 'minus-circle-outline' : 'plus-circle-outline'}
+          size={20}
+          color={colors.onSurfaceVariant}
+        />
+      </Pressable>
+      {expanded ? (
+        <View style={styles.ovaryDetails}>
+          {details.map((detail) => (
+            <View key={`${detail.label}:${detail.value}`} style={styles.ovaryDetailRow}>
+              <Text style={styles.ovaryDetailLabel}>{detail.label}</Text>
+              <Text style={styles.ovaryDetailValue}>{detail.value}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export function DailyLogsTab({ mareId, dailyLogs, navigation }: Props): JSX.Element {
   const groupedLogs = groupDailyLogsByDate(dailyLogs);
 
@@ -55,8 +107,8 @@ export function DailyLogsTab({ mareId, dailyLogs, navigation }: Props): JSX.Elem
           <View key={group.date} style={styles.group}>
             <Text style={styles.groupHeader}>{group.date}</Text>
             {group.logs.map((log) => {
-              const rightOvarySummary = buildOvarySummary(log, 'right');
-              const leftOvarySummary = buildOvarySummary(log, 'left');
+              const rightOvaryDetails = buildOvaryDetailLines(log, 'right');
+              const leftOvaryDetails = buildOvaryDetailLines(log, 'left');
               const uterusSummary = buildUterusSummary(log);
 
               return (
@@ -79,8 +131,8 @@ export function DailyLogsTab({ mareId, dailyLogs, navigation }: Props): JSX.Elem
                       <StatusBadge label="Detected" backgroundColor={colors.positive} textColor="#FFFFFF" />
                     </View>
                   ) : null}
-                  <CardRow label="Right ovary" value={rightOvarySummary || '-'} />
-                  <CardRow label="Left ovary" value={leftOvarySummary || '-'} />
+                  <OvaryDisclosure title="Right ovary" details={rightOvaryDetails} />
+                  <OvaryDisclosure title="Left ovary" details={leftOvaryDetails} />
                   {uterusSummary ? <CardRow label="Uterus" value={uterusSummary} /> : null}
                 </View>
               );
@@ -105,5 +157,55 @@ const styles = StyleSheet.create({
   },
   groupHeader: {
     color: colors.onSurfaceVariant,
+  },
+  ovaryDisclosure: {
+    borderColor: colors.outlineVariant,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  ovaryDisclosureEmpty: {
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  ovaryDisclosureHeader: {
+    alignItems: 'center',
+    columnGap: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    minHeight: 36,
+  },
+  ovaryDisclosurePressed: {
+    opacity: 0.72,
+  },
+  ovaryDisclosureText: {
+    flex: 1,
+    gap: 1,
+  },
+  ovaryTitle: {
+    color: colors.onSurfaceVariant,
+    ...typography.bodyMedium,
+  },
+  ovaryDetails: {
+    gap: 2,
+    paddingBottom: spacing.xs,
+  },
+  ovaryDetailRow: {
+    alignItems: 'flex-start',
+    columnGap: spacing.sm,
+    flexDirection: 'row',
+  },
+  ovaryDetailLabel: {
+    color: colors.onSurfaceVariant,
+    minWidth: 76,
+    ...typography.labelSmall,
+  },
+  ovaryDetailValue: {
+    color: colors.onSurface,
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
