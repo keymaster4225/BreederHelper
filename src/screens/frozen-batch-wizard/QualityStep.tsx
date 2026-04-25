@@ -27,7 +27,7 @@ export function QualityStep({
         <FormTextInput
           value={postThawMotilityPercent}
           onChangeText={setPostThawMotilityPercent}
-          placeholder="Optional (0-100)"
+          placeholder="0-100"
           keyboardType="decimal-pad"
         />
       </FormField>
@@ -36,7 +36,6 @@ export function QualityStep({
         <FormTextInput
           value={longevityHours}
           onChangeText={setLongevityHours}
-          placeholder="Optional"
           keyboardType="decimal-pad"
         />
       </FormField>

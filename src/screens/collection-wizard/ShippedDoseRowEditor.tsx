@@ -303,7 +303,6 @@ export function ShippedDoseRowEditor({
                 <FormTextInput
                   value={trackingNumber}
                   onChangeText={setTrackingNumber}
-                  placeholder="Optional"
                 />
               </FormField>
 
@@ -364,7 +363,6 @@ export function ShippedDoseRowEditor({
                   value={notes}
                   onChangeText={setNotes}
                   multiline
-                  placeholder="Optional"
                 />
               </FormField>
 

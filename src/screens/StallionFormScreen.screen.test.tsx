@@ -93,7 +93,7 @@ it('renders create-mode errors and forwards user input to the hook setters', () 
   );
 
   fireEvent.changeText(screen.getByPlaceholderText('Stallion name'), 'Atlas');
-  fireEvent.changeText(screen.getByPlaceholderText('Type or select breed (optional)'), 'Warmblood');
+  fireEvent.changeText(screen.getByPlaceholderText('Type or select breed'), 'Warmblood');
   fireEvent.press(screen.getByText('Add Stallion'));
 
   expect(hookState.setName).toHaveBeenCalledWith('Atlas');

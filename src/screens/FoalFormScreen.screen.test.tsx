@@ -88,7 +88,7 @@ it('blocks save on invalid input', async () => {
   const screen = renderScreen();
 
   await waitFor(() => expect(screen.getByText('Birth Weight (lbs)')).toBeTruthy());
-  fireEvent.changeText(screen.getAllByPlaceholderText('Optional')[2], '-10');
+  fireEvent.changeText(screen.UNSAFE_getByProps({ keyboardType: 'numeric' }), '-10');
   fireEvent.press(screen.getByText('Save'));
 
   expect(repositories.createFoal).not.toHaveBeenCalled();

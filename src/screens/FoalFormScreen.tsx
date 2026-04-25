@@ -70,7 +70,7 @@ export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
           <FormField label="Name">
-            <FormTextInput value={name} onChangeText={setName} placeholder="Optional" />
+            <FormTextInput value={name} onChangeText={setName} />
           </FormField>
 
           <FormField label="Sex">
@@ -82,14 +82,13 @@ export function FoalFormScreen({ navigation, route }: Props): JSX.Element {
           </FormField>
 
           <FormField label="Markings">
-            <FormTextInput value={markings} onChangeText={setMarkings} placeholder="Optional" />
+            <FormTextInput value={markings} onChangeText={setMarkings} />
           </FormField>
 
           <FormField label="Birth Weight (lbs)" error={errors.birthWeightLbs}>
             <FormTextInput
               value={birthWeightLbs}
               onChangeText={setBirthWeightLbs}
-              placeholder="Optional"
               keyboardType="numeric"
             />
           </FormField>

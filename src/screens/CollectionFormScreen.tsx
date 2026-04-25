@@ -86,14 +86,13 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
           </FormField>
 
           <FormField label="Total Volume (mL)" error={errors.rawVolumeMl}>
-            <FormTextInput value={rawVolumeMl} onChangeText={setRawVolumeMl} placeholder="Optional" keyboardType="numeric" />
+            <FormTextInput value={rawVolumeMl} onChangeText={setRawVolumeMl} keyboardType="numeric" />
           </FormField>
 
           <FormField label="Concentration (M/mL, raw)" error={errors.concentrationMillionsPerMl}>
             <FormTextInput
               value={concentrationMillionsPerMl}
               onChangeText={setConcentrationMillionsPerMl}
-              placeholder="Optional"
               keyboardType="numeric"
             />
           </FormField>
@@ -123,7 +122,6 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
               <FormTextInput
                 value={targetSpermMillionsPerDose}
                 onChangeText={setTargetSpermMillionsPerDose}
-                placeholder="Optional"
                 keyboardType="numeric"
               />
             </FormField>
@@ -138,7 +136,6 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
               <FormTextInput
                 value={targetPostExtensionConcentrationMillionsPerMl}
                 onChangeText={setTargetPostExtensionConcentrationMillionsPerMl}
-                placeholder="Optional"
                 keyboardType="numeric"
               />
             </FormField>
@@ -157,14 +154,14 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
               onChangeText={setExtenderType}
               options={EXTENDER_TYPES}
               getSuggestions={getExtenderTypeSuggestions}
-              placeholder="Type or select extender (optional)"
+              placeholder="Type or select extender"
               autoCapitalize="words"
               autoCorrect={false}
             />
           </FormField>
 
           <FormField label="Notes">
-            <FormTextInput value={notes} onChangeText={setNotes} multiline placeholder="Optional" />
+            <FormTextInput value={notes} onChangeText={setNotes} multiline />
           </FormField>
 
           <View style={cardStyles.card}>

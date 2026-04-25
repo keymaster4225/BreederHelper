@@ -112,7 +112,6 @@ export function StrawsStep({
         <FormTextInput
           value={concentrationMillionsPerMl}
           onChangeText={setConcentrationMillionsPerMl}
-          placeholder="Optional"
           keyboardType="decimal-pad"
         />
       </FormField>
@@ -129,7 +128,6 @@ export function StrawsStep({
         <FormTextInput
           value={strawsPerDose}
           onChangeText={setStrawsPerDose}
-          placeholder="Optional"
           keyboardType="number-pad"
         />
       </FormField>
@@ -140,7 +138,7 @@ export function StrawsStep({
           onChange={(value) => setStrawColor(value ? (value as StrawColor) : null)}
           options={STRAW_COLOR_VALUES as unknown as readonly string[]}
           clearable
-          placeholder="Select color (optional)"
+          placeholder="Select color"
         />
       </FormField>
 
@@ -158,7 +156,6 @@ export function StrawsStep({
         <FormTextInput
           value={strawLabel}
           onChangeText={setStrawLabel}
-          placeholder="Optional"
         />
       </FormField>
     </>

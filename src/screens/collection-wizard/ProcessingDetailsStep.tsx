@@ -163,7 +163,7 @@ export function ProcessingDetailsStep({
           value={extenderOption}
           onChange={setExtenderOption}
           options={EXTENDER_TYPES}
-          placeholder="Select extender (optional)"
+          placeholder="Select extender"
           clearable
         />
       </FormField>
@@ -185,7 +185,6 @@ export function ProcessingDetailsStep({
           value={notes}
           onChangeText={setNotes}
           multiline
-          placeholder="Optional"
         />
       </FormField>
 

@@ -73,26 +73,26 @@ export function StallionFormScreen({ navigation, route }: Props): JSX.Element {
               onChangeText={setBreed}
               options={HORSE_BREEDS}
               getSuggestions={getBreedSuggestions}
-              placeholder="Type or select breed (optional)"
+              placeholder="Type or select breed"
               autoCapitalize="words"
               autoCorrect={false}
             />
           </FormField>
 
           <FormField label="Registration Number">
-            <FormTextInput value={registrationNumber} onChangeText={setRegistrationNumber} placeholder="Optional" />
+            <FormTextInput value={registrationNumber} onChangeText={setRegistrationNumber} />
           </FormField>
 
           <FormField label="Sire">
-            <FormTextInput value={sire} onChangeText={setSire} placeholder="Optional" />
+            <FormTextInput value={sire} onChangeText={setSire} />
           </FormField>
 
           <FormField label="Dam">
-            <FormTextInput value={dam} onChangeText={setDam} placeholder="Optional" />
+            <FormTextInput value={dam} onChangeText={setDam} />
           </FormField>
 
           <FormField label="Notes">
-            <FormTextInput value={notes} onChangeText={setNotes} multiline placeholder="Optional" />
+            <FormTextInput value={notes} onChangeText={setNotes} multiline />
           </FormField>
 
           <View style={{ gap: 12 }}>

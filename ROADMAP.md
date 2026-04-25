@@ -1,6 +1,6 @@
 # BreedWise Roadmap
 
-> Last updated: 2026-04-24
+> Last updated: 2026-04-25
 >
 > This document is the prioritized plan for BreedWise. The flat `TODO` file is now a raw inbox — new ideas get dumped there, then triaged into this roadmap during a periodic sweep. See [Intake & triage process](#intake--triage-process).
 
@@ -21,7 +21,9 @@
 
 ## Currently building
 
-*Nothing actively in flight on `main`.* Last shipped work was multiple daily checks per mare (merged 2026-04-23, commit `710ad97`).
+*Remove "optional" labels from text inputs* (`TODO:11`) is implemented in the working tree and pending commit/merge. Once it lands on `main`, move it to [Recently shipped](#recently-shipped).
+
+Last shipped work on `main` was multiple daily checks per mare (merged 2026-04-23, commit `710ad97`).
 
 The `feature/collection-wizard` branch exists but has not been merged — its current state should be reviewed before picking up new work, in case it's stale or supersedable.
 
@@ -96,8 +98,6 @@ Cross-cutting UX and structural features that aren't a single user-visible featu
   Continuation of the bottom-tab migration (Phases 1-2 shipped 2026-04-05).
 - **P1 — Archive / soft-delete UX for mares and stallions**
   Users want to hide retired animals without losing the historical record. Some soft-delete plumbing already exists (`isDeleted` gating in tests) — this is the UX surface.
-- **P1 — Remove "optional" labels from text inputs** (`TODO:11`)
-  Form labels should rely on required-field asterisks instead of spelling out "optional" on every optional text input. Likely belongs in shared form controls first, then any screen-local labels that bypass the shared component.
 
 ---
 
@@ -170,6 +170,7 @@ When a roadmap item is completed and merged to `main`:
 
 ## Change log for this document
 
+- 2026-04-25 — Moved *Remove "optional" labels from text inputs* out of Foundational polish and marked it as implemented locally pending commit/merge.
 - 2026-04-24 — Recorded *Deduplicated detail tab route maps* as shipped and removed the active engineering-health item.
 - 2026-04-24 — Recorded *Configurable 12h / 24h clock setting* as shipped.
 - 2026-04-24 — Recorded *Daily log wizard step-state refactor* as shipped.

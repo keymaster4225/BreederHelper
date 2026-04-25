@@ -169,7 +169,6 @@ export function OnFarmMareRowEditor({
                   value={doseSemenVolumeMl}
                   onChangeText={setDoseSemenVolumeMl}
                   keyboardType="numeric"
-                  placeholder="Optional"
                 />
               </FormField>
 
@@ -190,7 +189,6 @@ export function OnFarmMareRowEditor({
                   value={notes}
                   onChangeText={setNotes}
                   multiline
-                  placeholder="Optional"
                 />
               </FormField>
 

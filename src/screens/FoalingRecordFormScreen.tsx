@@ -70,7 +70,7 @@ export function FoalingRecordFormScreen({ navigation, route }: Props): JSX.Eleme
         </FormField>
 
         <FormField label="Complications">
-          <FormTextInput value={complications} onChangeText={setComplications} placeholder="Optional" />
+          <FormTextInput value={complications} onChangeText={setComplications} />
         </FormField>
 
         <FormField label="Notes">

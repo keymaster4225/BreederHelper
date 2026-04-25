@@ -43,7 +43,6 @@ export function CollectionBasicsStep({
         <FormTextInput
           value={rawVolumeMl}
           onChangeText={setRawVolumeMl}
-          placeholder="Optional"
           keyboardType="numeric"
         />
       </FormField>
@@ -55,7 +54,6 @@ export function CollectionBasicsStep({
         <FormTextInput
           value={concentrationMillionsPerMl}
           onChangeText={setConcentrationMillionsPerMl}
-          placeholder="Optional"
           keyboardType="numeric"
         />
       </FormField>

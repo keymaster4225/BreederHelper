@@ -93,7 +93,7 @@ export function BasicsStep({
         <FormTextInput
           value={rawSemenVolumeUsedMl}
           onChangeText={setRawSemenVolumeUsedMl}
-          placeholder={isLinkedToCollection ? 'Required' : 'Optional'}
+          placeholder={isLinkedToCollection ? 'Required' : undefined}
           keyboardType="decimal-pad"
         />
       </FormField>
@@ -165,7 +165,6 @@ export function BasicsStep({
                     <FormTextInput
                       value={centrifugeCushionType}
                       onChangeText={setCentrifugeCushionType}
-                      placeholder="Optional"
                     />
                   </FormField>
                 ) : null}
@@ -178,7 +177,6 @@ export function BasicsStep({
                 <FormTextInput
                   value={centrifugeResuspensionVolumeMl}
                   onChangeText={setCentrifugeResuspensionVolumeMl}
-                  placeholder="Optional"
                   keyboardType="decimal-pad"
                 />
               </FormField>
@@ -187,7 +185,6 @@ export function BasicsStep({
                 <FormTextInput
                   value={centrifugeNotes}
                   onChangeText={setCentrifugeNotes}
-                  placeholder="Optional"
                   multiline
                 />
               </FormField>

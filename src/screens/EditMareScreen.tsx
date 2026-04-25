@@ -109,11 +109,11 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
         </FormField>
 
         <FormField label="Registration #">
-          <FormTextInput value={registrationNumber} onChangeText={setRegistrationNumber} placeholder="Optional" />
+          <FormTextInput value={registrationNumber} onChangeText={setRegistrationNumber} />
         </FormField>
 
         <FormField label="Notes">
-          <FormTextInput value={notes} onChangeText={setNotes} placeholder="Optional" multiline />
+          <FormTextInput value={notes} onChangeText={setNotes} multiline />
         </FormField>
 
         <PrimaryButton

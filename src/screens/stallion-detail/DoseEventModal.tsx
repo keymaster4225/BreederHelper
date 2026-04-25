@@ -150,7 +150,7 @@ export function DoseEventModal({
               </FormField>
 
               <FormField label="Tracking Number">
-                <FormTextInput value={trackingNumber} onChangeText={setTrackingNumber} placeholder="Optional" />
+                <FormTextInput value={trackingNumber} onChangeText={setTrackingNumber} />
               </FormField>
 
               <FormField label="Ship Date" required error={errors.eventDate}>
@@ -190,7 +190,7 @@ export function DoseEventModal({
               </View>
 
               <FormField label="Notes">
-                <FormTextInput value={notes} onChangeText={setNotes} multiline placeholder="Optional" />
+                <FormTextInput value={notes} onChangeText={setNotes} multiline />
               </FormField>
 
               <View style={styles.actions}>

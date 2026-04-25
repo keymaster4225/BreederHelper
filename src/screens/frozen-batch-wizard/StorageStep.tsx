@@ -19,7 +19,6 @@ export function StorageStep({
         <FormTextInput
           value={storageDetails}
           onChangeText={setStorageDetails}
-          placeholder="Optional"
           multiline
         />
       </FormField>
@@ -28,7 +27,6 @@ export function StorageStep({
         <FormTextInput
           value={notes}
           onChangeText={setNotes}
-          placeholder="Optional"
           multiline
         />
       </FormField>

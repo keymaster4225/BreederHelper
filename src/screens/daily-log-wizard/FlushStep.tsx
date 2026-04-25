@@ -99,7 +99,7 @@ export function FlushStep({
                 <FormTextInput
                   value={product.notes}
                   onChangeText={(value) => onUpdateProduct(product.clientId, { notes: value })}
-                  placeholder="Optional notes"
+                  placeholder="Notes"
                   multiline
                 />
               </FormField>
@@ -120,7 +120,7 @@ export function FlushStep({
         <FormTextInput
           value={flush.notes}
           onChangeText={onNotesChange}
-          placeholder="Optional procedure notes"
+          placeholder="Procedure notes"
           multiline
         />
       </FormField>

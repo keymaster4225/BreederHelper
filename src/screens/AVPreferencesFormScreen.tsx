@@ -52,30 +52,28 @@ export function AVPreferencesFormScreen({ navigation, route }: Props): JSX.Eleme
             <FormTextInput
               value={avTemperatureF}
               onChangeText={setAvTemperatureF}
-              placeholder="Optional"
               keyboardType="numeric"
             />
           </FormField>
 
           <FormField label="AV Type">
-            <FormTextInput value={avType} onChangeText={setAvType} placeholder="Optional" />
+            <FormTextInput value={avType} onChangeText={setAvType} />
           </FormField>
 
           <FormField label="Liner Type">
-            <FormTextInput value={avLinerType} onChangeText={setAvLinerType} placeholder="Optional" />
+            <FormTextInput value={avLinerType} onChangeText={setAvLinerType} />
           </FormField>
 
           <FormField label="Water Volume (mL)" error={errors.avWaterVolumeMl}>
             <FormTextInput
               value={avWaterVolumeMl}
               onChangeText={setAvWaterVolumeMl}
-              placeholder="Optional"
               keyboardType="numeric"
             />
           </FormField>
 
           <FormField label="AV Notes">
-            <FormTextInput value={avNotes} onChangeText={setAvNotes} multiline placeholder="Optional" />
+            <FormTextInput value={avNotes} onChangeText={setAvNotes} multiline />
           </FormField>
 
           <View style={{ gap: 12 }}>
