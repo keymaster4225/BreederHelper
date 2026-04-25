@@ -109,8 +109,6 @@ Sourced from the most recent architecture audits ([`BROOKS_AUDIT_2026-04-23-corr
   `src/storage/db.ts` is a singleton with no injection point. Repository tests that need a swappable DB currently have to work around it. Warranted before the next round of repository work.
 - **P2 — Screen → hook policy consistency**
   CLAUDE.md says screens delegate data access to hooks under `src/hooks/`. Roughly half of screens still call repositories directly. Decide whether to enforce uniformly or relax the rule.
-- **P2 — Deduplicate `TAB_KEY_TO_INDEX`**
-  Defined independently in `src/screens/StallionDetailScreen.tsx`, `src/screens/MareDetailScreen.tsx`, and `src/screens/mare-detail/MareDetailTabStrip.tsx`. Pull into a shared module. ~3-line import change.
 - **P2 — Rename/split `src/models/types.ts`**
   Currently one file holds every domain type. Consider splitting per aggregate (mare, stallion, foal, breeding). Suggestion-level — not blocking.
 - **P2 — Relocate `src/utils/backup/`**
@@ -157,6 +155,9 @@ When a roadmap item is completed and merged to `main`:
 
 ## Recently shipped
 
+- 2026-04-24 — Deduplicated detail tab route maps (`83e0486`)
+- 2026-04-24 — Configurable 12h / 24h clock setting — closed `TODO:1` (`46acf9c`)
+- 2026-04-24 — Daily log wizard step-state refactor (`eae89c5`)
 - 2026-04-23 — Multiple daily checks per mare (`710ad97`)
 - 2026-04-22 — Mare recipient flag (`30540f8`)
 - 2026-04-22 — Architecture remediation + repository seam (`a2e95d2`)
@@ -164,16 +165,14 @@ When a roadmap item is completed and merged to `main`:
 - 2026-04-20 — Data storage hardening (6 new data-integrity rules in `CLAUDE.md`)
 - 2026-04-05 — Bottom tab nav Phases 1-2
 - ~2026-04-08 — Stallion Collection Tracking Phase 2 (dose disposition)
-- 2026-04-04 — Stallion Collection Tracking Phase 1
-- 2026-03-29 — Foal IgG tracking
-- 2026-03-29 — Medications
-- 2026-03-27 — Mare calendar view
-- 2026-03-26 — Dashboard alerts
 
 ---
 
 ## Change log for this document
 
+- 2026-04-24 — Recorded *Deduplicated detail tab route maps* as shipped and removed the active engineering-health item.
+- 2026-04-24 — Recorded *Configurable 12h / 24h clock setting* as shipped.
+- 2026-04-24 — Recorded *Daily log wizard step-state refactor* as shipped.
 - 2026-04-24 — Added *Breeding event detail view* under Mare care depth (P1).
 - 2026-04-24 — Added *Collection entry wizard / scrollability rework* under Stallion depth (P1).
 - 2026-04-24 — Added *Outside-mare allocation in collection workflow* under Stallion depth (P1).
