@@ -23,7 +23,7 @@
 
 *Remove "optional" labels from text inputs* (`TODO:11`) is implemented in the working tree and pending commit/merge. Once it lands on `main`, move it to [Recently shipped](#recently-shipped).
 
-Last shipped work on `main` was multiple daily checks per mare (merged 2026-04-23, commit `710ad97`).
+Last shipped work on `main` was breeding event detail view (pushed 2026-04-25, commit `3875543`).
 
 The `feature/collection-wizard` branch exists but has not been merged — its current state should be reviewed before picking up new work, in case it's stale or supersedable.
 
@@ -39,8 +39,6 @@ Features that deepen mare reproductive recordkeeping beyond what the current dai
   Recurring user ask. Needs a design pass: how cysts are located on the uterus, how they're tracked over time, and whether they live on the daily log or as a separate longitudinal record.
 - **P1 — Fluid tracking** (`TODO:19`)
   Not yet scoped. Needs a detail workshop — which fluids, where in the workflow they're recorded, and what actions the app should prompt (see related P2 under *Proactive workflow*).
-- **P1 — Breeding event detail view** (`TODO:5`)
-  Tapping a breeding record from the mare summary should open a read-only detail screen for that service, similar to the edit screen but without editable controls. Design questions: whether the detail view includes an edit affordance, related pregnancy-check links, and any stallion-side navigation.
 - **P1 — Breeding record timestamps**
   Add a time field to breeding records, like timed daily log checks, so same-day services can be recorded and ordered accurately. Open question: whether time should be required on new records or optional for backward compatibility with existing breeding entries.
 - **P2 — Mare ovulation trends** (`TODO:27`)
@@ -89,6 +87,13 @@ Features that make the app tell the user what to do next, rather than only recor
 
 - **P1 — Calendar-at-a-glance across all mares** (`TODO:21`)
   Visual design is the main unknown. Existing per-mare `MareCalendarScreen` is the starting point.
+
+### Theme: Cloud backup & collaboration
+
+Features that move BreedWise beyond single-device local storage while preserving the offline-first workflow. Treat backup and sync as separate stages so disaster recovery can ship without committing the app to full multi-user conflict resolution too early.
+
+- **P2 — Staged cloud backup and multi-user sync path**
+  Long-term direction from `mare-tracker-spec.md`: data should be recoverable if a phone is lost, and eventually may support more than one user. Stage this deliberately: (1) cloud backup snapshots for lost-phone recovery; (2) single-account cloud restore across devices, still avoiding simultaneous editing; (3) read-only sharing for selected animals or records; (4) full multi-user collaboration with accounts, farm/workspace membership, roles, offline write queues, conflict handling, audit history, and attachment sync. Design prerequisite: make near-term local entities more sync-friendly with stable IDs, consistent `createdAt` / `updatedAt`, soft-delete semantics, and clear ownership boundaries.
 
 ### Theme: Foundational polish
 
@@ -155,6 +160,7 @@ When a roadmap item is completed and merged to `main`:
 
 ## Recently shipped
 
+- 2026-04-25 — Breeding event detail view — closed `TODO:5` (`3875543`)
 - 2026-04-24 — Deduplicated detail tab route maps (`83e0486`)
 - 2026-04-24 — Configurable 12h / 24h clock setting — closed `TODO:1` (`46acf9c`)
 - 2026-04-24 — Daily log wizard step-state refactor (`eae89c5`)
@@ -170,6 +176,8 @@ When a roadmap item is completed and merged to `main`:
 
 ## Change log for this document
 
+- 2026-04-25 — Recorded *Breeding event detail view* as shipped and removed it from Mare care depth.
+- 2026-04-25 — Added staged *Cloud backup and multi-user sync path* under Cloud backup & collaboration (P2).
 - 2026-04-25 — Moved *Remove "optional" labels from text inputs* out of Foundational polish and marked it as implemented locally pending commit/merge.
 - 2026-04-24 — Recorded *Deduplicated detail tab route maps* as shipped and removed the active engineering-health item.
 - 2026-04-24 — Recorded *Configurable 12h / 24h clock setting* as shipped.
