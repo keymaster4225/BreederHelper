@@ -35,6 +35,7 @@ type FormErrors = {
 type UsePregnancyCheckFormArgs = {
   readonly mareId: string;
   readonly pregnancyCheckId?: string;
+  readonly initialBreedingRecordId?: string;
   readonly onGoBack: () => void;
   readonly setTitle: (title: string) => void;
 };
@@ -42,6 +43,7 @@ type UsePregnancyCheckFormArgs = {
 export function usePregnancyCheckForm({
   mareId,
   pregnancyCheckId,
+  initialBreedingRecordId,
   onGoBack,
   setTitle,
 }: UsePregnancyCheckFormArgs) {
@@ -102,7 +104,10 @@ export function usePregnancyCheckForm({
           setHeartbeat(existing.heartbeatDetected ? 'yes' : 'no');
           setNotes(existing.notes ?? '');
         } else if (records.length > 0) {
-          setBreedingRecordId(records[0].id);
+          const initialRecord = initialBreedingRecordId
+            ? records.find((record) => record.id === initialBreedingRecordId)
+            : undefined;
+          setBreedingRecordId(initialRecord?.id ?? records[0].id);
         }
       },
       {
@@ -114,7 +119,7 @@ export function usePregnancyCheckForm({
         },
       },
     );
-  }, [mareId, pregnancyCheckId, runLoad]);
+  }, [initialBreedingRecordId, mareId, pregnancyCheckId, runLoad]);
 
   useEffect(() => {
     if (result === 'negative') {

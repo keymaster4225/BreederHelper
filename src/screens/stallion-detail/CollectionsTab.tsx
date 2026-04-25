@@ -423,12 +423,11 @@ export function CollectionsTab({
                               <Pressable
                                 key={row.id}
                                 style={({ pressed }) => [styles.eventRow, pressed && styles.pressed]}
-                                onPress={() => navigation.navigate('BreedingRecordForm', {
-                                  mareId: linkedBreeding.mareId,
+                                onPress={() => navigation.navigate('BreedingEventDetail', {
                                   breedingRecordId: linkedBreeding.id,
                                 })}
                                 accessibilityRole="button"
-                                accessibilityLabel={`Open breeding record for ${linkedMareName}`}
+                                accessibilityLabel={`Open breeding event for ${linkedMareName}`}
                               >
                                 {content}
                               </Pressable>

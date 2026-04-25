@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react-native';
+import { fireEvent, render } from '@testing-library/react-native';
 
 import type { DailyLog } from '@/models/types';
 
@@ -170,4 +170,47 @@ it('shows daily log event times in 24-hour format when selected', () => {
 
   expect(screen.getByText('2026-04-23 at 16:00')).toBeTruthy();
   expect(screen.getByText('2026-04-23 at 08:00')).toBeTruthy();
+});
+
+it('opens breeding detail from the card body and edit form from the pencil', () => {
+  const navigation = createNavigation();
+
+  const screen = render(
+    <TimelineTab
+      mareId="mare-1"
+      gestationLengthDays={340}
+      dailyLogs={[]}
+      breedingRecords={[
+        {
+          id: 'breeding-1',
+          mareId: 'mare-1',
+          stallionId: 'stallion-1',
+          stallionName: 'Atlas',
+          date: '2026-03-20',
+          method: 'liveCover',
+          notes: null,
+          createdAt: '2026-03-20T00:00:00Z',
+          updatedAt: '2026-03-20T00:00:00Z',
+        },
+      ]}
+      pregnancyChecks={[]}
+      foalingRecords={[]}
+      medicationLogs={[]}
+      foalByFoalingRecordId={{}}
+      stallionNameById={{ 'stallion-1': 'Atlas' }}
+      breedingById={{}}
+      navigation={navigation as never}
+    />,
+  );
+
+  fireEvent.press(screen.getByLabelText('Open breeding event from 2026-03-20'));
+  expect(navigation.navigate).toHaveBeenCalledWith('BreedingEventDetail', {
+    breedingRecordId: 'breeding-1',
+  });
+
+  fireEvent.press(screen.getByLabelText('Edit'));
+  expect(navigation.navigate).toHaveBeenCalledWith('BreedingRecordForm', {
+    mareId: 'mare-1',
+    breedingRecordId: 'breeding-1',
+  });
 });

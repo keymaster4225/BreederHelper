@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { StatusBadge } from '@/components/StatusBadge';
@@ -141,11 +141,18 @@ function BreedingCard({
         <Text style={cardStyles.cardTitle}>{event.date}</Text>
         <EditIconButton onPress={() => navigation.navigate('BreedingRecordForm', { mareId, breedingRecordId: record.id })} />
       </View>
-      <View style={cardStyles.cardRow}>
-        <EventTypeBadge type="breeding" />
-        <Text style={styles.cardDetail}>{formatBreedingMethod(record.method)}</Text>
-      </View>
-      <CardRow label="Stallion" value={stallionName} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open breeding event from ${event.date}`}
+        onPress={() => navigation.navigate('BreedingEventDetail', { breedingRecordId: record.id })}
+        style={({ pressed }) => [styles.cardBodyPressable, pressed && styles.pressed]}
+      >
+        <View style={cardStyles.cardRow}>
+          <EventTypeBadge type="breeding" />
+          <Text style={styles.cardDetail}>{formatBreedingMethod(record.method)}</Text>
+        </View>
+        <CardRow label="Stallion" value={stallionName} />
+      </Pressable>
     </View>
   );
 }
@@ -357,5 +364,11 @@ const styles = StyleSheet.create({
   cardDetail: {
     color: colors.onSurface,
     ...typography.bodyMedium,
+  },
+  cardBodyPressable: {
+    gap: spacing.xs,
+  },
+  pressed: {
+    opacity: 0.72,
   },
 });

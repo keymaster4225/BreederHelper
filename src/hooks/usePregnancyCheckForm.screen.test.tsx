@@ -19,6 +19,7 @@ import { usePregnancyCheckForm } from './usePregnancyCheckForm';
 
 type HookCallbacks = {
   mareId: string;
+  initialBreedingRecordId?: string;
   onGoBack: () => void;
   setTitle: (title: string) => void;
 };
@@ -49,6 +50,17 @@ describe('usePregnancyCheckForm', () => {
         notes: null,
         createdAt: '2026-03-20T00:00:00.000Z',
         updatedAt: '2026-03-20T00:00:00.000Z',
+      },
+      {
+        id: 'breeding-2',
+        mareId: 'mare-1',
+        stallionId: null,
+        stallionName: 'Beacon',
+        date: '2026-03-25',
+        method: 'freshAI',
+        notes: null,
+        createdAt: '2026-03-25T00:00:00.000Z',
+        updatedAt: '2026-03-25T00:00:00.000Z',
       },
     ]);
     repositories.getPregnancyCheckById.mockResolvedValue(null);
@@ -102,5 +114,57 @@ describe('usePregnancyCheckForm', () => {
 
     await waitFor(() => expect(result.current.notes).toBe('Edited note'));
     expect(repositories.getPregnancyCheckById).toHaveBeenCalledTimes(1);
+  });
+
+  it('preselects the route-provided breeding record in create mode', async () => {
+    const { result } = renderHook<
+      ReturnType<typeof usePregnancyCheckForm>,
+      HookCallbacks
+    >(
+      ({ mareId, initialBreedingRecordId, onGoBack, setTitle }) =>
+        usePregnancyCheckForm({
+          mareId,
+          initialBreedingRecordId,
+          onGoBack,
+          setTitle,
+        }),
+      {
+        initialProps: {
+          mareId: 'mare-1',
+          initialBreedingRecordId: 'breeding-2',
+          onGoBack: jest.fn(),
+          setTitle: jest.fn(),
+        },
+      },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.breedingRecordId).toBe('breeding-2');
+  });
+
+  it('falls back to the first breeding record when create-mode preselection is invalid', async () => {
+    const { result } = renderHook<
+      ReturnType<typeof usePregnancyCheckForm>,
+      HookCallbacks
+    >(
+      ({ mareId, initialBreedingRecordId, onGoBack, setTitle }) =>
+        usePregnancyCheckForm({
+          mareId,
+          initialBreedingRecordId,
+          onGoBack,
+          setTitle,
+        }),
+      {
+        initialProps: {
+          mareId: 'mare-1',
+          initialBreedingRecordId: 'missing-breeding',
+          onGoBack: jest.fn(),
+          setTitle: jest.fn(),
+        },
+      },
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.breedingRecordId).toBe('breeding-1');
   });
 });

@@ -46,6 +46,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
   } = usePregnancyCheckForm({
     mareId: route.params.mareId,
     pregnancyCheckId: route.params.pregnancyCheckId,
+    initialBreedingRecordId: route.params.breedingRecordId,
     onGoBack: () => navigation.goBack(),
     setTitle: (title) => navigation.setOptions({ title }),
   });

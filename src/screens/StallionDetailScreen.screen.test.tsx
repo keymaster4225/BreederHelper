@@ -279,6 +279,11 @@ it('shows shipped and on-farm volume details in allocation rows', async () => {
   await waitFor(() => expect(screen.getByText('Semen/Extender per dose: 3.00 mL + 2.00 mL')).toBeTruthy());
   expect(screen.getByText('Total semen/extender: 6.00 mL + 4.00 mL')).toBeTruthy();
   expect(screen.getByText('Semen used: not recorded')).toBeTruthy();
+
+  fireEvent.press(screen.getAllByLabelText('Open breeding event for Nova')[0]);
+  expect(screen.navigation.navigate).toHaveBeenCalledWith('BreedingEventDetail', {
+    breedingRecordId: 'br-1',
+  });
 });
 
 it('navigates to the collection wizard from Add Collection', async () => {
@@ -418,6 +423,11 @@ it('shows linked breeding records with mare names', async () => {
   const screen = renderScreen({ stallionId: 'st-1', initialTab: 'breeding' });
   await waitFor(() => expect(screen.getByText('Linked Breeding Records')).toBeTruthy());
   expect(screen.getByText('Mare: Nova')).toBeTruthy();
+
+  fireEvent.press(screen.getByLabelText('Open breeding event for Nova'));
+  expect(screen.navigation.navigate).toHaveBeenCalledWith('BreedingEventDetail', {
+    breedingRecordId: 'br-1',
+  });
 });
 
 it('updates the active tab on tab press', async () => {

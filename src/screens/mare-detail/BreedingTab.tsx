@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { PrimaryButton } from '@/components/Buttons';
@@ -31,9 +31,16 @@ export function BreedingTab({ mareId, breedingRecords, stallionNameById, navigat
               <Text style={cardStyles.cardTitle}>{record.date}</Text>
               <EditIconButton onPress={() => navigation.navigate('BreedingRecordForm', { mareId, breedingRecordId: record.id })} />
             </View>
-            <CardRow label="Method" value={formatBreedingMethod(record.method)} />
-            <CardRow label="Stallion" value={record.stallionName ?? stallionNameById[record.stallionId ?? ''] ?? 'Unknown'} />
-            {record.collectionDate ? <CardRow label="Collection" value={record.collectionDate} /> : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open breeding event from ${record.date}`}
+              onPress={() => navigation.navigate('BreedingEventDetail', { breedingRecordId: record.id })}
+              style={({ pressed }) => [styles.cardBodyPressable, pressed && styles.pressed]}
+            >
+              <CardRow label="Method" value={formatBreedingMethod(record.method)} />
+              <CardRow label="Stallion" value={record.stallionName ?? stallionNameById[record.stallionId ?? ''] ?? 'Unknown'} />
+              {record.collectionDate ? <CardRow label="Collection" value={record.collectionDate} /> : null}
+            </Pressable>
           </View>
         ))}
       </ScrollView>
@@ -48,5 +55,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     gap: spacing.md,
     paddingBottom: spacing.xxxl,
+  },
+  cardBodyPressable: {
+    gap: spacing.xs,
+  },
+  pressed: {
+    opacity: 0.72,
   },
 });

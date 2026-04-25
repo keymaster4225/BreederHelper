@@ -20,7 +20,7 @@ export function BreedingHistoryTab({ linkedBreedings, legacyBreedings, mareNameB
 
   return (
     <View style={styles.page}>
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       {linkedBreedings.length > 0 ? (
         <>
           <Text style={styles.sectionTitle}>Linked Breeding Records</Text>
@@ -28,8 +28,10 @@ export function BreedingHistoryTab({ linkedBreedings, legacyBreedings, mareNameB
             {linkedBreedings.map((r) => (
               <Pressable
                 key={r.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Open breeding event for ${mareNameById[r.mareId] ?? 'unknown mare'}`}
                 style={({ pressed }) => [cardStyles.card, pressed && styles.pressed]}
-                onPress={() => navigation.navigate('MareDetail', { mareId: r.mareId, initialTab: 'breeding' })}
+                onPress={() => navigation.navigate('BreedingEventDetail', { breedingRecordId: r.id })}
               >
                 <Text style={cardStyles.cardTitle}>{formatLocalDate(r.date, 'MM-DD-YYYY')}</Text>
                 <Text style={styles.cardMeta}>Mare: {mareNameById[r.mareId] ?? 'Unknown'}</Text>
@@ -61,7 +63,7 @@ export function BreedingHistoryTab({ linkedBreedings, legacyBreedings, mareNameB
           <Text style={cardStyles.emptyText}>No breeding records found.</Text>
         </View>
       ) : null}
-    </ScrollView>
+      </ScrollView>
     </View>
   );
 }

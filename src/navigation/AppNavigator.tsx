@@ -6,6 +6,7 @@ import { TabNavigator } from '@/navigation/TabNavigator';
 import { MareDetailScreen } from '@/screens/MareDetailScreen';
 import { EditMareScreen } from '@/screens/EditMareScreen';
 import { DailyLogFormScreen } from '@/screens/DailyLogFormScreen';
+import { BreedingEventDetailScreen } from '@/screens/BreedingEventDetailScreen';
 import { BreedingRecordFormScreen } from '@/screens/BreedingRecordFormScreen';
 import { PregnancyCheckFormScreen } from '@/screens/PregnancyCheckFormScreen';
 import { FoalingRecordFormScreen } from '@/screens/FoalingRecordFormScreen';
@@ -43,8 +44,9 @@ export type RootStackParamList = {
   FrozenBatchCreateWizard: { stallionId: string; collectionId?: string };
   FrozenBatchForm: { stallionId: string; frozenBatchId: string };
   AVPreferencesForm: { stallionId: string };
+  BreedingEventDetail: { breedingRecordId: string };
   BreedingRecordForm: { mareId: string; breedingRecordId?: string };
-  PregnancyCheckForm: { mareId: string; pregnancyCheckId?: string };
+  PregnancyCheckForm: { mareId: string; pregnancyCheckId?: string; breedingRecordId?: string };
   FoalingRecordForm: { mareId: string; foalingRecordId?: string };
   FoalForm: { mareId: string; foalingRecordId: string; foalId?: string; defaultSex?: FoalSex | null };
   MedicationForm: { mareId: string; medicationLogId?: string };
@@ -71,6 +73,7 @@ export function AppNavigator(): JSX.Element {
         <Stack.Screen name="MareDetail" component={MareDetailScreen} options={{ title: 'Mare Detail' }} />
         <Stack.Screen name="EditMare" component={EditMareScreen} options={{ title: 'Add / Edit Mare' }} />
         <Stack.Screen name="DailyLogForm" component={DailyLogFormScreen} options={{ title: 'Daily Log' }} />
+        <Stack.Screen name="BreedingEventDetail" component={BreedingEventDetailScreen} options={{ title: 'Breeding Event' }} />
         <Stack.Screen name="BreedingRecordForm" component={BreedingRecordFormScreen} options={{ title: 'Breeding Record' }} />
         <Stack.Screen name="PregnancyCheckForm" component={PregnancyCheckFormScreen} options={{ title: 'Pregnancy Check' }} />
         <Stack.Screen name="FoalingRecordForm" component={FoalingRecordFormScreen} options={{ title: 'Foaling Record' }} />
