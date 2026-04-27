@@ -167,6 +167,21 @@ it('completes dashboard tasks from the task card', async () => {
   await waitFor(() => expect(repositories.completeTask).toHaveBeenCalledWith('task-1'));
 });
 
+it('opens the task form from the dashboard add-task action', async () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(buildState());
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Add Task' })).toBeTruthy());
+
+  fireEvent.press(screen.getByRole('button', { name: 'Add Task' }));
+
+  expect(navigation.navigate).toHaveBeenCalledWith('TaskForm');
+});
+
 it('shows a task update error when manual completion fails', async () => {
   const navigation = createNavigation();
   repositories.completeTask.mockRejectedValue(new Error('write failed'));

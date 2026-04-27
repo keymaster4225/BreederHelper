@@ -119,6 +119,10 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
     navigation.navigate('MainTabs', { screen: 'Stallions' });
   }, [navigation]);
 
+  const navigateToTaskForm = useCallback(() => {
+    navigation.navigate('TaskForm');
+  }, [navigation]);
+
   if (isLoading || isOnboardingLoading) {
     return (
       <Screen>
@@ -229,6 +233,16 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
                 onPress={() => navigateToStallions()}
               />
             </View>
+
+            <Pressable
+              style={({ pressed }) => [styles.addTaskButton, pressed && styles.pressedOpacity]}
+              onPress={navigateToTaskForm}
+              accessibilityRole="button"
+              accessibilityLabel="Add Task"
+            >
+              <MaterialCommunityIcons name="plus-circle-outline" size={20} color={colors.onPrimary} />
+              <Text style={styles.addTaskButtonText}>Add Task</Text>
+            </Pressable>
 
             {tasks.length > 0 ? (
               <DashboardSection
@@ -375,6 +389,21 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     textAlign: 'center',
+  },
+  addTaskButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.xl,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  addTaskButtonText: {
+    ...typography.labelLarge,
+    color: colors.onPrimary,
   },
   caughtUp: {
     alignItems: 'center',

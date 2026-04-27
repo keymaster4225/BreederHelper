@@ -21,8 +21,9 @@ import { FrozenBatchWizardScreen } from '@/screens/FrozenBatchWizardScreen';
 import { FrozenBatchFormScreen } from '@/screens/FrozenBatchFormScreen';
 import { AVPreferencesFormScreen } from '@/screens/AVPreferencesFormScreen';
 import { DataBackupScreen } from '@/screens/DataBackupScreen';
+import { TaskFormScreen } from '@/screens/TaskFormScreen';
 
-import { FoalSex } from '@/models/types';
+import { FoalSex, LocalDate, TaskSourceReason, TaskSourceType, TaskType } from '@/models/types';
 import { colors } from '@/theme';
 
 export type TabParamList = {
@@ -50,6 +51,17 @@ export type RootStackParamList = {
   FoalingRecordForm: { mareId: string; foalingRecordId?: string };
   FoalForm: { mareId: string; foalingRecordId: string; foalId?: string; defaultSex?: FoalSex | null };
   MedicationForm: { mareId: string; medicationLogId?: string };
+  TaskForm: {
+    taskId?: string;
+    mareId?: string;
+    taskType?: TaskType;
+    dueDate?: LocalDate;
+    dueTime?: string | null;
+    title?: string;
+    sourceType?: TaskSourceType;
+    sourceRecordId?: string;
+    sourceReason?: TaskSourceReason;
+  } | undefined;
   MareCalendar: { mareId: string };
   DataBackup: undefined;
 };
@@ -79,6 +91,7 @@ export function AppNavigator(): JSX.Element {
         <Stack.Screen name="FoalingRecordForm" component={FoalingRecordFormScreen} options={{ title: 'Foaling Record' }} />
         <Stack.Screen name="FoalForm" component={FoalFormScreen} options={{ title: 'Foal Record' }} />
         <Stack.Screen name="MedicationForm" component={MedicationFormScreen} options={{ title: 'Medication' }} />
+        <Stack.Screen name="TaskForm" component={TaskFormScreen} options={{ title: 'Task' }} />
         <Stack.Screen name="StallionDetail" component={StallionDetailScreen} options={{ title: 'Stallion Detail' }} />
         <Stack.Screen name="StallionForm" component={StallionFormScreen} options={{ title: 'Stallion' }} />
         <Stack.Screen name="CollectionCreateWizard" component={CollectionWizardScreen} options={{ title: 'Add Collection' }} />
