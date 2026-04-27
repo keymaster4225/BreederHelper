@@ -49,6 +49,42 @@ export interface MedicationLog {
   updatedAt: ISODateTime;
 }
 
+export type TaskType = 'dailyCheck' | 'medication' | 'breeding' | 'pregnancyCheck' | 'custom';
+
+export type TaskStatus = 'open' | 'completed';
+
+export type TaskSourceType =
+  | 'manual'
+  | 'dailyLog'
+  | 'medicationLog'
+  | 'breedingRecord'
+  | 'pregnancyCheck';
+
+export type TaskSourceReason = 'manualFollowUp' | 'breedingPregnancyCheck';
+
+export interface Task {
+  id: UUID;
+  mareId: UUID;
+  taskType: TaskType;
+  title: string;
+  dueDate: LocalDate;
+  dueTime: string | null;
+  notes: string | null;
+  status: TaskStatus;
+  completedAt: ISODateTime | null;
+  completedRecordType: Exclude<TaskSourceType, 'manual'> | null;
+  completedRecordId: UUID | null;
+  sourceType: TaskSourceType;
+  sourceRecordId: UUID | null;
+  sourceReason: TaskSourceReason | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+export interface TaskWithMare extends Task {
+  mareName: string;
+}
+
 export type FoalColor = (typeof FOAL_COLOR_VALUES)[number];
 
 export type FoalMilestoneKey = (typeof FOAL_MILESTONE_KEYS)[number];
