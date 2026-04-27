@@ -96,7 +96,7 @@ Cross-cutting UX and structural features that aren't a single user-visible featu
 
 ## Engineering health
 
-Sourced from the most recent architecture audits ([`BROOKS_AUDIT_2026-04-23-corrected.md`](./BROOKS_AUDIT_2026-04-23-corrected.md), [`ARCHITECTURE_AUDIT.md`](./ARCHITECTURE_AUDIT.md)). Verified against `main` at `710ad97` before writing this section. Items already remediated by the architecture remediation commit (`a2e95d2`) have been dropped.
+Sourced from the most recent architecture audits ([`BROOKS_AUDIT_2026-04-23-corrected.md`](./docs/BROOKS_AUDIT_2026-04-23-corrected.md), [`ARCHITECTURE_AUDIT.md`](./docs/ARCHITECTURE_AUDIT.md)). Verified against `main` at `710ad97` before writing this section. Items already remediated by the architecture remediation commit (`a2e95d2`) have been dropped.
 
 - **P1 — DB test seam**
   `src/storage/db.ts` is a singleton with no injection point. Repository tests that need a swappable DB currently have to work around it. Warranted before the next round of repository work.
