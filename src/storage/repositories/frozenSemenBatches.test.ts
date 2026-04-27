@@ -22,6 +22,7 @@ vi.mock('./internal/collectionAllocation', () => ({
 
 import { getDb } from '@/storage/db';
 import { newId } from '@/utils/id';
+import { createRepoDb, type SqlCall } from '@/test/repoDb';
 import {
   createFrozenSemenBatch,
   deleteFrozenSemenBatch,
@@ -65,18 +66,15 @@ type FrozenRow = {
   updated_at: string;
 };
 
-function normalized(sql: string): string {
-  return sql.replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-function createFakeDb() {
+function createFrozenBatchRepoHarness() {
   const frozen = new Map<string, FrozenRow>();
 
   return {
     frozen,
-    db: {
-      async runAsync(sql: string, params: unknown[] = []): Promise<void> {
-        const stmt = normalized(sql);
+    db: createRepoDb({
+      onRun(call) {
+        const stmt = call.normalizedSql;
+        const params = call.params;
 
         if (stmt.startsWith('insert into frozen_semen_batches')) {
           const [
@@ -213,16 +211,18 @@ function createFakeDb() {
         }
       },
 
-      async getFirstAsync<T>(sql: string, params: unknown[] = []): Promise<T | null> {
-        const stmt = normalized(sql);
+      onGetFirst<T>(call: SqlCall) {
+        const stmt = call.normalizedSql;
+        const params = call.params;
         if (stmt.includes('from frozen_semen_batches') && stmt.includes('where id = ?')) {
           return (frozen.get(params[0] as string) as T | undefined) ?? null;
         }
         return null;
       },
 
-      async getAllAsync<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-        const stmt = normalized(sql);
+      onGetAll<T>(call: SqlCall) {
+        const stmt = call.normalizedSql;
+        const params = call.params;
 
         if (stmt.includes('from frozen_semen_batches') && stmt.includes('where stallion_id = ?')) {
           const rows = Array.from(frozen.values())
@@ -240,7 +240,7 @@ function createFakeDb() {
 
         return [];
       },
-    },
+    }),
   };
 }
 
@@ -290,7 +290,7 @@ describe('frozenSemenBatches repository', () => {
   });
 
   it('creates standalone batches with null linked volume and cleared centrifuge fields', async () => {
-    const { db } = createFakeDb();
+    const { db } = createFrozenBatchRepoHarness();
     vi.mocked(getDb).mockResolvedValue(db as never);
 
     const created = await createFrozenSemenBatch(
@@ -310,7 +310,7 @@ describe('frozenSemenBatches repository', () => {
   });
 
   it('rejects linked batches when the collection belongs to a different stallion', async () => {
-    const { db } = createFakeDb();
+    const { db } = createFrozenBatchRepoHarness();
     vi.mocked(getDb).mockResolvedValue(db as never);
     vi.mocked(getSemenCollectionById).mockResolvedValue({
       id: 'collection-1',
@@ -328,7 +328,7 @@ describe('frozenSemenBatches repository', () => {
   });
 
   it('requires positive raw volume for linked batches and runs allocation checks', async () => {
-    const { db } = createFakeDb();
+    const { db } = createFrozenBatchRepoHarness();
     vi.mocked(getDb).mockResolvedValue(db as never);
     vi.mocked(getSemenCollectionById).mockResolvedValue({
       id: 'collection-1',
@@ -362,7 +362,7 @@ describe('frozenSemenBatches repository', () => {
   });
 
   it('preserves used straws when straw count changes and blocks impossible updates', async () => {
-    const { db, frozen } = createFakeDb();
+    const { db, frozen } = createFrozenBatchRepoHarness();
     vi.mocked(getDb).mockResolvedValue(db as never);
 
     await createFrozenSemenBatch(buildCreateInput() as never);
@@ -398,7 +398,7 @@ describe('frozenSemenBatches repository', () => {
   });
 
   it('passes excludeFrozenBatchId when validating linked allocation on update', async () => {
-    const { db } = createFakeDb();
+    const { db } = createFrozenBatchRepoHarness();
     vi.mocked(getDb).mockResolvedValue(db as never);
     vi.mocked(getSemenCollectionById).mockResolvedValue({
       id: 'collection-1',
@@ -426,7 +426,7 @@ describe('frozenSemenBatches repository', () => {
   });
 
   it('keeps stallion and collection immutable during updates', async () => {
-    const { db } = createFakeDb();
+    const { db } = createFrozenBatchRepoHarness();
     vi.mocked(getDb).mockResolvedValue(db as never);
     await createFrozenSemenBatch(buildCreateInput() as never);
 
@@ -438,7 +438,7 @@ describe('frozenSemenBatches repository', () => {
   });
 
   it('lists and deletes batches by stallion/collection', async () => {
-    const { db } = createFakeDb();
+    const { db } = createFrozenBatchRepoHarness();
     vi.mocked(getDb).mockResolvedValue(db as never);
 
     await createFrozenSemenBatch(buildCreateInput({ collectionId: null }) as never);

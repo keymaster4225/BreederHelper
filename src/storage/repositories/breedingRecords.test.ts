@@ -15,6 +15,7 @@ vi.mock('./semenCollections', () => ({
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { getSemenCollectionById } from './semenCollections';
 import { hasLinkedOnFarmDoseEvent, updateBreedingRecord } from './breedingRecords';
+import { createRepoDb, type SqlCall } from '@/test/repoDb';
 
 type BreedingRecordRow = {
   id: string;
@@ -52,11 +53,7 @@ type CollectionRow = {
   raw_volume_ml: number | null;
 };
 
-function normalized(sql: string): string {
-  return sql.replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-function createFakeDb() {
+function createBreedingRecordRepoHarness() {
   const breedingRecords = new Map<string, BreedingRecordRow>([
     [
       'breed-1',
@@ -117,12 +114,10 @@ function createFakeDb() {
     ['col-2', { id: 'col-2', raw_volume_ml: 10 }],
   ]);
 
-  return {
-    breedingRecords,
-    doseEvents,
-    collections,
-    async runAsync(sql: string, params: unknown[] = []): Promise<void> {
-      const stmt = normalized(sql);
+  const db = createRepoDb({
+    onRun(call) {
+      const stmt = call.normalizedSql;
+      const params = call.params;
 
       if (stmt.startsWith('update breeding_records set')) {
         const [
@@ -205,8 +200,9 @@ function createFakeDb() {
         });
       }
     },
-    async getFirstAsync<T>(sql: string, params: unknown[] = []): Promise<T | null> {
-      const stmt = normalized(sql);
+    onGetFirst<T>(call: SqlCall) {
+      const stmt = call.normalizedSql;
+      const params = call.params;
 
       if (stmt.includes('from breeding_records') && stmt.includes('where id = ?')) {
         const [id] = params as [string];
@@ -257,13 +253,16 @@ function createFakeDb() {
 
       return null;
     },
-    async getAllAsync<T>(): Promise<T[]> {
-      return [];
+    onGetAll<T>() {
+      return [] as T[];
     },
-    async withTransactionAsync<T>(callback: () => Promise<T>): Promise<T> {
-      return callback();
-    },
-  };
+  });
+
+  return Object.assign(db, {
+    breedingRecords,
+    doseEvents,
+    collections,
+  });
 }
 
 describe('breedingRecords linked on-farm behavior', () => {
@@ -293,7 +292,7 @@ describe('breedingRecords linked on-farm behavior', () => {
   });
 
   it('mirrors linked on-farm updates to the companion usedOnSite event', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createBreedingRecordRepoHarness();
 
     await updateBreedingRecord('breed-1', {
       stallionId: 'stallion-1',
@@ -324,7 +323,7 @@ describe('breedingRecords linked on-farm behavior', () => {
   });
 
   it('blocks changing linked on-farm method away from freshAI', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createBreedingRecordRepoHarness();
 
     await expect(
       updateBreedingRecord('breed-1', {
@@ -340,7 +339,7 @@ describe('breedingRecords linked on-farm behavior', () => {
   });
 
   it('blocks clearing linked on-farm collection_id', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createBreedingRecordRepoHarness();
 
     await expect(
       updateBreedingRecord('breed-1', {
@@ -356,7 +355,7 @@ describe('breedingRecords linked on-farm behavior', () => {
   });
 
   it('blocks moving linked on-farm breeding records to a different collection', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createBreedingRecordRepoHarness();
 
     await expect(
       updateBreedingRecord('breed-1', {
@@ -374,7 +373,7 @@ describe('breedingRecords linked on-farm behavior', () => {
   });
 
   it('reruns semen-volume cap check when linked on-farm volume changes', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createBreedingRecordRepoHarness();
     fakeDb.collections.set('col-1', { id: 'col-1', raw_volume_ml: 5 });
 
     await expect(
@@ -391,7 +390,7 @@ describe('breedingRecords linked on-farm behavior', () => {
   });
 
   it('reports whether a breeding record has a linked on-farm dose event', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createBreedingRecordRepoHarness();
 
     await expect(hasLinkedOnFarmDoseEvent('breed-1', fakeDb)).resolves.toBe(true);
     await expect(hasLinkedOnFarmDoseEvent('missing', fakeDb)).resolves.toBe(false);

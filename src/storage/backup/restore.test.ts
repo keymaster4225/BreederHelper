@@ -31,6 +31,12 @@ import { getDb } from '@/storage/db';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { setOnboardingCompleteValue } from '@/utils/onboarding';
 import { setClockPreference } from '@/utils/clockPreferences';
+import {
+  createRepoDb,
+  expectInsertForTable,
+  expectManagedTableDeleteOrder,
+  type RepoDbHarness,
+} from '@/test/repoDb';
 
 import { createSafetySnapshot } from './safetyBackups';
 import {
@@ -45,6 +51,27 @@ import { restoreBackup } from './restore';
 import { validateBackup, validateBackupJson } from './validate';
 import type { BackupEnvelope } from './types';
 
+const MANAGED_TABLE_DELETE_ORDER = [
+  'collection_dose_events',
+  'frozen_semen_batches',
+  'foals',
+  'pregnancy_checks',
+  'uterine_fluid',
+  'medication_logs',
+  'uterine_flush_products',
+  'uterine_flushes',
+  'foaling_records',
+  'daily_logs',
+  'breeding_records',
+  'semen_collections',
+  'mares',
+  'stallions',
+] as const;
+
+function createRestoreDb(onRun?: (call: RepoDbHarness['runCalls'][number]) => void): RepoDbHarness {
+  return createRepoDb({ onRun });
+}
+
 describe('restoreBackup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -53,15 +80,7 @@ describe('restoreBackup', () => {
   it('deletes and inserts tables in order, then updates onboarding and emits one invalidation', async () => {
     const backup = cloneBackupFixture();
     const steps: string[] = [];
-    const sqlCalls: string[] = [];
-    const db = {
-      runAsync: vi.fn(async (sql: string) => {
-        sqlCalls.push(sql.replace(/\s+/g, ' ').trim());
-      }),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb();
 
     vi.mocked(validateBackupJson).mockReturnValue({
       ok: true,
@@ -98,64 +117,42 @@ describe('restoreBackup', () => {
       'Restoring data...',
       'Updating app settings...',
     ]);
-    expect(sqlCalls.slice(0, 14)).toEqual([
-      'DELETE FROM collection_dose_events;',
-      'DELETE FROM frozen_semen_batches;',
-      'DELETE FROM foals;',
-      'DELETE FROM pregnancy_checks;',
-      'DELETE FROM uterine_fluid;',
-      'DELETE FROM medication_logs;',
-      'DELETE FROM uterine_flush_products;',
-      'DELETE FROM uterine_flushes;',
-      'DELETE FROM foaling_records;',
-      'DELETE FROM daily_logs;',
-      'DELETE FROM breeding_records;',
-      'DELETE FROM semen_collections;',
-      'DELETE FROM mares;',
-      'DELETE FROM stallions;',
-    ]);
-    expect(sqlCalls[14]).toContain('INSERT INTO mares');
-    const mareInsertCall = db.runAsync.mock.calls[14] as unknown[] | undefined;
-    const mareInsertParams = (mareInsertCall?.[1] ?? []) as unknown[];
-    expect(mareInsertParams[3]).toBe(345);
-    expect(mareInsertParams[6]).toBe(1);
-    expect(sqlCalls[15]).toContain('INSERT INTO stallions');
-    expect(sqlCalls[16]).toContain('INSERT INTO semen_collections');
-    const semenCollectionInsertCall = db.runAsync.mock.calls[16] as unknown[] | undefined;
-    const semenCollectionInsertParams = (semenCollectionInsertCall?.[1] ?? []) as unknown[];
-    expect(semenCollectionInsertParams[7]).toBe('progressive');
-    expect(sqlCalls[17]).toContain('INSERT INTO frozen_semen_batches');
-    const frozenBatchInsertCall = db.runAsync.mock.calls[17] as unknown[] | undefined;
-    const frozenBatchInsertParams = (frozenBatchInsertCall?.[1] ?? []) as unknown[];
-    expect(frozenBatchInsertParams[1]).toBe('stallion-1');
-    expect(frozenBatchInsertParams[2]).toBe('collection-1');
-    expect(frozenBatchInsertParams[5]).toBe('BotuCrio');
-    expect(sqlCalls[18]).toContain('INSERT INTO breeding_records');
-    const breedingInsertCall = db.runAsync.mock.calls[18] as unknown[] | undefined;
-    const breedingInsertParams = (breedingInsertCall?.[1] ?? []) as unknown[];
-    expect(breedingInsertParams[6]).toBe('09:30');
-    expect(breedingInsertParams[13]).toBe(0.5);
-    expect(sqlCalls[19]).toContain('INSERT INTO daily_logs');
-    const dailyLogInsertCall = db.runAsync.mock.calls[19] as unknown[] | undefined;
-    const dailyLogInsertParams = (dailyLogInsertCall?.[1] ?? []) as unknown[];
-    expect(dailyLogInsertParams[3]).toBe('08:30');
-    expect(sqlCalls[20]).toContain('INSERT INTO uterine_fluid');
-    expect(sqlCalls[21]).toContain('INSERT INTO uterine_flushes');
-    expect(sqlCalls[22]).toContain('INSERT INTO uterine_flush_products');
-    expect(sqlCalls[23]).toContain('INSERT INTO medication_logs');
-    const medicationInsertCall = db.runAsync.mock.calls[23] as unknown[] | undefined;
-    const medicationInsertParams = (medicationInsertCall?.[1] ?? []) as unknown[];
-    expect(medicationInsertParams[7]).toBeNull();
-    expect(sqlCalls[24]).toContain('INSERT INTO pregnancy_checks');
-    expect(sqlCalls[25]).toContain('INSERT INTO foaling_records');
-    expect(sqlCalls[26]).toContain('INSERT INTO foals');
-    expect(sqlCalls[27]).toContain('INSERT INTO collection_dose_events');
-    const collectionInsertCall = db.runAsync.mock.calls[27] as unknown[] | undefined;
-    const collectionInsertParams = (collectionInsertCall?.[1] ?? []) as unknown[];
-    expect(collectionInsertParams[4]).toBeNull();
-    expect(collectionInsertParams[12]).toBe('breed-1');
-    expect(collectionInsertParams[13]).toBe(50);
-    expect(collectionInsertParams[14]).toBeNull();
+    expectManagedTableDeleteOrder(db, MANAGED_TABLE_DELETE_ORDER);
+
+    const mareInsertParams = expectInsertForTable(db, 'mares').params;
+    expect(mareInsertParams.gestation_length_days).toBe(345);
+    expect(mareInsertParams.is_recipient).toBe(1);
+    expectInsertForTable(db, 'stallions');
+
+    const semenCollectionInsertParams = expectInsertForTable(db, 'semen_collections').params;
+    expect(semenCollectionInsertParams.target_mode).toBe('progressive');
+
+    const frozenBatchInsertParams = expectInsertForTable(db, 'frozen_semen_batches').params;
+    expect(frozenBatchInsertParams.stallion_id).toBe('stallion-1');
+    expect(frozenBatchInsertParams.collection_id).toBe('collection-1');
+    expect(frozenBatchInsertParams.extender).toBe('BotuCrio');
+
+    const breedingInsertParams = expectInsertForTable(db, 'breeding_records').params;
+    expect(breedingInsertParams.time).toBe('09:30');
+    expect(breedingInsertParams.straw_volume_ml).toBe(0.5);
+
+    const dailyLogInsertParams = expectInsertForTable(db, 'daily_logs').params;
+    expect(dailyLogInsertParams.time).toBe('08:30');
+    expectInsertForTable(db, 'uterine_fluid');
+    expectInsertForTable(db, 'uterine_flushes');
+    expectInsertForTable(db, 'uterine_flush_products');
+
+    const medicationInsertParams = expectInsertForTable(db, 'medication_logs').params;
+    expect(medicationInsertParams.source_daily_log_id).toBeNull();
+    expectInsertForTable(db, 'pregnancy_checks');
+    expectInsertForTable(db, 'foaling_records');
+    expectInsertForTable(db, 'foals');
+
+    const collectionInsertParams = expectInsertForTable(db, 'collection_dose_events').params;
+    expect(collectionInsertParams.recipient_phone).toBeNull();
+    expect(collectionInsertParams.breeding_record_id).toBe('breed-1');
+    expect(collectionInsertParams.dose_semen_volume_ml).toBe(50);
+    expect(collectionInsertParams.dose_extender_volume_ml).toBeNull();
     expect(setOnboardingCompleteValue).toHaveBeenCalledWith(true);
     expect(setClockPreference).toHaveBeenCalledWith('system');
     expect(emitDataInvalidation).toHaveBeenCalledTimes(1);
@@ -170,12 +167,7 @@ describe('restoreBackup', () => {
         clockPreference: '24h' as const,
       },
     };
-    const db = {
-      runAsync: vi.fn(async () => undefined),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb();
 
     vi.mocked(validateBackup).mockReturnValue({
       ok: true,
@@ -199,12 +191,7 @@ describe('restoreBackup', () => {
 
   it('skips safety snapshot creation when restoring from a safety snapshot', async () => {
     const backup = cloneBackupFixture();
-    const db = {
-      runAsync: vi.fn(async () => undefined),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb();
 
     vi.mocked(validateBackup).mockReturnValue({
       ok: true,
@@ -240,12 +227,7 @@ describe('restoreBackup', () => {
         semen_collections: [legacyCollectionRow],
       },
     };
-    const db = {
-      runAsync: vi.fn(async () => undefined),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb();
 
     vi.mocked(validateBackup).mockReturnValue({
       ok: true,
@@ -268,23 +250,14 @@ describe('restoreBackup', () => {
       ok: true,
       safetySnapshotCreated: false,
     });
-    const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
-    const semenCollectionInsertCall = runCalls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO semen_collections'),
-    );
-    expect((semenCollectionInsertCall?.[1] as unknown[] | undefined)?.[7]).toBe(
+    expect(expectInsertForTable(db, 'semen_collections').params.target_mode).toBe(
       'progressive',
     );
   });
 
   it('returns a warning when onboarding persistence fails after the transaction commits', async () => {
     const backup = cloneBackupFixture();
-    const db = {
-      runAsync: vi.fn(async () => undefined),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb();
 
     vi.mocked(validateBackup).mockReturnValue({
       ok: true,
@@ -313,16 +286,11 @@ describe('restoreBackup', () => {
 
   it('returns a failure and does not emit invalidation when the transaction fails', async () => {
     const backup = cloneBackupFixture();
-    const db = {
-      runAsync: vi.fn(async (sql: string) => {
-        if (sql.includes('INSERT INTO foaling_records')) {
-          throw new Error('insert failure');
-        }
-      }),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb((call) => {
+      if (call.normalizedSql.startsWith('insert into foaling_records')) {
+        throw new Error('insert failure');
+      }
+    });
 
     vi.mocked(validateBackup).mockReturnValue({
       ok: true,
@@ -377,12 +345,7 @@ describe('restoreBackup', () => {
         mares: backup.tables.mares.map(({ gestation_length_days: _gestationLengthDays, ...row }) => row),
       },
     } as BackupEnvelope;
-    const db = {
-      runAsync: vi.fn(async () => undefined),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb();
 
     vi.mocked(validateBackup).mockReturnValue({
       ok: true,
@@ -405,22 +368,14 @@ describe('restoreBackup', () => {
       ok: true,
       safetySnapshotCreated: false,
     });
-    const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
-    const mareInsertCall = runCalls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO mares'),
-    );
-    expect((mareInsertCall?.[1] as unknown[] | undefined)?.[3]).toBe(340);
-    expect((mareInsertCall?.[1] as unknown[] | undefined)?.[6]).toBe(0);
+    const mareInsertParams = expectInsertForTable(db, 'mares').params;
+    expect(mareInsertParams.gestation_length_days).toBe(340);
+    expect(mareInsertParams.is_recipient).toBe(0);
   });
 
   it('defaults missing mare is_recipient to 0 when restoring a v5 backup', async () => {
     const backup = createBackupFixtureV5();
-    const db = {
-      runAsync: vi.fn(async () => undefined),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb();
 
     vi.mocked(validateBackup).mockReturnValue({
       ok: true,
@@ -443,21 +398,12 @@ describe('restoreBackup', () => {
       ok: true,
       safetySnapshotCreated: false,
     });
-    const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
-    const mareInsertCall = runCalls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO mares'),
-    );
-    expect((mareInsertCall?.[1] as unknown[] | undefined)?.[6]).toBe(0);
+    expect(expectInsertForTable(db, 'mares').params.is_recipient).toBe(0);
   });
 
   it('defaults daily_log time to null when restoring a v6 backup', async () => {
     const backup = createBackupFixtureV6();
-    const db = {
-      runAsync: vi.fn(async () => undefined),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb();
 
     vi.mocked(validateBackup).mockReturnValue({
       ok: true,
@@ -480,21 +426,12 @@ describe('restoreBackup', () => {
       ok: true,
       safetySnapshotCreated: false,
     });
-    const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
-    const dailyLogInsertCall = runCalls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO daily_logs'),
-    );
-    expect((dailyLogInsertCall?.[1] as unknown[] | undefined)?.[3]).toBeNull();
+    expect(expectInsertForTable(db, 'daily_logs').params.time).toBeNull();
   });
 
   it('normalizes frozen semen batches to empty when restoring a v4 backup', async () => {
     const backup = createBackupFixtureV4();
-    const db = {
-      runAsync: vi.fn(async () => undefined),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb();
 
     vi.mocked(validateBackup).mockReturnValue({
       ok: true,
@@ -518,16 +455,8 @@ describe('restoreBackup', () => {
       safetySnapshotCreated: false,
     });
 
-    const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
-    const frozenInsertCall = runCalls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO frozen_semen_batches'),
-    );
-    const uterineFluidInsertCall = runCalls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO uterine_fluid'),
-    );
-
-    expect(frozenInsertCall).toBeUndefined();
-    expect(uterineFluidInsertCall).toBeDefined();
+    expect(db.findRunCall({ operation: 'insert', table: 'frozen_semen_batches' })).toBeUndefined();
+    expectInsertForTable(db, 'uterine_fluid');
   });
 
   it('defaults new daily-log fields for v1-v3 backups and skips uterine fluid rows', async () => {
@@ -541,12 +470,7 @@ describe('restoreBackup', () => {
     ];
 
     for (const legacyBackup of legacyBackups) {
-      const db = {
-        runAsync: vi.fn(async () => undefined),
-        withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-          await callback();
-        }),
-      };
+      const db = createRestoreDb();
 
       vi.mocked(validateBackup).mockReturnValue({
         ok: true,
@@ -570,32 +494,25 @@ describe('restoreBackup', () => {
         safetySnapshotCreated: false,
       });
 
-      const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
-      const dailyLogInsertCall = runCalls.find(([sql]) =>
-        typeof sql === 'string' && sql.includes('INSERT INTO daily_logs'),
-      );
-      const dailyLogInsertParams = (dailyLogInsertCall?.[1] as unknown[] | undefined) ?? [];
+      const dailyLogInsertParams = expectInsertForTable(db, 'daily_logs').params;
 
-      expect(dailyLogInsertParams[3]).toBeNull();
-      expect(dailyLogInsertParams[11]).toBeNull();
-      expect(dailyLogInsertParams[12]).toBeNull();
-      expect(dailyLogInsertParams[13]).toBe('[]');
-      expect(dailyLogInsertParams[14]).toBeNull();
-      expect(dailyLogInsertParams[15]).toBe('[]');
-      expect(dailyLogInsertParams[16]).toBeNull();
-      expect(dailyLogInsertParams[17]).toBeNull();
-      expect(dailyLogInsertParams[18]).toBe('[]');
-      expect(dailyLogInsertParams[19]).toBeNull();
-      expect(dailyLogInsertParams[20]).toBe('[]');
-      expect(dailyLogInsertParams[21]).toBeNull();
-      expect(dailyLogInsertParams[22]).toBeNull();
-      expect(dailyLogInsertParams[23]).toBeNull();
-      expect(dailyLogInsertParams[24]).toBeNull();
+      expect(dailyLogInsertParams.time).toBeNull();
+      expect(dailyLogInsertParams.right_ovary_ovulation).toBeNull();
+      expect(dailyLogInsertParams.right_ovary_follicle_state).toBeNull();
+      expect(dailyLogInsertParams.right_ovary_follicle_measurements_mm).toBe('[]');
+      expect(dailyLogInsertParams.right_ovary_consistency).toBeNull();
+      expect(dailyLogInsertParams.right_ovary_structures).toBe('[]');
+      expect(dailyLogInsertParams.left_ovary_ovulation).toBeNull();
+      expect(dailyLogInsertParams.left_ovary_follicle_state).toBeNull();
+      expect(dailyLogInsertParams.left_ovary_follicle_measurements_mm).toBe('[]');
+      expect(dailyLogInsertParams.left_ovary_consistency).toBeNull();
+      expect(dailyLogInsertParams.left_ovary_structures).toBe('[]');
+      expect(dailyLogInsertParams.uterine_tone_category).toBeNull();
+      expect(dailyLogInsertParams.cervical_firmness).toBeNull();
+      expect(dailyLogInsertParams.discharge_observed).toBeNull();
+      expect(dailyLogInsertParams.discharge_notes).toBeNull();
 
-      const uterineFluidInsertCall = runCalls.find(([sql]) =>
-        typeof sql === 'string' && sql.includes('INSERT INTO uterine_fluid'),
-      );
-      expect(uterineFluidInsertCall).toBeUndefined();
+      expect(db.findRunCall({ operation: 'insert', table: 'uterine_fluid' })).toBeUndefined();
     }
   });
 
@@ -620,12 +537,7 @@ describe('restoreBackup', () => {
         }),
       },
     };
-    const db = {
-      runAsync: vi.fn(async () => undefined),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb();
 
     vi.mocked(validateBackup).mockReturnValue({
       ok: true,
@@ -648,24 +560,19 @@ describe('restoreBackup', () => {
       ok: true,
       safetySnapshotCreated: false,
     });
-    const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
-    const collectionInsertCall = runCalls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO collection_dose_events'),
-    );
-    expect((collectionInsertCall?.[1] as unknown[] | undefined)?.slice(4, 13)).toEqual([
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-      null,
-    ]);
-    expect((collectionInsertCall?.[1] as unknown[] | undefined)?.[13]).toBeNull();
-    expect((collectionInsertCall?.[1] as unknown[] | undefined)?.[14]).toBeNull();
-    expect((collectionInsertCall?.[1] as unknown[] | undefined)?.[15]).toBe(1);
+    const collectionInsertParams = expectInsertForTable(db, 'collection_dose_events').params;
+    expect(collectionInsertParams.recipient_phone).toBeNull();
+    expect(collectionInsertParams.recipient_street).toBeNull();
+    expect(collectionInsertParams.recipient_city).toBeNull();
+    expect(collectionInsertParams.recipient_state).toBeNull();
+    expect(collectionInsertParams.recipient_zip).toBeNull();
+    expect(collectionInsertParams.carrier_service).toBeNull();
+    expect(collectionInsertParams.container_type).toBeNull();
+    expect(collectionInsertParams.tracking_number).toBeNull();
+    expect(collectionInsertParams.breeding_record_id).toBeNull();
+    expect(collectionInsertParams.dose_semen_volume_ml).toBeNull();
+    expect(collectionInsertParams.dose_extender_volume_ml).toBeNull();
+    expect(collectionInsertParams.dose_count).toBe(1);
   });
 
   it('canonicalizes v2 usedOnSite rows with dose_count > 1 and appends the collapse note', async () => {
@@ -679,12 +586,7 @@ describe('restoreBackup', () => {
         ),
       },
     };
-    const db = {
-      runAsync: vi.fn(async () => undefined),
-      withTransactionAsync: vi.fn(async (callback: () => Promise<void>) => {
-        await callback();
-      }),
-    };
+    const db = createRestoreDb();
 
     vi.mocked(validateBackup).mockReturnValue({
       ok: true,
@@ -708,15 +610,11 @@ describe('restoreBackup', () => {
       safetySnapshotCreated: false,
     });
 
-    const runCalls = db.runAsync.mock.calls as unknown as Array<[string, unknown[]?]>;
-    const collectionInsertCall = runCalls.find(([sql]) =>
-      typeof sql === 'string' && sql.includes('INSERT INTO collection_dose_events'),
-    );
-    const collectionInsertParams = (collectionInsertCall?.[1] as unknown[] | undefined) ?? [];
-    expect(collectionInsertParams[13]).toBeNull();
-    expect(collectionInsertParams[14]).toBeNull();
-    expect(collectionInsertParams[15]).toBe(1);
-    expect(String(collectionInsertParams[17] ?? '')).toContain(
+    const collectionInsertParams = expectInsertForTable(db, 'collection_dose_events').params;
+    expect(collectionInsertParams.dose_semen_volume_ml).toBeNull();
+    expect(collectionInsertParams.dose_extender_volume_ml).toBeNull();
+    expect(collectionInsertParams.dose_count).toBe(1);
+    expect(String(collectionInsertParams.notes ?? '')).toContain(
       'Legacy migration: collapsed used-on-site dose count to 1 during collection volume rework.',
     );
   });

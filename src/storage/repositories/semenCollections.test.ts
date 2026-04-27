@@ -10,6 +10,7 @@ vi.mock('@/utils/id', () => ({
 
 import { getDb } from '@/storage/db';
 import { newId } from '@/utils/id';
+import { createRepoDb, type SqlCall } from '@/test/repoDb';
 import {
   createSemenCollection,
   deleteSemenCollection,
@@ -81,11 +82,7 @@ type BreedingRow = {
   updated_at: string;
 };
 
-function normalized(sql: string): string {
-  return sql.replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-function createFakeDb() {
+function createSemenCollectionRepoHarness() {
   const stallions = new Map<string, StallionRow>();
   const collections = new Map<string, CollectionRow>();
   const breedings = new Map<string, BreedingRow>();
@@ -113,9 +110,10 @@ function createFakeDb() {
     updated_at: string;
   }>();
 
-  return {
-    async runAsync(sql: string, params: unknown[] = []): Promise<void> {
-      const stmt = normalized(sql);
+  return createRepoDb({
+    onRun(call) {
+      const stmt = call.normalizedSql;
+      const params = call.params;
 
       if (stmt.startsWith('insert into stallions')) {
         const [id, name, breed, regNum, sire, dam, notes, dob, avTemp, avType, avLiner, avWater, avNotes, createdAt, updatedAt] =
@@ -227,8 +225,8 @@ function createFakeDb() {
       }
 
       if (stmt.startsWith('insert into breeding_records')) {
-        const [id, mareId, stallionId, stallionName, collectionId, date, method, notes, vol, conc, mot, straws, strawVol, strawDetails, collDate, createdAt, updatedAt] =
-          params as [string, string, string | null, string | null, string | null, string, string, string | null, number | null, number | null, number | null, number | null, number | null, string | null, string | null, string, string];
+        const [id, mareId, stallionId, stallionName, collectionId, date, , method, notes, vol, conc, mot, straws, strawVol, strawDetails, collDate, createdAt, updatedAt] =
+          params as [string, string, string | null, string | null, string | null, string, string | null, string, string | null, number | null, number | null, number | null, number | null, number | null, string | null, string | null, string, string];
         breedings.set(id, {
           id, mare_id: mareId, stallion_id: stallionId, stallion_name: stallionName,
           collection_id: collectionId, date, method, notes,
@@ -319,8 +317,9 @@ function createFakeDb() {
       }
     },
 
-    async getFirstAsync<T>(sql: string, params: unknown[] = []): Promise<T | null> {
-      const stmt = normalized(sql);
+    onGetFirst<T>(call: SqlCall) {
+      const stmt = call.normalizedSql;
+      const params = call.params;
 
       if (stmt.includes('from stallions') && stmt.includes('where id = ?')) {
         const [id] = params as [string];
@@ -363,8 +362,9 @@ function createFakeDb() {
       return null;
     },
 
-    async getAllAsync<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-      const stmt = normalized(sql);
+    onGetAll<T>(call: SqlCall) {
+      const stmt = call.normalizedSql;
+      const params = call.params;
 
       if (stmt.includes('from semen_collections') && stmt.includes('stallion_id = ?')) {
         const [stallionId] = params as [string];
@@ -392,12 +392,12 @@ function createFakeDb() {
 
       return [];
     },
-  };
+  });
 }
 
 describe('semen collection repository', () => {
   beforeEach(() => {
-    vi.mocked(getDb).mockResolvedValue(createFakeDb() as unknown as Awaited<ReturnType<typeof getDb>>);
+    vi.mocked(getDb).mockResolvedValue(createSemenCollectionRepoHarness() as unknown as Awaited<ReturnType<typeof getDb>>);
     vi.mocked(newId).mockReturnValue('dose-1');
   });
 

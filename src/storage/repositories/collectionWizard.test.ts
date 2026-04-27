@@ -9,6 +9,7 @@ vi.mock('@/utils/id', () => ({
 }));
 
 import { newId } from '@/utils/id';
+import { createRepoDb, type SqlCall } from '@/test/repoDb';
 import {
   createCollectionWithAllocations,
   getAllocatedSemenVolumeForCollection,
@@ -72,15 +73,11 @@ type DoseEventRow = {
   container_type: string | null;
 };
 
-function normalized(sql: string): string {
-  return sql.replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
 function cloneMapEntries<T extends Record<string, unknown>>(source: Map<string, T>): Map<string, T> {
   return new Map(Array.from(source.entries()).map(([key, value]) => [key, { ...value }]));
 }
 
-function createFakeDb() {
+function createCollectionWizardRepoHarness() {
   const stallions = new Map<string, StallionRow>([
     ['st-1', { id: 'st-1', name: 'Atlas', deleted_at: null }],
   ]);
@@ -92,12 +89,10 @@ function createFakeDb() {
   const breedingRecords = new Map<string, BreedingRow>();
   const doseEvents = new Map<string, DoseEventRow>();
 
-  return {
-    collections,
-    breedingRecords,
-    doseEvents,
-    async runAsync(sql: string, params: unknown[] = []): Promise<void> {
-      const stmt = normalized(sql);
+  const db = createRepoDb({
+    onRun(call) {
+      const stmt = call.normalizedSql;
+      const params = call.params;
 
       if (stmt.startsWith('insert into semen_collections')) {
         const [
@@ -261,11 +256,12 @@ function createFakeDb() {
         });
       }
     },
-    async getAllAsync<T>(): Promise<T[]> {
-      return [];
+    onGetAll<T>() {
+      return [] as T[];
     },
-    async getFirstAsync<T>(sql: string, params: unknown[] = []): Promise<T | null> {
-      const stmt = normalized(sql);
+    onGetFirst<T>(call: SqlCall) {
+      const stmt = call.normalizedSql;
+      const params = call.params;
 
       if (stmt.includes('select name, deleted_at from stallions where id = ?')) {
         const [stallionId] = params as [string];
@@ -296,7 +292,7 @@ function createFakeDb() {
 
       return null;
     },
-    async withTransactionAsync<T>(callback: () => Promise<T>): Promise<T> {
+    async onTransaction<T>(callback: () => Promise<T>): Promise<T> {
       const collectionsSnapshot = cloneMapEntries(collections);
       const breedingSnapshot = cloneMapEntries(breedingRecords);
       const doseEventsSnapshot = cloneMapEntries(doseEvents);
@@ -320,7 +316,13 @@ function createFakeDb() {
         throw error;
       }
     },
-  };
+  });
+
+  return Object.assign(db, {
+    collections,
+    breedingRecords,
+    doseEvents,
+  });
 }
 
 describe('collection wizard repository', () => {
@@ -329,7 +331,7 @@ describe('collection wizard repository', () => {
   });
 
   it('creates a collection plus mixed shipped and on-farm allocations in one transaction', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createCollectionWizardRepoHarness();
     vi.mocked(newId)
       .mockReturnValueOnce('collection-1')
       .mockReturnValueOnce('event-1')
@@ -398,7 +400,7 @@ describe('collection wizard repository', () => {
   });
 
   it('returns allocated semen volume totals for a collection', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createCollectionWizardRepoHarness();
     vi.mocked(newId)
       .mockReturnValueOnce('collection-1')
       .mockReturnValueOnce('event-1')
@@ -447,7 +449,7 @@ describe('collection wizard repository', () => {
   });
 
   it('rejects duplicate on-farm mares in one wizard session', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createCollectionWizardRepoHarness();
     vi.mocked(newId).mockReturnValue('collection-1');
 
     await expect(
@@ -467,7 +469,7 @@ describe('collection wizard repository', () => {
   });
 
   it('rolls back the whole transaction if an on-farm mare lookup fails', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createCollectionWizardRepoHarness();
     vi.mocked(newId)
       .mockReturnValueOnce('collection-1')
       .mockReturnValueOnce('event-1')
@@ -513,7 +515,7 @@ describe('collection wizard repository', () => {
   });
 
   it('rejects allocations that exceed the collection total volume', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createCollectionWizardRepoHarness();
     vi.mocked(newId).mockReturnValue('collection-1');
 
     await expect(
@@ -545,7 +547,7 @@ describe('collection wizard repository', () => {
   });
 
   it('rejects on-farm rows with dose count values other than one', async () => {
-    const fakeDb = createFakeDb();
+    const fakeDb = createCollectionWizardRepoHarness();
     vi.mocked(newId).mockReturnValue('collection-1');
 
     await expect(

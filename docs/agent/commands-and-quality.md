@@ -32,3 +32,10 @@ npm run lint
   - `npm test`
   - `npm run test:screen`
   - `npm run lint`
+
+## Test Policy
+
+- Prefer behavior and state assertions over SQL call-index assertions. When storage tests need to inspect SQL, use the shared repository DB harness in `src/test/repoDb.ts` and assert named insert/update fields.
+- Do not add new local `createFakeDb` helpers in repository or backup tests. Extend the shared harness and keep domain-specific maps local only when a test needs stateful behavior.
+- Use `integration` only for tests that exercise real module boundaries. If screens, hooks, repositories, or destinations are heavily mocked, name the test as a wiring, hook, unit, or screen test instead.
+- Keep order assertions only where order is the contract, such as restore foreign-key deletes/inserts and same-transaction child replacement.

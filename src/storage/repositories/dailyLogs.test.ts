@@ -16,22 +16,13 @@ import {
   parseOvaryStructuresJson,
   updateDailyLog,
 } from './dailyLogs';
-
-type FakeDb = {
-  runAsync: ReturnType<typeof vi.fn>;
-  getFirstAsync: ReturnType<typeof vi.fn>;
-  getAllAsync: ReturnType<typeof vi.fn>;
-  withTransactionAsync: ReturnType<typeof vi.fn>;
-};
-
-function createFakeDb(): FakeDb {
-  return {
-    runAsync: vi.fn().mockResolvedValue(undefined),
-    getFirstAsync: vi.fn().mockResolvedValue(null),
-    getAllAsync: vi.fn().mockResolvedValue([]),
-    withTransactionAsync: vi.fn(async (callback: () => Promise<unknown>) => callback()),
-  };
-}
+import {
+  createRepoDb,
+  expectInsertForTable,
+  expectRunOrderForTables,
+  expectUpdateForTable,
+  type RepoDbHarness,
+} from '@/test/repoDb';
 
 function createExistingDailyLogRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -68,10 +59,10 @@ function createExistingDailyLogRow(overrides: Record<string, unknown> = {}) {
 }
 
 describe('daily log repository structured storage', () => {
-  let db: FakeDb;
+  let db: RepoDbHarness;
 
   beforeEach(() => {
-    db = createFakeDb();
+    db = createRepoDb();
   });
 
   it('writes legacy global ovulation as compatibility value on create', async () => {
@@ -84,11 +75,11 @@ describe('daily log repository structured storage', () => {
     }, db);
 
     expect(db.runAsync).toHaveBeenCalledTimes(1);
-    const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[3]).toBe('08:00');
-    expect(params[7]).toBe(1);
-    expect(params[11]).toBeNull();
-    expect(params[16]).toBeNull();
+    const { params } = expectInsertForTable(db, 'daily_logs');
+    expect(params.time).toBe('08:00');
+    expect(params.ovulation_detected).toBe(1);
+    expect(params.right_ovary_ovulation).toBeNull();
+    expect(params.left_ovary_ovulation).toBeNull();
   });
 
   it('creates flush rows and linked medication rows with the daily log', async () => {
@@ -117,20 +108,22 @@ describe('daily log repository structured storage', () => {
     );
 
     expect(db.runAsync).toHaveBeenCalledTimes(5);
-    expect(db.runAsync.mock.calls[0]?.[0]).toContain('INSERT INTO daily_logs');
-    expect(db.runAsync.mock.calls[1]?.[0]).toContain('INSERT INTO uterine_flushes');
-    expect(db.runAsync.mock.calls[2]?.[0]).toContain('INSERT INTO uterine_flush_products');
-    expect(db.runAsync.mock.calls[3]?.[0]).toContain('DELETE FROM medication_logs');
-    expect(db.runAsync.mock.calls[4]?.[0]).toContain('INSERT INTO medication_logs');
+    expectRunOrderForTables(db, [
+      { operation: 'insert', table: 'daily_logs' },
+      { operation: 'insert', table: 'uterine_flushes' },
+      { operation: 'insert', table: 'uterine_flush_products' },
+      { operation: 'delete', table: 'medication_logs' },
+      { operation: 'insert', table: 'medication_logs' },
+    ]);
 
-    const medicationParams = db.runAsync.mock.calls[4]?.[1] as unknown[];
-    expect(medicationParams[1]).toBe('mare-1');
-    expect(medicationParams[2]).toBe('2026-04-01');
-    expect(medicationParams[3]).toBe('Saline');
-    expect(medicationParams[4]).toBe('1000 mL');
-    expect(medicationParams[5]).toBe('intrauterine');
-    expect(medicationParams[6]).toContain('LRS, 1000 mL total');
-    expect(medicationParams[7]).toBe('log-flush');
+    const { params: medicationParams } = expectInsertForTable(db, 'medication_logs');
+    expect(medicationParams.mare_id).toBe('mare-1');
+    expect(medicationParams.date).toBe('2026-04-01');
+    expect(medicationParams.medication_name).toBe('Saline');
+    expect(medicationParams.dose).toBe('1000 mL');
+    expect(medicationParams.route).toBe('intrauterine');
+    expect(medicationParams.notes).toContain('LRS, 1000 mL total');
+    expect(medicationParams.source_daily_log_id).toBe('log-flush');
   });
 
   it('preserves existing time when update omits time', async () => {
@@ -140,8 +133,8 @@ describe('daily log repository structured storage', () => {
       date: '2026-04-02',
     }, db);
 
-    const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[1]).toBe('08:15');
+    const { params } = expectUpdateForTable(db, 'daily_logs');
+    expect(params.time).toBe('08:15');
   });
 
   it('preserves existing global ovulation when update stays in legacy mode', async () => {
@@ -151,8 +144,8 @@ describe('daily log repository structured storage', () => {
       date: '2026-04-02',
     }, db);
 
-    const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[5]).toBe(1);
+    const { params } = expectUpdateForTable(db, 'daily_logs');
+    expect(params.ovulation_detected).toBe(1);
   });
 
   it('derives compatibility ovulation from structured side values when structured mode is active', async () => {
@@ -165,10 +158,10 @@ describe('daily log repository structured storage', () => {
       leftOvaryOvulation: null,
     }, db);
 
-    const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[5]).toBe(1);
-    expect(params[9]).toBe(1);
-    expect(params[14]).toBeNull();
+    const { params } = expectUpdateForTable(db, 'daily_logs');
+    expect(params.ovulation_detected).toBe(1);
+    expect(params.right_ovary_ovulation).toBe(1);
+    expect(params.left_ovary_ovulation).toBeNull();
   });
 
   it('stores empty measurement arrays when follicle state is not measured', async () => {
@@ -181,8 +174,8 @@ describe('daily log repository structured storage', () => {
       rightOvaryFollicleMeasurementsMm: [35, 36],
     }, db);
 
-    const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[13]).toBe('[]');
+    const { params } = expectInsertForTable(db, 'daily_logs');
+    expect(params.right_ovary_follicle_measurements_mm).toBe('[]');
   });
 
   it('normalizes discharge notes dependency on dischargeObserved', async () => {
@@ -194,9 +187,9 @@ describe('daily log repository structured storage', () => {
       dischargeNotes: 'should not persist',
     }, db);
 
-    const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[21]).toBe(0);
-    expect(params[22]).toBeNull();
+    const { params } = expectUpdateForTable(db, 'daily_logs');
+    expect(params.discharge_observed).toBe(0);
+    expect(params.discharge_notes).toBeNull();
   });
 
   it('replaces fluid pockets in the same transaction as parent update', async () => {
@@ -208,10 +201,12 @@ describe('daily log repository structured storage', () => {
     }, db);
 
     expect(db.runAsync).toHaveBeenCalledTimes(4);
-    expect(db.runAsync.mock.calls[0]?.[0]).toContain('UPDATE daily_logs');
-    expect(db.runAsync.mock.calls[1]?.[0]).toContain('DELETE FROM uterine_fluid');
-    expect(db.runAsync.mock.calls[2]?.[0]).toContain('INSERT INTO uterine_fluid');
-    expect(db.runAsync.mock.calls[3]?.[0]).toContain('DELETE FROM medication_logs');
+    expectRunOrderForTables(db, [
+      { operation: 'update', table: 'daily_logs' },
+      { operation: 'delete', table: 'uterine_fluid' },
+      { operation: 'insert', table: 'uterine_fluid' },
+      { operation: 'delete', table: 'medication_logs' },
+    ]);
   });
 
   it('rejects create when time is missing', async () => {
@@ -243,8 +238,8 @@ describe('daily log repository structured storage', () => {
       time: null,
     }, db);
 
-    const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[1]).toBeNull();
+    const { params } = expectUpdateForTable(db, 'daily_logs');
+    expect(params.time).toBeNull();
   });
 
   it('allows an untimed legacy row to gain a valid time', async () => {
@@ -255,8 +250,8 @@ describe('daily log repository structured storage', () => {
       time: '16:45',
     }, db);
 
-    const params = db.runAsync.mock.calls[0]?.[1] as unknown[];
-    expect(params[1]).toBe('16:45');
+    const { params } = expectUpdateForTable(db, 'daily_logs');
+    expect(params.time).toBe('16:45');
   });
 
   it('rejects clearing a timed row back to null', async () => {
@@ -287,9 +282,11 @@ describe('daily log repository structured storage', () => {
     await deleteDailyLog('log-1', db);
 
     expect(db.runAsync).toHaveBeenCalledTimes(3);
-    expect(db.runAsync.mock.calls[0]?.[0]).toContain('DELETE FROM medication_logs');
-    expect(db.runAsync.mock.calls[1]?.[0]).toContain('DELETE FROM uterine_fluid');
-    expect(db.runAsync.mock.calls[2]?.[0]).toContain('DELETE FROM daily_logs');
+    expectRunOrderForTables(db, [
+      { operation: 'delete', table: 'medication_logs' },
+      { operation: 'delete', table: 'uterine_fluid' },
+      { operation: 'delete', table: 'daily_logs' },
+    ]);
   });
 });
 

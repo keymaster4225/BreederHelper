@@ -10,6 +10,7 @@ vi.mock('@/utils/id', () => ({
 
 import { getDb } from '@/storage/db';
 import { newId } from '@/utils/id';
+import { createRepoDb, type SqlCall } from '@/test/repoDb';
 import {
   createDoseEvent,
   deleteDoseEvent,
@@ -46,11 +47,7 @@ type DoseEventRow = {
   updated_at: string;
 };
 
-function normalized(sql: string): string {
-  return sql.replace(/\s+/g, ' ').trim().toLowerCase();
-}
-
-function createFakeDb() {
+function createDoseEventRepoHarness() {
   const collections = new Map<string, CollectionRow>([
     ['col-1', { id: 'col-1', raw_volume_ml: 50 }],
     ['col-2', { id: 'col-2', raw_volume_ml: 80 }],
@@ -58,9 +55,10 @@ function createFakeDb() {
   ]);
   const doseEvents = new Map<string, DoseEventRow>();
 
-  return {
-    async runAsync(sql: string, params: unknown[] = []): Promise<void> {
-      const stmt = normalized(sql);
+  return createRepoDb({
+    onRun(call) {
+      const stmt = call.normalizedSql;
+      const params = call.params;
 
       if (stmt.startsWith('insert into collection_dose_events')) {
         const [
@@ -204,8 +202,9 @@ function createFakeDb() {
       }
     },
 
-    async getFirstAsync<T>(sql: string, params: unknown[] = []): Promise<T | null> {
-      const stmt = normalized(sql);
+    onGetFirst<T>(call: SqlCall) {
+      const stmt = call.normalizedSql;
+      const params = call.params;
 
       if (stmt.includes('select raw_volume_ml from semen_collections where id = ?')) {
         const [id] = params as [string];
@@ -231,8 +230,9 @@ function createFakeDb() {
       return null;
     },
 
-    async getAllAsync<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-      const stmt = normalized(sql);
+    onGetAll<T>(call: SqlCall) {
+      const stmt = call.normalizedSql;
+      const params = call.params;
 
       if (stmt.includes('from collection_dose_events') && stmt.includes('where collection_id = ?')) {
         const [collectionId] = params as [string];
@@ -250,12 +250,12 @@ function createFakeDb() {
 
       return [];
     },
-  };
+  });
 }
 
 describe('collection dose event repository', () => {
   beforeEach(() => {
-    vi.mocked(getDb).mockResolvedValue(createFakeDb() as unknown as Awaited<ReturnType<typeof getDb>>);
+    vi.mocked(getDb).mockResolvedValue(createDoseEventRepoHarness() as unknown as Awaited<ReturnType<typeof getDb>>);
     vi.mocked(newId).mockReturnValue('dose-1');
   });
 
