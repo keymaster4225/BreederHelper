@@ -52,6 +52,7 @@ type BeforeRemoveListener = (event: BeforeRemoveEvent) => void;
 function createNavigation() {
   return {
     navigate: jest.fn(),
+    replace: jest.fn(),
     setOptions: jest.fn(),
     goBack: jest.fn(),
     addListener: jest.fn((_eventName: string, _listener: BeforeRemoveListener) => jest.fn()),
@@ -160,6 +161,7 @@ function createWizardMock(overrides: Record<string, unknown> = {}) {
     goBack: jest.fn(),
     goToStep: jest.fn(),
     save: jest.fn(async () => undefined),
+    saveAndAddFollowUp: jest.fn(async () => undefined),
     requestDelete: jest.fn(),
     ...overrides,
   };
@@ -196,6 +198,9 @@ it('renders basics step and advances with Next', () => {
   expect(screen.getByText('Basics')).toBeTruthy();
   expect(screen.getByText('Time *')).toBeTruthy();
   expect(screen.getByText('8:30 AM')).toBeTruthy();
+  expect(screen.queryByText('Save')).toBeNull();
+  expect(screen.queryByText('Save & Add Follow-up')).toBeNull();
+  expect(screen.queryByText('Delete')).toBeNull();
   fireEvent.press(screen.getByText('Next'));
 
   expect(wizard.goNext).toHaveBeenCalledTimes(1);
@@ -212,10 +217,15 @@ it('renders review step actions and triggers save/delete callbacks', () => {
   expect(screen.getByText('Step 5 of 5')).toBeTruthy();
   expect(screen.getByText('Review')).toBeTruthy();
   expect(screen.getByText(/Time: 2:05 PM/)).toBeTruthy();
+  expect(screen.getAllByText('Save')).toHaveLength(1);
+  expect(screen.getAllByText('Save & Add Follow-up')).toHaveLength(1);
+  expect(screen.getAllByText('Delete')).toHaveLength(1);
   fireEvent.press(screen.getByText('Save'));
+  fireEvent.press(screen.getByText('Save & Add Follow-up'));
   fireEvent.press(screen.getByText('Delete'));
 
   expect(wizard.save).toHaveBeenCalledTimes(1);
+  expect(wizard.saveAndAddFollowUp).toHaveBeenCalledTimes(1);
   expect(wizard.requestDelete).toHaveBeenCalledTimes(1);
 });
 
@@ -315,6 +325,45 @@ it('allows saved daily logs to leave the screen from later wizard steps', () => 
   beforeRemove(event);
 
   expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  expect(event.preventDefault).not.toHaveBeenCalled();
+  expect(wizard.goBack).not.toHaveBeenCalled();
+});
+
+it('allows save-and-follow-up to replace the screen from later wizard steps', () => {
+  const { navigation, wizard } = renderScreen({
+    currentStepIndex: 4,
+    currentStepId: 'review',
+    currentStepTitle: 'Review',
+  });
+  const hookArgs = useDailyLogWizard.mock.calls[0]?.[0] as {
+    onAddFollowUpTask: (params: {
+      mareId: string;
+      taskType: 'dailyCheck';
+      sourceType: 'dailyLog';
+      sourceRecordId: string;
+      sourceReason: 'manualFollowUp';
+    }) => void;
+  };
+  const beforeRemoveCall = navigation.addListener.mock.calls.find(
+    ([eventName]) => eventName === 'beforeRemove',
+  );
+  if (!beforeRemoveCall) {
+    throw new Error('Expected DailyLogFormScreen to register a beforeRemove listener.');
+  }
+  const followUpParams = {
+    mareId: 'mare-1',
+    taskType: 'dailyCheck',
+    sourceType: 'dailyLog',
+    sourceRecordId: 'log-1',
+    sourceReason: 'manualFollowUp',
+  } as const;
+
+  hookArgs.onAddFollowUpTask(followUpParams);
+  const event: BeforeRemoveEvent = { preventDefault: jest.fn() };
+  const beforeRemove = beforeRemoveCall[1];
+  beforeRemove(event);
+
+  expect(navigation.replace).toHaveBeenCalledWith('TaskForm', followUpParams);
   expect(event.preventDefault).not.toHaveBeenCalled();
   expect(wizard.goBack).not.toHaveBeenCalled();
 });

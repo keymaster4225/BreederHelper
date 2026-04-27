@@ -28,6 +28,7 @@ import {
   BACKUP_SCHEMA_VERSION_V8,
   BACKUP_SCHEMA_VERSION_V9,
   BACKUP_SCHEMA_VERSION_V10,
+  BACKUP_SCHEMA_VERSION_V11,
   type BackupBreedingRecordRow,
   type BackupBreedingRecordRowLegacy,
   type BackupCollectionDoseEventRowV3,
@@ -48,6 +49,7 @@ import {
   type BackupTablesV8,
   type BackupTablesV9,
   type BackupTablesV10,
+  type BackupTablesV11,
   type ValidateBackupError,
   type ValidateBackupResult,
 } from './types';
@@ -71,6 +73,22 @@ const UTERINE_TONE_CATEGORIES = new Set(UTERINE_TONE_CATEGORY_VALUES);
 const CERVICAL_FIRMNESSES = new Set(CERVICAL_FIRMNESS_VALUES);
 const FLUID_LOCATIONS = new Set(FLUID_LOCATION_VALUES);
 const FOAL_MILESTONE_KEYS: ReadonlySet<string> = new Set(FOAL_MILESTONE_VALUE_KEYS);
+const TASK_TYPES = new Set(['dailyCheck', 'medication', 'breeding', 'pregnancyCheck', 'custom']);
+const TASK_STATUSES = new Set(['open', 'completed']);
+const TASK_SOURCE_TYPES = new Set([
+  'manual',
+  'dailyLog',
+  'medicationLog',
+  'breedingRecord',
+  'pregnancyCheck',
+]);
+const TASK_COMPLETED_RECORD_TYPES = new Set([
+  'dailyLog',
+  'medicationLog',
+  'breedingRecord',
+  'pregnancyCheck',
+]);
+const TASK_SOURCE_REASONS = new Set(['manualFollowUp', 'breedingPregnancyCheck']);
 
 type BackupTables =
   | BackupTablesV1
@@ -82,7 +100,8 @@ type BackupTables =
   | BackupTablesV7
   | BackupTablesV8
   | BackupTablesV9
-  | BackupTablesV10;
+  | BackupTablesV10
+  | BackupTablesV11;
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;
@@ -134,7 +153,8 @@ export function validateBackup(input: unknown): ValidateBackupResult {
     schemaVersion !== BACKUP_SCHEMA_VERSION_V7 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V8 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V9 &&
-    schemaVersion !== BACKUP_SCHEMA_VERSION_V10
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V10 &&
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V11
   ) {
     return validationFailure(
       'unsupported_schema_version',
@@ -233,11 +253,17 @@ export function validateBackup(input: unknown): ValidateBackupResult {
                         ...baseEnvelopeFields,
                         tables: tableArrays.tables as BackupTablesV9,
                       }
-                    : {
-                        schemaVersion: BACKUP_SCHEMA_VERSION_V10,
-                        ...baseEnvelopeFields,
-                        tables: tableArrays.tables as BackupTablesV10,
-                      };
+                    : schemaVersion === BACKUP_SCHEMA_VERSION_V10
+                      ? {
+                          schemaVersion: BACKUP_SCHEMA_VERSION_V10,
+                          ...baseEnvelopeFields,
+                          tables: tableArrays.tables as BackupTablesV10,
+                        }
+                      : {
+                          schemaVersion: BACKUP_SCHEMA_VERSION_V11,
+                          ...baseEnvelopeFields,
+                          tables: tableArrays.tables as BackupTablesV11,
+                        };
 
   const rowError = validateRows(backup.tables, schemaVersion);
   if (rowError) {
@@ -314,6 +340,9 @@ function getTableArrays(
   if (schemaVersion >= BACKUP_SCHEMA_VERSION_V8) {
     requiredTables.push('uterine_flushes', 'uterine_flush_products');
   }
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V11) {
+    requiredTables.push('tasks');
+  }
 
   for (const tableName of requiredTables) {
     if (!Array.isArray(tables[tableName])) {
@@ -385,6 +414,13 @@ function validateRows(
   for (let index = 0; index < tables.medication_logs.length; index += 1) {
     const error = validateMedicationLogRow(tables.medication_logs[index], index, schemaVersion);
     if (error) return error;
+  }
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V11) {
+    const taskRows = (tables as BackupTablesV11).tasks;
+    for (let index = 0; index < taskRows.length; index += 1) {
+      const error = validateTaskRow(taskRows[index], index);
+      if (error) return error;
+    }
   }
   for (let index = 0; index < tables.semen_collections.length; index += 1) {
     const error = validateSemenCollectionRow(tables.semen_collections[index], index, schemaVersion);
@@ -915,6 +951,78 @@ function validateMedicationLogRow(
   }
   if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
     return rowFailure('medication_logs', rowIndex, 'timestamps', 'created_at and updated_at are required');
+  }
+
+  return null;
+}
+
+function validateTaskRow(row: unknown, rowIndex: number): ValidateBackupResult | null {
+  if (!isRecord(row)) {
+    return rowFailure('tasks', rowIndex, 'row', 'must be an object');
+  }
+
+  if (!isNonEmptyString(row.id)) return rowFailure('tasks', rowIndex, 'id', 'is required');
+  if (!isNonEmptyString(row.mare_id)) return rowFailure('tasks', rowIndex, 'mare_id', 'is required');
+  if (!isStringEnum(row.task_type, TASK_TYPES)) {
+    return rowFailure('tasks', rowIndex, 'task_type', 'must be a supported task type');
+  }
+  if (!isNonEmptyString(row.title) || row.title.trim().length === 0) {
+    return rowFailure('tasks', rowIndex, 'title', 'is required');
+  }
+  if (!isLocalDate(row.due_date)) {
+    return rowFailure('tasks', rowIndex, 'due_date', 'must be a valid YYYY-MM-DD date');
+  }
+  if (!isNullableTaskTime(row.due_time)) {
+    return rowFailure('tasks', rowIndex, 'due_time', 'must be a valid HH:MM time or null');
+  }
+  if (!isNullableString(row.notes)) {
+    return rowFailure('tasks', rowIndex, 'notes', 'must be a string or null');
+  }
+  if (!isStringEnum(row.status, TASK_STATUSES)) {
+    return rowFailure('tasks', rowIndex, 'status', 'must be open or completed');
+  }
+  if (row.status === 'completed' && !isNonEmptyString(row.completed_at)) {
+    return rowFailure('tasks', rowIndex, 'completed_at', 'is required when status is completed');
+  }
+  if (row.status === 'open' && row.completed_at !== null) {
+    return rowFailure('tasks', rowIndex, 'completed_at', 'must be null when status is open');
+  }
+  if (!isNullableStringEnum(row.completed_record_type, TASK_COMPLETED_RECORD_TYPES)) {
+    return rowFailure(
+      'tasks',
+      rowIndex,
+      'completed_record_type',
+      'must be a supported completed record type or null',
+    );
+  }
+  if (!isNullableString(row.completed_record_id)) {
+    return rowFailure('tasks', rowIndex, 'completed_record_id', 'must be a string or null');
+  }
+  if (
+    (row.completed_record_type == null && row.completed_record_id != null) ||
+    (row.completed_record_type != null && !isNonEmptyString(row.completed_record_id))
+  ) {
+    return rowFailure(
+      'tasks',
+      rowIndex,
+      'completed_record_type/completed_record_id',
+      'must both be null or both be present',
+    );
+  }
+  if (!isStringEnum(row.source_type, TASK_SOURCE_TYPES)) {
+    return rowFailure('tasks', rowIndex, 'source_type', 'must be a supported source type');
+  }
+  if (!isNullableString(row.source_record_id)) {
+    return rowFailure('tasks', rowIndex, 'source_record_id', 'must be a string or null');
+  }
+  if (row.source_record_id === '') {
+    return rowFailure('tasks', rowIndex, 'source_record_id', 'must be non-empty when present');
+  }
+  if (!isNullableStringEnum(row.source_reason, TASK_SOURCE_REASONS)) {
+    return rowFailure('tasks', rowIndex, 'source_reason', 'must be a supported source reason or null');
+  }
+  if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
+    return rowFailure('tasks', rowIndex, 'timestamps', 'created_at and updated_at are required');
   }
 
   return null;
@@ -1482,6 +1590,12 @@ function validateCrossTableRules(
     ensureUniqueIds('foaling_records', tables.foaling_records.map((row) => row.id)) ??
     ensureUniqueIds('foals', tables.foals.map((row) => row.id)) ??
     ensureUniqueIds('medication_logs', tables.medication_logs.map((row) => row.id)) ??
+    (schemaVersion >= BACKUP_SCHEMA_VERSION_V11
+      ? ensureUniqueIds(
+          'tasks',
+          (tables as BackupTablesV11).tasks.map((row) => row.id),
+        )
+      : null) ??
     ensureUniqueIds('semen_collections', tables.semen_collections.map((row) => row.id)) ??
     ensureUniqueIds('collection_dose_events', tables.collection_dose_events.map((row) => row.id)) ??
     (schemaVersion >= BACKUP_SCHEMA_VERSION_V4
@@ -1589,6 +1703,16 @@ function validateCrossTableRules(
         'source_daily_log_id',
         'references missing daily log',
       );
+    }
+  }
+
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V11) {
+    const taskRows = (tables as BackupTablesV11).tasks;
+    for (let index = 0; index < taskRows.length; index += 1) {
+      const row = taskRows[index];
+      if (!indexes.mareIds.has(row.mare_id)) {
+        return rowFailure('tasks', index, 'mare_id', 'references missing mare');
+      }
     }
   }
 
@@ -1885,6 +2009,10 @@ function isNullableFlag(value: unknown): value is 0 | 1 | null {
 
 function isNullableDailyLogTime(value: unknown): value is string | null {
   return value == null || (typeof value === 'string' && normalizeDailyLogTime(value) === value);
+}
+
+function isNullableTaskTime(value: unknown): value is string | null {
+  return value == null || (typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value));
 }
 
 function isLocalDate(value: unknown): value is string {

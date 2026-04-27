@@ -7,7 +7,7 @@ import {
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV10,
+  type BackupEnvelopeV11,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
   type BackupFrozenSemenBatchRow,
@@ -16,6 +16,7 @@ import {
   type BackupPregnancyCheckRow,
   type BackupSemenCollectionRowV3,
   type BackupStallionRow,
+  type BackupTaskRow,
   type BackupUterineFluidRow,
   type BackupUterineFlushProductRow,
   type BackupUterineFlushRow,
@@ -33,7 +34,7 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV10> {
+export async function serializeBackup(): Promise<BackupEnvelopeV11> {
   const db = await getDb();
 
   const [
@@ -48,6 +49,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV10> {
     foalingRecords,
     foals,
     medicationLogs,
+    tasks,
     semenCollections,
     collectionDoseEvents,
     frozenSemenBatches,
@@ -270,6 +272,29 @@ export async function serializeBackup(): Promise<BackupEnvelopeV10> {
       ORDER BY date DESC, id ASC;
       `,
     ),
+    db.getAllAsync<BackupTaskRow>(
+      `
+      SELECT
+        id,
+        mare_id,
+        task_type,
+        title,
+        due_date,
+        due_time,
+        notes,
+        status,
+        completed_at,
+        completed_record_type,
+        completed_record_id,
+        source_type,
+        source_record_id,
+        source_reason,
+        created_at,
+        updated_at
+      FROM tasks
+      ORDER BY created_at ASC, id ASC;
+      `,
+    ),
     db.getAllAsync<BackupSemenCollectionRowV3>(
       `
       SELECT
@@ -379,6 +404,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV10> {
       foaling_records: foalingRecords,
       foals,
       medication_logs: medicationLogs,
+      tasks,
       semen_collections: semenCollections,
       collection_dose_events: collectionDoseEvents,
       frozen_semen_batches: frozenSemenBatches,

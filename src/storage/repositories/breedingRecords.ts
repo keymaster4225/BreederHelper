@@ -1,10 +1,16 @@
-import { BreedingMethod, BreedingRecord } from '@/models/types';
+import { BreedingMethod, BreedingRecord, LocalDate } from '@/models/types';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { normalizeBreedingRecordTime } from '@/utils/breedingRecordTime';
+import { newId } from '@/utils/id';
 import { assertCollectionSemenVolumeCanSupportAllocation } from './internal/collectionAllocation';
 import type { RepoDb } from './internal/dbTypes';
 import { resolveDb } from './internal/resolveDb';
 import { getSemenCollectionById } from './semenCollections';
+import {
+  deleteOpenBreedingPregnancyCheckTask,
+  ensureBreedingPregnancyCheckTask,
+  updateOpenBreedingPregnancyCheckTaskDueDate,
+} from './tasks';
 
 type BreedingRecordRow = {
   id: string;
@@ -104,6 +110,12 @@ function normalizeNullableTime(value: string | null | undefined): string | null 
   return normalized;
 }
 
+function addDaysToLocalDate(date: LocalDate, days: number): LocalDate {
+  const parsed = new Date(`${date}T00:00:00Z`);
+  parsed.setUTCDate(parsed.getUTCDate() + days);
+  return parsed.toISOString().slice(0, 10);
+}
+
 async function getLinkedOnFarmDoseEventByBreedingRecordId(
   db: RepoDb,
   breedingRecordId: string,
@@ -156,37 +168,49 @@ export async function createBreedingRecord(input: {
   const now = new Date().toISOString();
   const time = normalizeRequiredTime(input.time);
 
-  await handle.runAsync(
-    `
-    INSERT INTO breeding_records (
-      id, mare_id, stallion_id, stallion_name, collection_id,
-      date, time, method, notes,
-      volume_ml, concentration_m_per_ml, motility_percent,
-      number_of_straws, straw_volume_ml, straw_details,
-      collection_date, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-    `,
-    [
-      input.id,
-      input.mareId,
-      input.stallionId,
-      input.stallionName ?? null,
-      input.collectionId ?? null,
-      input.date,
-      time,
-      input.method,
-      input.notes ?? null,
-      input.volumeMl ?? null,
-      input.concentrationMPerMl ?? null,
-      input.motilityPercent ?? null,
-      input.numberOfStraws ?? null,
-      input.strawVolumeMl ?? null,
-      input.strawDetails ?? null,
-      input.collectionDate ?? null,
-      now,
-      now,
-    ],
-  );
+  await handle.withTransactionAsync(async () => {
+    await handle.runAsync(
+      `
+      INSERT INTO breeding_records (
+        id, mare_id, stallion_id, stallion_name, collection_id,
+        date, time, method, notes,
+        volume_ml, concentration_m_per_ml, motility_percent,
+        number_of_straws, straw_volume_ml, straw_details,
+        collection_date, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      `,
+      [
+        input.id,
+        input.mareId,
+        input.stallionId,
+        input.stallionName ?? null,
+        input.collectionId ?? null,
+        input.date,
+        time,
+        input.method,
+        input.notes ?? null,
+        input.volumeMl ?? null,
+        input.concentrationMPerMl ?? null,
+        input.motilityPercent ?? null,
+        input.numberOfStraws ?? null,
+        input.strawVolumeMl ?? null,
+        input.strawDetails ?? null,
+        input.collectionDate ?? null,
+        now,
+        now,
+      ],
+    );
+
+    await ensureBreedingPregnancyCheckTask(
+      {
+        id: newId(),
+        mareId: input.mareId,
+        breedingRecordId: input.id,
+        dueDate: addDaysToLocalDate(input.date, 14),
+      },
+      handle,
+    );
+  });
   emitDataInvalidation('breedingRecords');
 }
 
@@ -319,6 +343,12 @@ export async function updateBreedingRecord(
         ],
       );
     }
+
+    await updateOpenBreedingPregnancyCheckTaskDueDate(
+      id,
+      addDaysToLocalDate(input.date, 14),
+      handle,
+    );
   });
 
   emitDataInvalidation('breedingRecords');
@@ -345,7 +375,10 @@ export async function getBreedingRecordById(id: string, db?: RepoDb): Promise<Br
 
 export async function deleteBreedingRecord(id: string, db?: RepoDb): Promise<void> {
   const handle = await resolveDb(db);
-  await handle.runAsync('DELETE FROM breeding_records WHERE id = ?;', [id]);
+  await handle.withTransactionAsync(async () => {
+    await deleteOpenBreedingPregnancyCheckTask(id, handle);
+    await handle.runAsync('DELETE FROM breeding_records WHERE id = ?;', [id]);
+  });
   emitDataInvalidation('breedingRecords');
 }
 

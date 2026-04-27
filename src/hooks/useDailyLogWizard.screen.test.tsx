@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import type { DailyLogDetail } from '@/models/types';
 
 jest.mock('@/storage/repositories', () => ({
+  completeTaskFromRecord: jest.fn(),
   createDailyLog: jest.fn(),
   deleteDailyLog: jest.fn(),
   getDailyLogById: jest.fn(),
@@ -27,6 +28,7 @@ jest.mock('@/utils/id', () => ({
 }));
 
 const repositories = jest.requireMock('@/storage/repositories') as {
+  completeTaskFromRecord: jest.Mock;
   createDailyLog: jest.Mock;
   deleteDailyLog: jest.Mock;
   getDailyLogById: jest.Mock;
@@ -80,6 +82,7 @@ describe('useDailyLogWizard', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     idUtils.newId.mockImplementation(() => 'new-log-id');
+    repositories.completeTaskFromRecord.mockResolvedValue(undefined);
     repositories.createDailyLog.mockResolvedValue(undefined);
     repositories.deleteDailyLog.mockResolvedValue(undefined);
     repositories.getDailyLogById.mockResolvedValue(null);
@@ -102,6 +105,22 @@ describe('useDailyLogWizard', () => {
 
     expect(result.current.time).toBe('14:05');
     expect(result.current.isTimeClearable).toBe(false);
+  });
+
+  it('uses task-provided date and time defaults in create mode', () => {
+    const { result } = renderHook(() =>
+      useDailyLogWizard({
+        mareId: 'mare-1',
+        taskId: 'task-1',
+        defaultDate: '2026-05-01',
+        defaultTime: '09:30',
+        onGoBack: jest.fn(),
+        setTitle: jest.fn(),
+      }),
+    );
+
+    expect(result.current.date).toBe('2026-05-01');
+    expect(result.current.time).toBe('09:30');
   });
 
   it('hydrates time for a timed edit', async () => {
@@ -195,8 +214,89 @@ describe('useDailyLogWizard', () => {
     });
 
     expect(repositories.createDailyLog).not.toHaveBeenCalled();
+    expect(repositories.completeTaskFromRecord).not.toHaveBeenCalled();
     expect(result.current.currentStepIndex).toBe(0);
     expect(result.current.errors.basics.time).toBe('Time is required.');
+  });
+
+  it('completes a linked task after a successful create save', async () => {
+    const onGoBack = jest.fn();
+    const { result } = renderHook(() =>
+      useDailyLogWizard({
+        mareId: 'mare-1',
+        taskId: 'task-1',
+        onGoBack,
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(repositories.createDailyLog).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'new-log-id', mareId: 'mare-1' }),
+    );
+    expect(repositories.completeTaskFromRecord).toHaveBeenCalledWith('task-1', 'dailyLog', 'new-log-id');
+    expect(onGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens a daily-check follow-up task after a successful save-and-follow-up', async () => {
+    const onGoBack = jest.fn();
+    const onAddFollowUpTask = jest.fn();
+    const { result } = renderHook(() =>
+      useDailyLogWizard({
+        mareId: 'mare-1',
+        onGoBack,
+        onAddFollowUpTask,
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.saveAndAddFollowUp();
+    });
+
+    expect(repositories.createDailyLog).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'new-log-id', mareId: 'mare-1' }),
+    );
+    expect(onAddFollowUpTask).toHaveBeenCalledWith({
+      mareId: 'mare-1',
+      taskType: 'dailyCheck',
+      sourceType: 'dailyLog',
+      sourceRecordId: 'new-log-id',
+      sourceReason: 'manualFollowUp',
+    });
+    expect(onGoBack).not.toHaveBeenCalled();
+  });
+
+  it('shows a task update error after saving when linked task completion fails', async () => {
+    repositories.completeTaskFromRecord.mockRejectedValue(new Error('task write failed'));
+    const onGoBack = jest.fn();
+    const { result } = renderHook(() =>
+      useDailyLogWizard({
+        mareId: 'mare-1',
+        taskId: 'task-1',
+        onGoBack,
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(repositories.createDailyLog).toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith('Task update failed', 'task write failed', [
+      expect.objectContaining({ text: 'OK' }),
+    ]);
+    expect(onGoBack).not.toHaveBeenCalled();
+
+    const buttons = alertSpy.mock.calls[0]?.[2] as { text: string; onPress?: () => void }[];
+    act(() => {
+      buttons.find((button) => button.text === 'OK')?.onPress?.();
+    });
+    expect(onGoBack).toHaveBeenCalledTimes(1);
   });
 
   it('adds a flush step when a fluid pocket is marked as flushed', async () => {

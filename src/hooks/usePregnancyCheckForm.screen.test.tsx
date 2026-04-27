@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 jest.mock('@/storage/repositories', () => ({
+  completeTaskFromRecord: jest.fn(),
   createPregnancyCheck: jest.fn(),
   deletePregnancyCheck: jest.fn(),
   getMareById: jest.fn(),
@@ -9,7 +10,13 @@ jest.mock('@/storage/repositories', () => ({
   updatePregnancyCheck: jest.fn(),
 }));
 
+jest.mock('@/utils/id', () => ({
+  newId: jest.fn(() => 'new-preg-check-id'),
+}));
+
 const repositories = jest.requireMock('@/storage/repositories') as {
+  completeTaskFromRecord: jest.Mock;
+  createPregnancyCheck: jest.Mock;
   getMareById: jest.Mock;
   getPregnancyCheckById: jest.Mock;
   listBreedingRecordsByMare: jest.Mock;
@@ -27,6 +34,8 @@ type HookCallbacks = {
 describe('usePregnancyCheckForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    repositories.completeTaskFromRecord.mockResolvedValue(undefined);
+    repositories.createPregnancyCheck.mockResolvedValue(undefined);
     repositories.getMareById.mockResolvedValue({
       id: 'mare-1',
       name: 'Maple',
@@ -140,6 +149,108 @@ describe('usePregnancyCheckForm', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.breedingRecordId).toBe('breeding-2');
+  });
+
+  it('uses a task-provided default date in create mode', async () => {
+    const { result } = renderHook(() =>
+      usePregnancyCheckForm({
+        mareId: 'mare-1',
+        taskId: 'task-1',
+        defaultDate: '2026-04-03',
+        onGoBack: jest.fn(),
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.date).toBe('2026-04-03');
+  });
+
+  it('completes a linked task after a successful create save', async () => {
+    repositories.listBreedingRecordsByMare.mockResolvedValue([
+      {
+        id: 'breeding-1',
+        mareId: 'mare-1',
+        stallionId: null,
+        stallionName: 'Atlas',
+        date: '1969-03-20',
+        method: 'liveCover',
+        notes: null,
+        createdAt: '1969-03-20T00:00:00.000Z',
+        updatedAt: '1969-03-20T00:00:00.000Z',
+      },
+    ]);
+    const onGoBack = jest.fn();
+    const { result } = renderHook(() =>
+      usePregnancyCheckForm({
+        mareId: 'mare-1',
+        taskId: 'task-1',
+        defaultDate: '1970-01-01',
+        onGoBack,
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.onSave();
+    });
+
+    expect(repositories.createPregnancyCheck).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'new-preg-check-id', mareId: 'mare-1' }),
+    );
+    expect(repositories.completeTaskFromRecord).toHaveBeenCalledWith(
+      'task-1',
+      'pregnancyCheck',
+      'new-preg-check-id',
+    );
+    expect(onGoBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens a custom follow-up task after a successful save-and-follow-up', async () => {
+    repositories.listBreedingRecordsByMare.mockResolvedValue([
+      {
+        id: 'breeding-1',
+        mareId: 'mare-1',
+        stallionId: null,
+        stallionName: 'Atlas',
+        date: '1969-03-20',
+        method: 'liveCover',
+        notes: null,
+        createdAt: '1969-03-20T00:00:00.000Z',
+        updatedAt: '1969-03-20T00:00:00.000Z',
+      },
+    ]);
+    const onGoBack = jest.fn();
+    const onAddFollowUpTask = jest.fn();
+    const { result } = renderHook(() =>
+      usePregnancyCheckForm({
+        mareId: 'mare-1',
+        defaultDate: '1970-01-01',
+        onGoBack,
+        onAddFollowUpTask,
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    await act(async () => {
+      await result.current.onSaveAndAddFollowUp();
+    });
+
+    expect(repositories.createPregnancyCheck).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'new-preg-check-id', mareId: 'mare-1' }),
+    );
+    expect(onAddFollowUpTask).toHaveBeenCalledWith({
+      mareId: 'mare-1',
+      taskType: 'custom',
+      sourceType: 'pregnancyCheck',
+      sourceRecordId: 'new-preg-check-id',
+      sourceReason: 'manualFollowUp',
+    });
+    expect(onGoBack).not.toHaveBeenCalled();
   });
 
   it('falls back to the first breeding record when create-mode preselection is invalid', async () => {

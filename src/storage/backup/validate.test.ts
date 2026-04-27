@@ -23,7 +23,101 @@ describe('validateBackup', () => {
     expect(result.preview.mareCount).toBe(1);
     expect(result.preview.dailyLogCount).toBe(1);
     expect(result.preview.onboardingComplete).toBe(true);
+    expect(result.preview.schemaVersion).toBe(11);
+  });
+
+  it('requires tasks in v11 backups', () => {
+    const backup = cloneBackupFixture();
+    const tablesWithoutTasks = { ...backup.tables };
+    delete (tablesWithoutTasks as { tasks?: unknown }).tasks;
+    const result = validateBackup({
+      ...backup,
+      tables: tablesWithoutTasks,
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.code).toBe('missing_key');
+    expect(result.error.message).toContain('tables.tasks');
+  });
+
+  it('accepts v10 backups without tasks', () => {
+    const backup = cloneBackupFixture();
+    const tablesWithoutTasks = { ...backup.tables };
+    delete (tablesWithoutTasks as { tasks?: unknown }).tasks;
+    const result = validateBackup({
+      ...backup,
+      schemaVersion: 10,
+      tables: tablesWithoutTasks,
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected backup to validate');
+    }
     expect(result.preview.schemaVersion).toBe(10);
+  });
+
+  it('validates task row fields in v11 backups', () => {
+    const backup = cloneBackupFixture();
+    const invalidDueTime = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        tasks: backup.tables.tasks.map((row, index) =>
+          index === 0 ? { ...row, due_time: '8:00' } : row,
+        ),
+      },
+    });
+
+    expect(invalidDueTime.ok).toBe(false);
+    if (invalidDueTime.ok) {
+      throw new Error('Expected validation failure');
+    }
+    expect(invalidDueTime.error.table).toBe('tasks');
+    expect(invalidDueTime.error.field).toBe('due_time');
+
+    const missingCompletedAt = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        tasks: backup.tables.tasks.map((row, index) =>
+          index === 1 ? { ...row, completed_at: null } : row,
+        ),
+      },
+    });
+
+    expect(missingCompletedAt.ok).toBe(false);
+    if (missingCompletedAt.ok) {
+      throw new Error('Expected validation failure');
+    }
+    expect(missingCompletedAt.error.table).toBe('tasks');
+    expect(missingCompletedAt.error.field).toBe('completed_at');
+  });
+
+  it('requires v11 tasks to reference existing mares', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        tasks: backup.tables.tasks.map((row, index) =>
+          index === 0 ? { ...row, mare_id: 'missing-mare' } : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('tasks');
+    expect(result.error.field).toBe('mare_id');
+    expect(result.error.message).toContain('references missing mare');
   });
 
   it('requires a valid clock preference in current backup settings', () => {
@@ -707,7 +801,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 11,
+      schemaVersion: 12,
     });
 
     const result = validateBackupJson(jsonText);

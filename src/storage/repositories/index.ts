@@ -7,6 +7,7 @@ export * from './pregnancyChecks';
 export * from './foalingRecords';
 export * from './foals';
 export * from './medications';
+export * from './tasks';
 export * from './semenCollections';
 export * from './collectionDoseEvents';
 export * from './collectionWizard';

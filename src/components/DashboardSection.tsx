@@ -2,29 +2,35 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { AlertCard } from '@/components/AlertCard';
-import { DashboardAlert } from '@/utils/dashboardAlerts';
+import { TaskCard } from '@/components/TaskCard';
+import { LocalDate, TaskWithMare } from '@/models/types';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 
-const MAX_VISIBLE_ALERTS = 8;
+const MAX_VISIBLE_TASKS = 8;
 
 interface DashboardSectionProps {
-  readonly alerts: readonly DashboardAlert[];
-  readonly onAlertPress: (alert: DashboardAlert) => void;
+  readonly tasks: readonly TaskWithMare[];
+  readonly today: LocalDate;
+  readonly onTaskPress: (task: TaskWithMare) => void;
+  readonly onTaskEdit: (task: TaskWithMare) => void;
+  readonly onTaskComplete: (task: TaskWithMare) => void;
   readonly collapsible?: boolean;
 }
 
 export function DashboardSection({
-  alerts,
-  onAlertPress,
+  tasks,
+  today,
+  onTaskPress,
+  onTaskEdit,
+  onTaskComplete,
   collapsible = true,
 }: DashboardSectionProps): JSX.Element | null {
   const [isCollapsed, setIsCollapsed] = useState(collapsible);
 
-  if (alerts.length === 0) return null;
+  if (tasks.length === 0) return null;
 
-  const visibleAlerts = alerts.slice(0, MAX_VISIBLE_ALERTS);
-  const hiddenCount = alerts.length - visibleAlerts.length;
+  const visibleTasks = tasks.slice(0, MAX_VISIBLE_TASKS);
+  const hiddenCount = tasks.length - visibleTasks.length;
 
   return (
     <View style={styles.container}>
@@ -38,7 +44,7 @@ export function DashboardSection({
           <View style={styles.headerLeft}>
             <Text style={styles.headerTitle}>Today's Tasks</Text>
             <View style={styles.countBadge}>
-              <Text style={styles.countText}>{alerts.length}</Text>
+              <Text style={styles.countText}>{tasks.length}</Text>
             </View>
           </View>
           <Text style={styles.headerSubtitle}>
@@ -55,12 +61,15 @@ export function DashboardSection({
       </Pressable>
 
       {!collapsible || !isCollapsed ? (
-        <View style={styles.alertList}>
-          {visibleAlerts.map((alert) => (
-            <AlertCard
-              key={`${alert.kind}-${alert.mareId}`}
-              alert={alert}
-              onPress={() => onAlertPress(alert)}
+        <View style={styles.taskList}>
+          {visibleTasks.map((task) => (
+            <TaskCard
+              key={task.id}
+              task={task}
+              today={today}
+              onPress={onTaskPress}
+              onEdit={onTaskEdit}
+              onComplete={onTaskComplete}
             />
           ))}
           {hiddenCount > 0 ? (
@@ -120,7 +129,7 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
   },
-  alertList: {
+  taskList: {
     gap: spacing.sm,
   },
   moreText: {

@@ -24,6 +24,7 @@ jest.mock('@/storage/repositories', () => ({
   listAllFoalingRecords: jest.fn(),
   listAllMedicationLogs: jest.fn(),
   listAllFoals: jest.fn(),
+  completeTask: jest.fn(),
 }));
 
 jest.mock('@/screens/EditMareScreen', () => ({
@@ -131,15 +132,25 @@ beforeEach(() => {
     totalMares: 1,
     pregnantMares: 0,
     totalStallions: 1,
-    alerts: [
+    tasks: [
       {
-        kind: 'pregnancyCheckNeeded',
-        priority: 'high',
+        id: 'task-1',
         mareId: 'mare-1',
+        taskType: 'pregnancyCheck',
+        title: 'Pregnancy check',
+        dueDate: '2035-04-27',
+        dueTime: null,
+        notes: null,
+        status: 'open',
+        completedAt: null,
+        completedRecordType: null,
+        completedRecordId: null,
+        sourceType: 'breedingRecord',
+        sourceRecordId: 'breed-1',
+        sourceReason: 'breedingPregnancyCheck',
+        createdAt: '2026-04-13T00:00:00.000Z',
+        updatedAt: '2026-04-13T00:00:00.000Z',
         mareName: 'Maple',
-        title: `Day ${BREEDING_DAYS_AGO} post-breeding`,
-        subtitle: 'Preg check due',
-        sortKey: -BREEDING_DAYS_AGO,
       },
     ],
     isLoading: false,
@@ -234,11 +245,11 @@ it('opens settings and reaches the data backup screen', async () => {
   await waitFor(() => expect(screen.getByText('Data Backup Screen')).toBeTruthy());
 });
 
-it('navigates from a dashboard alert to the intended screen params', async () => {
+it('renders a persisted dashboard task through the navigator', async () => {
   const screen = render(<AppNavigator />);
 
   await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeTruthy());
-  fireEvent.press(screen.getByText(`Day ${BREEDING_DAYS_AGO} post-breeding`));
-
-  await waitFor(() => expect(screen.getByText('Pregnancy mare-1', { includeHiddenElements: true })).toBeTruthy());
+  expect(screen.getByText('Pregnancy check')).toBeTruthy();
+  expect(screen.getByText('Maple')).toBeTruthy();
+  expect(screen.getByText('04-27-2035')).toBeTruthy();
 });

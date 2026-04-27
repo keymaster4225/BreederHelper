@@ -10,10 +10,12 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
 import { DashboardSection } from '@/components/DashboardSection';
 import { Screen } from '@/components/Screen';
+import { TaskWithMare } from '@/models/types';
 import { RootStackParamList, TabParamList } from '@/navigation/AppNavigator';
-import { DashboardAlert } from '@/utils/dashboardAlerts';
 import { canSeedPreviewData } from '@/utils/buildProfile';
+import { toLocalDate } from '@/utils/dates';
 import { seedPreviewData } from '@/utils/devSeed';
+import { completeTask } from '@/storage/repositories';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type Props = CompositeScreenProps<
@@ -55,9 +57,14 @@ function StatCard({
   );
 }
 
+function isTaskFuture(task: TaskWithMare, today: string): boolean {
+  return task.dueDate > today;
+}
+
 export function DashboardScreen({ navigation }: Props): JSX.Element {
-  const { totalMares, pregnantMares, totalStallions, alerts, isLoading, error, reload, reloadIfStale } =
+  const { totalMares, pregnantMares, totalStallions, tasks, isLoading, error, reload, reloadIfStale } =
     useDashboardData();
+  const today = toLocalDate(new Date());
   const hasAnimals = totalMares > 0 || totalStallions > 0;
   const { onboardingComplete, isOnboardingLoading, completeOnboarding } =
     useOnboardingState(hasAnimals);
@@ -88,36 +95,61 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
     })();
   }, [completeOnboarding, reload]);
 
-  const onAlertPress = useCallback(
-    (alert: DashboardAlert) => {
-      switch (alert.kind) {
-        case 'approachingDueDate':
-          navigation.navigate('MareDetail', { mareId: alert.mareId });
+  const onTaskPress = useCallback(
+    (task: TaskWithMare) => {
+      if (task.taskType === 'custom' || isTaskFuture(task, today)) {
+        navigation.navigate('TaskForm', { taskId: task.id });
+        return;
+      }
+
+      switch (task.taskType) {
+        case 'dailyCheck':
+          navigation.navigate('DailyLogForm', {
+            mareId: task.mareId,
+            taskId: task.id,
+            defaultDate: task.dueDate,
+            defaultTime: task.dueTime,
+          });
           break;
-        case 'pregnancyCheckNeeded':
-          navigation.navigate('PregnancyCheckForm', { mareId: alert.mareId });
+        case 'medication':
+          navigation.navigate('MedicationForm', {
+            mareId: task.mareId,
+            taskId: task.id,
+            defaultDate: task.dueDate,
+          });
           break;
-        case 'recentOvulation':
-        case 'heatActivity':
-        case 'noRecentLog':
-          navigation.navigate('DailyLogForm', { mareId: alert.mareId });
+        case 'breeding':
+          navigation.navigate('BreedingRecordForm', {
+            mareId: task.mareId,
+            taskId: task.id,
+            defaultDate: task.dueDate,
+            defaultTime: task.dueTime,
+          });
           break;
-        case 'medicationGap':
-          navigation.navigate('MareDetail', { mareId: alert.mareId, initialTab: 'meds' });
-          break;
-        case 'foalNeedsIgg':
-          if (alert.foalingRecordId) {
-            navigation.navigate('FoalForm', {
-              mareId: alert.mareId,
-              foalingRecordId: alert.foalingRecordId,
-              foalId: alert.foalId,
-            });
-          }
+        case 'pregnancyCheck':
+          navigation.navigate('PregnancyCheckForm', {
+            mareId: task.mareId,
+            taskId: task.id,
+            defaultDate: task.dueDate,
+          });
           break;
       }
     },
-    [navigation],
+    [navigation, today],
   );
+  const onTaskEdit = useCallback((task: TaskWithMare) => {
+    navigation.navigate('TaskForm', { taskId: task.id });
+  }, [navigation]);
+  const onTaskComplete = useCallback((task: TaskWithMare) => {
+    void (async () => {
+      try {
+        await completeTask(task.id);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Task could not be completed.';
+        Alert.alert('Task update failed', message);
+      }
+    })();
+  }, []);
 
   const navigateToMares = useCallback(
     (filter: 'all' | 'pregnant') => {
@@ -132,6 +164,10 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
 
   const navigateToStallions = useCallback(() => {
     navigation.navigate('MainTabs', { screen: 'Stallions' });
+  }, [navigation]);
+
+  const navigateToTaskForm = useCallback(() => {
+    navigation.navigate('TaskForm');
   }, [navigation]);
 
   if (isLoading || isOnboardingLoading) {
@@ -245,12 +281,29 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
               />
             </View>
 
-            {alerts.length > 0 ? (
-              <DashboardSection alerts={alerts} onAlertPress={onAlertPress} collapsible={false} />
+            <Pressable
+              style={({ pressed }) => [styles.addTaskButton, pressed && styles.pressedOpacity]}
+              onPress={navigateToTaskForm}
+              accessibilityRole="button"
+              accessibilityLabel="Add Task"
+            >
+              <MaterialCommunityIcons name="plus-circle-outline" size={20} color={colors.onPrimary} />
+              <Text style={styles.addTaskButtonText}>Add Task</Text>
+            </Pressable>
+
+            {tasks.length > 0 ? (
+              <DashboardSection
+                tasks={tasks}
+                today={today}
+                onTaskPress={onTaskPress}
+                onTaskEdit={onTaskEdit}
+                onTaskComplete={onTaskComplete}
+                collapsible={false}
+              />
             ) : (
               <View style={styles.caughtUp}>
                 <MaterialCommunityIcons name="check-circle-outline" size={48} color={colors.primary} />
-                <Text style={styles.caughtUpText}>All caught up! No tasks today.</Text>
+                <Text style={styles.caughtUpText}>All caught up! No tasks due soon.</Text>
               </View>
             )}
           </>
@@ -383,6 +436,21 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
     textAlign: 'center',
+  },
+  addTaskButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.xl,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    minHeight: 44,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  addTaskButtonText: {
+    ...typography.labelLarge,
+    color: colors.onPrimary,
   },
   caughtUp: {
     alignItems: 'center',

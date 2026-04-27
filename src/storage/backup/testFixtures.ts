@@ -4,7 +4,7 @@ import type {
   BackupEnvelopeV4,
   BackupEnvelopeV5,
   BackupEnvelopeV6,
-  BackupEnvelopeV10,
+  BackupEnvelopeV11,
   BackupBreedingRecordRow,
   BackupBreedingRecordRowLegacy,
 } from './types';
@@ -17,9 +17,9 @@ function stripBreedingRecordTime(
   return rows.map(({ time: _time, ...row }) => row);
 }
 
-export function createBackupFixture(): BackupEnvelopeV10 {
+export function createBackupFixture(): BackupEnvelopeV11 {
   return {
-    schemaVersion: 10,
+    schemaVersion: 11,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -217,6 +217,44 @@ export function createBackupFixture(): BackupEnvelopeV10 {
           updated_at: BASE_TIMESTAMP,
         },
       ],
+      tasks: [
+        {
+          id: 'task-open-1',
+          mare_id: 'mare-1',
+          task_type: 'custom',
+          title: 'Schedule follow-up',
+          due_date: '2026-04-20',
+          due_time: '08:30',
+          notes: 'Call owner',
+          status: 'open',
+          completed_at: null,
+          completed_record_type: null,
+          completed_record_id: null,
+          source_type: 'manual',
+          source_record_id: null,
+          source_reason: 'manualFollowUp',
+          created_at: BASE_TIMESTAMP,
+          updated_at: BASE_TIMESTAMP,
+        },
+        {
+          id: 'task-completed-1',
+          mare_id: 'mare-1',
+          task_type: 'pregnancyCheck',
+          title: 'Pregnancy check',
+          due_date: '2026-04-16',
+          due_time: null,
+          notes: null,
+          status: 'completed',
+          completed_at: '2026-04-16T13:00:00.000Z',
+          completed_record_type: 'pregnancyCheck',
+          completed_record_id: 'check-1',
+          source_type: 'breedingRecord',
+          source_record_id: 'breed-1',
+          source_reason: 'breedingPregnancyCheck',
+          created_at: BASE_TIMESTAMP,
+          updated_at: '2026-04-16T13:00:00.000Z',
+        },
+      ],
       semen_collections: [
         {
           id: 'collection-1',
@@ -294,8 +332,8 @@ export function createBackupFixture(): BackupEnvelopeV10 {
   };
 }
 
-export function cloneBackupFixture(): BackupEnvelopeV10 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV10;
+export function cloneBackupFixture(): BackupEnvelopeV11 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV11;
 }
 
 export function createBackupFixtureV6(): BackupEnvelopeV6 {

@@ -1,6 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { CardRow, cardStyles } from '@/components/RecordCardParts';
 import { FormField, FormTextInput } from '@/components/FormControls';
 import {
@@ -37,13 +36,8 @@ type Props = {
   legacyNotes: DailyLogWizardLegacyNotes;
   legacyOvulationDetected: boolean | null;
   ovulationSource: DailyLogOvulationSource;
-  isEdit: boolean;
-  isSaving: boolean;
-  isDeleting: boolean;
   onNotesChange: (value: string) => void;
   onJumpToStep: (stepIndex: number) => void;
-  onSave: () => void;
-  onDelete: () => void;
 };
 
 function formatScoreValue(value: ScoreOption): string {
@@ -207,13 +201,8 @@ export function ReviewStep({
   legacyNotes,
   legacyOvulationDetected,
   ovulationSource,
-  isEdit,
-  isSaving,
-  isDeleting,
   onNotesChange,
   onJumpToStep,
-  onSave,
-  onDelete,
 }: Props): JSX.Element {
   const clockDisplayMode = useClockDisplayMode();
   const legacyValuesExist =
@@ -279,21 +268,6 @@ export function ReviewStep({
       <FormField label="Notes">
         <FormTextInput value={notes} onChangeText={onNotesChange} multiline />
       </FormField>
-
-      <View style={styles.actions}>
-        <PrimaryButton
-          label={isSaving ? 'Saving...' : 'Save'}
-          onPress={onSave}
-          disabled={isSaving || isDeleting}
-        />
-        {isEdit ? (
-          <DeleteButton
-            label={isDeleting ? 'Deleting...' : 'Delete'}
-            onPress={onDelete}
-            disabled={isSaving || isDeleting}
-          />
-        ) : null}
-      </View>
     </>
   );
 }
@@ -325,10 +299,6 @@ const styles = StyleSheet.create({
   editButtonText: {
     ...typography.labelSmall,
     color: colors.onSurface,
-  },
-  actions: {
-    gap: spacing.sm,
-    paddingBottom: spacing.lg,
   },
   pressed: {
     opacity: 0.7,

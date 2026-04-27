@@ -14,6 +14,7 @@ import {
   BACKUP_SCHEMA_VERSION_V8,
   BACKUP_SCHEMA_VERSION_V9,
   BACKUP_SCHEMA_VERSION_V10,
+  BACKUP_SCHEMA_VERSION_V11,
 } from './types';
 import type {
   BackupBreedingRecordRowLegacy,
@@ -29,6 +30,7 @@ import type {
   BackupEnvelopeV8,
   BackupEnvelopeV9,
   BackupEnvelopeV10,
+  BackupEnvelopeV11,
   BackupFoalingRecordRow,
   BackupFoalRow,
   BackupFrozenSemenBatchRow,
@@ -41,6 +43,7 @@ import type {
   BackupSemenCollectionRowV2,
   BackupSemenCollectionRowV3,
   BackupStallionRow,
+  BackupTaskRow,
   BackupUterineFluidRow,
   BackupUterineFlushProductRow,
   BackupUterineFlushRow,
@@ -72,6 +75,7 @@ type NormalizedBackupForRestore = {
     readonly uterine_flushes: readonly BackupUterineFlushRow[];
     readonly uterine_flush_products: readonly BackupUterineFlushProductRow[];
     readonly medication_logs: readonly BackupMedicationLogRow[];
+    readonly tasks: readonly BackupTaskRow[];
     readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
     readonly foaling_records: readonly BackupFoalingRecordRow[];
     readonly foals: readonly BackupFoalRow[];
@@ -151,6 +155,7 @@ async function deleteManagedTables(db: Awaited<ReturnType<typeof getDb>>): Promi
   await db.runAsync('DELETE FROM daily_logs;');
   await db.runAsync('DELETE FROM breeding_records;');
   await db.runAsync('DELETE FROM semen_collections;');
+  await db.runAsync('DELETE FROM tasks;');
   await db.runAsync('DELETE FROM mares;');
   await db.runAsync('DELETE FROM stallions;');
 }
@@ -161,6 +166,9 @@ async function insertManagedTables(
 ): Promise<void> {
   for (const row of backup.tables.mares) {
     await insertMare(db, row);
+  }
+  for (const row of backup.tables.tasks) {
+    await insertTask(db, row);
   }
   for (const row of backup.tables.stallions) {
     await insertStallion(db, row);
@@ -630,6 +638,52 @@ async function insertMedicationLog(
   );
 }
 
+async function insertTask(
+  db: Awaited<ReturnType<typeof getDb>>,
+  row: BackupTaskRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO tasks (
+      id,
+      mare_id,
+      task_type,
+      title,
+      due_date,
+      due_time,
+      notes,
+      status,
+      completed_at,
+      completed_record_type,
+      completed_record_id,
+      source_type,
+      source_record_id,
+      source_reason,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.mare_id,
+      row.task_type,
+      row.title,
+      row.due_date,
+      row.due_time,
+      row.notes,
+      row.status,
+      row.completed_at,
+      row.completed_record_type,
+      row.completed_record_id,
+      row.source_type,
+      row.source_record_id,
+      row.source_reason,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
 async function insertPregnancyCheck(
   db: Awaited<ReturnType<typeof getDb>>,
   row: BackupPregnancyCheckRow,
@@ -789,13 +843,22 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
   if (
     backup.schemaVersion === BACKUP_SCHEMA_VERSION_V8 ||
     backup.schemaVersion === BACKUP_SCHEMA_VERSION_V9 ||
-    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V10
+    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V10 ||
+    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V11
   ) {
-    const currentBackup = backup as BackupEnvelopeV8 | BackupEnvelopeV9 | BackupEnvelopeV10;
+    const currentBackup = backup as
+      | BackupEnvelopeV8
+      | BackupEnvelopeV9
+      | BackupEnvelopeV10
+      | BackupEnvelopeV11;
     return {
       settings: normalizeBackupSettings(currentBackup.settings),
       tables: {
         ...currentBackup.tables,
+        tasks:
+          backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V11
+            ? (currentBackup.tables as BackupEnvelopeV11['tables']).tasks
+            : [],
         breeding_records:
           backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V10
             ? (currentBackup.tables.breeding_records as readonly BackupBreedingRecordRow[])
@@ -857,6 +920,7 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
       uterine_flushes: [],
       uterine_flush_products: [],
       medication_logs: medicationLogs,
+      tasks: [],
       pregnancy_checks: backup.tables.pregnancy_checks,
       foaling_records: backup.tables.foaling_records,
       foals: backup.tables.foals,

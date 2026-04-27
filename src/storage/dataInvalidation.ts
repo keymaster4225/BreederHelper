@@ -8,6 +8,7 @@ export type DataInvalidationDomain =
   | 'foalingRecords'
   | 'foals'
   | 'medicationLogs'
+  | 'tasks'
   | 'semenCollections'
   | 'collectionDoseEvents';
 

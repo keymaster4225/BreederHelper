@@ -1284,6 +1284,63 @@ CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date_time
   ON breeding_records (stallion_id, date DESC, time DESC, created_at DESC, id DESC);
 `;
 
+const migration027 = `
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  mare_id TEXT NOT NULL,
+  task_type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  due_date TEXT NOT NULL,
+  due_time TEXT,
+  notes TEXT,
+  status TEXT NOT NULL DEFAULT 'open',
+  completed_at TEXT,
+  completed_record_type TEXT,
+  completed_record_id TEXT,
+  source_type TEXT NOT NULL DEFAULT 'manual',
+  source_record_id TEXT,
+  source_reason TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (mare_id) REFERENCES mares(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (task_type IN ('dailyCheck', 'medication', 'breeding', 'pregnancyCheck', 'custom')),
+  CHECK (due_date GLOB '????-??-??'),
+  CHECK (
+    due_time IS NULL OR (
+      length(due_time) = 5
+      AND substr(due_time, 3, 1) = ':'
+      AND substr(due_time, 1, 2) BETWEEN '00' AND '23'
+      AND substr(due_time, 4, 2) BETWEEN '00' AND '59'
+    )
+  ),
+  CHECK (TRIM(title) <> ''),
+  CHECK (status IN ('open', 'completed')),
+  CHECK (completed_record_type IS NULL OR completed_record_type IN ('dailyLog', 'medicationLog', 'breedingRecord', 'pregnancyCheck')),
+  CHECK (source_type IN ('manual', 'dailyLog', 'medicationLog', 'breedingRecord', 'pregnancyCheck')),
+  CHECK (source_reason IS NULL OR source_reason IN ('manualFollowUp', 'breedingPregnancyCheck')),
+  CHECK (
+    (status = 'completed' AND completed_at IS NOT NULL)
+    OR (status = 'open' AND completed_at IS NULL)
+  ),
+  CHECK (
+    (completed_record_type IS NULL AND completed_record_id IS NULL)
+    OR (completed_record_type IS NOT NULL AND completed_record_id IS NOT NULL)
+  )
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_open_due
+  ON tasks (status, due_date ASC, due_time ASC, mare_id);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_source
+  ON tasks (source_type, source_record_id, source_reason);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_open_breeding_preg_check_unique
+  ON tasks (source_record_id)
+  WHERE status = 'open'
+    AND source_type = 'breedingRecord'
+    AND source_reason = 'breedingPregnancyCheck';
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -1500,6 +1557,16 @@ const migrations: Migration[] = [
       (await indexExists(db, 'idx_breeding_records_stallion_date_time')) &&
       !(await indexExists(db, 'idx_breeding_records_mare_date')) &&
       !(await indexExists(db, 'idx_breeding_records_stallion_date')),
+  },
+  {
+    id: 27,
+    name: '027_tasks',
+    statements: splitStatements(migration027),
+    shouldSkip: async (db) =>
+      (await tableExists(db, 'tasks')) &&
+      (await indexExists(db, 'idx_tasks_open_due')) &&
+      (await indexExists(db, 'idx_tasks_source')) &&
+      (await indexExists(db, 'idx_tasks_open_breeding_preg_check_unique')),
   },
 ];
 

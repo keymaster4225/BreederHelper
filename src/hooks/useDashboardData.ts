@@ -3,10 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   listAllBreedingRecords,
   listAllDailyLogs,
-  listAllFoals,
   listAllFoalingRecords,
-  listAllMedicationLogs,
   listAllPregnancyChecks,
+  listOpenDashboardTasks,
   listMares,
   listStallions,
 } from '@/storage/repositories';
@@ -14,15 +13,15 @@ import {
   DataInvalidationDomain,
   subscribeDataInvalidationForDomains,
 } from '@/storage/dataInvalidation';
-import { buildHomeDashboardInput, buildPregnantInfoMap } from '@/selectors/homeScreen';
-import { DashboardAlert, generateDashboardAlerts } from '@/utils/dashboardAlerts';
+import { TaskWithMare } from '@/models/types';
+import { buildPregnantInfoMap } from '@/selectors/homeScreen';
 import { toLocalDate } from '@/utils/dates';
 
 type DashboardData = {
   readonly totalMares: number;
   readonly pregnantMares: number;
   readonly totalStallions: number;
-  readonly alerts: readonly DashboardAlert[];
+  readonly tasks: readonly TaskWithMare[];
   readonly isLoading: boolean;
   readonly error: string | null;
   readonly reload: () => Promise<void>;
@@ -36,8 +35,7 @@ const DASHBOARD_INVALIDATION_DOMAINS: readonly DataInvalidationDomain[] = [
   'breedingRecords',
   'pregnancyChecks',
   'foalingRecords',
-  'medicationLogs',
-  'foals',
+  'tasks',
 ];
 const FOCUS_REFRESH_STALE_MS = 30_000;
 
@@ -45,7 +43,7 @@ export function useDashboardData(): DashboardData {
   const [totalMares, setTotalMares] = useState(0);
   const [pregnantMares, setPregnantMares] = useState(0);
   const [totalStallions, setTotalStallions] = useState(0);
-  const [alerts, setAlerts] = useState<readonly DashboardAlert[]>([]);
+  const [tasks, setTasks] = useState<readonly TaskWithMare[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const lastLoadedAtRef = useRef(0);
@@ -55,7 +53,8 @@ export function useDashboardData(): DashboardData {
       setIsLoading(true);
       setError(null);
 
-      const [mares, stallions, dailyLogs, breedingRecords, pregnancyChecks, foalingRecords, medicationLogs, foals] =
+      const today = toLocalDate(new Date());
+      const [mares, stallions, dailyLogs, breedingRecords, pregnancyChecks, foalingRecords, dashboardTasks] =
         await Promise.all([
           listMares(),
           listStallions(),
@@ -63,24 +62,14 @@ export function useDashboardData(): DashboardData {
           listAllBreedingRecords(),
           listAllPregnancyChecks(),
           listAllFoalingRecords(),
-          listAllMedicationLogs(),
-          listAllFoals(),
+          listOpenDashboardTasks(today, 14),
         ]);
-
-      const today = toLocalDate(new Date());
       const pregnantInfo = buildPregnantInfoMap(mares, dailyLogs, breedingRecords, pregnancyChecks, foalingRecords, today);
 
       setTotalMares(mares.length);
       setPregnantMares(pregnantInfo.size);
       setTotalStallions(stallions.length);
-      setAlerts(
-        generateDashboardAlerts(
-          buildHomeDashboardInput(
-            { mares, dailyLogs, breedingRecords, pregnancyChecks, foalingRecords, medicationLogs, foals },
-            today,
-          ),
-        ),
-      );
+      setTasks(dashboardTasks);
       lastLoadedAtRef.current = Date.now();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load dashboard data.';
@@ -110,7 +99,7 @@ export function useDashboardData(): DashboardData {
     totalMares,
     pregnantMares,
     totalStallions,
-    alerts,
+    tasks,
     isLoading,
     error,
     reload,

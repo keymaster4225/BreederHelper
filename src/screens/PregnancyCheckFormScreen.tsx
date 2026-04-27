@@ -2,7 +2,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleShe
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { DeleteButton, PrimaryButton } from '@/components/Buttons';
+import { FormActionBar, STICKY_ACTION_BAR_SCROLL_PADDING } from '@/components/FormActionBar';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { useClockDisplayMode } from '@/hooks/useClockPreference';
 import { usePregnancyCheckForm } from '@/hooks/usePregnancyCheckForm';
@@ -45,12 +45,16 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
     setHeartbeat,
     setNotes,
     onSave,
+    onSaveAndAddFollowUp,
     requestDelete,
   } = usePregnancyCheckForm({
     mareId: route.params.mareId,
     pregnancyCheckId: route.params.pregnancyCheckId,
     initialBreedingRecordId: route.params.breedingRecordId,
+    taskId: route.params.taskId,
+    defaultDate: route.params.defaultDate,
     onGoBack: () => navigation.goBack(),
+    onAddFollowUpTask: (params) => navigation.replace('TaskForm', params),
     setTitle: (title) => navigation.setOptions({ title }),
   });
 
@@ -65,67 +69,74 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
   return (
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
-        <FormField label="Breeding Record" required error={errors.breedingRecordId}>
-          {breedingRecords.length === 0 ? (
-            <View style={localStyles.emptyState}>
-              <MaterialCommunityIcons name="clipboard-text-outline" size={40} color={colors.onSurfaceVariant} />
-              <Text style={localStyles.emptyHeading}>No breeding records</Text>
-              <Text style={localStyles.emptySubtitle}>Add a breeding record for this mare first.</Text>
-            </View>
-          ) : (
-            <OptionSelector
-              value={breedingRecordId}
-              onChange={setBreedingRecordId}
-              options={buildBreedingRecordPickerOptions(breedingRecords, clockDisplayMode)}
-            />
-          )}
-        </FormField>
+        <ScrollView
+          style={localStyles.scrollView}
+          contentContainerStyle={[formStyles.form, localStyles.formWithActionBar]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <FormField label="Breeding Record" required error={errors.breedingRecordId}>
+            {breedingRecords.length === 0 ? (
+              <View style={localStyles.emptyState}>
+                <MaterialCommunityIcons name="clipboard-text-outline" size={40} color={colors.onSurfaceVariant} />
+                <Text style={localStyles.emptyHeading}>No breeding records</Text>
+                <Text style={localStyles.emptySubtitle}>Add a breeding record for this mare first.</Text>
+              </View>
+            ) : (
+              <OptionSelector
+                value={breedingRecordId}
+                onChange={setBreedingRecordId}
+                options={buildBreedingRecordPickerOptions(breedingRecords, clockDisplayMode)}
+              />
+            )}
+          </FormField>
 
-        <FormField label="Date" required error={errors.date}>
-          <FormDateInput value={date} onChange={setDate} placeholder="Select check date" maximumDate={today} />
-        </FormField>
+          <FormField label="Date" required error={errors.date}>
+            <FormDateInput value={date} onChange={setDate} placeholder="Select check date" maximumDate={today} />
+          </FormField>
 
-        <FormField label="Result" required>
-          <OptionSelector value={result} onChange={setResult} options={PREGNANCY_RESULT_OPTIONS} />
-        </FormField>
+          <FormField label="Result" required>
+            <OptionSelector value={result} onChange={setResult} options={PREGNANCY_RESULT_OPTIONS} />
+          </FormField>
 
-        <FormField label="Heartbeat Detected">
-          <OptionSelector value={heartbeat} onChange={setHeartbeat} options={YES_NO_OPTIONS} />
-          {result === 'negative' ? <Text style={localStyles.infoLabel}>Heartbeat is forced to No for negative checks.</Text> : null}
-        </FormField>
+          <FormField label="Heartbeat Detected">
+            <OptionSelector value={heartbeat} onChange={setHeartbeat} options={YES_NO_OPTIONS} />
+            {result === 'negative' ? <Text style={localStyles.infoLabel}>Heartbeat is forced to No for negative checks.</Text> : null}
+          </FormField>
 
-        <View style={localStyles.infoRow}>
-          <Text style={localStyles.infoLabel}>Days post-breeding: {daysPostBreeding === null ? '-' : `${daysPostBreeding}`}</Text>
-          {result === 'positive' && approxDueDate ? (
-            <Text style={localStyles.infoLabel}>Approx. due date: {formatLocalDate(approxDueDate, 'MM-DD-YYYY')}</Text>
-          ) : null}
-        </View>
+          <View style={localStyles.infoRow}>
+            <Text style={localStyles.infoLabel}>Days post-breeding: {daysPostBreeding === null ? '-' : `${daysPostBreeding}`}</Text>
+            {result === 'positive' && approxDueDate ? (
+              <Text style={localStyles.infoLabel}>Approx. due date: {formatLocalDate(approxDueDate, 'MM-DD-YYYY')}</Text>
+            ) : null}
+          </View>
 
-        <FormField label="Notes">
-          <FormTextInput value={notes} onChangeText={setNotes} multiline />
-        </FormField>
-
-        <PrimaryButton
-          label={isSaving ? 'Saving...' : 'Save'}
-          onPress={onSave}
-          disabled={isSaving || isDeleting || breedingRecords.length === 0}
+          <FormField label="Notes">
+            <FormTextInput value={notes} onChangeText={setNotes} multiline />
+          </FormField>
+        </ScrollView>
+        <FormActionBar
+          primaryLabel={isSaving ? 'Saving...' : 'Save'}
+          onPrimaryPress={onSave}
+          primaryDisabled={isSaving || isDeleting || breedingRecords.length === 0}
+          secondaryLabel="Save & Add Follow-up"
+          onSecondaryPress={onSaveAndAddFollowUp}
+          secondaryDisabled={isSaving || isDeleting || breedingRecords.length === 0}
+          destructiveLabel={isEdit ? (isDeleting ? 'Deleting...' : 'Delete') : undefined}
+          onDestructivePress={isEdit ? requestDelete : undefined}
+          destructiveDisabled={isSaving || isDeleting}
         />
-
-        {isEdit ? (
-          <DeleteButton
-            label={isDeleting ? 'Deleting...' : 'Delete'}
-            onPress={requestDelete}
-            disabled={isSaving || isDeleting}
-          />
-        ) : null}
-      </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const localStyles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+  },
+  formWithActionBar: {
+    paddingBottom: STICKY_ACTION_BAR_SCROLL_PADDING,
+  },
   infoRow: {
     backgroundColor: colors.surfaceVariant,
     borderRadius: borderRadius.md,

@@ -1,8 +1,8 @@
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useMedicationForm } from '@/hooks/useMedicationForm';
-import { DeleteButton, PrimaryButton } from '@/components/Buttons';
+import { FormActionBar, STICKY_ACTION_BAR_SCROLL_PADDING } from '@/components/FormActionBar';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
@@ -41,11 +41,15 @@ export function MedicationFormScreen({ navigation, route }: Props): JSX.Element 
     setSelectedRoute,
     setNotes,
     onSave,
+    onSaveAndAddFollowUp,
     onDelete,
   } = useMedicationForm({
     mareId,
     medicationLogId,
+    taskId: route.params.taskId,
+    defaultDate: route.params.defaultDate,
     onGoBack: () => navigation.goBack(),
+    onAddFollowUpTask: (params) => navigation.replace('TaskForm', params),
     onOpenSourceDailyLog: (sourceDailyLogId) =>
       navigation.replace('DailyLogForm', { mareId, logId: sourceDailyLogId }),
     setTitle: (title) => navigation.setOptions({ title }),
@@ -62,7 +66,11 @@ export function MedicationFormScreen({ navigation, route }: Props): JSX.Element 
   return (
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[formStyles.form, styles.formWithActionBar]}
+          keyboardShouldPersistTaps="handled"
+        >
           <FormField label="Medication" required error={errors.medicationName}>
             <OptionSelector value={selectedMed} onChange={setSelectedMed} options={MED_OPTIONS} />
             {selectedMed === 'custom' ? (
@@ -94,18 +102,28 @@ export function MedicationFormScreen({ navigation, route }: Props): JSX.Element 
           <FormField label="Notes">
             <FormTextInput value={notes} onChangeText={setNotes} multiline />
           </FormField>
-
-          <PrimaryButton
-            label={isSaving ? 'Saving...' : 'Save'}
-            onPress={onSave}
-            disabled={isSaving}
-          />
-
-          {isEdit ? (
-            <DeleteButton label="Delete" onPress={onDelete} disabled={isSaving} />
-          ) : null}
         </ScrollView>
+        <FormActionBar
+          primaryLabel={isSaving ? 'Saving...' : 'Save'}
+          onPrimaryPress={onSave}
+          primaryDisabled={isSaving}
+          secondaryLabel="Save & Add Follow-up"
+          onSecondaryPress={onSaveAndAddFollowUp}
+          secondaryDisabled={isSaving}
+          destructiveLabel={isEdit ? 'Delete' : undefined}
+          onDestructivePress={isEdit ? onDelete : undefined}
+          destructiveDisabled={isSaving}
+        />
       </KeyboardAvoidingView>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+  },
+  formWithActionBar: {
+    paddingBottom: STICKY_ACTION_BAR_SCROLL_PADDING,
+  },
+});

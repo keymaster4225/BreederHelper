@@ -13,6 +13,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { PrimaryButton, SecondaryButton } from '@/components/Buttons';
+import { FormActionBar, STICKY_ACTION_BAR_SCROLL_PADDING } from '@/components/FormActionBar';
 import { Screen } from '@/components/Screen';
 import { formStyles } from '@/components/FormControls';
 import { useDailyLogWizard } from '@/hooks/useDailyLogWizard';
@@ -32,6 +33,13 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
     allowScreenExitRef.current = true;
     navigation.goBack();
   }, [navigation]);
+  const handleAddFollowUpTask = useCallback(
+    (params: RootStackParamList['TaskForm']) => {
+      allowScreenExitRef.current = true;
+      navigation.replace('TaskForm', params);
+    },
+    [navigation],
+  );
   const handleSetTitle = useCallback(
     (title: string) => {
       navigation.setOptions({ title });
@@ -42,32 +50,39 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
   const wizard = useDailyLogWizard({
     mareId: route.params.mareId,
     logId: route.params.logId,
+    taskId: route.params.taskId,
+    defaultDate: route.params.defaultDate,
+    defaultTime: route.params.defaultTime,
     onGoBack: handleGoBack,
+    onAddFollowUpTask: handleAddFollowUpTask,
     setTitle: handleSetTitle,
   });
+  const currentStepIndex = wizard.currentStepIndex;
+  const goBack = wizard.goBack;
+  const isReviewStep = wizard.currentStepId === 'review';
 
   useEffect(() => {
     return navigation.addListener('beforeRemove', (event) => {
-      if (allowScreenExitRef.current || wizard.currentStepIndex === 0) {
+      if (allowScreenExitRef.current || currentStepIndex === 0) {
         return;
       }
 
       event.preventDefault();
-      wizard.goBack();
+      goBack();
     });
-  }, [navigation, wizard.currentStepIndex, wizard.goBack]);
+  }, [currentStepIndex, goBack, navigation]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerBackVisible: wizard.currentStepIndex === 0,
+      headerBackVisible: currentStepIndex === 0,
       headerLeft:
-        wizard.currentStepIndex > 0
+        currentStepIndex > 0
           ? () => (
               <Pressable
                 accessibilityLabel="Go to previous wizard step"
                 accessibilityRole="button"
                 hitSlop={8}
-                onPress={wizard.goBack}
+                onPress={goBack}
                 style={({ pressed }) => [styles.headerBackButton, pressed && styles.headerBackButtonPressed]}
                 testID="daily-log-wizard-header-back"
               >
@@ -76,7 +91,7 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
             )
           : undefined,
     });
-  }, [navigation, wizard.currentStepIndex, wizard.goBack]);
+  }, [currentStepIndex, goBack, navigation]);
 
   if (wizard.isLoading) {
     return (
@@ -89,7 +104,14 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
   return (
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[
+            formStyles.form,
+            isReviewStep ? styles.formWithActionBar : null,
+          ]}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.stepHeader}>
             <Text style={styles.stepCount}>{`Step ${wizard.currentStepIndex + 1} of ${wizard.steps.length}`}</Text>
             <Text style={styles.stepTitle}>{wizard.currentStepTitle}</Text>
@@ -176,15 +198,8 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
               legacyNotes={wizard.legacyNotes}
               legacyOvulationDetected={wizard.legacyOvulationDetected}
               ovulationSource={wizard.ovulationSource}
-              isEdit={wizard.isEdit}
-              isSaving={wizard.isSaving}
-              isDeleting={wizard.isDeleting}
               onNotesChange={wizard.setNotes}
               onJumpToStep={wizard.goToStep}
-              onSave={() => {
-                void wizard.save();
-              }}
-              onDelete={wizard.requestDelete}
             />
           ) : null}
 
@@ -205,12 +220,35 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
             </View>
           ) : null}
         </ScrollView>
+        {isReviewStep ? (
+          <FormActionBar
+            primaryLabel={wizard.isSaving ? 'Saving...' : 'Save'}
+            onPrimaryPress={() => {
+              void wizard.save();
+            }}
+            primaryDisabled={wizard.isSaving || wizard.isDeleting}
+            secondaryLabel="Save & Add Follow-up"
+            onSecondaryPress={() => {
+              void wizard.saveAndAddFollowUp();
+            }}
+            secondaryDisabled={wizard.isSaving || wizard.isDeleting}
+            destructiveLabel={wizard.isEdit ? (wizard.isDeleting ? 'Deleting...' : 'Delete') : undefined}
+            onDestructivePress={wizard.isEdit ? wizard.requestDelete : undefined}
+            destructiveDisabled={wizard.isSaving || wizard.isDeleting}
+          />
+        ) : null}
       </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+  },
+  formWithActionBar: {
+    paddingBottom: STICKY_ACTION_BAR_SCROLL_PADDING,
+  },
   stepHeader: {
     gap: spacing.xs,
   },
