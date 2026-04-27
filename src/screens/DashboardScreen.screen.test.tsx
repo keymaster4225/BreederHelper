@@ -31,6 +31,10 @@ jest.mock('@/utils/onboarding', () => ({
   setOnboardingComplete: jest.fn(),
 }));
 
+jest.mock('@/storage/repositories', () => ({
+  completeTask: jest.fn(),
+}));
+
 const { DashboardScreen } = require('@/screens/DashboardScreen') as typeof import('@/screens/DashboardScreen');
 const { useDashboardData } = jest.requireMock('@/hooks/useDashboardData') as {
   useDashboardData: jest.Mock;
@@ -44,6 +48,9 @@ const { canSeedPreviewData } = jest.requireMock('@/utils/buildProfile') as {
 const onboardingStorage = jest.requireMock('@/utils/onboarding') as {
   getOnboardingComplete: jest.Mock;
   setOnboardingComplete: jest.Mock;
+};
+const repositories = jest.requireMock('@/storage/repositories') as {
+  completeTask: jest.Mock;
 };
 const alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
 
@@ -95,6 +102,7 @@ beforeEach(() => {
   onboardingStorage.getOnboardingComplete.mockResolvedValue(true);
   onboardingStorage.setOnboardingComplete.mockResolvedValue(undefined);
   canSeedPreviewData.mockReturnValue(false);
+  repositories.completeTask.mockResolvedValue(undefined);
 });
 
 it('renders stat cards and dashboard tasks', async () => {
@@ -112,7 +120,8 @@ it('renders stat cards and dashboard tasks', async () => {
     expect(screen.getByLabelText('2 Stallions')).toBeTruthy();
     expect(screen.getByText("Today's Tasks")).toBeTruthy();
     expect(screen.getByText('Pregnancy check')).toBeTruthy();
-    expect(screen.getByText('Nova - 2035-04-27')).toBeTruthy();
+    expect(screen.getByText('Nova')).toBeTruthy();
+    expect(screen.getByText('04-27-2035')).toBeTruthy();
   });
   expect(reloadIfStale).toHaveBeenCalledTimes(1);
 });
@@ -141,6 +150,39 @@ it('navigates from stat cards', async () => {
 
   fireEvent.press(screen.getByLabelText('2 Stallions'));
   expect(navigation.navigate).toHaveBeenCalledWith('MainTabs', { screen: 'Stallions' });
+});
+
+it('completes dashboard tasks from the task card', async () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(buildState());
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => expect(screen.getByText('Pregnancy check')).toBeTruthy());
+
+  fireEvent.press(screen.getByRole('button', { name: 'Complete Pregnancy check' }));
+
+  await waitFor(() => expect(repositories.completeTask).toHaveBeenCalledWith('task-1'));
+});
+
+it('shows a task update error when manual completion fails', async () => {
+  const navigation = createNavigation();
+  repositories.completeTask.mockRejectedValue(new Error('write failed'));
+  useDashboardData.mockReturnValue(buildState());
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => expect(screen.getByText('Pregnancy check')).toBeTruthy());
+
+  fireEvent.press(screen.getByRole('button', { name: 'Complete Pregnancy check' }));
+
+  await waitFor(() => {
+    expect(alertSpy).toHaveBeenCalledWith('Task update failed', 'write failed');
+  });
 });
 
 it('shows the onboarding carousel when there are no animals and onboarding is incomplete', async () => {

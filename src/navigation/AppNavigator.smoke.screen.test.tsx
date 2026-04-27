@@ -21,6 +21,7 @@ jest.mock('@/storage/repositories', () => ({
   listOpenDashboardTasks: jest.fn(),
   listAllMedicationLogs: jest.fn(),
   listAllFoals: jest.fn(),
+  completeTask: jest.fn(),
   softDeleteMare: jest.fn(),
   softDeleteStallion: jest.fn(),
 }));

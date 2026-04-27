@@ -24,6 +24,7 @@ jest.mock('@/storage/repositories', () => ({
   listAllFoalingRecords: jest.fn(),
   listAllMedicationLogs: jest.fn(),
   listAllFoals: jest.fn(),
+  completeTask: jest.fn(),
 }));
 
 jest.mock('@/screens/EditMareScreen', () => ({
@@ -249,5 +250,6 @@ it('renders a persisted dashboard task through the navigator', async () => {
 
   await waitFor(() => expect(screen.getByText("Today's Tasks")).toBeTruthy());
   expect(screen.getByText('Pregnancy check')).toBeTruthy();
-  expect(screen.getByText('Maple - 2035-04-27')).toBeTruthy();
+  expect(screen.getByText('Maple')).toBeTruthy();
+  expect(screen.getByText('04-27-2035')).toBeTruthy();
 });

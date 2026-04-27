@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+import { TaskCard } from '@/components/TaskCard';
 import { LocalDate, TaskWithMare } from '@/models/types';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 
@@ -62,42 +63,14 @@ export function DashboardSection({
       {!collapsible || !isCollapsed ? (
         <View style={styles.taskList}>
           {visibleTasks.map((task) => (
-            <View key={task.id} style={styles.taskCard}>
-              <Pressable
-                style={({ pressed }) => [styles.taskBody, pressed && styles.pressedOpacity]}
-                onPress={() => onTaskPress(task)}
-                accessibilityRole="button"
-                accessibilityLabel={`${task.title} for ${task.mareName}`}
-              >
-                <View style={styles.taskIcon}>
-                  <MaterialCommunityIcons name="clipboard-check-outline" size={20} color={colors.primary} />
-                </View>
-                <View style={styles.taskText}>
-                  <Text style={styles.taskTitle}>{task.title}</Text>
-                  <Text style={styles.taskMeta}>
-                    {task.mareName} - {formatTaskDueLabel(task, today)}
-                  </Text>
-                </View>
-              </Pressable>
-              <View style={styles.taskActions}>
-                <Pressable
-                  style={({ pressed }) => [styles.iconButton, pressed && styles.pressedOpacity]}
-                  onPress={() => onTaskEdit(task)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Edit ${task.title}`}
-                >
-                  <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.onSurfaceVariant} />
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [styles.iconButton, pressed && styles.pressedOpacity]}
-                  onPress={() => onTaskComplete(task)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Complete ${task.title}`}
-                >
-                  <MaterialCommunityIcons name="check-circle-outline" size={18} color={colors.primary} />
-                </Pressable>
-              </View>
-            </View>
+            <TaskCard
+              key={task.id}
+              task={task}
+              today={today}
+              onPress={onTaskPress}
+              onEdit={onTaskEdit}
+              onComplete={onTaskComplete}
+            />
           ))}
           {hiddenCount > 0 ? (
             <Text style={styles.moreText}>
@@ -108,11 +81,6 @@ export function DashboardSection({
       ) : null}
     </View>
   );
-}
-
-function formatTaskDueLabel(task: TaskWithMare, today: LocalDate): string {
-  const dateLabel = task.dueDate === today ? 'Today' : task.dueDate;
-  return task.dueTime ? `${dateLabel} ${task.dueTime}` : dateLabel;
 }
 
 const styles = StyleSheet.create({
@@ -163,56 +131,6 @@ const styles = StyleSheet.create({
   },
   taskList: {
     gap: spacing.sm,
-  },
-  taskCard: {
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderColor: colors.outlineVariant,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  taskBody: {
-    alignItems: 'center',
-    flex: 1,
-    flexDirection: 'row',
-    gap: spacing.md,
-  },
-  taskIcon: {
-    alignItems: 'center',
-    backgroundColor: colors.primaryContainer,
-    borderRadius: borderRadius.full,
-    height: 38,
-    justifyContent: 'center',
-    width: 38,
-  },
-  taskText: {
-    flex: 1,
-    gap: 2,
-  },
-  taskTitle: {
-    ...typography.titleMedium,
-    color: colors.onSurface,
-  },
-  taskMeta: {
-    ...typography.bodySmall,
-    color: colors.onSurfaceVariant,
-  },
-  taskActions: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  iconButton: {
-    alignItems: 'center',
-    borderRadius: borderRadius.full,
-    height: 36,
-    justifyContent: 'center',
-    width: 36,
-  },
-  pressedOpacity: {
-    opacity: 0.7,
   },
   moreText: {
     ...typography.bodySmall,

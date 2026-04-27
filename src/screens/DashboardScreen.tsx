@@ -15,6 +15,7 @@ import { RootStackParamList, TabParamList } from '@/navigation/AppNavigator';
 import { canSeedPreviewData } from '@/utils/buildProfile';
 import { toLocalDate } from '@/utils/dates';
 import { seedPreviewData } from '@/utils/devSeed';
+import { completeTask } from '@/storage/repositories';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
 type Props = CompositeScreenProps<
@@ -92,7 +93,16 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
 
   const onTaskPress = useCallback((_task: TaskWithMare) => {}, []);
   const onTaskEdit = useCallback((_task: TaskWithMare) => {}, []);
-  const onTaskComplete = useCallback((_task: TaskWithMare) => {}, []);
+  const onTaskComplete = useCallback((task: TaskWithMare) => {
+    void (async () => {
+      try {
+        await completeTask(task.id);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Task could not be completed.';
+        Alert.alert('Task update failed', message);
+      }
+    })();
+  }, []);
 
   const navigateToMares = useCallback(
     (filter: 'all' | 'pregnant') => {
