@@ -1,3 +1,7 @@
+/**
+ * @deprecated Retained temporarily as rollback/reference code after the
+ * persisted-task dashboard replacement. The active dashboard reads stored tasks.
+ */
 import { buildDashboardAlertContext } from '@/utils/dashboardAlertContext';
 import { generateAlertsForMare } from '@/utils/dashboardAlertRules';
 import { DashboardAlert, DashboardInput, PRIORITY_ORDER } from '@/utils/dashboardAlertTypes';

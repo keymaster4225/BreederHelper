@@ -18,8 +18,8 @@ Use this when changing module structure, moving logic, or deciding where new cod
 - Utilities: `src/utils/*`
 - Backup/restore helpers: `src/storage/backup/*`
 - Onboarding helpers: `src/utils/onboarding.ts`
-- Dashboard derivation: `src/utils/dashboardAlerts.ts`
-- Dashboard UI: `src/components/DashboardSection.tsx`, `src/components/AlertCard.tsx`
+- Dashboard data: persisted tasks via `src/storage/repositories/tasks.ts`
+- Dashboard UI: `src/components/DashboardSection.tsx`, `src/components/TaskCard.tsx`
 - Shared form controls: `src/components/FormControls.tsx`
 - Shared card parts: `src/components/RecordCardParts.tsx`
 - Theme: `src/theme.ts`

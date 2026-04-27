@@ -1,3 +1,7 @@
+/**
+ * @deprecated Retained temporarily with the inferred-alert utilities as
+ * rollback/reference coverage after the persisted-task dashboard replacement.
+ */
 import { describe, expect, it } from 'vitest';
 
 import {

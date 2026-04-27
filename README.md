@@ -6,7 +6,7 @@ BreedWise is an offline-first Expo / React Native app for tracking mare reproduc
 
 - Manages mares and stallions with local SQLite persistence
 - Records daily logs, breeding records, pregnancy checks, foaling records, and foal details
-- Shows a home dashboard with actionable breeding alerts
+- Shows a home dashboard with persisted mare tasks and follow-ups
 - Supports mare search plus pregnant/open filtering on the home screen
 - Provides per-mare detail tabs for daily logs, breeding, pregnancy, foaling, and medications
 - Provides a per-mare calendar view with event dots and day-level history cards
@@ -33,7 +33,7 @@ src/
   navigation/   stack navigation
   screens/      app screens and mare detail tabs
   storage/      SQLite bootstrap, migrations, repositories
-  utils/        filters, validation, alerts, timeline/calendar helpers
+  utils/        filters, validation, task/date helpers, timeline/calendar helpers
 docs/
   plans/        implementation plans and design notes
   superpowers/  older plan/spec artifacts
