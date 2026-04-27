@@ -3,6 +3,7 @@ import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import type { RepoDb } from './internal/dbTypes';
 import { resolveDb } from './internal/resolveDb';
 import { getBreedingRecordById } from './breedingRecords';
+import { completeOpenBreedingPregnancyCheckTask } from './tasks';
 
 type PregnancyCheckRow = {
   id: string;
@@ -60,32 +61,36 @@ export async function createPregnancyCheck(input: {
 
   const now = new Date().toISOString();
 
-  await handle.runAsync(
-    `
-    INSERT INTO pregnancy_checks (
-      id,
-      mare_id,
-      breeding_record_id,
-      date,
-      result,
-      heartbeat_detected,
-      notes,
-      created_at,
-      updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
-    `,
-    [
-      input.id,
-      input.mareId,
-      input.breedingRecordId,
-      input.date,
-      input.result,
-      input.heartbeatDetected == null ? null : input.heartbeatDetected ? 1 : 0,
-      input.notes ?? null,
-      now,
-      now,
-    ],
-  );
+  await handle.withTransactionAsync(async () => {
+    await handle.runAsync(
+      `
+      INSERT INTO pregnancy_checks (
+        id,
+        mare_id,
+        breeding_record_id,
+        date,
+        result,
+        heartbeat_detected,
+        notes,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+      `,
+      [
+        input.id,
+        input.mareId,
+        input.breedingRecordId,
+        input.date,
+        input.result,
+        input.heartbeatDetected == null ? null : input.heartbeatDetected ? 1 : 0,
+        input.notes ?? null,
+        now,
+        now,
+      ],
+    );
+
+    await completeOpenBreedingPregnancyCheckTask(input.breedingRecordId, input.id, handle);
+  });
   emitDataInvalidation('pregnancyChecks');
 }
 
@@ -108,28 +113,32 @@ export async function updatePregnancyCheck(
 
   await validateBreedingRecordForMare(input.breedingRecordId, existing.mareId, handle);
 
-  await handle.runAsync(
-    `
-    UPDATE pregnancy_checks
-    SET
-      breeding_record_id = ?,
-      date = ?,
-      result = ?,
-      heartbeat_detected = ?,
-      notes = ?,
-      updated_at = ?
-    WHERE id = ?;
-    `,
-    [
-      input.breedingRecordId,
-      input.date,
-      input.result,
-      input.heartbeatDetected == null ? null : input.heartbeatDetected ? 1 : 0,
-      input.notes ?? null,
-      new Date().toISOString(),
-      id,
-    ],
-  );
+  await handle.withTransactionAsync(async () => {
+    await handle.runAsync(
+      `
+      UPDATE pregnancy_checks
+      SET
+        breeding_record_id = ?,
+        date = ?,
+        result = ?,
+        heartbeat_detected = ?,
+        notes = ?,
+        updated_at = ?
+      WHERE id = ?;
+      `,
+      [
+        input.breedingRecordId,
+        input.date,
+        input.result,
+        input.heartbeatDetected == null ? null : input.heartbeatDetected ? 1 : 0,
+        input.notes ?? null,
+        new Date().toISOString(),
+        id,
+      ],
+    );
+
+    await completeOpenBreedingPregnancyCheckTask(input.breedingRecordId, id, handle);
+  });
   emitDataInvalidation('pregnancyChecks');
 }
 

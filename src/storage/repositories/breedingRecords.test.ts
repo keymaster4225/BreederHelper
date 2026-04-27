@@ -12,13 +12,35 @@ vi.mock('./semenCollections', () => ({
   getSemenCollectionById: vi.fn(),
 }));
 
+vi.mock('@/utils/id', () => ({
+  newId: vi.fn(),
+}));
+
+vi.mock('./tasks', () => ({
+  deleteOpenBreedingPregnancyCheckTask: vi.fn(),
+  ensureBreedingPregnancyCheckTask: vi.fn(),
+  updateOpenBreedingPregnancyCheckTaskDueDate: vi.fn(),
+}));
+
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
+import { newId } from '@/utils/id';
 import { getSemenCollectionById } from './semenCollections';
-import { hasLinkedOnFarmDoseEvent, updateBreedingRecord } from './breedingRecords';
+import {
+  createBreedingRecord,
+  deleteBreedingRecord,
+  hasLinkedOnFarmDoseEvent,
+  updateBreedingRecord,
+} from './breedingRecords';
+import {
+  deleteOpenBreedingPregnancyCheckTask,
+  ensureBreedingPregnancyCheckTask,
+  updateOpenBreedingPregnancyCheckTaskDueDate,
+} from './tasks';
 import { createRepoDb, type SqlCall } from '@/test/repoDb';
 
 type BreedingRecordRow = {
   id: string;
+  mare_id: string;
   collection_id: string | null;
   date: string;
   time: string | null;
@@ -59,6 +81,7 @@ function createBreedingRecordRepoHarness() {
       'breed-1',
       {
         id: 'breed-1',
+        mare_id: 'mare-1',
         collection_id: 'col-1',
         date: '2026-04-01',
         time: '09:00',
@@ -119,6 +142,68 @@ function createBreedingRecordRepoHarness() {
       const stmt = call.normalizedSql;
       const params = call.params;
 
+      if (stmt.startsWith('insert into breeding_records')) {
+        const [
+          id,
+          mareId,
+          stallionId,
+          stallionName,
+          collectionId,
+          date,
+          time,
+          method,
+          notes,
+          volumeMl,
+          concentration,
+          motility,
+          numberOfStraws,
+          strawVolumeMl,
+          strawDetails,
+          collectionDate,
+          createdAt,
+        ] = params as [
+          string,
+          string,
+          string | null,
+          string | null,
+          string | null,
+          string,
+          string | null,
+          string,
+          string | null,
+          number | null,
+          number | null,
+          number | null,
+          number | null,
+          number | null,
+          string | null,
+          string | null,
+          string,
+          string,
+        ];
+
+        breedingRecords.set(id, {
+          id,
+          mare_id: mareId,
+          stallion_id: stallionId,
+          stallion_name: stallionName,
+          collection_id: collectionId,
+          date,
+          time,
+          method,
+          notes,
+          volume_ml: volumeMl,
+          concentration_m_per_ml: concentration,
+          motility_percent: motility,
+          number_of_straws: numberOfStraws,
+          straw_volume_ml: strawVolumeMl,
+          straw_details: strawDetails,
+          collection_date: collectionDate,
+          updated_at: createdAt,
+        });
+        return;
+      }
+
       if (stmt.startsWith('update breeding_records set')) {
         const [
           stallionId,
@@ -177,6 +262,11 @@ function createBreedingRecordRepoHarness() {
           collection_date: collectionDate,
           updated_at: updatedAt,
         });
+        return;
+      }
+
+      if (stmt.startsWith('delete from breeding_records')) {
+        breedingRecords.delete(params[0] as string);
         return;
       }
 
@@ -268,6 +358,7 @@ function createBreedingRecordRepoHarness() {
 describe('breedingRecords linked on-farm behavior', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(newId).mockReturnValue('task-1');
     vi.mocked(getSemenCollectionById).mockImplementation(async (collectionId: string) => {
       if (collectionId === 'col-1') {
         return {
@@ -289,6 +380,32 @@ describe('breedingRecords linked on-farm behavior', () => {
       }
       return null;
     });
+  });
+
+  it('creates a generated pregnancy-check task 14 days after breeding create', async () => {
+    const fakeDb = createBreedingRecordRepoHarness();
+
+    await createBreedingRecord({
+      id: 'breed-new',
+      mareId: 'mare-1',
+      stallionId: 'stallion-1',
+      date: '2026-04-27',
+      time: '09:30',
+      method: 'freshAI',
+      volumeMl: 3,
+    }, fakeDb);
+
+    expect(ensureBreedingPregnancyCheckTask).toHaveBeenCalledTimes(1);
+    expect(ensureBreedingPregnancyCheckTask).toHaveBeenCalledWith(
+      {
+        id: 'task-1',
+        mareId: 'mare-1',
+        breedingRecordId: 'breed-new',
+        dueDate: '2026-05-11',
+      },
+      fakeDb,
+    );
+    expect(emitDataInvalidation).toHaveBeenCalledWith('breedingRecords');
   });
 
   it('mirrors linked on-farm updates to the companion usedOnSite event', async () => {
@@ -318,8 +435,66 @@ describe('breedingRecords linked on-farm behavior', () => {
     expect(companionEvent?.event_date).toBe('2026-04-04');
     expect(companionEvent?.dose_semen_volume_ml).toBe(3);
     expect(companionEvent?.notes).toBe('Updated note');
+    expect(updateOpenBreedingPregnancyCheckTaskDueDate).toHaveBeenCalledWith(
+      'breed-1',
+      '2026-04-18',
+      fakeDb,
+    );
     expect(emitDataInvalidation).toHaveBeenCalledWith('breedingRecords');
     expect(emitDataInvalidation).toHaveBeenCalledWith('collectionDoseEvents');
+  });
+
+  it('deletes an open generated pregnancy-check task with the breeding record', async () => {
+    const fakeDb = createBreedingRecordRepoHarness();
+
+    await deleteBreedingRecord('breed-1', fakeDb);
+
+    expect(deleteOpenBreedingPregnancyCheckTask).toHaveBeenCalledWith('breed-1', fakeDb);
+    expect(fakeDb.breedingRecords.has('breed-1')).toBe(false);
+    expect(emitDataInvalidation).toHaveBeenCalledWith('breedingRecords');
+  });
+
+  it('creates separate generated tasks for two same-day breeding records on one mare', async () => {
+    const fakeDb = createBreedingRecordRepoHarness();
+    vi.mocked(newId).mockReturnValueOnce('task-same-1').mockReturnValueOnce('task-same-2');
+
+    await createBreedingRecord({
+      id: 'breed-same-1',
+      mareId: 'mare-1',
+      stallionId: 'stallion-1',
+      date: '2026-04-27',
+      time: '09:30',
+      method: 'freshAI',
+    }, fakeDb);
+    await createBreedingRecord({
+      id: 'breed-same-2',
+      mareId: 'mare-1',
+      stallionId: 'stallion-1',
+      date: '2026-04-27',
+      time: '16:45',
+      method: 'freshAI',
+    }, fakeDb);
+
+    expect(ensureBreedingPregnancyCheckTask).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        id: 'task-same-1',
+        mareId: 'mare-1',
+        breedingRecordId: 'breed-same-1',
+        dueDate: '2026-05-11',
+      }),
+      fakeDb,
+    );
+    expect(ensureBreedingPregnancyCheckTask).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        id: 'task-same-2',
+        mareId: 'mare-1',
+        breedingRecordId: 'breed-same-2',
+        dueDate: '2026-05-11',
+      }),
+      fakeDb,
+    );
   });
 
   it('blocks changing linked on-farm method away from freshAI', async () => {
