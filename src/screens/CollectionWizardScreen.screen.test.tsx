@@ -225,6 +225,7 @@ it('saves a collection with no allocation rows', async () => {
   const screen = renderWizard();
 
   typeDate(screen, 'Collection Date', '2026-04-21');
+  typeText(screen, 'Motility (%)', '70');
   await advanceToAllocationStep(screen);
 
   fireEvent.press(screen.getByText('Next'));
@@ -239,7 +240,7 @@ it('saves a collection with no allocation rows', async () => {
       collectionDate: '2026-04-21',
       rawVolumeMl: null,
       concentrationMillionsPerMl: null,
-      progressiveMotilityPercent: null,
+      progressiveMotilityPercent: 70,
       targetMode: null,
       targetSpermMillionsPerDose: null,
       targetPostExtensionConcentrationMillionsPerMl: null,
@@ -258,7 +259,7 @@ it('prefills shipped dose volumes from calculator targets', async () => {
   typeDate(screen, 'Collection Date', '2026-04-21');
   typeText(screen, 'Total Volume (mL)', '100');
   typeText(screen, 'Concentration (M/mL, raw)', '200');
-  typeText(screen, 'Progressive Motility (%)', '50');
+  typeText(screen, 'Motility (%)', '50');
   fireEvent.press(screen.getByText('Next'));
   await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
 
@@ -357,7 +358,7 @@ it('shows the external total-sperm equivalent on review', async () => {
   typeDate(screen, 'Collection Date', '2026-04-21');
   typeText(screen, 'Total Volume (mL)', '100');
   typeText(screen, 'Concentration (M/mL, raw)', '200');
-  typeText(screen, 'Progressive Motility (%)', '50');
+  typeText(screen, 'Motility (%)', '50');
   fireEvent.press(screen.getByText('Next'));
   await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
 
@@ -380,7 +381,7 @@ it('toggles labels and equivalents when switched to total mode', async () => {
   typeDate(screen, 'Collection Date', '2026-04-21');
   typeText(screen, 'Total Volume (mL)', '100');
   typeText(screen, 'Concentration (M/mL, raw)', '200');
-  typeText(screen, 'Progressive Motility (%)', '50');
+  typeText(screen, 'Motility (%)', '50');
   fireEvent.press(screen.getByText('Next'));
   await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
 
@@ -435,7 +436,7 @@ it('clears both target inputs when switching target mode', async () => {
   typeDate(screen, 'Collection Date', '2026-04-21');
   typeText(screen, 'Total Volume (mL)', '100');
   typeText(screen, 'Concentration (M/mL, raw)', '200');
-  typeText(screen, 'Progressive Motility (%)', '50');
+  typeText(screen, 'Motility (%)', '50');
   fireEvent.press(screen.getByText('Next'));
   await waitFor(() => expect(screen.getByText(/Processing details/i)).toBeTruthy());
 
