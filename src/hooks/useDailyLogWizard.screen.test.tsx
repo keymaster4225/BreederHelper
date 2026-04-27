@@ -241,6 +241,35 @@ describe('useDailyLogWizard', () => {
     expect(onGoBack).toHaveBeenCalledTimes(1);
   });
 
+  it('opens a daily-check follow-up task after a successful save-and-follow-up', async () => {
+    const onGoBack = jest.fn();
+    const onAddFollowUpTask = jest.fn();
+    const { result } = renderHook(() =>
+      useDailyLogWizard({
+        mareId: 'mare-1',
+        onGoBack,
+        onAddFollowUpTask,
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await act(async () => {
+      await result.current.saveAndAddFollowUp();
+    });
+
+    expect(repositories.createDailyLog).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'new-log-id', mareId: 'mare-1' }),
+    );
+    expect(onAddFollowUpTask).toHaveBeenCalledWith({
+      mareId: 'mare-1',
+      taskType: 'dailyCheck',
+      sourceType: 'dailyLog',
+      sourceRecordId: 'new-log-id',
+      sourceReason: 'manualFollowUp',
+    });
+    expect(onGoBack).not.toHaveBeenCalled();
+  });
+
   it('shows a task update error after saving when linked task completion fails', async () => {
     repositories.completeTaskFromRecord.mockRejectedValue(new Error('task write failed'));
     const onGoBack = jest.fn();

@@ -70,6 +70,7 @@ function createHookState(overrides: Record<string, unknown> = {}) {
     onStallionChange: jest.fn(),
     onCollectionChange: jest.fn(),
     onSave: jest.fn(),
+    onSaveAndAddFollowUp: jest.fn(),
     requestDelete: jest.fn(),
     ...overrides,
   };
@@ -97,11 +98,14 @@ it('renders an editable breeding record and wires save/delete actions', () => {
 
   expect(screen.getByText('Breeding Method *')).toBeTruthy();
   expect(screen.getByText('Collection')).toBeTruthy();
+  expect(screen.getByText('Save & Add Follow-up')).toBeTruthy();
 
   fireEvent.press(screen.getByText('Save'));
+  fireEvent.press(screen.getByText('Save & Add Follow-up'));
   fireEvent.press(screen.getByText('Delete'));
 
   expect(hookState.onSave).toHaveBeenCalled();
+  expect(hookState.onSaveAndAddFollowUp).toHaveBeenCalled();
   expect(hookState.requestDelete).toHaveBeenCalled();
 });
 

@@ -27,7 +27,10 @@ import {
   validateOvary,
   validateUterus,
 } from './dailyLogWizard/validation';
-import { completeLinkedTaskAfterSave } from './completeLinkedTaskAfterSave';
+import {
+  completeLinkedTaskAfterSave,
+  type FollowUpTaskParams,
+} from './completeLinkedTaskAfterSave';
 import { useDailyLogBasicsState } from './dailyLogWizard/useDailyLogBasicsState';
 import { useDailyLogFlushState } from './dailyLogWizard/useDailyLogFlushState';
 import { useDailyLogOvaryState } from './dailyLogWizard/useDailyLogOvaryState';
@@ -80,6 +83,7 @@ type UseDailyLogWizardArgs = {
   defaultDate?: string;
   defaultTime?: string | null;
   onGoBack: () => void;
+  onAddFollowUpTask?: (params: FollowUpTaskParams) => void;
   setTitle: (title: string) => void;
 };
 
@@ -121,11 +125,13 @@ export function useDailyLogWizard({
   defaultDate,
   defaultTime,
   onGoBack,
+  onAddFollowUpTask,
   setTitle,
 }: UseDailyLogWizardArgs) {
   const isEdit = Boolean(logId);
   const today = useMemo(() => new Date(), []);
   const onGoBackRef = useRef(onGoBack);
+  const onAddFollowUpTaskRef = useRef(onAddFollowUpTask);
   const setTitleRef = useRef(setTitle);
   const hadPersistedFlushRef = useRef(false);
 
@@ -229,8 +235,9 @@ export function useDailyLogWizard({
 
   useEffect(() => {
     onGoBackRef.current = onGoBack;
+    onAddFollowUpTaskRef.current = onAddFollowUpTask;
     setTitleRef.current = setTitle;
-  }, [onGoBack, setTitle]);
+  }, [onAddFollowUpTask, onGoBack, setTitle]);
 
   useEffect(() => {
     setTitleRef.current(isEdit ? 'Edit Daily Log' : 'Add Daily Log');
@@ -391,7 +398,9 @@ export function useDailyLogWizard({
     setCurrentStepIndex(Math.max(0, Math.min(stepIndex, steps.length - 1)));
   }, [steps.length]);
 
-  const save = useCallback(async (): Promise<void> => {
+  const saveWithCompletion = useCallback(async (
+    onCompletedOrSkipped: (savedLogId: string) => void,
+  ): Promise<void> => {
     const basicsValid = applyBasicsValidation();
     const rightOvaryValid = applyOvaryValidation('right');
     const leftOvaryValid = applyOvaryValidation('left');
@@ -462,7 +471,7 @@ export function useDailyLogWizard({
           taskId,
           completedRecordType: 'dailyLog',
           completedRecordId: savedLogId,
-          onCompletedOrSkipped: onGoBackRef.current,
+          onCompletedOrSkipped: () => onCompletedOrSkipped(savedLogId),
         });
       },
       {
@@ -508,6 +517,28 @@ export function useDailyLogWizard({
     teasingScore,
     uterus,
   ]);
+
+  const save = useCallback(async (): Promise<void> => {
+    await saveWithCompletion(() => onGoBackRef.current());
+  }, [saveWithCompletion]);
+
+  const saveAndAddFollowUp = useCallback(async (): Promise<void> => {
+    await saveWithCompletion((savedLogId) => {
+      const onAddFollowUpTask = onAddFollowUpTaskRef.current;
+      if (!onAddFollowUpTask) {
+        onGoBackRef.current();
+        return;
+      }
+
+      onAddFollowUpTask({
+        mareId,
+        taskType: 'dailyCheck',
+        sourceType: 'dailyLog',
+        sourceRecordId: savedLogId,
+        sourceReason: 'manualFollowUp',
+      });
+    });
+  }, [mareId, saveWithCompletion]);
 
   const requestDelete = useCallback((): void => {
     if (!logId) {
@@ -589,6 +620,7 @@ export function useDailyLogWizard({
     goBack,
     goToStep,
     save,
+    saveAndAddFollowUp,
     requestDelete,
   };
 }

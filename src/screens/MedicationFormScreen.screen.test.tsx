@@ -3,6 +3,7 @@ import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import { MedicationFormScreen } from '@/screens/MedicationFormScreen';
 
 jest.mock('@/storage/repositories', () => ({
+  completeTaskFromRecord: jest.fn(),
   getMedicationLogById: jest.fn(),
   createMedicationLog: jest.fn(),
   updateMedicationLog: jest.fn(),
@@ -33,6 +34,8 @@ it('supports create flow and custom medication path', async () => {
   repositories.createMedicationLog.mockResolvedValue(undefined);
   const screen = renderScreen();
 
+  expect(screen.getByText('Save & Add Follow-up')).toBeTruthy();
+
   fireEvent.press(screen.getByText('Custom'));
   fireEvent.changeText(screen.getByPlaceholderText('Enter medication name'), 'Regumate');
   fireEvent.changeText(screen.getByPlaceholderText('e.g., 10 mL'), '10 mL');
@@ -40,6 +43,26 @@ it('supports create flow and custom medication path', async () => {
 
   await waitFor(() => expect(repositories.createMedicationLog).toHaveBeenCalled());
   expect(repositories.createMedicationLog.mock.calls[0][0].medicationName).toBe('Regumate');
+});
+
+it('opens a follow-up task after save-and-follow-up', async () => {
+  repositories.createMedicationLog.mockResolvedValue(undefined);
+  const screen = renderScreen();
+
+  fireEvent.press(screen.getByText('Custom'));
+  fireEvent.changeText(screen.getByPlaceholderText('Enter medication name'), 'Regumate');
+  fireEvent.press(screen.getByText('Save & Add Follow-up'));
+
+  await waitFor(() => expect(repositories.createMedicationLog).toHaveBeenCalled());
+  expect(screen.navigation.replace).toHaveBeenCalledWith(
+    'TaskForm',
+    expect.objectContaining({
+      mareId: 'mare-1',
+      taskType: 'medication',
+      sourceType: 'medicationLog',
+      sourceReason: 'manualFollowUp',
+    }),
+  );
 });
 
 it('loads edit state and persists route deselection', async () => {

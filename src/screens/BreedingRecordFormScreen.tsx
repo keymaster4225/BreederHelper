@@ -1,7 +1,7 @@
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { DeleteButton, PrimaryButton } from '@/components/Buttons';
+import { FormActionBar, STICKY_ACTION_BAR_SCROLL_PADDING } from '@/components/FormActionBar';
 import { FormDateInput, FormField, FormPickerInput, FormTextInput, FormTimeInput, OptionSelector, formStyles } from '@/components/FormControls';
 import {
   COVERAGE_OPTIONS,
@@ -68,6 +68,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     onStallionChange,
     onCollectionChange,
     onSave,
+    onSaveAndAddFollowUp,
     requestDelete,
   } = useBreedingRecordForm({
     mareId: route.params.mareId,
@@ -76,6 +77,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     defaultDate: route.params.defaultDate,
     defaultTime: route.params.defaultTime,
     onGoBack: () => navigation.goBack(),
+    onAddFollowUpTask: (params) => navigation.replace('TaskForm', params),
     setTitle: (title) => navigation.setOptions({ title }),
   });
 
@@ -90,7 +92,11 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   return (
     <Screen style={{ paddingTop: 0 }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={[formStyles.form, styles.formWithActionBar]}
+          keyboardShouldPersistTaps="handled"
+        >
           {lockMethodAndCollection ? (
             <Text style={{ color: colors.onSurfaceVariant }}>
               This record is linked to an on-farm allocation. Stallion, method, and collection are locked.
@@ -210,22 +216,28 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
           <FormField label="Notes">
             <FormTextInput value={notes} onChangeText={setNotes} multiline />
           </FormField>
-
-          <PrimaryButton
-            label={isSaving ? 'Saving...' : 'Save'}
-            onPress={onSave}
-            disabled={isSaving || isDeleting}
-          />
-
-          {isEdit ? (
-            <DeleteButton
-              label={isDeleting ? 'Deleting...' : 'Delete'}
-              onPress={requestDelete}
-              disabled={isSaving || isDeleting}
-            />
-          ) : null}
         </ScrollView>
+        <FormActionBar
+          primaryLabel={isSaving ? 'Saving...' : 'Save'}
+          onPrimaryPress={onSave}
+          primaryDisabled={isSaving || isDeleting}
+          secondaryLabel="Save & Add Follow-up"
+          onSecondaryPress={onSaveAndAddFollowUp}
+          secondaryDisabled={isSaving || isDeleting}
+          destructiveLabel={isEdit ? (isDeleting ? 'Deleting...' : 'Delete') : undefined}
+          onDestructivePress={isEdit ? requestDelete : undefined}
+          destructiveDisabled={isSaving || isDeleting}
+        />
       </KeyboardAvoidingView>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+  },
+  formWithActionBar: {
+    paddingBottom: STICKY_ACTION_BAR_SCROLL_PADDING,
+  },
+});

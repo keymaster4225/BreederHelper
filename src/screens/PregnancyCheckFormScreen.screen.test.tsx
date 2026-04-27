@@ -39,6 +39,7 @@ function createHookState(overrides: Record<string, unknown> = {}) {
     setHeartbeat: jest.fn(),
     setNotes: jest.fn(),
     onSave: jest.fn(),
+    onSaveAndAddFollowUp: jest.fn(),
     requestDelete: jest.fn(),
     ...overrides,
   };
@@ -66,11 +67,14 @@ it('renders derived pregnancy context and wires save/delete actions', () => {
 
   expect(screen.getByText('Days post-breeding: 15')).toBeTruthy();
   expect(screen.getByText('Approx. due date: 02-03-2027')).toBeTruthy();
+  expect(screen.getByText('Save & Add Follow-up')).toBeTruthy();
 
   fireEvent.press(screen.getByText('Save'));
+  fireEvent.press(screen.getByText('Save & Add Follow-up'));
   fireEvent.press(screen.getByText('Delete'));
 
   expect(hookState.onSave).toHaveBeenCalled();
+  expect(hookState.onSaveAndAddFollowUp).toHaveBeenCalled();
   expect(hookState.requestDelete).toHaveBeenCalled();
 });
 
@@ -98,4 +102,11 @@ it('shows the empty breeding-record state and keeps the save action disabled', (
 
   expect(screen.getByText('No breeding records')).toBeTruthy();
   expect(screen.getByText('Add a breeding record for this mare first.')).toBeTruthy();
+  expect(screen.getByText('Save & Add Follow-up')).toBeTruthy();
+
+  fireEvent.press(screen.getByText('Save'));
+  fireEvent.press(screen.getByText('Save & Add Follow-up'));
+
+  expect(hookState.onSave).not.toHaveBeenCalled();
+  expect(hookState.onSaveAndAddFollowUp).not.toHaveBeenCalled();
 });

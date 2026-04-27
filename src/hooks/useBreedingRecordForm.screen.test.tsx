@@ -101,6 +101,49 @@ describe('useBreedingRecordForm', () => {
     expect(onGoBack).toHaveBeenCalledTimes(1);
   });
 
+  it('opens a pregnancy-check follow-up task after a successful save-and-follow-up', async () => {
+    const onGoBack = jest.fn();
+    const onAddFollowUpTask = jest.fn();
+    const { result } = renderHook(() =>
+      useBreedingRecordForm({
+        mareId: 'mare-1',
+        defaultDate: '1970-01-01',
+        defaultTime: '10:15',
+        onGoBack,
+        onAddFollowUpTask,
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await waitFor(() => expect(repositories.listStallions).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      result.current.onStallionChange(OTHER_STALLION);
+      result.current.setStallionName('Outside Stallion');
+    });
+
+    await waitFor(() => {
+      expect(result.current.useCustomStallion).toBe(true);
+      expect(result.current.stallionName).toBe('Outside Stallion');
+    });
+
+    await act(async () => {
+      await result.current.onSaveAndAddFollowUp();
+    });
+
+    expect(repositories.createBreedingRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'new-breeding-id', mareId: 'mare-1' }),
+    );
+    expect(onAddFollowUpTask).toHaveBeenCalledWith({
+      mareId: 'mare-1',
+      taskType: 'pregnancyCheck',
+      sourceType: 'breedingRecord',
+      sourceRecordId: 'new-breeding-id',
+      sourceReason: 'manualFollowUp',
+    });
+    expect(onGoBack).not.toHaveBeenCalled();
+  });
+
   it('does not reload the breeding record when callback props change identity', async () => {
     repositories.getBreedingRecordById.mockResolvedValue({
       id: 'breeding-1',

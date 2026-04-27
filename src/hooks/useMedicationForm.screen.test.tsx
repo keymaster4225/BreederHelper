@@ -82,4 +82,44 @@ describe('useMedicationForm', () => {
     );
     expect(onGoBack).toHaveBeenCalledTimes(1);
   });
+
+  it('opens a medication follow-up task after a successful save-and-follow-up', async () => {
+    const onGoBack = jest.fn();
+    const onAddFollowUpTask = jest.fn();
+    const { result } = renderHook(() =>
+      useMedicationForm({
+        mareId: 'mare-1',
+        defaultDate: '1970-01-01',
+        onGoBack,
+        onAddFollowUpTask,
+        setTitle: jest.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setSelectedMed('custom');
+      result.current.setCustomMedName('Regu-Mate');
+    });
+
+    await waitFor(() => {
+      expect(result.current.selectedMed).toBe('custom');
+      expect(result.current.customMedName).toBe('Regu-Mate');
+    });
+
+    await act(async () => {
+      await result.current.onSaveAndAddFollowUp();
+    });
+
+    expect(repositories.createMedicationLog).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'new-med-log-id', mareId: 'mare-1' }),
+    );
+    expect(onAddFollowUpTask).toHaveBeenCalledWith({
+      mareId: 'mare-1',
+      taskType: 'medication',
+      sourceType: 'medicationLog',
+      sourceRecordId: 'new-med-log-id',
+      sourceReason: 'manualFollowUp',
+    });
+    expect(onGoBack).not.toHaveBeenCalled();
+  });
 });

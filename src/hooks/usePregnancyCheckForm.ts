@@ -22,7 +22,10 @@ import {
   validateRequired,
 } from '@/utils/validation';
 
-import { completeLinkedTaskAfterSave } from './completeLinkedTaskAfterSave';
+import {
+  completeLinkedTaskAfterSave,
+  type FollowUpTaskParams,
+} from './completeLinkedTaskAfterSave';
 import { useRecordForm } from './useRecordForm';
 
 type ResultOption = PregnancyResult;
@@ -40,6 +43,7 @@ type UsePregnancyCheckFormArgs = {
   readonly taskId?: string;
   readonly defaultDate?: LocalDate;
   readonly onGoBack: () => void;
+  readonly onAddFollowUpTask?: (params: FollowUpTaskParams) => void;
   readonly setTitle: (title: string) => void;
 };
 
@@ -50,11 +54,13 @@ export function usePregnancyCheckForm({
   taskId,
   defaultDate,
   onGoBack,
+  onAddFollowUpTask,
   setTitle,
 }: UsePregnancyCheckFormArgs) {
   const isEdit = Boolean(pregnancyCheckId);
   const today = useMemo(() => new Date(), []);
   const onGoBackRef = useRef(onGoBack);
+  const onAddFollowUpTaskRef = useRef(onAddFollowUpTask);
   const setTitleRef = useRef(setTitle);
 
   const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
@@ -71,8 +77,9 @@ export function usePregnancyCheckForm({
 
   useEffect(() => {
     onGoBackRef.current = onGoBack;
+    onAddFollowUpTaskRef.current = onAddFollowUpTask;
     setTitleRef.current = setTitle;
-  }, [onGoBack, setTitle]);
+  }, [onAddFollowUpTask, onGoBack, setTitle]);
 
   useEffect(() => {
     setTitleRef.current(isEdit ? 'Edit Pregnancy Check' : 'Add Pregnancy Check');
@@ -177,7 +184,9 @@ export function usePregnancyCheckForm({
     return !nextErrors.breedingRecordId && !nextErrors.date;
   }, [breedingRecordId, date, selectedBreedingRecord]);
 
-  const onSave = useCallback(async (): Promise<void> => {
+  const saveWithCompletion = useCallback(async (
+    onCompletedOrSkipped: (savedPregnancyCheckId: string) => void,
+  ): Promise<void> => {
     if (!validate()) {
       return;
     }
@@ -204,7 +213,7 @@ export function usePregnancyCheckForm({
           taskId,
           completedRecordType: 'pregnancyCheck',
           completedRecordId: savedPregnancyCheckId,
-          onCompletedOrSkipped: onGoBackRef.current,
+          onCompletedOrSkipped: () => onCompletedOrSkipped(savedPregnancyCheckId),
         });
       },
       {
@@ -226,6 +235,28 @@ export function usePregnancyCheckForm({
     taskId,
     validate,
   ]);
+
+  const onSave = useCallback(async (): Promise<void> => {
+    await saveWithCompletion(() => onGoBackRef.current());
+  }, [saveWithCompletion]);
+
+  const onSaveAndAddFollowUp = useCallback(async (): Promise<void> => {
+    await saveWithCompletion((savedPregnancyCheckId) => {
+      const onAddFollowUpTask = onAddFollowUpTaskRef.current;
+      if (!onAddFollowUpTask) {
+        onGoBackRef.current();
+        return;
+      }
+
+      onAddFollowUpTask({
+        mareId,
+        taskType: 'custom',
+        sourceType: 'pregnancyCheck',
+        sourceRecordId: savedPregnancyCheckId,
+        sourceReason: 'manualFollowUp',
+      });
+    });
+  }, [mareId, saveWithCompletion]);
 
   const requestDelete = useCallback((): void => {
     if (!pregnancyCheckId) {
@@ -275,6 +306,7 @@ export function usePregnancyCheckForm({
     setHeartbeat,
     setNotes,
     onSave,
+    onSaveAndAddFollowUp,
     requestDelete,
   };
 }

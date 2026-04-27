@@ -7,7 +7,10 @@ import { toLocalDate } from '@/utils/dates';
 import { newId } from '@/utils/id';
 import { PREDEFINED_MEDICATIONS } from '@/utils/medications';
 import { validateLocalDate, validateLocalDateNotInFuture, validateRequired } from '@/utils/validation';
-import { completeLinkedTaskAfterSave } from './completeLinkedTaskAfterSave';
+import {
+  completeLinkedTaskAfterSave,
+  type FollowUpTaskParams,
+} from './completeLinkedTaskAfterSave';
 
 type MedSelection = typeof PREDEFINED_MEDICATIONS[number] | 'custom';
 
@@ -22,6 +25,7 @@ type UseMedicationFormArgs = {
   readonly taskId?: string;
   readonly defaultDate?: LocalDate;
   readonly onGoBack: () => void;
+  readonly onAddFollowUpTask?: (params: FollowUpTaskParams) => void;
   readonly onOpenSourceDailyLog?: (sourceDailyLogId: string) => void;
   readonly setTitle: (title: string) => void;
 };
@@ -45,6 +49,7 @@ type UseMedicationFormResult = {
   readonly setSelectedRoute: (value: MedicationRoute | null) => void;
   readonly setNotes: (value: string) => void;
   readonly onSave: () => Promise<void>;
+  readonly onSaveAndAddFollowUp: () => Promise<void>;
   readonly onDelete: () => void;
 };
 
@@ -54,11 +59,13 @@ export function useMedicationForm({
   taskId,
   defaultDate,
   onGoBack,
+  onAddFollowUpTask,
   onOpenSourceDailyLog,
   setTitle,
 }: UseMedicationFormArgs): UseMedicationFormResult {
   const isEdit = Boolean(medicationLogId);
   const onGoBackRef = useRef(onGoBack);
+  const onAddFollowUpTaskRef = useRef(onAddFollowUpTask);
   const onOpenSourceDailyLogRef = useRef(onOpenSourceDailyLog);
   const setTitleRef = useRef(setTitle);
 
@@ -75,9 +82,10 @@ export function useMedicationForm({
 
   useEffect(() => {
     onGoBackRef.current = onGoBack;
+    onAddFollowUpTaskRef.current = onAddFollowUpTask;
     onOpenSourceDailyLogRef.current = onOpenSourceDailyLog;
     setTitleRef.current = setTitle;
-  }, [onGoBack, onOpenSourceDailyLog, setTitle]);
+  }, [onAddFollowUpTask, onGoBack, onOpenSourceDailyLog, setTitle]);
 
   useEffect(() => {
     setTitleRef.current(isEdit ? 'Edit Medication' : 'Add Medication');
@@ -146,7 +154,7 @@ export function useMedicationForm({
     return !nextErrors.medicationName && !nextErrors.date;
   }, [date, getMedicationName]);
 
-  const onSave = useCallback(async () => {
+  const saveWithCompletion = useCallback(async (onCompletedOrSkipped: (savedMedicationLogId: string) => void) => {
     if (!validate()) return;
 
     setIsSaving(true);
@@ -171,7 +179,7 @@ export function useMedicationForm({
         taskId,
         completedRecordType: 'medicationLog',
         completedRecordId: savedMedicationLogId,
-        onCompletedOrSkipped: onGoBackRef.current,
+        onCompletedOrSkipped: () => onCompletedOrSkipped(savedMedicationLogId),
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save medication log.';
@@ -180,6 +188,28 @@ export function useMedicationForm({
       setIsSaving(false);
     }
   }, [date, dose, getMedicationName, mareId, medicationLogId, notes, selectedRoute, taskId, validate]);
+
+  const onSave = useCallback(async () => {
+    await saveWithCompletion(() => onGoBackRef.current());
+  }, [saveWithCompletion]);
+
+  const onSaveAndAddFollowUp = useCallback(async () => {
+    await saveWithCompletion((savedMedicationLogId) => {
+      const onAddFollowUpTask = onAddFollowUpTaskRef.current;
+      if (!onAddFollowUpTask) {
+        onGoBackRef.current();
+        return;
+      }
+
+      onAddFollowUpTask({
+        mareId,
+        taskType: 'medication',
+        sourceType: 'medicationLog',
+        sourceRecordId: savedMedicationLogId,
+        sourceReason: 'manualFollowUp',
+      });
+    });
+  }, [mareId, saveWithCompletion]);
 
   const onDelete = useCallback(() => {
     if (!medicationLogId) return;
@@ -223,6 +253,7 @@ export function useMedicationForm({
     setSelectedRoute,
     setNotes,
     onSave,
+    onSaveAndAddFollowUp,
     onDelete,
   };
 }

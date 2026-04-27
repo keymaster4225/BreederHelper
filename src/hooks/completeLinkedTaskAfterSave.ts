@@ -1,7 +1,15 @@
 import { Alert } from 'react-native';
 
-import type { TaskSourceType } from '@/models/types';
+import type { TaskSourceReason, TaskSourceType, TaskType } from '@/models/types';
 import { completeTaskFromRecord } from '@/storage/repositories';
+
+export type FollowUpTaskParams = {
+  readonly mareId: string;
+  readonly taskType: TaskType;
+  readonly sourceType: TaskSourceType;
+  readonly sourceRecordId: string;
+  readonly sourceReason: TaskSourceReason;
+};
 
 type CompleteLinkedTaskAfterSaveArgs = {
   readonly taskId?: string;

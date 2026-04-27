@@ -28,7 +28,10 @@ import {
   validateRequired,
 } from '@/utils/validation';
 
-import { completeLinkedTaskAfterSave } from './completeLinkedTaskAfterSave';
+import {
+  completeLinkedTaskAfterSave,
+  type FollowUpTaskParams,
+} from './completeLinkedTaskAfterSave';
 import { useRecordForm } from './useRecordForm';
 
 type FormErrors = {
@@ -72,6 +75,7 @@ type UseBreedingRecordFormArgs = {
   readonly defaultDate?: LocalDate;
   readonly defaultTime?: string | null;
   readonly onGoBack: () => void;
+  readonly onAddFollowUpTask?: (params: FollowUpTaskParams) => void;
   readonly setTitle: (title: string) => void;
 };
 
@@ -82,11 +86,13 @@ export function useBreedingRecordForm({
   defaultDate,
   defaultTime,
   onGoBack,
+  onAddFollowUpTask,
   setTitle,
 }: UseBreedingRecordFormArgs) {
   const isEdit = Boolean(breedingRecordId);
   const today = useMemo(() => new Date(), []);
   const onGoBackRef = useRef(onGoBack);
+  const onAddFollowUpTaskRef = useRef(onAddFollowUpTask);
   const setTitleRef = useRef(setTitle);
 
   const [date, setDate] = useState(defaultDate ?? '');
@@ -118,8 +124,9 @@ export function useBreedingRecordForm({
 
   useEffect(() => {
     onGoBackRef.current = onGoBack;
+    onAddFollowUpTaskRef.current = onAddFollowUpTask;
     setTitleRef.current = setTitle;
-  }, [onGoBack, setTitle]);
+  }, [onAddFollowUpTask, onGoBack, setTitle]);
 
   useEffect(() => {
     setTitleRef.current(isEdit ? 'Edit Breeding Record' : 'Add Breeding Record');
@@ -396,7 +403,9 @@ export function useBreedingRecordForm({
     volumeMl,
   ]);
 
-  const onSave = useCallback(async (): Promise<void> => {
+  const saveWithCompletion = useCallback(async (
+    onCompletedOrSkipped: (savedBreedingRecordId: string) => void,
+  ): Promise<void> => {
     const {
       valid,
       parsedVolume,
@@ -462,7 +471,7 @@ export function useBreedingRecordForm({
           taskId,
           completedRecordType: 'breedingRecord',
           completedRecordId: savedBreedingRecordId,
-          onCompletedOrSkipped: onGoBackRef.current,
+          onCompletedOrSkipped: () => onCompletedOrSkipped(savedBreedingRecordId),
         });
       },
       {
@@ -490,6 +499,28 @@ export function useBreedingRecordForm({
     useCustomStallion,
     validate,
   ]);
+
+  const onSave = useCallback(async (): Promise<void> => {
+    await saveWithCompletion(() => onGoBackRef.current());
+  }, [saveWithCompletion]);
+
+  const onSaveAndAddFollowUp = useCallback(async (): Promise<void> => {
+    await saveWithCompletion((savedBreedingRecordId) => {
+      const onAddFollowUpTask = onAddFollowUpTaskRef.current;
+      if (!onAddFollowUpTask) {
+        onGoBackRef.current();
+        return;
+      }
+
+      onAddFollowUpTask({
+        mareId,
+        taskType: 'pregnancyCheck',
+        sourceType: 'breedingRecord',
+        sourceRecordId: savedBreedingRecordId,
+        sourceReason: 'manualFollowUp',
+      });
+    });
+  }, [mareId, saveWithCompletion]);
 
   const requestDelete = useCallback((): void => {
     if (!breedingRecordId) {
@@ -572,6 +603,7 @@ export function useBreedingRecordForm({
     onStallionChange,
     onCollectionChange,
     onSave,
+    onSaveAndAddFollowUp,
     requestDelete,
   };
 }
