@@ -1,6 +1,6 @@
 # BreedWise Roadmap
 
-> Last updated: 2026-04-25
+> Last updated: 2026-04-27
 >
 > This document is the prioritized plan for BreedWise. The flat `TODO` file is now a raw inbox — new ideas get dumped there, then triaged into this roadmap during a periodic sweep. See [Intake & triage process](#intake--triage-process).
 
@@ -37,10 +37,6 @@ Features that deepen mare reproductive recordkeeping beyond what the current dai
 
 - **P0 — Cyst mapping** (`TODO:37`)
   Recurring user ask. Needs a design pass: how cysts are located on the uterus, how they're tracked over time, and whether they live on the daily log or as a separate longitudinal record.
-- **P1 — Fluid tracking** (`TODO:19`)
-  Not yet scoped. Needs a detail workshop — which fluids, where in the workflow they're recorded, and what actions the app should prompt (see related P2 under *Proactive workflow*).
-- **P1 — Breeding record timestamps**
-  Add a time field to breeding records, like timed daily log checks, so same-day services can be recorded and ordered accurately. Open question: whether time should be required on new records or optional for backward compatibility with existing breeding entries.
 - **P2 — Mare ovulation trends** (`TODO:27`)
   Analytics view. Blocked on data volume — needs enough historical ovulation logs per mare to be useful.
 
@@ -50,8 +46,6 @@ Features that extend stallion records beyond current collection + frozen batch t
 
 - **P1 — Outside-mare breeding records from stallion section**
   Allow recording a breeding against a stallion without requiring the mare to exist in the database. Use case: the user is the stallion owner and an outside mare arrives to be bred — they want to log the service without creating a full mare record. Design questions: (a) minimum fields to capture for an outside mare (name? owner? registration?), (b) whether the record can later be "upgraded" / linked if that mare is eventually added to the database, (c) how outside-mare services render on the stallion's breeding history alongside mare-linked records, (d) whether straw-consumption tracking and fertility-trend analytics include these records or only in-database services.
-- **P1 — Collection entry wizard / scrollability rework** (`TODO:7`)
-  The add-collection screen is difficult to scroll. Rework the flow into a wizard or otherwise split the form into easier sections. Review the existing `feature/collection-wizard` branch before starting, since it may already solve part of this.
 - **P1 — Outside-mare allocation in collection workflow** (`TODO:9`)
   On-farm dose allocation in the add-collection workflow should allow an outside mare, not only mares already saved in the app. Coordinate this with the broader outside-mare breeding-record design so the same outside-mare fields and display rules are reused.
 - **P1 — Stallion fertility trends** (`TODO:25`)
@@ -74,7 +68,7 @@ Features that make the app tell the user what to do next, rather than only recor
 - **P1 — Auto-scheduled events from recorded actions** (`TODO:35`)
   Recording a breeding → auto-adds 14-day and 30-day pregnancy checks. Recording a foaling → auto-adds IgG test, first vet check. Depends on reminders being in place.
 - **P2 — Conditional smart prompts** (`TODO:33`)
-  Example: fluid detected on a daily log → prompt user to flush/infuse. Needs design — which conditions, how prompts are delivered, how they're dismissed. Depends on fluid tracking shipping first.
+  Example: fluid detected on a daily log → prompt user to flush/infuse. Needs design — which conditions, how prompts are delivered, how they're dismissed, and how this should build on the shipped daily-log fluid fields and flush follow-up flow.
 
 ### Theme: Media & attachments
 
@@ -160,6 +154,9 @@ When a roadmap item is completed and merged to `main`:
 
 ## Recently shipped
 
+- 2026-04-27 — Breeding record timestamps (`9fc5071`)
+- 2026-04-27 — Daily log fluid tracking and flush follow-up — closed `TODO:19` (`74d360b`)
+- 2026-04-27 — Collection entry wizard / scrollability rework — closed `TODO:7` (`5224d66`)
 - 2026-04-25 — Breeding event detail view — closed `TODO:5` (`3875543`)
 - 2026-04-24 — Deduplicated detail tab route maps (`83e0486`)
 - 2026-04-24 — Configurable 12h / 24h clock setting — closed `TODO:1` (`46acf9c`)
@@ -176,6 +173,7 @@ When a roadmap item is completed and merged to `main`:
 
 ## Change log for this document
 
+- 2026-04-27 — Recorded *Breeding record timestamps*, *Daily log fluid tracking and flush follow-up*, and *Collection entry wizard / scrollability rework* as shipped and removed them from active roadmap themes.
 - 2026-04-25 — Recorded *Breeding event detail view* as shipped and removed it from Mare care depth.
 - 2026-04-25 — Added staged *Cloud backup and multi-user sync path* under Cloud backup & collaboration (P2).
 - 2026-04-25 — Moved *Remove "optional" labels from text inputs* out of Foundational polish and marked it as implemented locally pending commit/merge.
