@@ -18,6 +18,7 @@ jest.mock('@/storage/repositories', () => ({
   listAllBreedingRecords: jest.fn(),
   listAllPregnancyChecks: jest.fn(),
   listAllFoalingRecords: jest.fn(),
+  listOpenDashboardTasks: jest.fn(),
   listAllMedicationLogs: jest.fn(),
   listAllFoals: jest.fn(),
   softDeleteMare: jest.fn(),
@@ -112,6 +113,27 @@ beforeEach(() => {
   ]);
   repositories.listAllPregnancyChecks.mockResolvedValue([]);
   repositories.listAllFoalingRecords.mockResolvedValue([]);
+  repositories.listOpenDashboardTasks.mockResolvedValue([
+    {
+      id: 'task-1',
+      mareId: 'mare-1',
+      taskType: 'pregnancyCheck',
+      title: 'Pregnancy check',
+      dueDate: '2035-04-27',
+      dueTime: null,
+      notes: null,
+      status: 'open',
+      completedAt: null,
+      completedRecordType: null,
+      completedRecordId: null,
+      sourceType: 'breedingRecord',
+      sourceRecordId: 'breed-1',
+      sourceReason: 'breedingPregnancyCheck',
+      createdAt: '2026-04-13T00:00:00.000Z',
+      updatedAt: '2026-04-13T00:00:00.000Z',
+      mareName: 'Maple',
+    },
+  ]);
   repositories.listAllMedicationLogs.mockResolvedValue([]);
   repositories.listAllFoals.mockResolvedValue([]);
   backup.listSafetySnapshots.mockResolvedValue([]);

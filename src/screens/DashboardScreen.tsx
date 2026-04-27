@@ -10,9 +10,10 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { useOnboardingState } from '@/hooks/useOnboardingState';
 import { DashboardSection } from '@/components/DashboardSection';
 import { Screen } from '@/components/Screen';
+import { TaskWithMare } from '@/models/types';
 import { RootStackParamList, TabParamList } from '@/navigation/AppNavigator';
-import { DashboardAlert } from '@/utils/dashboardAlerts';
 import { canSeedPreviewData } from '@/utils/buildProfile';
+import { toLocalDate } from '@/utils/dates';
 import { seedPreviewData } from '@/utils/devSeed';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
 
@@ -56,8 +57,9 @@ function StatCard({
 }
 
 export function DashboardScreen({ navigation }: Props): JSX.Element {
-  const { totalMares, pregnantMares, totalStallions, alerts, isLoading, error, reload, reloadIfStale } =
+  const { totalMares, pregnantMares, totalStallions, tasks, isLoading, error, reload, reloadIfStale } =
     useDashboardData();
+  const today = toLocalDate(new Date());
   const hasAnimals = totalMares > 0 || totalStallions > 0;
   const { onboardingComplete, isOnboardingLoading, completeOnboarding } =
     useOnboardingState(hasAnimals);
@@ -88,36 +90,9 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
     })();
   }, [completeOnboarding, reload]);
 
-  const onAlertPress = useCallback(
-    (alert: DashboardAlert) => {
-      switch (alert.kind) {
-        case 'approachingDueDate':
-          navigation.navigate('MareDetail', { mareId: alert.mareId });
-          break;
-        case 'pregnancyCheckNeeded':
-          navigation.navigate('PregnancyCheckForm', { mareId: alert.mareId });
-          break;
-        case 'recentOvulation':
-        case 'heatActivity':
-        case 'noRecentLog':
-          navigation.navigate('DailyLogForm', { mareId: alert.mareId });
-          break;
-        case 'medicationGap':
-          navigation.navigate('MareDetail', { mareId: alert.mareId, initialTab: 'meds' });
-          break;
-        case 'foalNeedsIgg':
-          if (alert.foalingRecordId) {
-            navigation.navigate('FoalForm', {
-              mareId: alert.mareId,
-              foalingRecordId: alert.foalingRecordId,
-              foalId: alert.foalId,
-            });
-          }
-          break;
-      }
-    },
-    [navigation],
-  );
+  const onTaskPress = useCallback((_task: TaskWithMare) => {}, []);
+  const onTaskEdit = useCallback((_task: TaskWithMare) => {}, []);
+  const onTaskComplete = useCallback((_task: TaskWithMare) => {}, []);
 
   const navigateToMares = useCallback(
     (filter: 'all' | 'pregnant') => {
@@ -245,12 +220,19 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
               />
             </View>
 
-            {alerts.length > 0 ? (
-              <DashboardSection alerts={alerts} onAlertPress={onAlertPress} collapsible={false} />
+            {tasks.length > 0 ? (
+              <DashboardSection
+                tasks={tasks}
+                today={today}
+                onTaskPress={onTaskPress}
+                onTaskEdit={onTaskEdit}
+                onTaskComplete={onTaskComplete}
+                collapsible={false}
+              />
             ) : (
               <View style={styles.caughtUp}>
                 <MaterialCommunityIcons name="check-circle-outline" size={48} color={colors.primary} />
-                <Text style={styles.caughtUpText}>All caught up! No tasks today.</Text>
+                <Text style={styles.caughtUpText}>All caught up! No tasks due soon.</Text>
               </View>
             )}
           </>

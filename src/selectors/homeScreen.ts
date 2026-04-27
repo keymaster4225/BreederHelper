@@ -1,27 +1,14 @@
 import {
   BreedingRecord,
   DailyLog,
-  Foal,
   FoalingRecord,
   Mare,
-  MedicationLog,
   PregnancyCheck,
   PregnancyInfo,
   buildPregnancyInfoForCheck,
   findCurrentPregnancyCheck,
 } from '@/models/types';
-import { DashboardInput } from '@/utils/dashboardAlerts';
 import { filterMares, StatusFilter } from '@/utils/filterMares';
-
-type HomeScreenRecords = {
-  readonly mares: readonly Mare[];
-  readonly dailyLogs: readonly DailyLog[];
-  readonly breedingRecords: readonly BreedingRecord[];
-  readonly pregnancyChecks: readonly PregnancyCheck[];
-  readonly foalingRecords: readonly FoalingRecord[];
-  readonly medicationLogs: readonly MedicationLog[];
-  readonly foals: readonly Foal[];
-};
 
 function groupBy<T>(items: readonly T[], keyFn: (item: T) => string): Map<string, T[]> {
   const map = new Map<string, T[]>();
@@ -71,19 +58,6 @@ export function buildPregnantInfoMap(
   }
 
   return pregnantInfo;
-}
-
-export function buildHomeDashboardInput(records: HomeScreenRecords, today: string): DashboardInput {
-  return {
-    mares: records.mares,
-    dailyLogs: records.dailyLogs,
-    breedingRecords: records.breedingRecords,
-    pregnancyChecks: records.pregnancyChecks,
-    foalingRecords: records.foalingRecords,
-    medicationLogs: records.medicationLogs,
-    foals: records.foals,
-    today,
-  };
 }
 
 export function selectFilteredMares(

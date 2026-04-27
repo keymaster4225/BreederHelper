@@ -3,15 +3,12 @@ import { describe, expect, it } from 'vitest';
 import {
   BreedingRecord,
   DailyLog,
-  Foal,
   FoalingRecord,
   Mare,
-  MedicationLog,
   PregnancyCheck,
   estimateFoalingDate,
 } from '@/models/types';
 import {
-  buildHomeDashboardInput,
   buildPregnantInfoMap,
   selectFilteredMares,
 } from '@/selectors/homeScreen';
@@ -166,43 +163,5 @@ describe('selectFilteredMares', () => {
     ]);
 
     expect(selectFilteredMares(mares, 'mi', 'open', pregnantInfo)).toEqual([mares[2]]);
-  });
-});
-
-describe('buildHomeDashboardInput', () => {
-  it('returns the normalized dashboard input shape', () => {
-    const mares = [makeMare({ id: 'mare-1', name: 'Nova' })];
-    const dailyLogs = [makeDailyLog({ id: 'log-1', mareId: 'mare-1', date: '2026-04-01' })];
-    const breedingRecords = [makeBreedingRecord({ id: 'br-1', mareId: 'mare-1', date: '2026-03-01' })];
-    const pregnancyChecks = [
-      makePregnancyCheck({ id: 'pc-1', mareId: 'mare-1', breedingRecordId: 'br-1', date: '2026-03-15' }),
-    ];
-    const foalingRecords = [makeFoalingRecord({ id: 'fr-1', mareId: 'mare-1', date: '2026-04-01' })];
-    const medicationLogs: MedicationLog[] = [];
-    const foals: Foal[] = [];
-
-    const result = buildHomeDashboardInput(
-      {
-        mares,
-        dailyLogs,
-        breedingRecords,
-        pregnancyChecks,
-        foalingRecords,
-        medicationLogs,
-        foals,
-      },
-      '2026-04-10',
-    );
-
-    expect(result).toEqual({
-      mares,
-      dailyLogs,
-      breedingRecords,
-      pregnancyChecks,
-      foalingRecords,
-      medicationLogs,
-      foals,
-      today: '2026-04-10',
-    });
   });
 });
