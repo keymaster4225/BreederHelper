@@ -82,6 +82,8 @@ Features that move BreedWise beyond single-device local storage while preserving
 
 - **P2 — Staged cloud backup and multi-user sync path**
   Long-term direction from `mare-tracker-spec.md`: data should be recoverable if a phone is lost, and eventually may support more than one user. Stage this deliberately: (1) cloud backup snapshots for lost-phone recovery; (2) single-account cloud restore across devices, still avoiding simultaneous editing; (3) read-only sharing for selected animals or records; (4) full multi-user collaboration with accounts, farm/workspace membership, roles, offline write queues, conflict handling, audit history, and attachment sync. Design prerequisite: make near-term local entities more sync-friendly with stable IDs, consistent `createdAt` / `updatedAt`, soft-delete semantics, and clear ownership boundaries.
+- **P1 — Individual horse import / export** (`TODO:39`)
+  Short-term workaround before real multi-user sync: export one mare, stallion, or foal package from one device and import it on another. Scope needs to define which related records travel with each animal type, including daily logs, breeding records, pregnancy checks, foaling and linked foal records, frozen semen references, photos / attachments, and reminders. Import design should prefer stable IDs and explicit duplicate handling over silent merges so users can share records without corrupting the offline database.
 
 ### Theme: Foundational polish
 
@@ -165,6 +167,7 @@ When a roadmap item is completed and merged to `main`:
 ## Change log for this document
 
 - 2026-04-27 — Recorded *Dashboard task system, manual reminders, and workflow task routing* as shipped, closed `TODO:31`, and narrowed the remaining *Auto-scheduled events from recorded actions* scope.
+- 2026-04-27 — Added *Individual horse import / export* under Cloud backup & collaboration (P1) as a short-term multi-user workaround.
 - 2026-04-27 — Recorded *Sticky follow-up action bar and daily-log follow-up navigation fix* as shipped.
 - 2026-04-27 — Corrected stale *Remove optional form placeholders* status and recorded it as shipped.
 - 2026-04-27 — Recorded *Breeding record timestamps*, *Daily log fluid tracking and flush follow-up*, and *Collection entry wizard / scrollability rework* as shipped and removed them from active roadmap themes.

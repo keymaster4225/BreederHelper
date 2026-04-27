@@ -35,3 +35,5 @@ prompts/notifications based on recorded actions (ie fluid detected: remind user 
 auto-schedule events based on recorded actions (eg mare bred on day X → automatically add 14-day and 30-day pregnancy checks to the calendar; ovulation detected → schedule next scan; foal born → schedule IgG test, first vet check, etc)
 
 cyst mapping
+
+import/export individual horses as a temporary workaround for multiple users
