@@ -22,6 +22,7 @@ import {
   validateRequired,
 } from '@/utils/validation';
 
+import { completeLinkedTaskAfterSave } from './completeLinkedTaskAfterSave';
 import { useRecordForm } from './useRecordForm';
 
 type ResultOption = PregnancyResult;
@@ -46,6 +47,7 @@ export function usePregnancyCheckForm({
   mareId,
   pregnancyCheckId,
   initialBreedingRecordId,
+  taskId,
   defaultDate,
   onGoBack,
   setTitle,
@@ -190,13 +192,20 @@ export function usePregnancyCheckForm({
           notes: notes.trim() || null,
         };
 
+        const savedPregnancyCheckId = pregnancyCheckId ?? newId();
+
         if (pregnancyCheckId) {
           await updatePregnancyCheck(pregnancyCheckId, payload);
         } else {
-          await createPregnancyCheck({ id: newId(), mareId, ...payload });
+          await createPregnancyCheck({ id: savedPregnancyCheckId, mareId, ...payload });
         }
 
-        onGoBack();
+        await completeLinkedTaskAfterSave({
+          taskId,
+          completedRecordType: 'pregnancyCheck',
+          completedRecordId: savedPregnancyCheckId,
+          onCompletedOrSkipped: onGoBackRef.current,
+        });
       },
       {
         onError: (error: unknown) => {
@@ -211,10 +220,10 @@ export function usePregnancyCheckForm({
     heartbeat,
     mareId,
     notes,
-    onGoBack,
     pregnancyCheckId,
     result,
     runSave,
+    taskId,
     validate,
   ]);
 

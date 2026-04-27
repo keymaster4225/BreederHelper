@@ -27,6 +27,7 @@ import {
   validateOvary,
   validateUterus,
 } from './dailyLogWizard/validation';
+import { completeLinkedTaskAfterSave } from './completeLinkedTaskAfterSave';
 import { useDailyLogBasicsState } from './dailyLogWizard/useDailyLogBasicsState';
 import { useDailyLogFlushState } from './dailyLogWizard/useDailyLogFlushState';
 import { useDailyLogOvaryState } from './dailyLogWizard/useDailyLogOvaryState';
@@ -116,6 +117,7 @@ function getBasicsTimeErrorForSaveFailure(message: string): string | null {
 export function useDailyLogWizard({
   mareId,
   logId,
+  taskId,
   defaultDate,
   defaultTime,
   onGoBack,
@@ -439,6 +441,8 @@ export function useDailyLogWizard({
           ovulationSource,
         });
 
+        const savedLogId = logId ?? newId();
+
         if (logId) {
           await updateDailyLog(logId, payload);
         } else {
@@ -447,14 +451,19 @@ export function useDailyLogWizard({
           }
 
           await createDailyLog({
-            id: newId(),
+            id: savedLogId,
             mareId,
             ...payload,
             time: payload.time,
           });
         }
 
-        onGoBack();
+        await completeLinkedTaskAfterSave({
+          taskId,
+          completedRecordType: 'dailyLog',
+          completedRecordId: savedLogId,
+          onCompletedOrSkipped: onGoBackRef.current,
+        });
       },
       {
         onError: (error: unknown) => {
@@ -492,10 +501,10 @@ export function useDailyLogWizard({
     logId,
     mareId,
     notes,
-    onGoBack,
     ovulationSource,
     rightOvary,
     runSave,
+    taskId,
     teasingScore,
     uterus,
   ]);

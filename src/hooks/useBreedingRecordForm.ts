@@ -28,6 +28,7 @@ import {
   validateRequired,
 } from '@/utils/validation';
 
+import { completeLinkedTaskAfterSave } from './completeLinkedTaskAfterSave';
 import { useRecordForm } from './useRecordForm';
 
 type FormErrors = {
@@ -77,6 +78,7 @@ type UseBreedingRecordFormArgs = {
 export function useBreedingRecordForm({
   mareId,
   breedingRecordId,
+  taskId,
   defaultDate,
   defaultTime,
   onGoBack,
@@ -445,16 +447,23 @@ export function useBreedingRecordForm({
               : null,
         };
 
+        const savedBreedingRecordId = breedingRecordId ?? newId();
+
         if (breedingRecordId) {
           await updateBreedingRecord(breedingRecordId, payload);
         } else {
           if (createTime == null) {
             throw new Error('Breeding time is required.');
           }
-          await createBreedingRecord({ id: newId(), mareId, ...payload, time: createTime });
+          await createBreedingRecord({ id: savedBreedingRecordId, mareId, ...payload, time: createTime });
         }
 
-        onGoBack();
+        await completeLinkedTaskAfterSave({
+          taskId,
+          completedRecordType: 'breedingRecord',
+          completedRecordId: savedBreedingRecordId,
+          onCompletedOrSkipped: onGoBackRef.current,
+        });
       },
       {
         onError: (error: unknown) => {
@@ -472,12 +481,12 @@ export function useBreedingRecordForm({
     mareId,
     method,
     notes,
-    onGoBack,
     runSave,
     selectedCollectionId,
     selectedStallionId,
     stallionName,
     strawDetails,
+    taskId,
     useCustomStallion,
     validate,
   ]);

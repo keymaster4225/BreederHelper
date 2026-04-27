@@ -7,6 +7,7 @@ import { toLocalDate } from '@/utils/dates';
 import { newId } from '@/utils/id';
 import { PREDEFINED_MEDICATIONS } from '@/utils/medications';
 import { validateLocalDate, validateLocalDateNotInFuture, validateRequired } from '@/utils/validation';
+import { completeLinkedTaskAfterSave } from './completeLinkedTaskAfterSave';
 
 type MedSelection = typeof PREDEFINED_MEDICATIONS[number] | 'custom';
 
@@ -50,6 +51,7 @@ type UseMedicationFormResult = {
 export function useMedicationForm({
   mareId,
   medicationLogId,
+  taskId,
   defaultDate,
   onGoBack,
   onOpenSourceDailyLog,
@@ -157,20 +159,27 @@ export function useMedicationForm({
         notes: notes.trim() || null,
       };
 
+      const savedMedicationLogId = medicationLogId ?? newId();
+
       if (medicationLogId) {
         await updateMedicationLog(medicationLogId, payload);
       } else {
-        await createMedicationLog({ id: newId(), mareId, ...payload });
+        await createMedicationLog({ id: savedMedicationLogId, mareId, ...payload });
       }
 
-      onGoBack();
+      await completeLinkedTaskAfterSave({
+        taskId,
+        completedRecordType: 'medicationLog',
+        completedRecordId: savedMedicationLogId,
+        onCompletedOrSkipped: onGoBackRef.current,
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save medication log.';
       Alert.alert('Save failed', message);
     } finally {
       setIsSaving(false);
     }
-  }, [date, dose, getMedicationName, mareId, medicationLogId, notes, onGoBack, selectedRoute, validate]);
+  }, [date, dose, getMedicationName, mareId, medicationLogId, notes, selectedRoute, taskId, validate]);
 
   const onDelete = useCallback(() => {
     if (!medicationLogId) return;
