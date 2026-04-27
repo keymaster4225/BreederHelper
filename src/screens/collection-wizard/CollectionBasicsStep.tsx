@@ -59,7 +59,7 @@ export function CollectionBasicsStep({
       </FormField>
 
       <FormField
-        label="Progressive Motility (%)"
+        label="Motility (%)"
         error={errors.progressiveMotilityPercent}
       >
         <FormTextInput

@@ -291,7 +291,7 @@ export function useCollectionWizard({
       progressiveMotilityPercent:
         validateNumberRange(
           parsedProgressiveMotilityPercent,
-          'Progressive Motility',
+          'Motility',
           0,
           100,
         ) ?? undefined,
