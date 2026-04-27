@@ -52,6 +52,7 @@ type BeforeRemoveListener = (event: BeforeRemoveEvent) => void;
 function createNavigation() {
   return {
     navigate: jest.fn(),
+    replace: jest.fn(),
     setOptions: jest.fn(),
     goBack: jest.fn(),
     addListener: jest.fn((_eventName: string, _listener: BeforeRemoveListener) => jest.fn()),
@@ -324,6 +325,45 @@ it('allows saved daily logs to leave the screen from later wizard steps', () => 
   beforeRemove(event);
 
   expect(navigation.goBack).toHaveBeenCalledTimes(1);
+  expect(event.preventDefault).not.toHaveBeenCalled();
+  expect(wizard.goBack).not.toHaveBeenCalled();
+});
+
+it('allows save-and-follow-up to replace the screen from later wizard steps', () => {
+  const { navigation, wizard } = renderScreen({
+    currentStepIndex: 4,
+    currentStepId: 'review',
+    currentStepTitle: 'Review',
+  });
+  const hookArgs = useDailyLogWizard.mock.calls[0]?.[0] as {
+    onAddFollowUpTask: (params: {
+      mareId: string;
+      taskType: 'dailyCheck';
+      sourceType: 'dailyLog';
+      sourceRecordId: string;
+      sourceReason: 'manualFollowUp';
+    }) => void;
+  };
+  const beforeRemoveCall = navigation.addListener.mock.calls.find(
+    ([eventName]) => eventName === 'beforeRemove',
+  );
+  if (!beforeRemoveCall) {
+    throw new Error('Expected DailyLogFormScreen to register a beforeRemove listener.');
+  }
+  const followUpParams = {
+    mareId: 'mare-1',
+    taskType: 'dailyCheck',
+    sourceType: 'dailyLog',
+    sourceRecordId: 'log-1',
+    sourceReason: 'manualFollowUp',
+  } as const;
+
+  hookArgs.onAddFollowUpTask(followUpParams);
+  const event: BeforeRemoveEvent = { preventDefault: jest.fn() };
+  const beforeRemove = beforeRemoveCall[1];
+  beforeRemove(event);
+
+  expect(navigation.replace).toHaveBeenCalledWith('TaskForm', followUpParams);
   expect(event.preventDefault).not.toHaveBeenCalled();
   expect(wizard.goBack).not.toHaveBeenCalled();
 });

@@ -33,6 +33,13 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
     allowScreenExitRef.current = true;
     navigation.goBack();
   }, [navigation]);
+  const handleAddFollowUpTask = useCallback(
+    (params: RootStackParamList['TaskForm']) => {
+      allowScreenExitRef.current = true;
+      navigation.replace('TaskForm', params);
+    },
+    [navigation],
+  );
   const handleSetTitle = useCallback(
     (title: string) => {
       navigation.setOptions({ title });
@@ -47,7 +54,7 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
     defaultDate: route.params.defaultDate,
     defaultTime: route.params.defaultTime,
     onGoBack: handleGoBack,
-    onAddFollowUpTask: (params) => navigation.replace('TaskForm', params),
+    onAddFollowUpTask: handleAddFollowUpTask,
     setTitle: handleSetTitle,
   });
   const currentStepIndex = wizard.currentStepIndex;

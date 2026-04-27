@@ -335,6 +335,7 @@ export async function listOpenDashboardTasks(
     INNER JOIN mares ON mares.id = tasks.mare_id
     WHERE tasks.status = 'open'
       AND tasks.due_date <= ?
+      AND mares.deleted_at IS NULL
     ORDER BY
       tasks.due_date ASC,
       tasks.due_time IS NULL ASC,

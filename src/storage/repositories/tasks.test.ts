@@ -47,6 +47,11 @@ type TaskWithMareRow = TaskRow & {
   mare_name: string;
 };
 
+type TaskMareRow = {
+  name: string;
+  deleted_at: string | null;
+};
+
 function createTaskRow(overrides: Partial<TaskRow> = {}): TaskRow {
   return {
     id: 'task-1',
@@ -94,9 +99,9 @@ function compareNullableDueTimes(a: string | null, b: string | null): number {
 }
 
 function createTaskRepoHarness() {
-  const mares = new Map([
-    ['mare-1', 'Bella'],
-    ['mare-2', 'Aster'],
+  const mares = new Map<string, TaskMareRow>([
+    ['mare-1', { name: 'Bella', deleted_at: null }],
+    ['mare-2', { name: 'Aster', deleted_at: null }],
   ]);
   const tasks = new Map<string, TaskRow>();
 
@@ -287,9 +292,14 @@ function createTaskRepoHarness() {
         const [dueThrough] = params as [string];
         return Array.from(tasks.values())
           .filter((task) => task.status === 'open' && task.due_date <= dueThrough)
+          .filter((task) => (
+            stmt.includes('mares.deleted_at is null')
+              ? mares.get(task.mare_id)?.deleted_at == null
+              : true
+          ))
           .map<TaskWithMareRow>((task) => ({
             ...task,
-            mare_name: mares.get(task.mare_id) ?? '',
+            mare_name: mares.get(task.mare_id)?.name ?? '',
           }))
           .sort(compareDashboardRows) as T[];
       }
@@ -298,7 +308,7 @@ function createTaskRepoHarness() {
     },
   });
 
-  return { db, tasks };
+  return { db, mares, tasks };
 }
 
 describe('tasks repository', () => {
@@ -461,6 +471,30 @@ describe('tasks repository', () => {
 
     expect(result.map((task) => task.id)).toEqual(['overdue', 'today', 'tomorrow', 'day-14']);
     expect(result.map((task) => task.mareName)).toEqual(['Bella', 'Bella', 'Bella', 'Bella']);
+  });
+
+  it('excludes dashboard tasks for soft-deleted mares', async () => {
+    const { db, mares } = createTaskRepoHarness();
+    mares.set('mare-deleted', { name: 'Retired Mare', deleted_at: '2026-04-26T12:00:00.000Z' });
+    await createTask({
+      id: 'active-mare-task',
+      mareId: 'mare-1',
+      taskType: 'custom',
+      title: 'Active mare task',
+      dueDate: '2026-04-27',
+    }, db);
+    await createTask({
+      id: 'deleted-mare-task',
+      mareId: 'mare-deleted',
+      taskType: 'custom',
+      title: 'Deleted mare task',
+      dueDate: '2026-04-27',
+    }, db);
+
+    const result = await listOpenDashboardTasks('2026-04-27', 14, db);
+
+    expect(result.map((task) => task.id)).toEqual(['active-mare-task']);
+    expect(db.getAllCalls[0]?.normalizedSql).toContain('mares.deleted_at is null');
   });
 
   it('sorts timed dashboard tasks before untimed tasks and by due time ascending', async () => {
