@@ -13,8 +13,10 @@ import {
   BACKUP_SCHEMA_VERSION_V7,
   BACKUP_SCHEMA_VERSION_V8,
   BACKUP_SCHEMA_VERSION_V9,
+  BACKUP_SCHEMA_VERSION_V10,
 } from './types';
 import type {
+  BackupBreedingRecordRowLegacy,
   BackupCollectionDoseEventRowV2,
   BackupCollectionDoseEventRowV3,
   BackupBreedingRecordRow,
@@ -26,6 +28,7 @@ import type {
   BackupEnvelopeV5,
   BackupEnvelopeV8,
   BackupEnvelopeV9,
+  BackupEnvelopeV10,
   BackupFoalingRecordRow,
   BackupFoalRow,
   BackupFrozenSemenBatchRow,
@@ -411,6 +414,7 @@ async function insertBreedingRecord(
       stallion_name,
       collection_id,
       date,
+      time,
       method,
       notes,
       volume_ml,
@@ -422,7 +426,7 @@ async function insertBreedingRecord(
       collection_date,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
@@ -431,6 +435,7 @@ async function insertBreedingRecord(
       row.stallion_name,
       row.collection_id,
       row.date,
+      row.time,
       row.method,
       row.notes,
       row.volume_ml,
@@ -783,12 +788,21 @@ async function insertCollectionDoseEvent(
 function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForRestore {
   if (
     backup.schemaVersion === BACKUP_SCHEMA_VERSION_V8 ||
-    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V9
+    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V9 ||
+    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V10
   ) {
-    const currentBackup = backup as BackupEnvelopeV8 | BackupEnvelopeV9;
+    const currentBackup = backup as BackupEnvelopeV8 | BackupEnvelopeV9 | BackupEnvelopeV10;
     return {
       settings: normalizeBackupSettings(currentBackup.settings),
-      tables: currentBackup.tables,
+      tables: {
+        ...currentBackup.tables,
+        breeding_records:
+          backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V10
+            ? (currentBackup.tables.breeding_records as readonly BackupBreedingRecordRow[])
+            : (currentBackup.tables.breeding_records as readonly BackupBreedingRecordRowLegacy[]).map(
+                normalizePreV10BreedingRecordRow,
+              ),
+      },
     };
   }
 
@@ -827,6 +841,9 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
   const medicationLogs: readonly BackupMedicationLogRow[] = backup.tables.medication_logs.map(
     (row) => normalizeMedicationLogRow(row as BackupMedicationLogRow | BackupMedicationLogRowV7),
   );
+  const breedingRecords: readonly BackupBreedingRecordRow[] = backup.tables.breeding_records.map(
+    (row) => normalizePreV10BreedingRecordRow(row as BackupBreedingRecordRowLegacy),
+  );
 
   return {
     settings: normalizeBackupSettings(backup.settings),
@@ -834,7 +851,7 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
       mares,
       stallions: backup.tables.stallions,
       semen_collections: semenCollections,
-      breeding_records: backup.tables.breeding_records,
+      breeding_records: breedingRecords,
       daily_logs: dailyLogs,
       uterine_fluid: uterineFluid,
       uterine_flushes: [],
@@ -846,6 +863,15 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
       collection_dose_events: collectionDoseEvents,
       frozen_semen_batches: frozenSemenBatches,
     },
+  };
+}
+
+function normalizePreV10BreedingRecordRow(
+  row: BackupBreedingRecordRowLegacy,
+): BackupBreedingRecordRow {
+  return {
+    ...row,
+    time: null,
   };
 }
 

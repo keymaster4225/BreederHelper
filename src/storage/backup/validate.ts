@@ -27,7 +27,9 @@ import {
   BACKUP_SCHEMA_VERSION_V7,
   BACKUP_SCHEMA_VERSION_V8,
   BACKUP_SCHEMA_VERSION_V9,
+  BACKUP_SCHEMA_VERSION_V10,
   type BackupBreedingRecordRow,
+  type BackupBreedingRecordRowLegacy,
   type BackupCollectionDoseEventRowV3,
   type BackupEnvelope,
   type BackupFoalingRecordRow,
@@ -45,10 +47,12 @@ import {
   type BackupTablesV7,
   type BackupTablesV8,
   type BackupTablesV9,
+  type BackupTablesV10,
   type ValidateBackupError,
   type ValidateBackupResult,
 } from './types';
 import { normalizeDailyLogTime } from '@/utils/dailyLogTime';
+import { normalizeBreedingRecordTime } from '@/utils/breedingRecordTime';
 import { normalizeClockPreference } from '@/utils/clockPreferences';
 
 const BREEDING_METHODS = new Set(BREEDING_METHOD_VALUES);
@@ -77,14 +81,15 @@ type BackupTables =
   | BackupTablesV6
   | BackupTablesV7
   | BackupTablesV8
-  | BackupTablesV9;
+  | BackupTablesV9
+  | BackupTablesV10;
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;
   readonly dailyLogIds: ReadonlySet<string>;
   readonly uterineFlushIds: ReadonlySet<string>;
   readonly stallionIds: ReadonlySet<string>;
-  readonly breedingById: ReadonlyMap<string, BackupBreedingRecordRow>;
+  readonly breedingById: ReadonlyMap<string, BackupBreedingRecordRow | BackupBreedingRecordRowLegacy>;
   readonly foalingById: ReadonlyMap<string, BackupFoalingRecordRow>;
   readonly collectionById: ReadonlyMap<
     string,
@@ -128,7 +133,8 @@ export function validateBackup(input: unknown): ValidateBackupResult {
     schemaVersion !== BACKUP_SCHEMA_VERSION_V6 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V7 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V8 &&
-    schemaVersion !== BACKUP_SCHEMA_VERSION_V9
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V9 &&
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V10
   ) {
     return validationFailure(
       'unsupported_schema_version',
@@ -217,15 +223,21 @@ export function validateBackup(input: unknown): ValidateBackupResult {
                   }
                 : schemaVersion === BACKUP_SCHEMA_VERSION_V8
                   ? {
-                    schemaVersion: BACKUP_SCHEMA_VERSION_V8,
-                    ...baseEnvelopeFields,
-                    tables: tableArrays.tables as BackupTablesV8,
-                  }
-                  : {
-                    schemaVersion: BACKUP_SCHEMA_VERSION_V9,
-                    ...baseEnvelopeFields,
-                    tables: tableArrays.tables as BackupTablesV9,
-                  };
+                      schemaVersion: BACKUP_SCHEMA_VERSION_V8,
+                      ...baseEnvelopeFields,
+                      tables: tableArrays.tables as BackupTablesV8,
+                    }
+                  : schemaVersion === BACKUP_SCHEMA_VERSION_V9
+                    ? {
+                        schemaVersion: BACKUP_SCHEMA_VERSION_V9,
+                        ...baseEnvelopeFields,
+                        tables: tableArrays.tables as BackupTablesV9,
+                      }
+                    : {
+                        schemaVersion: BACKUP_SCHEMA_VERSION_V10,
+                        ...baseEnvelopeFields,
+                        tables: tableArrays.tables as BackupTablesV10,
+                      };
 
   const rowError = validateRows(backup.tables, schemaVersion);
   if (rowError) {
@@ -355,7 +367,7 @@ function validateRows(
     }
   }
   for (let index = 0; index < tables.breeding_records.length; index += 1) {
-    const error = validateBreedingRecordRow(tables.breeding_records[index], index);
+    const error = validateBreedingRecordRow(tables.breeding_records[index], index, schemaVersion);
     if (error) return error;
   }
   for (let index = 0; index < tables.pregnancy_checks.length; index += 1) {
@@ -714,7 +726,11 @@ function validateUterineFlushProductRow(
   return null;
 }
 
-function validateBreedingRecordRow(row: unknown, rowIndex: number): ValidateBackupResult | null {
+function validateBreedingRecordRow(
+  row: unknown,
+  rowIndex: number,
+  schemaVersion: number,
+): ValidateBackupResult | null {
   if (!isRecord(row)) {
     return rowFailure('breeding_records', rowIndex, 'row', 'must be an object');
   }
@@ -729,6 +745,12 @@ function validateBreedingRecordRow(row: unknown, rowIndex: number): ValidateBack
     return rowFailure('breeding_records', rowIndex, 'collection_id', 'must be a string or null');
   }
   if (!isLocalDate(row.date)) return rowFailure('breeding_records', rowIndex, 'date', 'must be a valid YYYY-MM-DD date');
+  if (
+    schemaVersion >= BACKUP_SCHEMA_VERSION_V10 &&
+    !(row.time === null || (typeof row.time === 'string' && normalizeBreedingRecordTime(row.time) === row.time))
+  ) {
+    return rowFailure('breeding_records', rowIndex, 'time', 'must be a valid HH:MM time or null');
+  }
   if (!isStringEnum(row.method, BREEDING_METHODS)) {
     return rowFailure('breeding_records', rowIndex, 'method', 'must be a supported breeding method');
   }

@@ -158,6 +158,7 @@ describe('serializeBackup', () => {
               stallion_name: null,
               collection_id: null,
               date: '2026-04-02',
+              time: '14:45',
               method: 'frozenAI',
               notes: null,
               volume_ml: null,
@@ -310,7 +311,7 @@ describe('serializeBackup', () => {
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(9);
+    expect(backup.schemaVersion).toBe(10);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
     expect(backup.settings.clockPreference).toBe('24h');
@@ -318,6 +319,7 @@ describe('serializeBackup', () => {
     expect(backup.tables.mares[0]?.is_recipient).toBe(1);
     expect(backup.tables.mares[0]?.deleted_at).toBe('2026-04-01T00:00:00.000Z');
     expect(backup.tables.breeding_records[0]?.straw_volume_ml).toBe(0.5);
+    expect(backup.tables.breeding_records[0]?.time).toBe('14:45');
     expect(backup.tables.foals[0]?.milestones).toBe('{"stood":{"done":true}}');
     expect(backup.tables.foals[0]?.igg_tests).toContain('"valueMgDl":900');
     expect(backup.tables.daily_logs[0]?.right_ovary_follicle_state).toBe('measured');

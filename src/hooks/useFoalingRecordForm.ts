@@ -10,11 +10,13 @@ import {
   listBreedingRecordsByMare,
   updateFoalingRecord,
 } from '@/storage/repositories';
+import { buildBreedingRecordPickerOptions } from '@/utils/breedingRecordTime';
 import { confirmDelete } from '@/utils/confirmDelete';
 import { newId } from '@/utils/id';
 import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validation';
 
 import { useRecordForm } from './useRecordForm';
+import { useClockDisplayMode } from './useClockPreference';
 
 type FormErrors = {
   date?: string;
@@ -35,6 +37,7 @@ export function useFoalingRecordForm({
 }: UseFoalingRecordFormArgs) {
   const isEdit = Boolean(foalingRecordId);
   const today = useMemo(() => new Date(), []);
+  const clockDisplayMode = useClockDisplayMode();
   const onGoBackRef = useRef(onGoBack);
   const setTitleRef = useRef(setTitle);
 
@@ -78,13 +81,11 @@ export function useFoalingRecordForm({
           return;
         }
 
-        setBreedingOptions([
-          { label: 'None', value: '' },
-          ...records.map((record) => ({
-            label: `${record.date} (${record.method})`,
-            value: record.id,
-          })),
-        ]);
+        setBreedingOptions(
+          buildBreedingRecordPickerOptions(records, clockDisplayMode, {
+            includeNoneOption: true,
+          }),
+        );
         setHasFoal(Boolean(existingFoal));
 
         if (existing) {
@@ -105,7 +106,7 @@ export function useFoalingRecordForm({
         },
       },
     );
-  }, [foalingRecordId, mareId, runLoad]);
+  }, [clockDisplayMode, foalingRecordId, mareId, runLoad]);
 
   const validate = useCallback((): boolean => {
     const nextErrors: FormErrors = {

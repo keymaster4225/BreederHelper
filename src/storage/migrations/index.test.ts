@@ -11,6 +11,11 @@ function createFakeDb(options: {
     id: string;
     straw_volume_ml: number | null;
   }>;
+  breedingRecordsColumns?: string[];
+  hasBreedingRecordsMareDateTimeIndex?: boolean;
+  hasBreedingRecordsStallionDateTimeIndex?: boolean;
+  hasBreedingRecordsMareDateIndex?: boolean;
+  hasBreedingRecordsStallionDateIndex?: boolean;
   stallionsSql?: string;
   semenCollectionsSql?: string;
   hasSemenCollectionsOld?: boolean;
@@ -118,6 +123,7 @@ function createFakeDb(options: {
     (options.breedingRecordRows ?? []).map((row) => [row.id, { ...row }]),
   );
   let pendingBreedingRecordRows: Map<string, { id: string; straw_volume_ml: number | null }> | null = null;
+  const breedingRecordsColumns = [...(options.breedingRecordsColumns ?? ['id', 'time'])];
   let pendingStallionsSql: string | null = null;
   let pendingSemenCollectionsSql: string | null = null;
   let pendingDailyLogsSql: string | null = null;
@@ -131,6 +137,11 @@ function createFakeDb(options: {
   let hasFrozenSemenBatchesTable = options.hasFrozenSemenBatchesTable ?? false;
   let hasFrozenSemenBatchesStallionIndex = options.hasFrozenSemenBatchesStallionIndex ?? false;
   let hasFrozenSemenBatchesCollectionIndex = options.hasFrozenSemenBatchesCollectionIndex ?? false;
+  let hasBreedingRecordsMareDateTimeIndex = options.hasBreedingRecordsMareDateTimeIndex ?? true;
+  let hasBreedingRecordsStallionDateTimeIndex =
+    options.hasBreedingRecordsStallionDateTimeIndex ?? true;
+  let hasBreedingRecordsMareDateIndex = options.hasBreedingRecordsMareDateIndex ?? false;
+  let hasBreedingRecordsStallionDateIndex = options.hasBreedingRecordsStallionDateIndex ?? false;
 
   const db = {
     async execAsync(sql: string): Promise<void> {
@@ -168,6 +179,14 @@ function createFakeDb(options: {
         const [, columnName] = addDailyLogColumnMatch;
         if (!dailyLogsColumns.includes(columnName)) {
           dailyLogsColumns.push(columnName);
+        }
+      }
+
+      const addBreedingRecordColumnMatch = /^ALTER TABLE breeding_records\s+ADD COLUMN\s+([a-z_]+)/i.exec(trimmed);
+      if (addBreedingRecordColumnMatch) {
+        const [, columnName] = addBreedingRecordColumnMatch;
+        if (!breedingRecordsColumns.includes(columnName)) {
+          breedingRecordsColumns.push(columnName);
         }
       }
 
@@ -256,6 +275,22 @@ function createFakeDb(options: {
 
       if (trimmed.startsWith('CREATE UNIQUE INDEX IF NOT EXISTS idx_daily_logs_mare_date_untimed_unique')) {
         hasDailyLogsUntimedUniqueIndex = true;
+      }
+
+      if (trimmed.startsWith('CREATE INDEX IF NOT EXISTS idx_breeding_records_mare_date_time')) {
+        hasBreedingRecordsMareDateTimeIndex = true;
+      }
+
+      if (trimmed.startsWith('CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date_time')) {
+        hasBreedingRecordsStallionDateTimeIndex = true;
+      }
+
+      if (trimmed.startsWith('DROP INDEX IF EXISTS idx_breeding_records_mare_date')) {
+        hasBreedingRecordsMareDateIndex = false;
+      }
+
+      if (trimmed.startsWith('DROP INDEX IF EXISTS idx_breeding_records_stallion_date')) {
+        hasBreedingRecordsStallionDateIndex = false;
       }
     },
     async runAsync(sql: string, params: unknown[] = []): Promise<void> {
@@ -352,6 +387,24 @@ function createFakeDb(options: {
         if (indexName === 'idx_frozen_semen_batches_collection_id' && hasFrozenSemenBatchesCollectionIndex) {
           return { name: indexName } as T;
         }
+        if (indexName === 'idx_breeding_records_mare_date_time' && hasBreedingRecordsMareDateTimeIndex) {
+          return { name: indexName } as T;
+        }
+        if (
+          indexName === 'idx_breeding_records_stallion_date_time' &&
+          hasBreedingRecordsStallionDateTimeIndex
+        ) {
+          return { name: indexName } as T;
+        }
+        if (indexName === 'idx_breeding_records_mare_date' && hasBreedingRecordsMareDateIndex) {
+          return { name: indexName } as T;
+        }
+        if (
+          indexName === 'idx_breeding_records_stallion_date' &&
+          hasBreedingRecordsStallionDateIndex
+        ) {
+          return { name: indexName } as T;
+        }
         return null;
       }
 
@@ -414,6 +467,9 @@ function createFakeDb(options: {
       }
       if (trimmed === 'PRAGMA table_info(daily_logs);') {
         return dailyLogsColumns.map((name) => ({ name } as T));
+      }
+      if (trimmed === 'PRAGMA table_info(breeding_records);') {
+        return breedingRecordsColumns.map((name) => ({ name } as T));
       }
       if (trimmed === 'PRAGMA table_info(medication_logs);') {
         const columns = options.medicationLogsColumns ?? [
@@ -720,7 +776,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([21, 22, 23, 24, 25]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([21, 22, 23, 24, 25, 26]);
   });
 
   it('applies migration022 when frozen_semen_batches artifacts are missing', async () => {
@@ -768,7 +824,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([22, 23, 24, 25]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([22, 23, 24, 25, 26]);
   });
 
   it('skips migration019 when target and dose volume columns already exist', async () => {
@@ -824,7 +880,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20, 21, 22, 23, 24, 25]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20, 21, 22, 23, 24, 25, 26]);
   });
 
   it('skips the repair migration when breeding_records already references semen_collections', async () => {
@@ -863,7 +919,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
   });
 
   it('runs the repair migration when the legacy table still exists even if breeding_records already looks correct', async () => {
@@ -1004,7 +1060,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20, 21, 22, 23, 24, 25]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
   });
 
   it('rebuilds stallions and semen_collections when canonical constraint checks are missing', async () => {
@@ -1106,7 +1162,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE stallions_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20, 21, 22, 23, 24, 25]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
   });
 
   it('fails the canonical repair migration with a targeted error when legacy stallion rows are invalid', async () => {
@@ -1260,7 +1316,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([24, 25]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([24, 25, 26]);
   });
 
   it('adds uterine flush tables and medication source linkage in migration025', async () => {
@@ -1301,7 +1357,7 @@ describe('applyMigrations', () => {
     expect(
       execCalls.some((sql) => sql.includes('CREATE INDEX IF NOT EXISTS idx_medication_logs_source_daily_log_id')),
     ).toBe(true);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([25]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26]);
   });
 
   it('skips migration025 when flush and medication linkage artifacts already exist', async () => {
@@ -1317,7 +1373,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([25]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26]);
   });
 
   it('completes partially present migration025 artifacts without re-adding the medication column', async () => {
@@ -1341,6 +1397,82 @@ describe('applyMigrations', () => {
     expect(
       execCalls.some((sql) => sql.includes('CREATE INDEX IF NOT EXISTS idx_medication_logs_source_daily_log_id')),
     ).toBe(true);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([25]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26]);
+  });
+
+  it('rebuilds breeding_records with time and date-time indexes in migration026', async () => {
+    const { db, execCalls, queryCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 25 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY,
+          mare_id TEXT NOT NULL,
+          stallion_id TEXT,
+          collection_id TEXT,
+          date TEXT NOT NULL,
+          method TEXT NOT NULL,
+          straw_volume_ml REAL,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        )
+      `,
+      breedingRecordsColumns: ['id'],
+      hasBreedingRecordsMareDateTimeIndex: false,
+      hasBreedingRecordsStallionDateTimeIndex: false,
+      hasBreedingRecordsMareDateIndex: true,
+      hasBreedingRecordsStallionDateIndex: true,
+    });
+
+    await applyMigrations(db as never);
+
+    expect(execCalls).toContain('PRAGMA foreign_keys = OFF;');
+    expect(execCalls).toContain('PRAGMA foreign_keys = ON;');
+    expect(queryCalls).toContain('PRAGMA foreign_key_check;');
+    expect(execCalls.some((sql) => sql.includes('ADD COLUMN time TEXT'))).toBe(true);
+    expect(
+      execCalls.some(
+        (sql) =>
+          sql.includes('CREATE TABLE breeding_records_new') &&
+          sql.includes('time TEXT') &&
+          sql.includes('length(time) = 5'),
+      ),
+    ).toBe(true);
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('CREATE INDEX IF NOT EXISTS idx_breeding_records_mare_date_time'),
+      ),
+    ).toBe(true);
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date_time'),
+      ),
+    ).toBe(true);
+    expect(
+      execCalls.some((sql) => sql.includes('DROP INDEX IF EXISTS idx_breeding_records_mare_date')),
+    ).toBe(true);
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('DROP INDEX IF EXISTS idx_breeding_records_stallion_date'),
+      ),
+    ).toBe(true);
+    expect(execCalls.some((sql) => sql.includes('DROP TABLE breeding_records'))).toBe(true);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([26]);
+  });
+
+  it('skips migration026 when time and date-time index artifacts already exist', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 25 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY,
+          time TEXT
+        )
+      `,
+    });
+
+    await applyMigrations(db as never);
+
+    expect(execCalls).toHaveLength(1);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([26]);
   });
 });

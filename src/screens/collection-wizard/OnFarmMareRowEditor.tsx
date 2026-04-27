@@ -17,6 +17,7 @@ import {
   FormField,
   FormPickerInput,
   FormTextInput,
+  FormTimeInput,
   formStyles,
 } from '@/components/FormControls';
 import {
@@ -25,6 +26,9 @@ import {
 } from '@/hooks/useCollectionWizard';
 import { Mare } from '@/models/types';
 import { borderRadius, colors, spacing, typography } from '@/theme';
+import { normalizeBreedingRecordTime } from '@/utils/breedingRecordTime';
+import { getCurrentTimeHHMM } from '@/utils/dailyLogTime';
+import { toLocalDate } from '@/utils/dates';
 import {
   parseOptionalNumber,
   validateLocalDate,
@@ -45,6 +49,7 @@ type Props = {
 type FormErrors = {
   mareId?: string;
   eventDate?: string;
+  eventTime?: string;
   doseSemenVolumeMl?: string;
 };
 
@@ -67,6 +72,7 @@ export function OnFarmMareRowEditor({
 }: Props): JSX.Element {
   const [mareId, setMareId] = useState('');
   const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
   const [doseSemenVolumeMl, setDoseSemenVolumeMl] = useState('');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
@@ -77,7 +83,12 @@ export function OnFarmMareRowEditor({
     }
 
     setMareId(initialValue?.mareId ?? '');
-    setEventDate(initialValue?.eventDate ?? defaultDate);
+    const nextEventDate = initialValue?.eventDate ?? defaultDate;
+    setEventDate(nextEventDate);
+    setEventTime(
+      initialValue?.eventTime ??
+        (nextEventDate === toLocalDate(new Date()) ? getCurrentTimeHHMM() : ''),
+    );
     setDoseSemenVolumeMl(
       initialValue
         ? formatMlInput(initialValue.doseSemenVolumeMl)
@@ -98,12 +109,14 @@ export function OnFarmMareRowEditor({
   );
 
   const handleSave = (): void => {
+    const parsedEventTime = normalizeBreedingRecordTime(eventTime);
     const nextErrors: FormErrors = {
       mareId: mareId ? undefined : 'Please select a mare.',
       eventDate:
         validateLocalDate(eventDate, 'Breeding date', true) ??
         validateLocalDateNotInFuture(eventDate) ??
         undefined,
+      eventTime: parsedEventTime == null ? 'Breeding time is required.' : undefined,
       doseSemenVolumeMl:
         validateNumberRange(
           parsedDoseSemenVolumeMl,
@@ -125,10 +138,29 @@ export function OnFarmMareRowEditor({
     onSave({
       mareId,
       eventDate,
+      eventTime: parsedEventTime!,
       doseSemenVolumeMl: parsedDoseSemenVolumeMl,
       doseCount: 1,
       notes: notes.trim() || null,
     });
+  };
+
+  const handleEventDateChange = (nextEventDate: string): void => {
+    const today = toLocalDate(new Date());
+    setEventDate(nextEventDate);
+
+    if (initialValue) {
+      return;
+    }
+
+    if (nextEventDate === today && eventTime === '') {
+      setEventTime(getCurrentTimeHHMM());
+      return;
+    }
+
+    if (eventDate === today && nextEventDate !== today) {
+      setEventTime('');
+    }
   };
 
   return (
@@ -158,9 +190,18 @@ export function OnFarmMareRowEditor({
               <FormField label="Breeding Date" required error={errors.eventDate}>
                 <FormDateInput
                   value={eventDate}
-                  onChange={setEventDate}
+                  onChange={handleEventDateChange}
                   maximumDate={new Date()}
                   displayFormat="MM-DD-YYYY"
+                />
+              </FormField>
+
+              <FormField label="Breeding Time" required error={errors.eventTime}>
+                <FormTimeInput
+                  value={eventTime}
+                  onChange={setEventTime}
+                  placeholder="Select breeding time"
+                  accessibilityLabel="Select on-farm breeding time"
                 />
               </FormField>
 

@@ -1,5 +1,6 @@
 import { BreedingMethod, BreedingRecord } from '@/models/types';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
+import { normalizeBreedingRecordTime } from '@/utils/breedingRecordTime';
 import { assertCollectionSemenVolumeCanSupportAllocation } from './internal/collectionAllocation';
 import type { RepoDb } from './internal/dbTypes';
 import { resolveDb } from './internal/resolveDb';
@@ -12,6 +13,7 @@ type BreedingRecordRow = {
   stallion_name: string | null;
   collection_id: string | null;
   date: string;
+  time: string | null;
   method: BreedingRecord['method'];
   notes: string | null;
   volume_ml: number | null;
@@ -33,6 +35,7 @@ function mapBreedingRecordRow(row: BreedingRecordRow): BreedingRecord {
     stallionName: row.stallion_name,
     collectionId: row.collection_id,
     date: row.date,
+    time: row.time,
     method: row.method,
     notes: row.notes,
     volumeMl: row.volume_ml,
@@ -75,6 +78,32 @@ type ExistingBreedingRecordRow = {
   id: string;
 };
 
+function normalizeRequiredTime(value: string | null | undefined): string {
+  if (value == null || value === '') {
+    throw new Error('Breeding time is required.');
+  }
+
+  const normalized = normalizeBreedingRecordTime(value);
+  if (normalized == null) {
+    throw new Error('Breeding time must be a valid HH:MM time.');
+  }
+
+  return normalized;
+}
+
+function normalizeNullableTime(value: string | null | undefined): string | null {
+  if (value == null) {
+    return null;
+  }
+
+  const normalized = normalizeBreedingRecordTime(value);
+  if (normalized == null) {
+    throw new Error('Breeding time must be a valid HH:MM time.');
+  }
+
+  return normalized;
+}
+
 async function getLinkedOnFarmDoseEventByBreedingRecordId(
   db: RepoDb,
   breedingRecordId: string,
@@ -110,6 +139,7 @@ export async function createBreedingRecord(input: {
   stallionName?: string | null;
   collectionId?: string | null;
   date: string;
+  time: string;
   method: BreedingMethod;
   notes?: string | null;
   volumeMl?: number | null;
@@ -124,16 +154,17 @@ export async function createBreedingRecord(input: {
   await validateCollectionStallion(input.collectionId, input.stallionId, handle);
 
   const now = new Date().toISOString();
+  const time = normalizeRequiredTime(input.time);
 
   await handle.runAsync(
     `
     INSERT INTO breeding_records (
       id, mare_id, stallion_id, stallion_name, collection_id,
-      date, method, notes,
+      date, time, method, notes,
       volume_ml, concentration_m_per_ml, motility_percent,
       number_of_straws, straw_volume_ml, straw_details,
       collection_date, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       input.id,
@@ -142,6 +173,7 @@ export async function createBreedingRecord(input: {
       input.stallionName ?? null,
       input.collectionId ?? null,
       input.date,
+      time,
       input.method,
       input.notes ?? null,
       input.volumeMl ?? null,
@@ -165,6 +197,7 @@ export async function updateBreedingRecord(
     stallionName?: string | null;
     collectionId?: string | null;
     date: string;
+    time: string | null;
     method: BreedingMethod;
     notes?: string | null;
     volumeMl?: number | null;
@@ -178,6 +211,7 @@ export async function updateBreedingRecord(
   db?: RepoDb,
 ): Promise<void> {
   const handle = await resolveDb(db);
+  const time = normalizeNullableTime(input.time);
   const existing = await handle.getFirstAsync<ExistingBreedingRecordRow>(
     `
     SELECT id
@@ -232,6 +266,7 @@ export async function updateBreedingRecord(
         stallion_name = ?,
         collection_id = ?,
         date = ?,
+        time = ?,
         method = ?,
         notes = ?,
         volume_ml = ?,
@@ -249,6 +284,7 @@ export async function updateBreedingRecord(
         input.stallionName ?? null,
         input.collectionId ?? null,
         input.date,
+        time,
         input.method,
         input.notes ?? null,
         input.volumeMl ?? null,
@@ -297,7 +333,7 @@ export async function getBreedingRecordById(id: string, db?: RepoDb): Promise<Br
     `
     SELECT
       id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
-      motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
+      time, motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
     WHERE id = ?;
     `,
@@ -319,9 +355,9 @@ export async function listAllBreedingRecords(db?: RepoDb): Promise<BreedingRecor
     `
     SELECT
       id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
-      motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
+      time, motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
-    ORDER BY date DESC;
+    ORDER BY date DESC, time DESC, created_at DESC, id DESC;
     `,
   );
 
@@ -334,10 +370,10 @@ export async function listBreedingRecordsByMare(mareId: string, db?: RepoDb): Pr
     `
     SELECT
       id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
-      motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
+      time, motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
     WHERE mare_id = ?
-    ORDER BY date DESC;
+    ORDER BY date DESC, time DESC, created_at DESC, id DESC;
     `,
     [mareId],
   );
@@ -354,10 +390,10 @@ export async function listBreedingRecordsForStallion(
     `
     SELECT
       id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
-      motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
+      time, motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
     WHERE stallion_id = ?
-    ORDER BY date DESC;
+    ORDER BY date DESC, time DESC, created_at DESC, id DESC;
     `,
     [stallionId],
   );
@@ -373,11 +409,11 @@ export async function listLegacyBreedingRecordsMatchingStallionName(
     `
     SELECT
       id, mare_id, stallion_id, stallion_name, collection_id, date, method, notes, volume_ml, concentration_m_per_ml,
-      motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
+      time, motility_percent, number_of_straws, straw_volume_ml, straw_details, collection_date, created_at, updated_at
     FROM breeding_records
     WHERE stallion_id IS NULL
     AND LOWER(stallion_name) = LOWER(?)
-    ORDER BY date DESC;
+    ORDER BY date DESC, time DESC, created_at DESC, id DESC;
     `,
     [stallionName],
   );

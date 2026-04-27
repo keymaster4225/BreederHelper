@@ -8,6 +8,7 @@ import {
   PregnancyCheck,
   findCurrentPregnancyCheck,
 } from '@/models/types';
+import { compareBreedingRecordsDesc } from '@/utils/breedingRecordTime';
 import { compareDailyLogsDesc } from '@/utils/dailyLogTime';
 
 import { DashboardInput } from '@/utils/dashboardAlertTypes';
@@ -44,12 +45,12 @@ function groupByMareId<T extends { mareId: string }>(
   return map;
 }
 
-function sortByDateDesc<T extends { date: string }>(records: readonly T[]): T[] {
-  return [...records].sort((a, b) => b.date.localeCompare(a.date));
-}
-
 function sortDailyLogsDesc(records: readonly DailyLog[]): DailyLog[] {
   return [...records].sort(compareDailyLogsDesc);
+}
+
+function sortBreedingRecordsDesc(records: readonly BreedingRecord[]): BreedingRecord[] {
+  return [...records].sort(compareBreedingRecordsDesc);
 }
 
 export function buildDashboardAlertContext(input: DashboardInput): DashboardAlertContext {
@@ -78,7 +79,7 @@ export function buildDashboardAlertContext(input: DashboardInput): DashboardAler
       dailyLogs,
       dailyLogsDesc: sortDailyLogsDesc(dailyLogs),
       breedingRecords,
-      breedingRecordsDesc: sortByDateDesc(breedingRecords),
+      breedingRecordsDesc: sortBreedingRecordsDesc(breedingRecords),
       pregnancyChecks,
       foalingRecords,
       medicationLogs: medsByMare.get(mare.id) ?? [],

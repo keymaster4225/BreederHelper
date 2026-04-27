@@ -21,6 +21,7 @@ import {
   listPregnancyChecksByMare,
   listStallions,
 } from '@/storage/repositories';
+import { compareBreedingRecordsDesc } from '@/utils/breedingRecordTime';
 import { buildCalendarMarking } from '@/utils/calendarMarking';
 import { toLocalDate } from '@/utils/dates';
 
@@ -110,7 +111,10 @@ export function useMareCalendarData({ mareId }: UseMareCalendarDataArgs) {
     [dailyLogs, selectedDay],
   );
   const filteredBreedings = useMemo(
-    () => breedingRecords.filter((record) => record.date === selectedDay),
+    () =>
+      breedingRecords
+        .filter((record) => record.date === selectedDay)
+        .sort(compareBreedingRecordsDesc),
     [breedingRecords, selectedDay],
   );
   const filteredChecks = useMemo(

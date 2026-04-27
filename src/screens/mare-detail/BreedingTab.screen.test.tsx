@@ -21,6 +21,7 @@ it('opens breeding detail from the card body and edit form from the pencil', () 
           stallionName: null,
           collectionId: null,
           date: '2026-04-01',
+          time: null,
           method: 'freshAI',
           notes: null,
           createdAt: '2026-04-01T00:00:00.000Z',

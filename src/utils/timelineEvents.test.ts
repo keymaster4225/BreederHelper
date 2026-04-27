@@ -24,6 +24,7 @@ function makeBreedingRecord(overrides: Partial<BreedingRecord> & { id: string; d
   return {
     stallionId: null,
     stallionName: null,
+    time: null,
     method: 'liveCover',
     notes: null,
     volumeMl: null,

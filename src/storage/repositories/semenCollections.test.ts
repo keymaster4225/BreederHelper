@@ -508,6 +508,7 @@ describe('semen collection repository', () => {
         stallionId: 'st-link',
         collectionId: 'col-link',
         date: '2026-04-02',
+        time: '09:00',
         method: 'freshAI',
       });
 
@@ -586,6 +587,7 @@ describe('semen collection repository', () => {
           stallionId: 'st-b',
           collectionId: 'col-a',
           date: '2026-04-02',
+          time: '09:00',
           method: 'freshAI',
         }),
       ).rejects.toThrow('Collection belongs to a different stallion.');
@@ -604,6 +606,7 @@ describe('semen collection repository', () => {
         stallionName: 'Other',
         collectionId: 'col-req',
         date: '2026-04-02',
+        time: '09:00',
         method: 'freshAI',
       }),
     ).rejects.toThrow('A collection requires a linked stallion.');
@@ -617,6 +620,7 @@ describe('semen collection repository', () => {
         mareId: 'mare-1',
         stallionId: 'st-q',
         date: '2026-03-01',
+        time: '09:00',
         method: 'liveCover',
       });
       await createBreedingRecord({
@@ -624,6 +628,7 @@ describe('semen collection repository', () => {
         mareId: 'mare-2',
         stallionId: 'st-q',
         date: '2026-04-01',
+        time: '09:00',
         method: 'freshAI',
       });
 
@@ -639,6 +644,7 @@ describe('semen collection repository', () => {
         stallionId: null,
         stallionName: 'Thunder',
         date: '2026-03-01',
+        time: '09:00',
         method: 'liveCover',
       });
 

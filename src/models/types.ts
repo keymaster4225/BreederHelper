@@ -318,6 +318,7 @@ export interface BreedingRecord {
   stallionName?: string | null;
   collectionId?: UUID | null;
   date: LocalDate;
+  time: string | null;
   method: BreedingMethod;
   notes?: string | null;
 

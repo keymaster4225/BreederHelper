@@ -14,6 +14,7 @@ import {
   estimateFoalingDate,
 } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
+import { formatBreedingRecordDateTime } from '@/utils/breedingRecordTime';
 import { formatDailyLogTime } from '@/utils/dailyLogTime';
 import { formatLocalDate } from '@/utils/dates';
 import { useClockDisplayMode } from '@/hooks/useClockPreference';
@@ -127,23 +128,26 @@ function BreedingCard({
   navigation,
   mareId,
   stallionNameById,
+  clockDisplayMode,
 }: {
   event: TimelineEvent;
   navigation: Props['navigation'];
   mareId: string;
   stallionNameById: Readonly<Record<string, string>>;
+  clockDisplayMode: '12h' | '24h';
 }): JSX.Element {
   const record = event.data as BreedingRecord;
   const stallionName = record.stallionName ?? stallionNameById[record.stallionId ?? ''] ?? 'Unknown';
+  const eventTitle = formatBreedingRecordDateTime(record, clockDisplayMode);
   return (
     <View style={cardStyles.card}>
       <View style={cardStyles.cardHeader}>
-        <Text style={cardStyles.cardTitle}>{event.date}</Text>
+        <Text style={cardStyles.cardTitle}>{eventTitle}</Text>
         <EditIconButton onPress={() => navigation.navigate('BreedingRecordForm', { mareId, breedingRecordId: record.id })} />
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Open breeding event from ${event.date}`}
+        accessibilityLabel={`Open breeding event from ${eventTitle}`}
         onPress={() => navigation.navigate('BreedingEventDetail', { breedingRecordId: record.id })}
         style={({ pressed }) => [styles.cardBodyPressable, pressed && styles.pressed]}
       >
@@ -293,7 +297,15 @@ function TimelineCard({
     case 'ovulation':
       return <OvulationCard event={event} navigation={navigation} mareId={mareId} clockDisplayMode={clockDisplayMode} />;
     case 'breeding':
-      return <BreedingCard event={event} navigation={navigation} mareId={mareId} stallionNameById={stallionNameById} />;
+      return (
+        <BreedingCard
+          event={event}
+          navigation={navigation}
+          mareId={mareId}
+          stallionNameById={stallionNameById}
+          clockDisplayMode={clockDisplayMode}
+        />
+      );
     case 'pregnancyCheck':
       return (
         <PregCheckCard

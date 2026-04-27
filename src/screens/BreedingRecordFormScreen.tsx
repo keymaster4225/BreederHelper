@@ -2,7 +2,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, Text, Vi
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
-import { FormDateInput, FormField, FormPickerInput, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { FormDateInput, FormField, FormPickerInput, FormTextInput, FormTimeInput, OptionSelector, formStyles } from '@/components/FormControls';
 import {
   COVERAGE_OPTIONS,
   NO_COLLECTION,
@@ -23,6 +23,7 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     today,
     isEdit,
     date,
+    time,
     stallionName,
     method,
     volumeMl,
@@ -50,7 +51,9 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
     canShowAllCollections,
     showAllCollectionsList,
     aiMethodOptions,
+    isTimeRequired,
     setDate,
+    setTime,
     setStallionName,
     setMethod,
     setVolumeMl,
@@ -93,6 +96,16 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
 
           <FormField label="Date" required error={errors.date}>
             <FormDateInput value={date} onChange={setDate} placeholder="Select breeding date" maximumDate={today} />
+          </FormField>
+
+          <FormField label="Time" required={isTimeRequired} error={errors.time}>
+            <FormTimeInput
+              value={time}
+              onChange={setTime}
+              placeholder="Select breeding time"
+              clearable={!isTimeRequired}
+              accessibilityLabel="Select breeding time"
+            />
           </FormField>
 
           <FormField label="Stallion" required error={errors.stallion}>

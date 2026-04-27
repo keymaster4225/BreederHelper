@@ -53,6 +53,25 @@ jest.mock('@/components/FormControls', () => {
     );
   }
 
+  function FormTimeInput({
+    value,
+    onChange,
+    placeholder = 'Select time',
+  }: {
+    value: string;
+    onChange: (value: string) => void;
+    placeholder?: string;
+  }): JSX.Element {
+    return (
+      <TextInput
+        testID="form-time-input"
+        placeholder={placeholder}
+        value={value}
+        onChangeText={onChange}
+      />
+    );
+  }
+
   function FormAutocompleteInput({
     value,
     onChangeText,
@@ -135,6 +154,7 @@ jest.mock('@/components/FormControls', () => {
     FormField,
     FormPickerInput,
     FormTextInput,
+    FormTimeInput,
   };
 });
 
@@ -180,6 +200,10 @@ function typeText(screen: ReturnType<typeof renderWizard>, label: string, value:
 
 function typeDate(screen: ReturnType<typeof renderWizard>, label: string, value: string) {
   fireEvent.changeText(within(getField(screen, label)).getByTestId('form-date-input'), value);
+}
+
+function typeTime(screen: ReturnType<typeof renderWizard>, label: string, value: string) {
+  fireEvent.changeText(within(getField(screen, label)).getByTestId('form-time-input'), value);
 }
 
 function typeAutocomplete(screen: ReturnType<typeof renderWizard>, label: string, value: string) {
@@ -519,6 +543,7 @@ it('prevents selecting the same mare twice', async () => {
   openPicker(screen, 'Mare');
   fireEvent.press(screen.getByText('Nova'));
   typeDate(screen, 'Breeding Date', '2026-04-21');
+  typeTime(screen, 'Breeding Time', '09:30');
   fireEvent.press(screen.getByText('Save On-Farm Allocation'));
   await waitFor(() => expect(screen.getByText('On-Farm: Nova')).toBeTruthy());
 

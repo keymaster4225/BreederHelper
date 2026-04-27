@@ -133,7 +133,8 @@ describe('restoreBackup', () => {
     expect(sqlCalls[18]).toContain('INSERT INTO breeding_records');
     const breedingInsertCall = db.runAsync.mock.calls[18] as unknown[] | undefined;
     const breedingInsertParams = (breedingInsertCall?.[1] ?? []) as unknown[];
-    expect(breedingInsertParams[12]).toBe(0.5);
+    expect(breedingInsertParams[6]).toBe('09:30');
+    expect(breedingInsertParams[13]).toBe(0.5);
     expect(sqlCalls[19]).toContain('INSERT INTO daily_logs');
     const dailyLogInsertCall = db.runAsync.mock.calls[19] as unknown[] | undefined;
     const dailyLogInsertParams = (dailyLogInsertCall?.[1] ?? []) as unknown[];

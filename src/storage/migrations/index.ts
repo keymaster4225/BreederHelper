@@ -1185,6 +1185,105 @@ CREATE INDEX IF NOT EXISTS idx_medication_logs_source_daily_log_id
   ON medication_logs (source_daily_log_id);
 `;
 
+const migration026 = `
+DROP INDEX IF EXISTS idx_breeding_records_mare_date;
+DROP INDEX IF EXISTS idx_breeding_records_stallion_date;
+
+CREATE TABLE breeding_records_new (
+  id TEXT PRIMARY KEY,
+  mare_id TEXT NOT NULL,
+  stallion_id TEXT,
+  stallion_name TEXT,
+  collection_id TEXT,
+  date TEXT NOT NULL,
+  time TEXT,
+  method TEXT NOT NULL,
+  notes TEXT,
+  volume_ml REAL,
+  concentration_m_per_ml REAL,
+  motility_percent REAL,
+  number_of_straws INTEGER,
+  straw_volume_ml REAL,
+  straw_details TEXT,
+  collection_date TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (mare_id) REFERENCES mares(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  FOREIGN KEY (stallion_id) REFERENCES stallions(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  FOREIGN KEY (collection_id) REFERENCES semen_collections(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+  CHECK (date GLOB '????-??-??'),
+  CHECK (
+    time IS NULL OR (
+      length(time) = 5
+      AND substr(time, 3, 1) = ':'
+      AND substr(time, 1, 2) BETWEEN '00' AND '23'
+      AND substr(time, 4, 2) BETWEEN '00' AND '59'
+    )
+  ),
+  CHECK (collection_date IS NULL OR collection_date GLOB '????-??-??'),
+  CHECK (method IN ('liveCover', 'freshAI', 'shippedCooledAI', 'frozenAI')),
+  CHECK (motility_percent IS NULL OR (motility_percent >= 0 AND motility_percent <= 100)),
+  CHECK (number_of_straws IS NULL OR number_of_straws >= 1),
+  CHECK (
+    (method = 'frozenAI' AND number_of_straws IS NOT NULL)
+    OR (method <> 'frozenAI')
+  ),
+  CHECK (stallion_id IS NOT NULL OR stallion_name IS NOT NULL),
+  CHECK (collection_id IS NULL OR stallion_id IS NOT NULL)
+);
+
+INSERT INTO breeding_records_new (
+  id,
+  mare_id,
+  stallion_id,
+  stallion_name,
+  collection_id,
+  date,
+  time,
+  method,
+  notes,
+  volume_ml,
+  concentration_m_per_ml,
+  motility_percent,
+  number_of_straws,
+  straw_volume_ml,
+  straw_details,
+  collection_date,
+  created_at,
+  updated_at
+)
+SELECT
+  id,
+  mare_id,
+  stallion_id,
+  stallion_name,
+  collection_id,
+  date,
+  time,
+  method,
+  notes,
+  volume_ml,
+  concentration_m_per_ml,
+  motility_percent,
+  number_of_straws,
+  straw_volume_ml,
+  straw_details,
+  collection_date,
+  created_at,
+  updated_at
+FROM breeding_records;
+
+DROP TABLE breeding_records;
+
+ALTER TABLE breeding_records_new RENAME TO breeding_records;
+
+CREATE INDEX IF NOT EXISTS idx_breeding_records_mare_date_time
+  ON breeding_records (mare_id, date DESC, time DESC, created_at DESC, id DESC);
+
+CREATE INDEX IF NOT EXISTS idx_breeding_records_stallion_date_time
+  ON breeding_records (stallion_id, date DESC, time DESC, created_at DESC, id DESC);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -1389,6 +1488,19 @@ const migrations: Migration[] = [
       (await hasColumn(db, 'medication_logs', 'source_daily_log_id')) &&
       (await indexExists(db, 'idx_medication_logs_source_daily_log_id')),
   },
+  {
+    id: 26,
+    name: '026_breeding_record_time',
+    statements: splitStatements(migration026),
+    beforeApply: async (db) => ensureBreedingRecordTimeColumn(db),
+    requiresForeignKeysOff: true,
+    shouldSkip: async (db) =>
+      (await hasColumn(db, 'breeding_records', 'time')) &&
+      (await indexExists(db, 'idx_breeding_records_mare_date_time')) &&
+      (await indexExists(db, 'idx_breeding_records_stallion_date_time')) &&
+      !(await indexExists(db, 'idx_breeding_records_mare_date')) &&
+      !(await indexExists(db, 'idx_breeding_records_stallion_date')),
+  },
 ];
 
 export async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -1516,6 +1628,27 @@ async function ensureMedicationSourceDailyLogColumn(
     ALTER TABLE medication_logs
       ADD COLUMN source_daily_log_id TEXT
         REFERENCES daily_logs(id) ON UPDATE CASCADE ON DELETE RESTRICT;
+  `);
+}
+
+async function ensureBreedingRecordTimeColumn(
+  db: SQLite.SQLiteDatabase,
+): Promise<void> {
+  if (await hasColumn(db, 'breeding_records', 'time')) {
+    return;
+  }
+
+  await db.execAsync(`
+    ALTER TABLE breeding_records
+      ADD COLUMN time TEXT
+        CHECK (
+          time IS NULL OR (
+            length(time) = 5
+            AND substr(time, 3, 1) = ':'
+            AND substr(time, 1, 2) BETWEEN '00' AND '23'
+            AND substr(time, 4, 2) BETWEEN '00' AND '59'
+          )
+        );
   `);
 }
 

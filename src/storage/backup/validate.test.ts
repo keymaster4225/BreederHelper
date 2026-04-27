@@ -23,7 +23,7 @@ describe('validateBackup', () => {
     expect(result.preview.mareCount).toBe(1);
     expect(result.preview.dailyLogCount).toBe(1);
     expect(result.preview.onboardingComplete).toBe(true);
-    expect(result.preview.schemaVersion).toBe(9);
+    expect(result.preview.schemaVersion).toBe(10);
   });
 
   it('requires a valid clock preference in current backup settings', () => {
@@ -43,6 +43,29 @@ describe('validateBackup', () => {
 
     expect(result.error.code).toBe('invalid_shape');
     expect(result.error.message).toContain('clockPreference');
+  });
+
+  it('rejects malformed breeding record times in current backups', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        breeding_records: backup.tables.breeding_records.map((row) => ({
+          ...row,
+          time: '8:00',
+        })),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('breeding_records');
+    expect(result.error.field).toBe('time');
+    expect(result.error.code).toBe('invalid_row');
   });
 
   it('accepts v1 backups without gestation length on mare rows', () => {
@@ -684,7 +707,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 10,
+      schemaVersion: 11,
     });
 
     const result = validateBackupJson(jsonText);

@@ -120,7 +120,7 @@ export async function seedPreviewData(): Promise<SeedPreviewDataResult> {
   insertedAny =
     (await ensureRecordExists(
       () => getBreedingRecordById(previewIds.bellaBreeding),
-      () => createBreedingRecord({ id: previewIds.bellaBreeding, mareId: previewIds.mareBella, stallionId: previewIds.stallionA, date: '2026-02-25', method: 'liveCover' }),
+      () => createBreedingRecord({ id: previewIds.bellaBreeding, mareId: previewIds.mareBella, stallionId: previewIds.stallionA, date: '2026-02-25', time: '10:30', method: 'liveCover' }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(
@@ -148,7 +148,7 @@ export async function seedPreviewData(): Promise<SeedPreviewDataResult> {
   insertedAny =
     (await ensureRecordExists(
       () => getBreedingRecordById(previewIds.desertBreeding),
-      () => createBreedingRecord({ id: previewIds.desertBreeding, mareId: previewIds.mareDesertRose, stallionId: previewIds.stallionB, date: '2025-03-10', method: 'frozenAI', numberOfStraws: 2, strawVolumeMl: 5 }),
+      () => createBreedingRecord({ id: previewIds.desertBreeding, mareId: previewIds.mareDesertRose, stallionId: previewIds.stallionB, date: '2025-03-10', time: '09:15', method: 'frozenAI', numberOfStraws: 2, strawVolumeMl: 5 }),
     )) || insertedAny;
   insertedAny =
     (await ensureRecordExists(

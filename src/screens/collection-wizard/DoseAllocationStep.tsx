@@ -10,8 +10,10 @@ import {
   CollectionWizardShippedRow,
   CollectionWizardShippedRowInput,
 } from '@/hooks/useCollectionWizard';
+import { useClockDisplayMode } from '@/hooks/useClockPreference';
 import { Mare } from '@/models/types';
 import { colors, spacing, typography } from '@/theme';
+import { formatBreedingRecordTime } from '@/utils/breedingRecordTime';
 import type { AllocationSummary } from '@/utils/collectionAllocation';
 import { formatLocalDate } from '@/utils/dates';
 import { OnFarmMareRowEditor } from './OnFarmMareRowEditor';
@@ -60,6 +62,7 @@ export function DoseAllocationStep({
   const [editingOnFarmClientId, setEditingOnFarmClientId] = useState<string | null>(null);
   const [isShippedEditorOpen, setIsShippedEditorOpen] = useState(false);
   const [isOnFarmEditorOpen, setIsOnFarmEditorOpen] = useState(false);
+  const clockDisplayMode = useClockDisplayMode();
 
   const editingShippedRow = useMemo(() => {
     if (editingShippedClientId == null) {
@@ -245,14 +248,20 @@ export function DoseAllocationStep({
                     />
                   </>
                 ) : (
-                  <CardRow
-                    label="Semen Used"
-                    value={
-                      row.doseSemenVolumeMl == null
-                        ? 'Semen volume not recorded'
-                        : formatMl(row.doseSemenVolumeMl)
-                    }
-                  />
+                  <>
+                    <CardRow
+                      label="Breeding Time"
+                      value={formatBreedingRecordTime(row.eventTime, clockDisplayMode)}
+                    />
+                    <CardRow
+                      label="Semen Used"
+                      value={
+                        row.doseSemenVolumeMl == null
+                          ? 'Semen volume not recorded'
+                          : formatMl(row.doseSemenVolumeMl)
+                      }
+                    />
+                  </>
                 )}
 
                 {row.notes ? <CardRow label="Notes" value={row.notes} /> : null}

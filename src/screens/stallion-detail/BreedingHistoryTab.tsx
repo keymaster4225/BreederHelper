@@ -2,10 +2,11 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { cardStyles } from '@/components/RecordCardParts';
+import { useClockDisplayMode } from '@/hooks/useClockPreference';
 import { BreedingRecord } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { colors, spacing, typography } from '@/theme';
-import { formatLocalDate } from '@/utils/dates';
+import { formatBreedingRecordDateTime } from '@/utils/breedingRecordTime';
 import { formatBreedingMethod } from '@/utils/outcomeDisplay';
 
 type Props = {
@@ -17,6 +18,7 @@ type Props = {
 
 export function BreedingHistoryTab({ linkedBreedings, legacyBreedings, mareNameById, navigation }: Props): JSX.Element {
   const hasAny = linkedBreedings.length > 0 || legacyBreedings.length > 0;
+  const clockDisplayMode = useClockDisplayMode();
 
   return (
     <View style={styles.page}>
@@ -33,7 +35,9 @@ export function BreedingHistoryTab({ linkedBreedings, legacyBreedings, mareNameB
                 style={({ pressed }) => [cardStyles.card, pressed && styles.pressed]}
                 onPress={() => navigation.navigate('BreedingEventDetail', { breedingRecordId: r.id })}
               >
-                <Text style={cardStyles.cardTitle}>{formatLocalDate(r.date, 'MM-DD-YYYY')}</Text>
+                <Text style={cardStyles.cardTitle}>
+                  {formatBreedingRecordDateTime(r, clockDisplayMode, { dateFormat: 'MM-DD-YYYY' })}
+                </Text>
                 <Text style={styles.cardMeta}>Mare: {mareNameById[r.mareId] ?? 'Unknown'}</Text>
                 <Text style={styles.cardMeta}>Method: {formatBreedingMethod(r.method)}</Text>
                 {r.collectionId ? <Text style={styles.collectionTag}>Collection linked</Text> : null}
@@ -49,7 +53,9 @@ export function BreedingHistoryTab({ linkedBreedings, legacyBreedings, mareNameB
           <View style={cardStyles.listWrap}>
             {legacyBreedings.map((r) => (
               <View key={r.id} style={[cardStyles.card, styles.legacyCard]}>
-                <Text style={cardStyles.cardTitle}>{formatLocalDate(r.date, 'MM-DD-YYYY')}</Text>
+                <Text style={cardStyles.cardTitle}>
+                  {formatBreedingRecordDateTime(r, clockDisplayMode, { dateFormat: 'MM-DD-YYYY' })}
+                </Text>
                 <Text style={styles.cardMeta}>Mare: {mareNameById[r.mareId] ?? 'Unknown'}</Text>
                 <Text style={styles.cardMeta}>Method: {formatBreedingMethod(r.method)}</Text>
               </View>

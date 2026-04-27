@@ -11,6 +11,7 @@ import {
 import { deriveCollectionMath } from '@/utils/collectionCalculator';
 import { getPersistedCollectionTargetMode } from '@/utils/collectionTargetMode';
 import { computeAllocationSummary } from '@/utils/collectionAllocation';
+import { normalizeBreedingRecordTime } from '@/utils/breedingRecordTime';
 import { newId } from '@/utils/id';
 import {
   parseOptionalInteger,
@@ -37,6 +38,7 @@ export type CollectionWizardOnFarmRow = {
   kind: 'usedOnSite';
   mareId: string;
   eventDate: string;
+  eventTime: string;
   doseSemenVolumeMl: number | null;
   doseCount: 1;
   notes: string | null;
@@ -81,6 +83,16 @@ function getDuplicateMareError(
       return 'A mare can only be selected once in this collection.';
     }
     seenMareIds.add(row.mareId);
+  }
+
+  return null;
+}
+
+function getOnFarmTimeError(rows: readonly CollectionWizardOnFarmRow[]): string | null {
+  for (const row of rows) {
+    if (normalizeBreedingRecordTime(row.eventTime) == null) {
+      return 'Each on-farm allocation needs a valid breeding time.';
+    }
   }
 
   return null;
@@ -309,7 +321,7 @@ export function useCollectionWizard({
 
   const validateAllocationStep = (): boolean => {
     const duplicateMareError = getDuplicateMareError(onFarmRows);
-    let allocationError = duplicateMareError;
+    let allocationError = duplicateMareError ?? getOnFarmTimeError(onFarmRows);
 
     if (!allocationError && !allocationSummary.isWithinCap) {
       allocationError = `Allocated semen volume exceeds collected volume by ${allocationSummary.exceededByMl.toFixed(2)} mL.`;
@@ -478,6 +490,7 @@ export function useCollectionWizard({
         ({ clientId: _clientId, kind: _kind, ...row }) => ({
           mareId: row.mareId,
           eventDate: row.eventDate,
+          eventTime: row.eventTime,
           doseSemenVolumeMl: row.doseSemenVolumeMl,
           notes: row.notes,
           doseCount: 1,

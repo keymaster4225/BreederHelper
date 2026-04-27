@@ -105,6 +105,7 @@ type BreedingRecordRow = {
   stallion_name: string | null;
   collection_id: string | null;
   date: string;
+  time: string | null;
   method: string;
   notes: string | null;
   volume_ml: number | null;
@@ -548,6 +549,7 @@ function createFakeDb(): FakeDb {
           stallionName,
           collectionId,
           date,
+          time,
           method,
           notes,
           volumeMl,
@@ -566,6 +568,7 @@ function createFakeDb(): FakeDb {
           string | null,
           string | null,
           string,
+          string | null,
           string,
           string | null,
           number | null,
@@ -585,6 +588,7 @@ function createFakeDb(): FakeDb {
           stallion_name: stallionName,
           collection_id: collectionId,
           date,
+          time,
           method,
           notes,
           volume_ml: volumeMl,
@@ -606,6 +610,7 @@ function createFakeDb(): FakeDb {
           stallionName,
           collectionId,
           date,
+          time,
           method,
           notes,
           volumeMl,
@@ -622,6 +627,7 @@ function createFakeDb(): FakeDb {
           string | null,
           string | null,
           string,
+          string | null,
           string,
           string | null,
           number | null,
@@ -642,6 +648,7 @@ function createFakeDb(): FakeDb {
           stallion_name: stallionName,
           collection_id: collectionId,
           date,
+          time,
           method,
           notes,
           volume_ml: volumeMl,
@@ -1128,6 +1135,7 @@ describe('repository smoke tests', () => {
       mareId: 'mare-hb',
       stallionId: 'stallion-hb',
       date: '2026-05-01',
+      time: '09:00',
       method: 'freshAI',
     });
     await createPregnancyCheck({
@@ -1167,6 +1175,7 @@ describe('repository smoke tests', () => {
       mareId: 'mare-preg-a',
       stallionId: 'stallion-preg',
       date: '2026-05-01',
+      time: '09:00',
       method: 'freshAI',
     });
 
@@ -1189,6 +1198,7 @@ describe('repository smoke tests', () => {
       mareId: 'mare-preg-update',
       stallionId: 'stallion-preg-update',
       date: '2026-05-01',
+      time: '09:00',
       method: 'freshAI',
     });
     await createPregnancyCheck({
@@ -1246,6 +1256,7 @@ describe('repository smoke tests', () => {
       mareId: 'mare-foaling-a',
       stallionId: 'stallion-foaling',
       date: '2026-06-01',
+      time: '09:00',
       method: 'freshAI',
     });
 
@@ -1286,6 +1297,7 @@ describe('repository smoke tests', () => {
       stallionId: null,
       stallionName: 'Outside Stallion',
       date: '2026-06-01',
+      time: '09:00',
       method: 'liveCover',
     });
 
@@ -1293,6 +1305,26 @@ describe('repository smoke tests', () => {
     expect(record).not.toBeNull();
     expect(record?.stallionId).toBeNull();
     expect(record?.stallionName).toBe('Outside Stallion');
+  });
+
+  it('rejects missing and malformed breeding record create times', async () => {
+    await createMare({ id: 'mare-time-validation', name: 'Time Mare', breed: 'Warmblood' });
+    await createStallion({ id: 'stallion-time-validation', name: 'Clockwise' });
+
+    for (const time of ['', '8:00', '08:00 ', '24:00']) {
+      await expect(
+        createBreedingRecord({
+          id: `breed-time-${time || 'blank'}`,
+          mareId: 'mare-time-validation',
+          stallionId: 'stallion-time-validation',
+          date: '2026-06-01',
+          time,
+          method: 'freshAI',
+        }),
+      ).rejects.toThrow(
+        time === '' ? 'Breeding time is required.' : 'Breeding time must be a valid HH:MM time.',
+      );
+    }
   });
 
   it('preserves decimal straw volume values across breeding record create and update', async () => {
@@ -1303,6 +1335,7 @@ describe('repository smoke tests', () => {
       mareId: 'mare-straw-decimal',
       stallionId: 'stallion-straw-decimal',
       date: '2026-06-01',
+      time: '09:00',
       method: 'frozenAI',
       numberOfStraws: 2,
       strawVolumeMl: 0.5,
@@ -1314,6 +1347,7 @@ describe('repository smoke tests', () => {
     await updateBreedingRecord('breed-straw-decimal', {
       stallionId: 'stallion-straw-decimal',
       date: '2026-06-02',
+      time: '09:30',
       method: 'frozenAI',
       numberOfStraws: 2,
       strawVolumeMl: 0.75,
@@ -1681,6 +1715,7 @@ describe('repository smoke tests', () => {
       mareId: 'mare-3',
       stallionId: 'stallion-1',
       date: '2026-04-01',
+      time: '09:00',
       method: 'freshAI',
     });
 

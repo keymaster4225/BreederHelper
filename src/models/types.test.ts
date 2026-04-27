@@ -161,6 +161,7 @@ function makeBreedingRecord(
     stallionId: overrides.stallionId ?? 'stallion-1',
     stallionName: overrides.stallionName ?? null,
     date: overrides.date,
+    time: overrides.time ?? null,
     method: overrides.method ?? 'liveCover',
     notes: overrides.notes ?? null,
     volumeMl: overrides.volumeMl ?? null,

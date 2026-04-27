@@ -7,7 +7,7 @@ import {
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV9,
+  type BackupEnvelopeV10,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
   type BackupFrozenSemenBatchRow,
@@ -33,7 +33,7 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV9> {
+export async function serializeBackup(): Promise<BackupEnvelopeV10> {
   const db = await getDb();
 
   const [
@@ -185,6 +185,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV9> {
         stallion_name,
         collection_id,
         date,
+        time,
         method,
         notes,
         volume_ml,
@@ -197,7 +198,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV9> {
         created_at,
         updated_at
       FROM breeding_records
-      ORDER BY date DESC, id ASC;
+      ORDER BY date DESC, time DESC, created_at DESC, id DESC;
       `,
     ),
     db.getAllAsync<BackupPregnancyCheckRow>(

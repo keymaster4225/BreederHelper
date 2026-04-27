@@ -35,6 +35,7 @@ it('uses the mare gestation length for estimated due dates', () => {
           stallionId: 'stallion-1',
           stallionName: 'Atlas',
           date: '2026-03-20',
+          time: null,
           method: 'liveCover',
           notes: null,
           createdAt: '2026-03-20T00:00:00Z',

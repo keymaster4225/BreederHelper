@@ -20,6 +20,7 @@ type BreedingRecordRow = {
   id: string;
   collection_id: string | null;
   date: string;
+  time: string | null;
   method: string;
   notes: string | null;
   volume_ml: number | null;
@@ -63,6 +64,7 @@ function createFakeDb() {
         id: 'breed-1',
         collection_id: 'col-1',
         date: '2026-04-01',
+        time: '09:00',
         method: 'freshAI',
         notes: 'Old note',
         volume_ml: 1,
@@ -128,6 +130,7 @@ function createFakeDb() {
           stallionName,
           collectionId,
           date,
+          time,
           method,
           notes,
           volumeMl,
@@ -144,6 +147,7 @@ function createFakeDb() {
           string | null,
           string | null,
           string,
+          string | null,
           string,
           string | null,
           number | null,
@@ -166,6 +170,7 @@ function createFakeDb() {
           stallion_name: stallionName,
           collection_id: collectionId,
           date,
+          time,
           method,
           notes,
           volume_ml: volumeMl,
@@ -294,6 +299,7 @@ describe('breedingRecords linked on-farm behavior', () => {
       stallionId: 'stallion-1',
       collectionId: 'col-1',
       date: '2026-04-04',
+      time: '10:15',
       method: 'freshAI',
       notes: 'Updated note',
       volumeMl: 3,
@@ -325,6 +331,7 @@ describe('breedingRecords linked on-farm behavior', () => {
         stallionId: 'stallion-1',
         collectionId: 'col-1',
         date: '2026-04-04',
+        time: '10:15',
         method: 'shippedCooledAI',
         notes: null,
         volumeMl: 3,
@@ -340,6 +347,7 @@ describe('breedingRecords linked on-farm behavior', () => {
         stallionId: 'stallion-1',
         collectionId: null,
         date: '2026-04-04',
+        time: '10:15',
         method: 'freshAI',
         notes: null,
         volumeMl: 3,
@@ -355,6 +363,7 @@ describe('breedingRecords linked on-farm behavior', () => {
         stallionId: 'stallion-1',
         collectionId: 'col-2',
         date: '2026-04-04',
+        time: '10:15',
         method: 'freshAI',
         notes: null,
         volumeMl: 3,
@@ -373,6 +382,7 @@ describe('breedingRecords linked on-farm behavior', () => {
         stallionId: 'stallion-1',
         collectionId: 'col-1',
         date: '2026-04-04',
+        time: '10:15',
         method: 'freshAI',
         notes: null,
         volumeMl: 3,

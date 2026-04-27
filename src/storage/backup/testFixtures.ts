@@ -4,14 +4,22 @@ import type {
   BackupEnvelopeV4,
   BackupEnvelopeV5,
   BackupEnvelopeV6,
-  BackupEnvelopeV9,
+  BackupEnvelopeV10,
+  BackupBreedingRecordRow,
+  BackupBreedingRecordRowLegacy,
 } from './types';
 
 const BASE_TIMESTAMP = '2026-04-16T12:00:00.000Z';
 
-export function createBackupFixture(): BackupEnvelopeV9 {
+function stripBreedingRecordTime(
+  rows: readonly BackupBreedingRecordRow[],
+): BackupBreedingRecordRowLegacy[] {
+  return rows.map(({ time: _time, ...row }) => row);
+}
+
+export function createBackupFixture(): BackupEnvelopeV10 {
   return {
-    schemaVersion: 9,
+    schemaVersion: 10,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -129,6 +137,7 @@ export function createBackupFixture(): BackupEnvelopeV9 {
           stallion_name: null,
           collection_id: 'collection-1',
           date: '2026-04-02',
+          time: '09:30',
           method: 'freshAI',
           notes: null,
           volume_ml: 50,
@@ -285,8 +294,8 @@ export function createBackupFixture(): BackupEnvelopeV9 {
   };
 }
 
-export function cloneBackupFixture(): BackupEnvelopeV9 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV9;
+export function cloneBackupFixture(): BackupEnvelopeV10 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV10;
 }
 
 export function createBackupFixtureV6(): BackupEnvelopeV6 {
@@ -302,7 +311,7 @@ export function createBackupFixtureV6(): BackupEnvelopeV6 {
       stallions: backupV7.tables.stallions,
       daily_logs: backupV7.tables.daily_logs.map(({ time: _time, ...row }) => row),
       uterine_fluid: backupV7.tables.uterine_fluid,
-      breeding_records: backupV7.tables.breeding_records,
+      breeding_records: stripBreedingRecordTime(backupV7.tables.breeding_records),
       pregnancy_checks: backupV7.tables.pregnancy_checks,
       foaling_records: backupV7.tables.foaling_records,
       foals: backupV7.tables.foals,

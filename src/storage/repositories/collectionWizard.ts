@@ -1,4 +1,5 @@
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
+import { normalizeBreedingRecordTime } from '@/utils/breedingRecordTime';
 import { computeAllocationSummary } from '@/utils/collectionAllocation';
 import { newId } from '@/utils/id';
 import type { AllocatedSemenVolumeOptions } from './internal/collectionAllocation';
@@ -42,6 +43,7 @@ export type CreateCollectionWizardShippedRowInput = {
 export type CreateCollectionWizardOnFarmRowInput = {
   mareId: string;
   eventDate: string;
+  eventTime: string;
   doseSemenVolumeMl?: number | null;
   notes?: string | null;
   doseCount?: number;
@@ -106,6 +108,9 @@ function validateWizardInput(input: CreateCollectionWithAllocationsInput): void 
 
     if (row.doseCount != null && row.doseCount !== 1) {
       throw new Error('On-farm allocations must always use a dose count of 1.');
+    }
+    if (normalizeBreedingRecordTime(row.eventTime) == null) {
+      throw new Error('Breeding time is required.');
     }
     if (row.doseSemenVolumeMl != null && row.doseSemenVolumeMl <= 0) {
       throw new Error('Dose semen volume must be greater than zero when provided.');
@@ -283,6 +288,7 @@ async function insertOnFarmAllocation(
       stallion_name,
       collection_id,
       date,
+      time,
       method,
       notes,
       volume_ml,
@@ -294,7 +300,7 @@ async function insertOnFarmAllocation(
       collection_date,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       breedingRecordId,
@@ -303,6 +309,7 @@ async function insertOnFarmAllocation(
       null,
       collectionId,
       row.eventDate,
+      normalizeBreedingRecordTime(row.eventTime),
       'freshAI',
       normalizeOptionalText(row.notes),
       row.doseSemenVolumeMl ?? null,

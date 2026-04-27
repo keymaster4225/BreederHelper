@@ -57,6 +57,7 @@ function makeBreeding(overrides: Partial<BreedingRecord> = {}): BreedingRecord {
     stallionId: 'stallion-1',
     stallionName: 'Thunder',
     date: '2026-03-01',
+    time: null,
     method: 'liveCover',
     createdAt: '2026-03-01T00:00:00Z',
     updatedAt: '2026-03-01T00:00:00Z',

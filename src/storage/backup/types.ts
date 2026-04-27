@@ -26,7 +26,8 @@ export const BACKUP_SCHEMA_VERSION_V6 = 6 as const;
 export const BACKUP_SCHEMA_VERSION_V7 = 7 as const;
 export const BACKUP_SCHEMA_VERSION_V8 = 8 as const;
 export const BACKUP_SCHEMA_VERSION_V9 = 9 as const;
-export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V9;
+export const BACKUP_SCHEMA_VERSION_V10 = 10 as const;
+export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V10;
 
 export const BACKUP_TABLE_NAMES = [
   'mares',
@@ -203,7 +204,7 @@ export type BackupUterineFlushProductRow = {
   readonly updated_at: BackupIsoDateTime;
 };
 
-export type BackupBreedingRecordRow = {
+export type BackupBreedingRecordRowLegacy = {
   readonly id: string;
   readonly mare_id: string;
   readonly stallion_id: string | null;
@@ -222,6 +223,12 @@ export type BackupBreedingRecordRow = {
   readonly created_at: BackupIsoDateTime;
   readonly updated_at: BackupIsoDateTime;
 };
+
+export type BackupBreedingRecordRowV10 = BackupBreedingRecordRowLegacy & {
+  readonly time: string | null;
+};
+
+export type BackupBreedingRecordRow = BackupBreedingRecordRowV10;
 
 export type BackupPregnancyCheckRow = {
   readonly id: string;
@@ -397,7 +404,7 @@ export type BackupTablesV1 = {
   readonly mares: readonly BackupMareRowV1[];
   readonly stallions: readonly BackupStallionRow[];
   readonly daily_logs: readonly BackupDailyLogRowLegacy[];
-  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRowLegacy[];
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
   readonly foaling_records: readonly BackupFoalingRecordRow[];
   readonly foals: readonly BackupFoalRow[];
@@ -411,7 +418,7 @@ export type BackupTablesV2 = {
   readonly mares: readonly BackupMareRowV2[];
   readonly stallions: readonly BackupStallionRow[];
   readonly daily_logs: readonly BackupDailyLogRowLegacy[];
-  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRowLegacy[];
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
   readonly foaling_records: readonly BackupFoalingRecordRow[];
   readonly foals: readonly BackupFoalRow[];
@@ -425,7 +432,7 @@ export type BackupTablesV3 = {
   readonly mares: readonly BackupMareRowV2[];
   readonly stallions: readonly BackupStallionRow[];
   readonly daily_logs: readonly BackupDailyLogRowLegacy[];
-  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRowLegacy[];
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
   readonly foaling_records: readonly BackupFoalingRecordRow[];
   readonly foals: readonly BackupFoalRow[];
@@ -440,7 +447,7 @@ export type BackupTablesV4 = {
   readonly stallions: readonly BackupStallionRow[];
   readonly daily_logs: readonly BackupDailyLogRowV4[];
   readonly uterine_fluid: readonly BackupUterineFluidRow[];
-  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRowLegacy[];
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
   readonly foaling_records: readonly BackupFoalingRecordRow[];
   readonly foals: readonly BackupFoalRow[];
@@ -455,7 +462,7 @@ export type BackupTablesV5 = {
   readonly stallions: readonly BackupStallionRow[];
   readonly daily_logs: readonly BackupDailyLogRowV4[];
   readonly uterine_fluid: readonly BackupUterineFluidRow[];
-  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRowLegacy[];
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
   readonly foaling_records: readonly BackupFoalingRecordRow[];
   readonly foals: readonly BackupFoalRow[];
@@ -470,7 +477,7 @@ export type BackupTablesV6 = {
   readonly stallions: readonly BackupStallionRow[];
   readonly daily_logs: readonly BackupDailyLogRowV4[];
   readonly uterine_fluid: readonly BackupUterineFluidRow[];
-  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRowLegacy[];
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
   readonly foaling_records: readonly BackupFoalingRecordRow[];
   readonly foals: readonly BackupFoalRow[];
@@ -485,7 +492,7 @@ export type BackupTablesV7 = {
   readonly stallions: readonly BackupStallionRow[];
   readonly daily_logs: readonly BackupDailyLogRowV7[];
   readonly uterine_fluid: readonly BackupUterineFluidRow[];
-  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRowLegacy[];
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
   readonly foaling_records: readonly BackupFoalingRecordRow[];
   readonly foals: readonly BackupFoalRow[];
@@ -502,7 +509,7 @@ export type BackupTablesV8 = {
   readonly uterine_fluid: readonly BackupUterineFluidRow[];
   readonly uterine_flushes: readonly BackupUterineFlushRow[];
   readonly uterine_flush_products: readonly BackupUterineFlushProductRow[];
-  readonly breeding_records: readonly BackupBreedingRecordRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRowLegacy[];
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
   readonly foaling_records: readonly BackupFoalingRecordRow[];
   readonly foals: readonly BackupFoalRow[];
@@ -513,6 +520,10 @@ export type BackupTablesV8 = {
 };
 
 export type BackupTablesV9 = BackupTablesV8;
+
+export type BackupTablesV10 = Omit<BackupTablesV9, 'breeding_records'> & {
+  readonly breeding_records: readonly BackupBreedingRecordRowV10[];
+};
 
 export type BackupEnvelopeV1 = {
   readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V1;
@@ -586,6 +597,14 @@ export type BackupEnvelopeV9 = {
   readonly tables: BackupTablesV9;
 };
 
+export type BackupEnvelopeV10 = {
+  readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V10;
+  readonly createdAt: BackupIsoDateTime;
+  readonly app: BackupAppMetadata;
+  readonly settings: BackupSettings;
+  readonly tables: BackupTablesV10;
+};
+
 export type BackupEnvelope =
   | BackupEnvelopeV1
   | BackupEnvelopeV2
@@ -595,7 +614,8 @@ export type BackupEnvelope =
   | BackupEnvelopeV6
   | BackupEnvelopeV7
   | BackupEnvelopeV8
-  | BackupEnvelopeV9;
+  | BackupEnvelopeV9
+  | BackupEnvelopeV10;
 
 export type BackupPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;

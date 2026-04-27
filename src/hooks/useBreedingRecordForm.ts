@@ -13,8 +13,10 @@ import {
   listStallions,
   updateBreedingRecord,
 } from '@/storage/repositories';
+import { normalizeBreedingRecordTime } from '@/utils/breedingRecordTime';
 import { confirmDelete } from '@/utils/confirmDelete';
 import { formatLocalDate } from '@/utils/dates';
+import { getCurrentTimeHHMM } from '@/utils/dailyLogTime';
 import { newId } from '@/utils/id';
 import {
   normalizeLocalDate,
@@ -30,6 +32,7 @@ import { useRecordForm } from './useRecordForm';
 
 type FormErrors = {
   date?: string;
+  time?: string;
   stallion?: string;
   collectionDate?: string;
   volumeMl?: string;
@@ -80,6 +83,7 @@ export function useBreedingRecordForm({
   const setTitleRef = useRef(setTitle);
 
   const [date, setDate] = useState('');
+  const [time, setTime] = useState(() => getCurrentTimeHHMM());
   const [stallionName, setStallionName] = useState('');
   const [method, setMethod] = useState<BreedingMethod>('liveCover');
   const [volumeMl, setVolumeMl] = useState('');
@@ -103,6 +107,7 @@ export function useBreedingRecordForm({
   const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
   const [showAllCollections, setShowAllCollections] = useState(false);
   const [isLinkedOnFarmRecord, setIsLinkedOnFarmRecord] = useState(false);
+  const [loadedRecordHadTime, setLoadedRecordHadTime] = useState(false);
 
   useEffect(() => {
     onGoBackRef.current = onGoBack;
@@ -123,6 +128,7 @@ export function useBreedingRecordForm({
   useEffect(() => {
     if (!breedingRecordId) {
       setIsLinkedOnFarmRecord(false);
+      setLoadedRecordHadTime(false);
       return;
     }
 
@@ -136,6 +142,8 @@ export function useBreedingRecordForm({
         }
 
         setDate(record.date);
+        setTime(record.time ?? '');
+        setLoadedRecordHadTime(record.time != null);
         setMethod(record.method);
         setVolumeMl(record.volumeMl == null ? '' : String(record.volumeMl));
         setConcentrationMPerMl(
@@ -300,9 +308,19 @@ export function useBreedingRecordForm({
     const parsedMotility = parseOptionalNumber(motilityPercent);
     const parsedStraws = parseOptionalInteger(numberOfStraws);
     const parsedStrawVolume = parseOptionalNumber(strawVolumeMl);
+    const parsedTime = time === '' ? null : normalizeBreedingRecordTime(time);
+    const timeError =
+      parsedTime != null
+        ? undefined
+        : !isEdit && time === ''
+          ? 'Breeding time is required.'
+          : time === ''
+            ? undefined
+            : 'Breeding time must be a valid HH:MM time.';
 
     const nextErrors: FormErrors = {
       date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
+      time: timeError,
       stallion: useCustomStallion
         ? validateRequired(stallionName.trim(), 'Stallion name') ?? undefined
         : selectedStallionId == null
@@ -353,17 +371,20 @@ export function useBreedingRecordForm({
       parsedMotility,
       parsedStraws,
       parsedStrawVolume,
+      parsedTime,
     };
   }, [
     collectionDate,
     concentrationMPerMl,
     date,
+    isEdit,
     method,
     motilityPercent,
     numberOfStraws,
     selectedStallionId,
     stallionName,
     strawVolumeMl,
+    time,
     useCustomStallion,
     volumeMl,
   ]);
@@ -376,9 +397,21 @@ export function useBreedingRecordForm({
       parsedMotility,
       parsedStraws,
       parsedStrawVolume,
+      parsedTime,
     } = validate();
     if (!valid) {
       return;
+    }
+    if (!isEdit && parsedTime == null) {
+      return;
+    }
+    const createTime = parsedTime;
+
+    if (isEdit && loadedRecordHadTime && parsedTime == null) {
+      const confirmed = await confirmClearBreedingTime();
+      if (!confirmed) {
+        return;
+      }
     }
 
     await runSave(
@@ -388,6 +421,7 @@ export function useBreedingRecordForm({
           stallionName: useCustomStallion ? stallionName.trim() || null : null,
           collectionId: selectedCollectionId,
           date: date.trim(),
+          time: parsedTime,
           method,
           notes: notes.trim() || null,
           volumeMl: method === 'freshAI' || method === 'shippedCooledAI' ? parsedVolume : null,
@@ -409,7 +443,10 @@ export function useBreedingRecordForm({
         if (breedingRecordId) {
           await updateBreedingRecord(breedingRecordId, payload);
         } else {
-          await createBreedingRecord({ id: newId(), mareId, ...payload });
+          if (createTime == null) {
+            throw new Error('Breeding time is required.');
+          }
+          await createBreedingRecord({ id: newId(), mareId, ...payload, time: createTime });
         }
 
         onGoBack();
@@ -425,6 +462,8 @@ export function useBreedingRecordForm({
     breedingRecordId,
     collectionDate,
     date,
+    isEdit,
+    loadedRecordHadTime,
     mareId,
     method,
     notes,
@@ -474,6 +513,7 @@ export function useBreedingRecordForm({
     today,
     isEdit,
     date,
+    time,
     stallionName,
     method,
     volumeMl,
@@ -501,7 +541,9 @@ export function useBreedingRecordForm({
     canShowAllCollections: collections.length > 10 && !showAllCollections,
     showAllCollectionsList: () => setShowAllCollections(true),
     aiMethodOptions: AI_BREEDING_METHOD_OPTIONS,
+    isTimeRequired: !isEdit,
     setDate,
+    setTime,
     setStallionName,
     setMethod: (value: AIMethod) => setMethod(value),
     setVolumeMl,
@@ -518,4 +560,18 @@ export function useBreedingRecordForm({
     onSave,
     requestDelete,
   };
+}
+
+function confirmClearBreedingTime(): Promise<boolean> {
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Clear Breeding Time',
+      'Remove the saved time from this breeding record?',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Clear', style: 'destructive', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
 }

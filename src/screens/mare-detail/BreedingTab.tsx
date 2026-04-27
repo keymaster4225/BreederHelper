@@ -3,8 +3,10 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { PrimaryButton } from '@/components/Buttons';
 import { CardRow, EditIconButton, cardStyles } from '@/components/RecordCardParts';
+import { useClockDisplayMode } from '@/hooks/useClockPreference';
 import { BreedingRecord } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
+import { formatBreedingRecordDateTime } from '@/utils/breedingRecordTime';
 import { formatBreedingMethod } from '@/utils/outcomeDisplay';
 import { spacing } from '@/theme';
 
@@ -16,6 +18,8 @@ type Props = {
 };
 
 export function BreedingTab({ mareId, breedingRecords, stallionNameById, navigation }: Props): JSX.Element {
+  const clockDisplayMode = useClockDisplayMode();
+
   return (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -28,12 +32,14 @@ export function BreedingTab({ mareId, breedingRecords, stallionNameById, navigat
         {breedingRecords.map((record) => (
           <View key={record.id} style={cardStyles.card}>
             <View style={cardStyles.cardHeader}>
-              <Text style={cardStyles.cardTitle}>{record.date}</Text>
+              <Text style={cardStyles.cardTitle}>
+                {formatBreedingRecordDateTime(record, clockDisplayMode)}
+              </Text>
               <EditIconButton onPress={() => navigation.navigate('BreedingRecordForm', { mareId, breedingRecordId: record.id })} />
             </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Open breeding event from ${record.date}`}
+              accessibilityLabel={`Open breeding event from ${formatBreedingRecordDateTime(record, clockDisplayMode)}`}
               onPress={() => navigation.navigate('BreedingEventDetail', { breedingRecordId: record.id })}
               style={({ pressed }) => [styles.cardBodyPressable, pressed && styles.pressed]}
             >

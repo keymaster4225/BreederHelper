@@ -4,9 +4,11 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { DeleteButton, PrimaryButton } from '@/components/Buttons';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { useClockDisplayMode } from '@/hooks/useClockPreference';
 import { usePregnancyCheckForm } from '@/hooks/usePregnancyCheckForm';
 import { PREGNANCY_RESULT_OPTIONS } from '@/models/enums';
 import { Screen } from '@/components/Screen';
+import { buildBreedingRecordPickerOptions } from '@/utils/breedingRecordTime';
 import { formatLocalDate } from '@/utils/dates';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { borderRadius, colors, spacing, typography } from '@/theme';
@@ -21,6 +23,7 @@ const YES_NO_OPTIONS: { label: string; value: YesNo }[] = [
 ];
 
 export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Element {
+  const clockDisplayMode = useClockDisplayMode();
   const {
     isEdit,
     today,
@@ -74,7 +77,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
             <OptionSelector
               value={breedingRecordId}
               onChange={setBreedingRecordId}
-              options={breedingRecords.map((record) => ({ value: record.id, label: `${record.date} - ${record.stallionName ?? 'Unknown'} (${record.method})` }))}
+              options={buildBreedingRecordPickerOptions(breedingRecords, clockDisplayMode)}
             />
           )}
         </FormField>

@@ -48,6 +48,7 @@ type BreedingRow = {
   stallion_id: string | null;
   collection_id: string | null;
   date: string;
+  time: string | null;
   method: string;
   notes: string | null;
   volume_ml: number | null;
@@ -155,6 +156,7 @@ function createFakeDb() {
           ,
           collectionId,
           date,
+          time,
           method,
           notes,
           volumeMl,
@@ -171,6 +173,7 @@ function createFakeDb() {
           string | null,
           string | null,
           string,
+          string | null,
           string,
           string | null,
           number | null,
@@ -189,6 +192,7 @@ function createFakeDb() {
           stallion_id: stallionId,
           collection_id: collectionId,
           date,
+          time,
           method,
           notes,
           volume_ml: volumeMl,
@@ -364,6 +368,7 @@ describe('collection wizard repository', () => {
         {
           mareId: 'mare-1',
           eventDate: '2026-04-02',
+          eventTime: '09:30',
           doseSemenVolumeMl: 5,
           notes: 'Bred in barn 2',
         },
@@ -381,6 +386,7 @@ describe('collection wizard repository', () => {
     const breedingRecord = fakeDb.breedingRecords.get('breeding-1');
     expect(breedingRecord?.collection_id).toBe('collection-1');
     expect(breedingRecord?.method).toBe('freshAI');
+    expect(breedingRecord?.time).toBe('09:30');
     expect(breedingRecord?.volume_ml).toBe(5);
     expect(breedingRecord?.concentration_m_per_ml).toBe(200);
     expect(breedingRecord?.motility_percent).toBe(75);
@@ -453,8 +459,8 @@ describe('collection wizard repository', () => {
         },
         shippedRows: [],
         onFarmRows: [
-          { mareId: 'mare-1', eventDate: '2026-04-02', doseSemenVolumeMl: 4 },
-          { mareId: 'mare-1', eventDate: '2026-04-03', doseSemenVolumeMl: 4 },
+          { mareId: 'mare-1', eventDate: '2026-04-02', eventTime: '09:00', doseSemenVolumeMl: 4 },
+          { mareId: 'mare-1', eventDate: '2026-04-03', eventTime: '10:00', doseSemenVolumeMl: 4 },
         ],
       }, fakeDb),
     ).rejects.toThrow('A mare can only be selected once per collection wizard.');
@@ -494,6 +500,7 @@ describe('collection wizard repository', () => {
           {
             mareId: 'mare-missing',
             eventDate: '2026-04-02',
+            eventTime: '09:00',
             doseSemenVolumeMl: 3,
           },
         ],
@@ -553,6 +560,7 @@ describe('collection wizard repository', () => {
           {
             mareId: 'mare-1',
             eventDate: '2026-04-02',
+            eventTime: '09:00',
             doseSemenVolumeMl: 4,
             doseCount: 2,
           },

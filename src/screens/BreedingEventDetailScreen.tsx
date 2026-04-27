@@ -7,9 +7,11 @@ import { CardRow, EditIconButton, cardStyles } from '@/components/RecordCardPart
 import { StatusBadge } from '@/components/StatusBadge';
 import { Screen } from '@/components/Screen';
 import { useBreedingEventDetail } from '@/hooks/useBreedingEventDetail';
+import { useClockDisplayMode } from '@/hooks/useClockPreference';
 import { FoalingRecord, PregnancyCheck, calculateDaysPostBreeding } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { colors, spacing, typography } from '@/theme';
+import { formatBreedingRecordTime } from '@/utils/breedingRecordTime';
 import { formatLocalDate } from '@/utils/dates';
 import {
   formatBreedingMethod,
@@ -55,6 +57,7 @@ function PressableCardRow({
 
 export function BreedingEventDetailScreen({ navigation, route }: Props): JSX.Element {
   const handledInvalidRouteRef = useRef(false);
+  const clockDisplayMode = useClockDisplayMode();
   const {
     isLoading,
     error,
@@ -155,6 +158,9 @@ export function BreedingEventDetailScreen({ navigation, route }: Props): JSX.Ele
         <View style={cardStyles.card}>
           <Text style={styles.sectionTitle}>Summary</Text>
           <CardRow label="Date" value={formatLocalDate(record.date, 'MM-DD-YYYY')} />
+          {record.time ? (
+            <CardRow label="Time" value={formatBreedingRecordTime(record.time, clockDisplayMode)} />
+          ) : null}
           {canOpenMare ? (
             <PressableCardRow
               label="Mare"
