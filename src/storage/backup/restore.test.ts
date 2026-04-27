@@ -64,6 +64,7 @@ const MANAGED_TABLE_DELETE_ORDER = [
   'daily_logs',
   'breeding_records',
   'semen_collections',
+  'tasks',
   'mares',
   'stallions',
 ] as const;
@@ -91,7 +92,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 9,
+        schemaVersion: 11,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -99,9 +100,9 @@ describe('restoreBackup', () => {
       fileName: 'snapshot.json',
       fileUri: 'file:///snapshot.json',
       createdAt: backup.createdAt,
-      mareCount: 1,
-      schemaVersion: 9,
-    });
+        mareCount: 1,
+        schemaVersion: 11,
+      });
 
     const result = await restoreBackup(JSON.stringify(backup), {
       onStepChange: (step) => steps.push(step),
@@ -144,6 +145,10 @@ describe('restoreBackup', () => {
 
     const medicationInsertParams = expectInsertForTable(db, 'medication_logs').params;
     expect(medicationInsertParams.source_daily_log_id).toBeNull();
+    const taskInsertParams = expectInsertForTable(db, 'tasks').params;
+    expect(taskInsertParams.mare_id).toBe('mare-1');
+    expect(taskInsertParams.status).toBe('open');
+    expect(taskInsertParams.source_reason).toBe('manualFollowUp');
     expectInsertForTable(db, 'pregnancy_checks');
     expectInsertForTable(db, 'foaling_records');
     expectInsertForTable(db, 'foals');
@@ -457,6 +462,51 @@ describe('restoreBackup', () => {
 
     expect(db.findRunCall({ operation: 'insert', table: 'frozen_semen_batches' })).toBeUndefined();
     expectInsertForTable(db, 'uterine_fluid');
+  });
+
+  it('normalizes tasks to empty when restoring v1-v10 backups into the v11 schema', async () => {
+    const currentBackup = cloneBackupFixture();
+    const tablesWithoutTasks = { ...currentBackup.tables };
+    delete (tablesWithoutTasks as { tasks?: unknown }).tasks;
+    const legacyBackups: BackupEnvelope[] = [
+      { ...createBackupFixtureV2(), schemaVersion: 1 } as BackupEnvelope,
+      createBackupFixtureV2() as BackupEnvelope,
+      createBackupFixtureV3() as BackupEnvelope,
+      createBackupFixtureV4() as BackupEnvelope,
+      createBackupFixtureV5() as BackupEnvelope,
+      createBackupFixtureV6() as BackupEnvelope,
+      { ...currentBackup, schemaVersion: 7, tables: tablesWithoutTasks } as BackupEnvelope,
+      { ...currentBackup, schemaVersion: 8, tables: tablesWithoutTasks } as BackupEnvelope,
+      { ...currentBackup, schemaVersion: 9, tables: tablesWithoutTasks } as BackupEnvelope,
+      { ...currentBackup, schemaVersion: 10, tables: tablesWithoutTasks } as BackupEnvelope,
+    ];
+
+    for (const backup of legacyBackups) {
+      const db = createRestoreDb();
+
+      vi.mocked(validateBackup).mockReturnValue({
+        ok: true,
+        backup,
+        preview: {
+          createdAt: backup.createdAt,
+          mareCount: 1,
+          stallionCount: 1,
+          dailyLogCount: 1,
+          onboardingComplete: true,
+          schemaVersion: backup.schemaVersion,
+        },
+      });
+      vi.mocked(getDb).mockResolvedValue(db as never);
+      vi.mocked(setOnboardingCompleteValue).mockResolvedValue(undefined);
+
+      const result = await restoreBackup(backup, { skipSafetySnapshot: true });
+
+      expect(result).toEqual({
+        ok: true,
+        safetySnapshotCreated: false,
+      });
+      expect(db.findRunCall({ operation: 'insert', table: 'tasks' })).toBeUndefined();
+    }
   });
 
   it('defaults new daily-log fields for v1-v3 backups and skips uterine fluid rows', async () => {

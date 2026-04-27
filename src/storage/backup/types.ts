@@ -13,6 +13,10 @@ import type {
   OvaryConsistency,
   PregnancyResult,
   StrawColor,
+  TaskSourceReason,
+  TaskSourceType,
+  TaskStatus,
+  TaskType,
   UterineToneCategory,
 } from '@/models/types';
 import type { ClockPreference } from '@/utils/clockPreferences';
@@ -27,7 +31,8 @@ export const BACKUP_SCHEMA_VERSION_V7 = 7 as const;
 export const BACKUP_SCHEMA_VERSION_V8 = 8 as const;
 export const BACKUP_SCHEMA_VERSION_V9 = 9 as const;
 export const BACKUP_SCHEMA_VERSION_V10 = 10 as const;
-export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V10;
+export const BACKUP_SCHEMA_VERSION_V11 = 11 as const;
+export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V11;
 
 export const BACKUP_TABLE_NAMES = [
   'mares',
@@ -41,6 +46,7 @@ export const BACKUP_TABLE_NAMES = [
   'foaling_records',
   'foals',
   'medication_logs',
+  'tasks',
   'semen_collections',
   'collection_dose_events',
   'frozen_semen_batches',
@@ -61,12 +67,14 @@ export const BACKUP_DELETE_ORDER: readonly BackupTableName[] = [
   'daily_logs',
   'breeding_records',
   'semen_collections',
+  'tasks',
   'mares',
   'stallions',
 ];
 
 export const BACKUP_INSERT_ORDER: readonly BackupTableName[] = [
   'mares',
+  'tasks',
   'stallions',
   'semen_collections',
   'frozen_semen_batches',
@@ -284,6 +292,25 @@ export type BackupMedicationLogRowV7 = {
 
 export type BackupMedicationLogRow = BackupMedicationLogRowV7 & {
   readonly source_daily_log_id: string | null;
+};
+
+export type BackupTaskRow = {
+  readonly id: string;
+  readonly mare_id: string;
+  readonly task_type: TaskType;
+  readonly title: string;
+  readonly due_date: BackupLocalDate;
+  readonly due_time: string | null;
+  readonly notes: string | null;
+  readonly status: TaskStatus;
+  readonly completed_at: BackupIsoDateTime | null;
+  readonly completed_record_type: Exclude<TaskSourceType, 'manual'> | null;
+  readonly completed_record_id: string | null;
+  readonly source_type: TaskSourceType;
+  readonly source_record_id: string | null;
+  readonly source_reason: TaskSourceReason | null;
+  readonly created_at: BackupIsoDateTime;
+  readonly updated_at: BackupIsoDateTime;
 };
 
 export type BackupSemenCollectionRowV2 = {
@@ -525,6 +552,10 @@ export type BackupTablesV10 = Omit<BackupTablesV9, 'breeding_records'> & {
   readonly breeding_records: readonly BackupBreedingRecordRowV10[];
 };
 
+export type BackupTablesV11 = BackupTablesV10 & {
+  readonly tasks: readonly BackupTaskRow[];
+};
+
 export type BackupEnvelopeV1 = {
   readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V1;
   readonly createdAt: BackupIsoDateTime;
@@ -605,6 +636,14 @@ export type BackupEnvelopeV10 = {
   readonly tables: BackupTablesV10;
 };
 
+export type BackupEnvelopeV11 = {
+  readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V11;
+  readonly createdAt: BackupIsoDateTime;
+  readonly app: BackupAppMetadata;
+  readonly settings: BackupSettings;
+  readonly tables: BackupTablesV11;
+};
+
 export type BackupEnvelope =
   | BackupEnvelopeV1
   | BackupEnvelopeV2
@@ -615,7 +654,8 @@ export type BackupEnvelope =
   | BackupEnvelopeV7
   | BackupEnvelopeV8
   | BackupEnvelopeV9
-  | BackupEnvelopeV10;
+  | BackupEnvelopeV10
+  | BackupEnvelopeV11;
 
 export type BackupPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;

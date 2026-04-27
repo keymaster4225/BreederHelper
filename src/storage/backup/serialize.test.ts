@@ -218,6 +218,29 @@ describe('serializeBackup', () => {
           ];
         }
 
+        if (sql.includes('FROM tasks')) {
+          return [
+            {
+              id: 'task-1',
+              mare_id: 'mare-1',
+              task_type: 'pregnancyCheck',
+              title: 'Pregnancy check',
+              due_date: '2026-04-16',
+              due_time: null,
+              notes: null,
+              status: 'completed',
+              completed_at: '2026-04-16T13:00:00.000Z',
+              completed_record_type: 'pregnancyCheck',
+              completed_record_id: 'check-1',
+              source_type: 'breedingRecord',
+              source_record_id: 'breed-1',
+              source_reason: 'breedingPregnancyCheck',
+              created_at: '2026-04-02T00:00:00.000Z',
+              updated_at: '2026-04-16T13:00:00.000Z',
+            },
+          ];
+        }
+
         if (sql.includes('FROM semen_collections')) {
           return [
             {
@@ -311,7 +334,7 @@ describe('serializeBackup', () => {
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(10);
+    expect(backup.schemaVersion).toBe(11);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
     expect(backup.settings.clockPreference).toBe('24h');
@@ -332,6 +355,8 @@ describe('serializeBackup', () => {
     expect(backup.tables.uterine_flushes[0]?.base_solution).toBe('LRS');
     expect(backup.tables.uterine_flush_products[0]?.product_name).toBe('Saline');
     expect(backup.tables.medication_logs[0]?.source_daily_log_id).toBe('log-1');
+    expect(backup.tables.tasks[0]?.completed_record_type).toBe('pregnancyCheck');
+    expect(backup.tables.tasks[0]?.source_reason).toBe('breedingPregnancyCheck');
     expect(backup.tables.collection_dose_events[0]?.recipient_phone).toBe('555-0101');
     expect(backup.tables.collection_dose_events[0]?.breeding_record_id).toBe('breed-1');
     expect(backup.tables.collection_dose_events[0]?.dose_semen_volume_ml).toBe(50);
@@ -342,6 +367,6 @@ describe('serializeBackup', () => {
     ).toBe(500);
     expect(backup.tables.frozen_semen_batches[0]?.id).toBe('frozen-1');
     expect(backup.tables.frozen_semen_batches[0]?.extender).toBe('BotuCrio');
-    expect(db.getAllAsync).toHaveBeenCalledTimes(14);
+    expect(db.getAllAsync).toHaveBeenCalledTimes(15);
   });
 });
