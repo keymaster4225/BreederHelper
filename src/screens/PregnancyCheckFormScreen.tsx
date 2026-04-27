@@ -50,6 +50,8 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
     mareId: route.params.mareId,
     pregnancyCheckId: route.params.pregnancyCheckId,
     initialBreedingRecordId: route.params.breedingRecordId,
+    taskId: route.params.taskId,
+    defaultDate: route.params.defaultDate,
     onGoBack: () => navigation.goBack(),
     setTitle: (title) => navigation.setOptions({ title }),
   });

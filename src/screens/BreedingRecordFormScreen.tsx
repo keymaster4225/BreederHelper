@@ -72,6 +72,9 @@ export function BreedingRecordFormScreen({ navigation, route }: Props): JSX.Elem
   } = useBreedingRecordForm({
     mareId: route.params.mareId,
     breedingRecordId: route.params.breedingRecordId,
+    taskId: route.params.taskId,
+    defaultDate: route.params.defaultDate,
+    defaultTime: route.params.defaultTime,
     onGoBack: () => navigation.goBack(),
     setTitle: (title) => navigation.setOptions({ title }),
   });

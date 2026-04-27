@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
-import type { MedicationRoute } from '@/models/types';
+import type { LocalDate, MedicationRoute } from '@/models/types';
 import { createMedicationLog, deleteMedicationLog, getMedicationLogById, updateMedicationLog } from '@/storage/repositories';
 import { toLocalDate } from '@/utils/dates';
 import { newId } from '@/utils/id';
@@ -18,6 +18,8 @@ type FormErrors = {
 type UseMedicationFormArgs = {
   readonly mareId: string;
   readonly medicationLogId?: string;
+  readonly taskId?: string;
+  readonly defaultDate?: LocalDate;
   readonly onGoBack: () => void;
   readonly onOpenSourceDailyLog?: (sourceDailyLogId: string) => void;
   readonly setTitle: (title: string) => void;
@@ -48,6 +50,7 @@ type UseMedicationFormResult = {
 export function useMedicationForm({
   mareId,
   medicationLogId,
+  defaultDate,
   onGoBack,
   onOpenSourceDailyLog,
   setTitle,
@@ -59,7 +62,7 @@ export function useMedicationForm({
 
   const [selectedMed, setSelectedMed] = useState<MedSelection | null>(null);
   const [customMedName, setCustomMedName] = useState('');
-  const [date, setDate] = useState(toLocalDate(new Date()));
+  const [date, setDate] = useState(defaultDate ?? toLocalDate(new Date()));
   const [dose, setDose] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<MedicationRoute | null>(null);
   const [notes, setNotes] = useState('');

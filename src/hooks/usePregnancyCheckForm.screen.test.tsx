@@ -142,6 +142,21 @@ describe('usePregnancyCheckForm', () => {
     expect(result.current.breedingRecordId).toBe('breeding-2');
   });
 
+  it('uses a task-provided default date in create mode', async () => {
+    const { result } = renderHook(() =>
+      usePregnancyCheckForm({
+        mareId: 'mare-1',
+        taskId: 'task-1',
+        defaultDate: '2026-05-03',
+        onGoBack: jest.fn(),
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.date).toBe('2026-05-03');
+  });
+
   it('falls back to the first breeding record when create-mode preselection is invalid', async () => {
     const { result } = renderHook<
       ReturnType<typeof usePregnancyCheckForm>,

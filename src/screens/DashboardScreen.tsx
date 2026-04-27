@@ -57,6 +57,10 @@ function StatCard({
   );
 }
 
+function isTaskFuture(task: TaskWithMare, today: string): boolean {
+  return task.dueDate > today;
+}
+
 export function DashboardScreen({ navigation }: Props): JSX.Element {
   const { totalMares, pregnantMares, totalStallions, tasks, isLoading, error, reload, reloadIfStale } =
     useDashboardData();
@@ -91,8 +95,51 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
     })();
   }, [completeOnboarding, reload]);
 
-  const onTaskPress = useCallback((_task: TaskWithMare) => {}, []);
-  const onTaskEdit = useCallback((_task: TaskWithMare) => {}, []);
+  const onTaskPress = useCallback(
+    (task: TaskWithMare) => {
+      if (task.taskType === 'custom' || isTaskFuture(task, today)) {
+        navigation.navigate('TaskForm', { taskId: task.id });
+        return;
+      }
+
+      switch (task.taskType) {
+        case 'dailyCheck':
+          navigation.navigate('DailyLogForm', {
+            mareId: task.mareId,
+            taskId: task.id,
+            defaultDate: task.dueDate,
+            defaultTime: task.dueTime,
+          });
+          break;
+        case 'medication':
+          navigation.navigate('MedicationForm', {
+            mareId: task.mareId,
+            taskId: task.id,
+            defaultDate: task.dueDate,
+          });
+          break;
+        case 'breeding':
+          navigation.navigate('BreedingRecordForm', {
+            mareId: task.mareId,
+            taskId: task.id,
+            defaultDate: task.dueDate,
+            defaultTime: task.dueTime,
+          });
+          break;
+        case 'pregnancyCheck':
+          navigation.navigate('PregnancyCheckForm', {
+            mareId: task.mareId,
+            taskId: task.id,
+            defaultDate: task.dueDate,
+          });
+          break;
+      }
+    },
+    [navigation, today],
+  );
+  const onTaskEdit = useCallback((task: TaskWithMare) => {
+    navigation.navigate('TaskForm', { taskId: task.id });
+  }, [navigation]);
   const onTaskComplete = useCallback((task: TaskWithMare) => {
     void (async () => {
       try {

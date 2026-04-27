@@ -1,5 +1,6 @@
 import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import type { TaskWithMare } from '@/models/types';
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
@@ -62,25 +63,32 @@ function createNavigation() {
   };
 }
 
-const dashboardTask = {
+const dashboardTask: TaskWithMare = {
   id: 'task-1',
   mareId: 'mare-1',
-  taskType: 'pregnancyCheck' as const,
+  taskType: 'pregnancyCheck',
   title: 'Pregnancy check',
-  dueDate: '2035-04-27' as const,
+  dueDate: '2035-04-27',
   dueTime: null,
   notes: null,
-  status: 'open' as const,
+  status: 'open',
   completedAt: null,
   completedRecordType: null,
   completedRecordId: null,
-  sourceType: 'breedingRecord' as const,
+  sourceType: 'breedingRecord',
   sourceRecordId: 'breed-1',
-  sourceReason: 'breedingPregnancyCheck' as const,
+  sourceReason: 'breedingPregnancyCheck',
   createdAt: '2026-04-13T00:00:00.000Z',
   updatedAt: '2026-04-13T00:00:00.000Z',
   mareName: 'Nova',
 };
+
+function makeDashboardTask(overrides: Partial<TaskWithMare> = {}): TaskWithMare {
+  return {
+    ...dashboardTask,
+    ...overrides,
+  };
+}
 
 function buildState(overrides: Record<string, unknown> = {}) {
   const reload = jest.fn().mockResolvedValue(undefined);
@@ -180,6 +188,106 @@ it('opens the task form from the dashboard add-task action', async () => {
   fireEvent.press(screen.getByRole('button', { name: 'Add Task' }));
 
   expect(navigation.navigate).toHaveBeenCalledWith('TaskForm');
+});
+
+it('opens due task work forms from dashboard task presses', async () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(
+    buildState({
+      tasks: [
+        makeDashboardTask({
+          id: 'daily-task',
+          taskType: 'dailyCheck',
+          title: 'Check mare',
+          dueDate: '2000-01-01',
+          dueTime: '09:30',
+        }),
+        makeDashboardTask({
+          id: 'med-task',
+          taskType: 'medication',
+          title: 'Give medication',
+          dueDate: '2000-01-02',
+        }),
+        makeDashboardTask({
+          id: 'breed-task',
+          taskType: 'breeding',
+          title: 'Breed mare',
+          dueDate: '2000-01-03',
+          dueTime: '10:15',
+        }),
+        makeDashboardTask({
+          id: 'preg-task',
+          taskType: 'pregnancyCheck',
+          title: 'Pregnancy check',
+          dueDate: '2000-01-04',
+        }),
+      ],
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Nova: Check mare' })).toBeTruthy());
+
+  fireEvent.press(screen.getByRole('button', { name: 'Nova: Check mare' }));
+  expect(navigation.navigate).toHaveBeenCalledWith('DailyLogForm', {
+    mareId: 'mare-1',
+    taskId: 'daily-task',
+    defaultDate: '2000-01-01',
+    defaultTime: '09:30',
+  });
+
+  fireEvent.press(screen.getByRole('button', { name: 'Nova: Give medication' }));
+  expect(navigation.navigate).toHaveBeenCalledWith('MedicationForm', {
+    mareId: 'mare-1',
+    taskId: 'med-task',
+    defaultDate: '2000-01-02',
+  });
+
+  fireEvent.press(screen.getByRole('button', { name: 'Nova: Breed mare' }));
+  expect(navigation.navigate).toHaveBeenCalledWith('BreedingRecordForm', {
+    mareId: 'mare-1',
+    taskId: 'breed-task',
+    defaultDate: '2000-01-03',
+    defaultTime: '10:15',
+  });
+
+  fireEvent.press(screen.getByRole('button', { name: 'Nova: Pregnancy check' }));
+  expect(navigation.navigate).toHaveBeenCalledWith('PregnancyCheckForm', {
+    mareId: 'mare-1',
+    taskId: 'preg-task',
+    defaultDate: '2000-01-04',
+  });
+});
+
+it('opens future and edit task actions in the task form', async () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(
+    buildState({
+      tasks: [
+        makeDashboardTask({
+          id: 'future-task',
+          taskType: 'dailyCheck',
+          title: 'Future check',
+          dueDate: '2035-01-01',
+        }),
+      ],
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Nova: Future check' })).toBeTruthy());
+
+  fireEvent.press(screen.getByRole('button', { name: 'Nova: Future check' }));
+  expect(navigation.navigate).toHaveBeenCalledWith('TaskForm', { taskId: 'future-task' });
+
+  fireEvent.press(screen.getByRole('button', { name: 'Edit Future check' }));
+  expect(navigation.navigate).toHaveBeenCalledWith('TaskForm', { taskId: 'future-task' });
 });
 
 it('shows a task update error when manual completion fails', async () => {

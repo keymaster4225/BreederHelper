@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import { AI_BREEDING_METHOD_OPTIONS } from '@/models/enums';
-import type { BreedingMethod, SemenCollection, Stallion } from '@/models/types';
+import type { BreedingMethod, LocalDate, SemenCollection, Stallion } from '@/models/types';
 import {
   createBreedingRecord,
   deleteBreedingRecord,
@@ -67,6 +67,9 @@ function formatCollectionLabel(collection: SemenCollection): string {
 type UseBreedingRecordFormArgs = {
   readonly mareId: string;
   readonly breedingRecordId?: string;
+  readonly taskId?: string;
+  readonly defaultDate?: LocalDate;
+  readonly defaultTime?: string | null;
   readonly onGoBack: () => void;
   readonly setTitle: (title: string) => void;
 };
@@ -74,6 +77,8 @@ type UseBreedingRecordFormArgs = {
 export function useBreedingRecordForm({
   mareId,
   breedingRecordId,
+  defaultDate,
+  defaultTime,
   onGoBack,
   setTitle,
 }: UseBreedingRecordFormArgs) {
@@ -82,8 +87,8 @@ export function useBreedingRecordForm({
   const onGoBackRef = useRef(onGoBack);
   const setTitleRef = useRef(setTitle);
 
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState(() => getCurrentTimeHHMM());
+  const [date, setDate] = useState(defaultDate ?? '');
+  const [time, setTime] = useState(() => defaultTime ?? getCurrentTimeHHMM());
   const [stallionName, setStallionName] = useState('');
   const [method, setMethod] = useState<BreedingMethod>('liveCover');
   const [volumeMl, setVolumeMl] = useState('');

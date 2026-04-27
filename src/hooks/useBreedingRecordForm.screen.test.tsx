@@ -35,6 +35,23 @@ describe('useBreedingRecordForm', () => {
     repositories.listStallions.mockResolvedValue([]);
   });
 
+  it('uses task-provided date and time defaults in create mode', async () => {
+    const { result } = renderHook(() =>
+      useBreedingRecordForm({
+        mareId: 'mare-1',
+        taskId: 'task-1',
+        defaultDate: '2026-05-02',
+        defaultTime: '10:15',
+        onGoBack: jest.fn(),
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await waitFor(() => expect(repositories.listStallions).toHaveBeenCalledTimes(1));
+    expect(result.current.date).toBe('2026-05-02');
+    expect(result.current.time).toBe('10:15');
+  });
+
   it('does not reload the breeding record when callback props change identity', async () => {
     repositories.getBreedingRecordById.mockResolvedValue({
       id: 'breeding-1',

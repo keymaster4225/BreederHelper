@@ -37,7 +37,13 @@ export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<TabParamList> | undefined;
   MareDetail: { mareId: string; initialTab?: 'dailyLogs' | 'breeding' | 'pregnancy' | 'foaling' | 'meds' };
   EditMare: { mareId?: string } | undefined;
-  DailyLogForm: { mareId: string; logId?: string };
+  DailyLogForm: {
+    mareId: string;
+    logId?: string;
+    taskId?: string;
+    defaultDate?: LocalDate;
+    defaultTime?: string | null;
+  };
   StallionDetail: { stallionId: string; initialTab?: 'collections' | 'breeding' | 'frozen' };
   StallionForm: { stallionId?: string };
   CollectionCreateWizard: { stallionId: string };
@@ -46,11 +52,23 @@ export type RootStackParamList = {
   FrozenBatchForm: { stallionId: string; frozenBatchId: string };
   AVPreferencesForm: { stallionId: string };
   BreedingEventDetail: { breedingRecordId: string };
-  BreedingRecordForm: { mareId: string; breedingRecordId?: string };
-  PregnancyCheckForm: { mareId: string; pregnancyCheckId?: string; breedingRecordId?: string };
+  BreedingRecordForm: {
+    mareId: string;
+    breedingRecordId?: string;
+    taskId?: string;
+    defaultDate?: LocalDate;
+    defaultTime?: string | null;
+  };
+  PregnancyCheckForm: {
+    mareId: string;
+    pregnancyCheckId?: string;
+    breedingRecordId?: string;
+    taskId?: string;
+    defaultDate?: LocalDate;
+  };
   FoalingRecordForm: { mareId: string; foalingRecordId?: string };
   FoalForm: { mareId: string; foalingRecordId: string; foalId?: string; defaultSex?: FoalSex | null };
-  MedicationForm: { mareId: string; medicationLogId?: string };
+  MedicationForm: { mareId: string; medicationLogId?: string; taskId?: string; defaultDate?: LocalDate };
   TaskForm: {
     taskId?: string;
     mareId?: string;

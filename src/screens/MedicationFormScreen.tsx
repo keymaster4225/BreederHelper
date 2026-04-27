@@ -45,6 +45,8 @@ export function MedicationFormScreen({ navigation, route }: Props): JSX.Element 
   } = useMedicationForm({
     mareId,
     medicationLogId,
+    taskId: route.params.taskId,
+    defaultDate: route.params.defaultDate,
     onGoBack: () => navigation.goBack(),
     onOpenSourceDailyLog: (sourceDailyLogId) =>
       navigation.replace('DailyLogForm', { mareId, logId: sourceDailyLogId }),

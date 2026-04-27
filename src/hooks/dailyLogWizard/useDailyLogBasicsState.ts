@@ -8,6 +8,8 @@ import type { DailyLogWizardSetErrors, ScoreOption } from './types';
 type UseDailyLogBasicsStateArgs = {
   isEdit: boolean;
   today: Date;
+  defaultDate?: string;
+  defaultTime?: string | null;
   setErrors: DailyLogWizardSetErrors;
 };
 
@@ -21,10 +23,12 @@ type HydrateBasicsInput = {
 export function useDailyLogBasicsState({
   isEdit,
   today,
+  defaultDate,
+  defaultTime,
   setErrors,
 }: UseDailyLogBasicsStateArgs) {
-  const [date, setDateState] = useState<string>(() => (isEdit ? '' : toLocalDate(today)));
-  const [time, setTimeState] = useState<string>(() => (isEdit ? '' : getCurrentTimeHHMM(today)));
+  const [date, setDateState] = useState<string>(() => (isEdit ? '' : defaultDate ?? toLocalDate(today)));
+  const [time, setTimeState] = useState<string>(() => (isEdit ? '' : defaultTime ?? getCurrentTimeHHMM(today)));
   const [teasingScore, setTeasingScore] = useState<ScoreOption>('');
   const [isTimeClearable, setIsTimeClearable] = useState(false);
 
@@ -36,9 +40,9 @@ export function useDailyLogBasicsState({
   }, []);
 
   const resetCreateTimeDefaults = useCallback((): void => {
-    setTimeState(getCurrentTimeHHMM(today));
+    setTimeState(defaultTime ?? getCurrentTimeHHMM(today));
     setIsTimeClearable(false);
-  }, [today]);
+  }, [defaultTime, today]);
 
   const setDate = useCallback(
     (value: string): void => {

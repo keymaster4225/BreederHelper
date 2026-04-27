@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
-import { DEFAULT_GESTATION_LENGTH_DAYS, type BreedingRecord, type PregnancyResult } from '@/models/types';
+import { DEFAULT_GESTATION_LENGTH_DAYS, type BreedingRecord, type LocalDate, type PregnancyResult } from '@/models/types';
 import {
   calculateDaysPostBreeding,
   estimateFoalingDate,
@@ -36,6 +36,8 @@ type UsePregnancyCheckFormArgs = {
   readonly mareId: string;
   readonly pregnancyCheckId?: string;
   readonly initialBreedingRecordId?: string;
+  readonly taskId?: string;
+  readonly defaultDate?: LocalDate;
   readonly onGoBack: () => void;
   readonly setTitle: (title: string) => void;
 };
@@ -44,6 +46,7 @@ export function usePregnancyCheckForm({
   mareId,
   pregnancyCheckId,
   initialBreedingRecordId,
+  defaultDate,
   onGoBack,
   setTitle,
 }: UsePregnancyCheckFormArgs) {
@@ -55,7 +58,7 @@ export function usePregnancyCheckForm({
   const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
   const [gestationLengthDays, setGestationLengthDays] = useState(DEFAULT_GESTATION_LENGTH_DAYS);
   const [breedingRecordId, setBreedingRecordId] = useState('');
-  const [date, setDate] = useState('');
+  const [date, setDate] = useState(defaultDate ?? '');
   const [result, setResult] = useState<ResultOption>('positive');
   const [heartbeat, setHeartbeat] = useState<YesNo>('no');
   const [notes, setNotes] = useState('');

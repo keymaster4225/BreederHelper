@@ -75,6 +75,9 @@ export type {
 type UseDailyLogWizardArgs = {
   mareId: string;
   logId?: string;
+  taskId?: string;
+  defaultDate?: string;
+  defaultTime?: string | null;
   onGoBack: () => void;
   setTitle: (title: string) => void;
 };
@@ -113,6 +116,8 @@ function getBasicsTimeErrorForSaveFailure(message: string): string | null {
 export function useDailyLogWizard({
   mareId,
   logId,
+  defaultDate,
+  defaultTime,
   onGoBack,
   setTitle,
 }: UseDailyLogWizardArgs) {
@@ -145,7 +150,7 @@ export function useDailyLogWizard({
     setDate,
     setTime,
     setTeasingScore,
-  } = useDailyLogBasicsState({ isEdit, today, setErrors });
+  } = useDailyLogBasicsState({ isEdit, today, defaultDate, defaultTime, setErrors });
 
   const {
     rightOvary,

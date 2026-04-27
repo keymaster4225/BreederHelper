@@ -104,6 +104,22 @@ describe('useDailyLogWizard', () => {
     expect(result.current.isTimeClearable).toBe(false);
   });
 
+  it('uses task-provided date and time defaults in create mode', () => {
+    const { result } = renderHook(() =>
+      useDailyLogWizard({
+        mareId: 'mare-1',
+        taskId: 'task-1',
+        defaultDate: '2026-05-01',
+        defaultTime: '09:30',
+        onGoBack: jest.fn(),
+        setTitle: jest.fn(),
+      }),
+    );
+
+    expect(result.current.date).toBe('2026-05-01');
+    expect(result.current.time).toBe('09:30');
+  });
+
   it('hydrates time for a timed edit', async () => {
     repositories.getDailyLogById.mockResolvedValue(
       createDailyLogDetail({

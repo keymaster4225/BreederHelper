@@ -42,6 +42,9 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
   const wizard = useDailyLogWizard({
     mareId: route.params.mareId,
     logId: route.params.logId,
+    taskId: route.params.taskId,
+    defaultDate: route.params.defaultDate,
+    defaultTime: route.params.defaultTime,
     onGoBack: handleGoBack,
     setTitle: handleSetTitle,
   });
