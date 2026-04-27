@@ -21,11 +21,9 @@
 
 ## Currently building
 
-*Remove "optional" labels from text inputs* (`TODO:11`) is implemented in the working tree and pending commit/merge. Once it lands on `main`, move it to [Recently shipped](#recently-shipped).
+No feature implementation is currently marked in flight.
 
-Last shipped work on `main` was breeding event detail view (pushed 2026-04-25, commit `3875543`).
-
-The `feature/collection-wizard` branch exists but has not been merged — its current state should be reviewed before picking up new work, in case it's stale or supersedable.
+Latest shipped work on `main` is the dashboard task system and sticky follow-up action bar (pushed 2026-04-27, merge `0770001`).
 
 ---
 
@@ -63,19 +61,15 @@ Features that extend stallion records beyond current collection + frozen batch t
 
 Features that make the app tell the user what to do next, rather than only recording what the user already did.
 
-- **P0 — In-app reminders** (`TODO:31`)
-  User-set reminders for next scan, next meds dose, etc. Foundational: later features (smart prompts, auto-scheduled events) build on the reminder primitive.
 - **P1 — Auto-scheduled events from recorded actions** (`TODO:35`)
-  Recording a breeding → auto-adds 14-day and 30-day pregnancy checks. Recording a foaling → auto-adds IgG test, first vet check. Depends on reminders being in place.
+  The persisted task foundation and breeding-generated pregnancy-check task path shipped in `0770001`. Remaining scope: broaden generated tasks beyond the current breeding follow-up path, including ovulation → next scan and foaling → IgG / vet-check tasks, and decide whether 30-day pregnancy checks should be generated alongside the current due-date rule.
 - **P2 — Conditional smart prompts** (`TODO:33`)
   Example: fluid detected on a daily log → prompt user to flush/infuse. Needs design — which conditions, how prompts are delivered, how they're dismissed, and how this should build on the shipped daily-log fluid fields and flush follow-up flow.
 
 ### Theme: Media & attachments
 
-- **P1 — Photos on mares, foals, and ultrasound screen** (`TODO:29`)
-  Scope decision needed up front: per-entity single photo vs photo gallery, local-only vs synced. Storage approach should be decided before implementation.
-- **P1 — Daily log photo attachments**
-  Let users attach one or more pictures at the end of the daily log workflow, alongside the free-text `Notes` field. Open questions: whether this is a simple gallery per log or a broader attachment model, and whether photos stay local-only or need future sync support.
+- **P1 — Photos V1** (`TODO:29`, ready to implement)
+  Implement the scoped offline-first photo system in [`docs/plans/2026-04-26-photos-v1-implementation-plan.md`](./docs/plans/2026-04-26-photos-v1-implementation-plan.md): mare and stallion profile photos, daily-log attachments, camera/library import, app-owned JPEG masters and thumbnails, and archive backup/restore. Follow the Phase 0 hard gates before storage work: prove SDK 55 file byte/append behavior, streaming archive memory behavior, and backup picker/share support for `.breedwisebackup`.
 
 ### Theme: Scheduling & visibility
 
@@ -154,26 +148,27 @@ When a roadmap item is completed and merged to `main`:
 
 ## Recently shipped
 
+- 2026-04-27 — Dashboard task system, manual reminders, and workflow task routing — closed `TODO:31`, partially delivered `TODO:35` (`0770001`)
+- 2026-04-27 — Sticky follow-up action bar and daily-log follow-up navigation fix (`0770001`)
 - 2026-04-27 — Breeding record timestamps (`9fc5071`)
 - 2026-04-27 — Daily log fluid tracking and flush follow-up — closed `TODO:19` (`74d360b`)
 - 2026-04-27 — Collection entry wizard / scrollability rework — closed `TODO:7` (`5224d66`)
 - 2026-04-25 — Breeding event detail view — closed `TODO:5` (`3875543`)
+- 2026-04-24 — Remove optional form placeholders — closed `TODO:11` (`50bdd74`)
 - 2026-04-24 — Deduplicated detail tab route maps (`83e0486`)
 - 2026-04-24 — Configurable 12h / 24h clock setting — closed `TODO:1` (`46acf9c`)
 - 2026-04-24 — Daily log wizard step-state refactor (`eae89c5`)
 - 2026-04-23 — Multiple daily checks per mare (`710ad97`)
-- 2026-04-22 — Mare recipient flag (`30540f8`)
-- 2026-04-22 — Architecture remediation + repository seam (`a2e95d2`)
-- 2026-04-20 — Per-mare gestation length — closed `TODO:3` (configurable foaling-date base)
-- 2026-04-20 — Data storage hardening (6 new data-integrity rules in `CLAUDE.md`)
-- 2026-04-05 — Bottom tab nav Phases 1-2
-- ~2026-04-08 — Stallion Collection Tracking Phase 2 (dose disposition)
 
 ---
 
 ## Change log for this document
 
+- 2026-04-27 — Recorded *Dashboard task system, manual reminders, and workflow task routing* as shipped, closed `TODO:31`, and narrowed the remaining *Auto-scheduled events from recorded actions* scope.
+- 2026-04-27 — Recorded *Sticky follow-up action bar and daily-log follow-up navigation fix* as shipped.
+- 2026-04-27 — Corrected stale *Remove optional form placeholders* status and recorded it as shipped.
 - 2026-04-27 — Recorded *Breeding record timestamps*, *Daily log fluid tracking and flush follow-up*, and *Collection entry wizard / scrollability rework* as shipped and removed them from active roadmap themes.
+- 2026-04-26 — Promoted *Photos V1* under Media & attachments (P1) as ready to implement and linked the implementation plan.
 - 2026-04-25 — Recorded *Breeding event detail view* as shipped and removed it from Mare care depth.
 - 2026-04-25 — Added staged *Cloud backup and multi-user sync path* under Cloud backup & collaboration (P2).
 - 2026-04-25 — Moved *Remove "optional" labels from text inputs* out of Foundational polish and marked it as implemented locally pending commit/merge.

@@ -1,3 +1,7 @@
+/**
+ * @deprecated Retained temporarily as rollback/reference code after the
+ * persisted-task dashboard replacement. The active dashboard reads stored tasks.
+ */
 import {
   BreedingRecord,
   DailyLog,

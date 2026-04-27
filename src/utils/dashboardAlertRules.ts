@@ -1,3 +1,7 @@
+/**
+ * @deprecated Retained temporarily as rollback/reference code after the
+ * persisted-task dashboard replacement. The active dashboard reads stored tasks.
+ */
 import { Foal, LocalDate, calculateDaysPostBreeding, estimateFoalingDate } from '@/models/types';
 import { isDailyLogAfter } from '@/utils/dailyLogTime';
 

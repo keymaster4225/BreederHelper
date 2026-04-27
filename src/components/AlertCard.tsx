@@ -1,3 +1,7 @@
+/**
+ * @deprecated Retained temporarily as rollback/reference code after the
+ * persisted-task dashboard replacement. New dashboard UI should use TaskCard.
+ */
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 

@@ -16,7 +16,10 @@ BreedWise is an offline-first Expo + React Native + TypeScript mobile app for ho
 - Do not just blindly agree with me. Push back, challenge my ideas.
 - Explain reasoning clearly. 
 - Never push to GitHub without explicit user permission.
+- Any work done on a separate branch must go through a pull request before it is merged. Do not merge branch work directly.
 - For multi-step work, continue autonomously when the path is clear and tests are passing.
+- Never seek to circumvent a failing test.
+- ALWAYS drill down to the root cause of a failure.
 
 ## Current Product State
 
