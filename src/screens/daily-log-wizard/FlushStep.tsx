@@ -4,13 +4,8 @@ import {
   type DailyLogWizardFlushDraft,
   type DailyLogWizardFlushProductDraft,
 } from '@/hooks/useDailyLogWizard';
-import {
-  FormAutocompleteInput,
-  FormField,
-  FormTextInput,
-} from '@/components/FormControls';
+import { FormField, FormTextInput } from '@/components/FormControls';
 import { cardStyles } from '@/components/RecordCardParts';
-import { PREDEFINED_MEDICATIONS } from '@/utils/medications';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 
 type Props = {
@@ -78,12 +73,10 @@ export function FlushStep({
               </View>
 
               <FormField label="Product" required>
-                <FormAutocompleteInput
+                <FormTextInput
                   value={product.productName}
                   onChangeText={(value) => onUpdateProduct(product.clientId, { productName: value })}
-                  options={PREDEFINED_MEDICATIONS}
                   placeholder="Product name"
-                  maxSuggestions={6}
                 />
               </FormField>
 
