@@ -145,6 +145,10 @@ function findRegistrationMatches(
   }
 
   return destinationHorses.filter((horse) => {
+    if (horse.deletedAt) {
+      return false;
+    }
+
     const horseRegistration = normalizeRegistrationNumber(horse.registrationNumber);
     return horseRegistration === sourceRegistration;
   });
@@ -160,6 +164,10 @@ function findNameDobMatches(
 
   const normalizedSourceName = normalizeExactName(sourceHorse.name);
   return destinationHorses.filter((horse) => {
+    if (horse.deletedAt) {
+      return false;
+    }
+
     if (!horse.dateOfBirth) {
       return false;
     }

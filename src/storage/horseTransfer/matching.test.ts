@@ -252,4 +252,50 @@ describe('matchHorseTransfer', () => {
     expect(dobConflictResult.state).toBe('create_new');
     expect(dobConflictResult.fuzzySuggestions).toEqual([]);
   });
+
+  it('does not exact-match a soft-deleted registration candidate', () => {
+    const result = matchHorseTransfer({
+      sourceHorse: createSourceHorse({
+        id: 'new-id',
+        name: 'Maple',
+        registrationNumber: 'REG-100',
+        dateOfBirth: null,
+      }),
+      destinationHorses: [
+        createDestinationHorse({
+          id: 'mare-soft-deleted',
+          name: 'Maple',
+          registrationNumber: 'REG-100',
+          dateOfBirth: null,
+          deletedAt: '2026-04-28T12:00:00.000Z',
+        }),
+      ],
+    });
+
+    expect(result.state).toBe('create_new');
+    expect(result.fuzzySuggestions).toEqual([]);
+  });
+
+  it('does not exact-match a soft-deleted name and DOB candidate', () => {
+    const result = matchHorseTransfer({
+      sourceHorse: createSourceHorse({
+        id: 'new-id',
+        name: 'Maple Dawn',
+        registrationNumber: null,
+        dateOfBirth: '2018-02-02',
+      }),
+      destinationHorses: [
+        createDestinationHorse({
+          id: 'mare-soft-deleted',
+          name: 'Maple Dawn',
+          registrationNumber: null,
+          dateOfBirth: '2018-02-02',
+          deletedAt: '2026-04-28T12:00:00.000Z',
+        }),
+      ],
+    });
+
+    expect(result.state).toBe('create_new');
+    expect(result.fuzzySuggestions).toEqual([]);
+  });
 });
