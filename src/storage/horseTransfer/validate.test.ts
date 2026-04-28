@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { cloneBackupFixture } from '@/storage/backup/testFixtures';
+import { BACKUP_CURRENT_TABLE_FIELD_NAMES } from '@/storage/backup/tableSpecs';
 import {
   BACKUP_SCHEMA_VERSION_CURRENT,
+  BACKUP_TABLE_NAMES,
   type BackupTableName,
 } from '@/storage/backup/types';
 
@@ -262,6 +264,240 @@ describe('validateHorseTransfer', () => {
     expect(result.error.field).toBe('nickname');
   });
 
+  it('keeps horse-transfer row field specs aligned with current backup fixture rows', () => {
+    const backup = cloneBackupFixture();
+
+    for (const tableName of BACKUP_TABLE_NAMES) {
+      expect(new Set(Object.keys(backup.tables[tableName][0]!))).toEqual(
+        new Set(BACKUP_CURRENT_TABLE_FIELD_NAMES[tableName]),
+      );
+    }
+  });
+
+  it('reuses backup row validation for invalid enum values', () => {
+    const envelope = createMareEnvelope();
+    const result = validateHorseTransfer({
+      ...envelope,
+      tables: {
+        ...envelope.tables,
+        breeding_records: envelope.tables.breeding_records.map((row) => ({
+          ...row,
+          method: 'unsupportedMethod',
+        })),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.code).toBe('invalid_row');
+    expect(result.error.table).toBe('breeding_records');
+    expect(result.error.field).toBe('method');
+  });
+
+  it('reuses backup cross-table validation for duplicate IDs', () => {
+    const envelope = createMareEnvelope();
+    const duplicateLog = {
+      ...envelope.tables.daily_logs[0]!,
+      date: '2026-04-11',
+      time: '09:15',
+    };
+
+    const result = validateHorseTransfer({
+      ...envelope,
+      tables: {
+        ...envelope.tables,
+        daily_logs: [...envelope.tables.daily_logs, duplicateLog],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.code).toBe('invalid_row');
+    expect(result.error.table).toBe('daily_logs');
+    expect(result.error.field).toBe('id');
+  });
+
+  it('reuses backup cross-table validation for orphan foreign keys', () => {
+    const envelope = createMareEnvelope();
+    const result = validateHorseTransfer({
+      ...envelope,
+      tables: {
+        ...envelope.tables,
+        pregnancy_checks: envelope.tables.pregnancy_checks.map((row) => ({
+          ...row,
+          breeding_record_id: 'missing-breeding-record',
+        })),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.code).toBe('invalid_row');
+    expect(result.error.table).toBe('pregnancy_checks');
+    expect(result.error.field).toBe('breeding_record_id');
+  });
+
+  it('reuses backup cross-table validation for impossible semen inventory', () => {
+    const envelope = createStallionEnvelope();
+    const result = validateHorseTransfer({
+      ...envelope,
+      tables: {
+        ...envelope.tables,
+        collection_dose_events: envelope.tables.collection_dose_events.map((row) => ({
+          ...row,
+          dose_semen_volume_ml: 150,
+        })),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.code).toBe('invalid_row');
+    expect(result.error.table).toBe('semen_collections');
+    expect(result.error.field).toBe('raw_volume_ml');
+  });
+
+  it('rejects unreferenced mare-package context stallions', () => {
+    const envelope = createMareEnvelope();
+    const result = validateHorseTransfer({
+      ...envelope,
+      tables: {
+        ...envelope.tables,
+        stallions: [
+          ...envelope.tables.stallions,
+          {
+            ...envelope.tables.stallions[0]!,
+            id: 'stallion-extra',
+            name: 'Unreferenced',
+          },
+        ],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.code).toBe('constraint_violation');
+    expect(result.error.table).toBe('stallions');
+    expect(result.error.field).toBe('id');
+  });
+
+  it('rejects unreferenced mare-package semen collections', () => {
+    const envelope = createMareEnvelope();
+    const result = validateHorseTransfer({
+      ...envelope,
+      tables: {
+        ...envelope.tables,
+        semen_collections: [
+          ...envelope.tables.semen_collections,
+          {
+            ...envelope.tables.semen_collections[0]!,
+            id: 'collection-extra',
+            collection_date: '2026-04-05',
+          },
+        ],
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.code).toBe('constraint_violation');
+    expect(result.error.table).toBe('semen_collections');
+    expect(result.error.field).toBe('id');
+  });
+
+  it('rejects mare-package task source pointers outside the package', () => {
+    const envelope = createMareEnvelope();
+    const result = validateHorseTransfer({
+      ...envelope,
+      tables: {
+        ...envelope.tables,
+        tasks: envelope.tables.tasks.map((row, index) =>
+          index === 0
+            ? {
+                ...row,
+                source_type: 'dailyLog',
+                source_record_id: 'missing-daily-log',
+              }
+            : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.code).toBe('constraint_violation');
+    expect(result.error.table).toBe('tasks');
+    expect(result.error.field).toBe('source_record_id');
+  });
+
+  it('rejects mare-package completed task pointers outside the package', () => {
+    const envelope = createMareEnvelope();
+    const result = validateHorseTransfer({
+      ...envelope,
+      tables: {
+        ...envelope.tables,
+        tasks: envelope.tables.tasks.map((row, index) =>
+          index === 1
+            ? {
+                ...row,
+                completed_record_id: 'missing-pregnancy-check',
+              }
+            : row,
+        ),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.code).toBe('constraint_violation');
+    expect(result.error.table).toBe('tasks');
+    expect(result.error.field).toBe('completed_record_id');
+  });
+
+  it('rejects stallion packages that include mare-owned tables', () => {
+    const backup = cloneBackupFixture();
+    const envelope = createStallionEnvelope();
+    const result = validateHorseTransfer({
+      ...envelope,
+      tables: {
+        ...envelope.tables,
+        mares: backup.tables.mares,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.code).toBe('constraint_violation');
+    expect(result.error.table).toBe('mares');
+  });
+
   it('rejects stallion packages with dose events still linked to breeding records', () => {
     const envelope = createStallionEnvelope();
     const result = validateHorseTransfer({
@@ -280,9 +516,8 @@ describe('validateHorseTransfer', () => {
       throw new Error('Expected validation failure');
     }
 
-    expect(result.error.code).toBe('constraint_violation');
+    expect(result.error.code).toBe('invalid_row');
     expect(result.error.table).toBe('collection_dose_events');
     expect(result.error.field).toBe('breeding_record_id');
   });
 });
-

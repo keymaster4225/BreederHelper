@@ -294,6 +294,38 @@ export function buildBackupPreview(backup: BackupEnvelope): BackupPreviewSummary
   };
 }
 
+export function validateCurrentBackupTables(input: unknown): ValidateBackupError | null {
+  if (!isRecord(input)) {
+    return {
+      code: 'invalid_shape',
+      message: 'Backup tables must be an object.',
+    };
+  }
+
+  const tableArrays = getTableArrays(input, BACKUP_SCHEMA_VERSION_CURRENT);
+  if (!tableArrays.ok) {
+    return getValidationError(tableArrays.error);
+  }
+
+  const tables = tableArrays.tables as BackupTablesV11;
+  const rowError = validateRows(tables, BACKUP_SCHEMA_VERSION_CURRENT);
+  if (rowError) {
+    return getValidationError(rowError);
+  }
+
+  const indexes = buildIndexes(tables);
+  const crossTableError = validateCrossTableRules(
+    tables,
+    indexes,
+    BACKUP_SCHEMA_VERSION_CURRENT,
+  );
+  if (crossTableError) {
+    return getValidationError(crossTableError);
+  }
+
+  return null;
+}
+
 function validateSettings(settings: Record<string, unknown>, schemaVersion: number): ValidateBackupResult | null {
   if (typeof settings.onboardingComplete !== 'boolean') {
     return validationFailure(
@@ -1914,6 +1946,17 @@ function validationFailure(
       code,
       message,
     },
+  };
+}
+
+function getValidationError(result: ValidateBackupResult): ValidateBackupError {
+  if (!result.ok) {
+    return result.error;
+  }
+
+  return {
+    code: 'invalid_shape',
+    message: 'Unexpected valid backup validation result.',
   };
 }
 
