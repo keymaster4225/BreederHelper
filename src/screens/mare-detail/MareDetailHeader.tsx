@@ -11,6 +11,7 @@ type MareDetailHeaderProps = {
   readonly age: number | null;
   readonly isCurrentlyPregnant: boolean;
   readonly onCalendarPress: () => void;
+  readonly onExportPress: () => void;
 };
 
 export function MareDetailHeader({
@@ -18,12 +19,18 @@ export function MareDetailHeader({
   age,
   isCurrentlyPregnant,
   onCalendarPress,
+  onExportPress,
 }: MareDetailHeaderProps): JSX.Element {
   return (
     <View style={styles.headerCard}>
       <View style={styles.cardHeader}>
         <Text style={styles.headerName}>{mare.name}</Text>
         <View style={styles.headerActions}>
+          <IconButton
+            icon={<MaterialCommunityIcons name="share-variant" size={20} color={colors.onSurface} />}
+            onPress={onExportPress}
+            accessibilityLabel="Export mare package"
+          />
           <IconButton
             icon={<MaterialCommunityIcons name="calendar-month" size={20} color={colors.onSurface} />}
             onPress={onCalendarPress}

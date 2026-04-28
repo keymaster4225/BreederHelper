@@ -6,6 +6,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PrimaryButton, SecondaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { useDataBackup } from '@/hooks/useDataBackup';
+import {
+  useHorseImport,
+  type HorseImportRowResult,
+  type HorseImportSummary,
+  type PendingHorseImportPreview,
+} from '@/hooks/useHorseImport';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import type { RestoreBackupResult, SafetySnapshotSummary } from '@/storage/backup';
 import { borderRadius, colors, elevation, spacing, typography } from '@/theme';
@@ -20,12 +26,28 @@ export function DataBackupScreen({ navigation }: Props): JSX.Element {
     safetySnapshots,
     isLoadingSnapshots,
     pendingRestorePreview,
+    refreshSafetySnapshots,
     createBackup,
     prepareRestoreFromPickedFile,
     confirmPreparedRestore,
     restoreSafetySnapshot,
     clearPendingRestore,
   } = useDataBackup();
+  const {
+    isBusy: isHorseImportBusy,
+    busyStepLabel: horseImportBusyStepLabel,
+    errorMessage: horseImportErrorMessage,
+    pendingImport,
+    finalSummary: horseImportSummary,
+    prepareImportFromPickedFile,
+    selectCreateNewTarget,
+    selectExistingTarget,
+    confirmPreparedImport,
+    clearPendingImport,
+    clearFinalSummary,
+  } = useHorseImport({ onImportCompleted: refreshSafetySnapshots });
+  const isAnyBusy = isBusy || isHorseImportBusy;
+  const visibleBusyStepLabel = busyStepLabel ?? horseImportBusyStepLabel;
 
   const handleRestoreSuccess = useCallback(
     (result: Extract<RestoreBackupResult, { ok: true }>) => {
@@ -72,6 +94,15 @@ export function DataBackupScreen({ navigation }: Props): JSX.Element {
     })();
   }, [prepareRestoreFromPickedFile]);
 
+  const handleImportHorse = useCallback(() => {
+    void (async () => {
+      const result = await prepareImportFromPickedFile();
+      if (!result.ok && !result.canceled && result.errorMessage) {
+        Alert.alert('Import failed', result.errorMessage);
+      }
+    })();
+  }, [prepareImportFromPickedFile]);
+
   const executePreparedRestore = useCallback(() => {
     void (async () => {
       const result = await confirmPreparedRestore();
@@ -94,6 +125,35 @@ export function DataBackupScreen({ navigation }: Props): JSX.Element {
       },
     ]);
   }, [executePreparedRestore]);
+
+  const executePreparedHorseImport = useCallback(() => {
+    void (async () => {
+      const result = await confirmPreparedImport();
+      if (!result.ok) {
+        const safetyMessage = result.safetySnapshotCreated
+          ? '\n\nA safety snapshot was created before the failed import attempt.'
+          : '';
+        Alert.alert('Import failed', `${result.errorMessage}${safetyMessage}`);
+        return;
+      }
+
+      Alert.alert('Horse import complete', formatImportSummaryAlert(result.summary));
+    })();
+  }, [confirmPreparedImport]);
+
+  const handleConfirmHorseImport = useCallback(() => {
+    Alert.alert(
+      'Import horse package?',
+      'Importing never overwrites existing data. A safety snapshot is created before any rows are imported.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          onPress: executePreparedHorseImport,
+        },
+      ],
+    );
+  }, [executePreparedHorseImport]);
 
   const handleRestoreSnapshot = useCallback(
     (snapshot: SafetySnapshotSummary) => {
@@ -144,8 +204,8 @@ export function DataBackupScreen({ navigation }: Props): JSX.Element {
         </View>
 
         <View style={styles.actionCard}>
-          <PrimaryButton label="Create Backup" onPress={handleCreateBackup} disabled={isBusy} />
-          <SecondaryButton label="Restore From File" onPress={handleRestoreFromFile} disabled={isBusy} />
+          <PrimaryButton label="Create Backup" onPress={handleCreateBackup} disabled={isAnyBusy} />
+          <SecondaryButton label="Restore From File" onPress={handleRestoreFromFile} disabled={isAnyBusy} />
           {Platform.OS === 'android' ? (
             <Text style={styles.platformNote}>
               On Android, the first saved copy lives inside app-private storage and can disappear if the app is uninstalled. Use the share step to keep a durable copy outside the app.
@@ -153,14 +213,26 @@ export function DataBackupScreen({ navigation }: Props): JSX.Element {
           ) : null}
         </View>
 
-        {isBusy && busyStepLabel ? (
+        <View style={styles.horseImportCard}>
+          <View style={styles.horseImportHeader}>
+            <MaterialCommunityIcons name="horse-variant" size={20} color={colors.onSecondaryContainer} />
+            <Text style={styles.horseImportTitle}>Horse packages</Text>
+          </View>
+          <Text style={styles.horseImportBody}>
+            Import a single mare or stallion package without replacing the rest of this device.
+          </Text>
+          <PrimaryButton label="Import Horse" onPress={handleImportHorse} disabled={isAnyBusy} />
+        </View>
+
+        {isAnyBusy && visibleBusyStepLabel ? (
           <View style={styles.progressCard}>
             <ActivityIndicator color={colors.primary} />
-            <Text style={styles.progressText}>{busyStepLabel}</Text>
+            <Text style={styles.progressText}>{visibleBusyStepLabel}</Text>
           </View>
         ) : null}
 
         {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+        {horseImportErrorMessage ? <Text style={styles.errorText}>{horseImportErrorMessage}</Text> : null}
 
         {pendingRestorePreview ? (
           <View style={styles.previewCard}>
@@ -169,10 +241,28 @@ export function DataBackupScreen({ navigation }: Props): JSX.Element {
               {pendingRestorePreview.sourceName}: {formatDateTime(pendingRestorePreview.createdAt)} | {pendingRestorePreview.mareCount} mares | {pendingRestorePreview.dailyLogCount} daily logs | onboarding {pendingRestorePreview.onboardingComplete ? 'complete' : 'incomplete'}
             </Text>
             <View style={styles.previewActions}>
-              <PrimaryButton label="Restore This Backup" onPress={handleConfirmPreparedRestore} disabled={isBusy} />
-              <SecondaryButton label="Cancel" onPress={clearPendingRestore} disabled={isBusy} />
+              <PrimaryButton label="Restore This Backup" onPress={handleConfirmPreparedRestore} disabled={isAnyBusy} />
+              <SecondaryButton label="Cancel" onPress={clearPendingRestore} disabled={isAnyBusy} />
             </View>
           </View>
+        ) : null}
+
+        {pendingImport ? (
+          <HorseImportPreviewCard
+            pendingImport={pendingImport}
+            isBusy={isAnyBusy}
+            onSelectCreateNew={selectCreateNewTarget}
+            onSelectExisting={selectExistingTarget}
+            onConfirm={handleConfirmHorseImport}
+            onCancel={clearPendingImport}
+          />
+        ) : null}
+
+        {horseImportSummary ? (
+          <HorseImportSummaryCard
+            summary={horseImportSummary}
+            onClear={clearFinalSummary}
+          />
         ) : null}
 
         <View style={styles.snapshotsSection}>
@@ -197,7 +287,7 @@ export function DataBackupScreen({ navigation }: Props): JSX.Element {
                 <SecondaryButton
                   label="Restore Snapshot"
                   onPress={() => handleRestoreSnapshot(snapshot)}
-                  disabled={isBusy}
+                  disabled={isAnyBusy}
                 />
               </View>
             </View>
@@ -208,6 +298,116 @@ export function DataBackupScreen({ navigation }: Props): JSX.Element {
   );
 }
 
+type HorseImportPreviewCardProps = {
+  readonly pendingImport: PendingHorseImportPreview;
+  readonly isBusy: boolean;
+  readonly onSelectCreateNew: () => void;
+  readonly onSelectExisting: (destinationHorseId: string) => void;
+  readonly onConfirm: () => void;
+  readonly onCancel: () => void;
+};
+
+function HorseImportPreviewCard({
+  pendingImport,
+  isBusy,
+  onSelectCreateNew,
+  onSelectExisting,
+  onConfirm,
+  onCancel,
+}: HorseImportPreviewCardProps): JSX.Element {
+  const match = pendingImport.match;
+  const fuzzySuggestions = match.fuzzySuggestions;
+
+  return (
+    <View style={styles.importPreviewCard}>
+      <Text style={styles.sectionTitle}>Ready to import horse</Text>
+      <Text style={styles.importTitle}>
+        {pendingImport.preview.sourceHorse.name} ({formatHorseType(pendingImport.preview.sourceHorse.type)})
+      </Text>
+      <Text style={styles.importBody}>
+        {pendingImport.sourceName} | BreedWise {pendingImport.preview.appVersion}
+      </Text>
+      <Text style={styles.noOverwriteText}>Importing never overwrites existing data.</Text>
+      <Text style={styles.importBody}>
+        {pendingImport.preview.totalRowCount} rows | {formatNonZeroCounts(pendingImport.preview.tableCounts)}
+      </Text>
+      <Text style={styles.importBody}>
+        Estimated conflicts: {pendingImport.preview.estimatedConflictTotal}
+      </Text>
+      <Text style={styles.importBody}>Safety snapshot will be created before import.</Text>
+
+      {pendingImport.preview.redactionNotices.map((notice) => (
+        <Text key={notice.code} style={styles.importNotice}>
+          {formatRedactionNotice(notice.code)}
+        </Text>
+      ))}
+
+      <View style={styles.targetBox}>
+        <Text style={styles.targetTitle}>{formatMatchState(pendingImport)}</Text>
+        {match.state === 'ambiguous'
+          ? match.candidates.map((candidate) => (
+              <SecondaryButton
+                key={candidate.id}
+                label={`Use ${candidate.name}`}
+                onPress={() => onSelectExisting(candidate.id)}
+                disabled={isBusy}
+              />
+            ))
+          : null}
+        {fuzzySuggestions.length > 0 ? (
+          <>
+            <Text style={styles.targetTitle}>Suggested matches</Text>
+            {fuzzySuggestions.map((suggestion) => (
+              <SecondaryButton
+                key={suggestion.horse.id}
+                label={`Use ${suggestion.horse.name}`}
+                onPress={() => onSelectExisting(suggestion.horse.id)}
+                disabled={isBusy}
+              />
+            ))}
+          </>
+        ) : null}
+        <SecondaryButton label="Create New Horse" onPress={onSelectCreateNew} disabled={isBusy} />
+      </View>
+
+      <View style={styles.previewActions}>
+        <PrimaryButton
+          label="Confirm Import"
+          onPress={onConfirm}
+          disabled={isBusy || pendingImport.selectedTarget == null}
+        />
+        <SecondaryButton label="Cancel" onPress={onCancel} disabled={isBusy} />
+      </View>
+    </View>
+  );
+}
+
+type HorseImportSummaryCardProps = {
+  readonly summary: HorseImportSummary;
+  readonly onClear: () => void;
+};
+
+function HorseImportSummaryCard({ summary, onClear }: HorseImportSummaryCardProps): JSX.Element {
+  const detailRows = summary.rowResults.filter(shouldShowRowDetail);
+
+  return (
+    <View style={styles.importSummaryCard}>
+      <Text style={styles.sectionTitle}>Horse import summary</Text>
+      <Text style={styles.importBody}>{formatImportSummaryCounts(summary)}</Text>
+      {detailRows.length > 0 ? (
+        <View style={styles.summaryDetails}>
+          {detailRows.map((row) => (
+            <Text key={`${row.table}-${row.sourceId}-${row.outcome}`} style={styles.importNotice}>
+              {formatRowResult(row)}
+            </Text>
+          ))}
+        </View>
+      ) : null}
+      <SecondaryButton label="Clear Summary" onPress={onClear} />
+    </View>
+  );
+}
+
 function formatDateTime(isoString: string): string {
   const date = new Date(isoString);
   if (Number.isNaN(date.getTime())) {
@@ -215,6 +415,75 @@ function formatDateTime(isoString: string): string {
   }
 
   return date.toLocaleString();
+}
+
+function formatHorseType(type: 'mare' | 'stallion'): string {
+  return type === 'mare' ? 'mare' : 'stallion';
+}
+
+function formatRedactionNotice(code: string): string {
+  switch (code) {
+    case 'context_stallions_redacted':
+      return 'Context stallion details were redacted before export.';
+    case 'dose_recipient_shipping_redacted':
+      return 'Dose recipient and shipping details were redacted before export.';
+    default:
+      return 'Some source details were redacted before export.';
+  }
+}
+
+function formatMatchState(pendingImport: PendingHorseImportPreview): string {
+  const selectedTarget = pendingImport.selectedTarget;
+  if (selectedTarget?.kind === 'create_new') {
+    return 'Selected target: create a new horse.';
+  }
+  if (selectedTarget?.kind === 'confirmed_match') {
+    return `Selected target: existing horse ${selectedTarget.destinationHorseId}.`;
+  }
+
+  if (pendingImport.match.state === 'ambiguous') {
+    return 'Choose an existing horse or create a new record.';
+  }
+
+  return 'Choose how to import this horse package.';
+}
+
+function formatNonZeroCounts(counts: Record<string, number>): string {
+  const visibleCounts = Object.entries(counts)
+    .filter(([, count]) => count > 0)
+    .map(([tableName, count]) => `${formatTableName(tableName)} ${count}`);
+
+  if (visibleCounts.length === 0) {
+    return 'no row categories';
+  }
+
+  return visibleCounts.slice(0, 5).join(' | ');
+}
+
+function formatImportSummaryAlert(summary: HorseImportSummary): string {
+  return `${formatImportSummaryCounts(summary)}\n\nReview the on-screen summary for skipped or conflicting rows.`;
+}
+
+function formatImportSummaryCounts(summary: HorseImportSummary): string {
+  return [
+    `Inserted ${summary.totalCounts.inserted}`,
+    `Already present ${summary.totalCounts.already_present}`,
+    `Skipped ${summary.totalCounts.skipped}`,
+    `Conflicts ${summary.totalCounts.conflict}`,
+  ].join(' | ');
+}
+
+function shouldShowRowDetail(row: HorseImportRowResult): boolean {
+  return row.outcome === 'skipped' || row.outcome === 'conflict';
+}
+
+function formatRowResult(row: HorseImportRowResult): string {
+  const reason = row.message ?? row.reason ?? row.outcome;
+  return `${formatTableName(row.table)} ${row.sourceId}: ${reason}`;
+}
+
+function formatTableName(tableName: string): string {
+  return tableName.replace(/_/g, ' ');
 }
 
 const styles = StyleSheet.create({
@@ -267,6 +536,27 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     ...elevation.level1,
   },
+  horseImportCard: {
+    backgroundColor: colors.secondaryContainer,
+    borderColor: colors.secondary,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  horseImportHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  horseImportTitle: {
+    ...typography.titleMedium,
+    color: colors.onSecondaryContainer,
+  },
+  horseImportBody: {
+    ...typography.bodySmall,
+    color: colors.onSecondaryContainer,
+  },
   platformNote: {
     ...typography.bodySmall,
     color: colors.onSurfaceVariant,
@@ -304,6 +594,47 @@ const styles = StyleSheet.create({
   },
   previewActions: {
     gap: spacing.md,
+  },
+  importPreviewCard: {
+    backgroundColor: colors.primaryContainer,
+    borderRadius: borderRadius.lg,
+    gap: spacing.md,
+    padding: spacing.lg,
+  },
+  importSummaryCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.outlineVariant,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    gap: spacing.md,
+    padding: spacing.lg,
+    ...elevation.level1,
+  },
+  importTitle: {
+    ...typography.titleSmall,
+    color: colors.onPrimaryContainer,
+  },
+  importBody: {
+    ...typography.bodySmall,
+    color: colors.onPrimaryContainer,
+  },
+  noOverwriteText: {
+    ...typography.titleSmall,
+    color: colors.onPrimaryContainer,
+  },
+  importNotice: {
+    ...typography.bodySmall,
+    color: colors.onSurface,
+  },
+  targetBox: {
+    gap: spacing.sm,
+  },
+  targetTitle: {
+    ...typography.labelMedium,
+    color: colors.onPrimaryContainer,
+  },
+  summaryDetails: {
+    gap: spacing.sm,
   },
   snapshotsSection: {
     gap: spacing.md,
