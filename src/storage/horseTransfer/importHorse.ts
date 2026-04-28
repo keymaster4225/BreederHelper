@@ -131,10 +131,8 @@ export async function importHorseTransfer(
   let safetySnapshotCreated = false;
 
   try {
-    if (!options.skipSafetySnapshot) {
-      await createSafetySnapshot();
-      safetySnapshotCreated = true;
-    }
+    await createSafetySnapshot();
+    safetySnapshotCreated = true;
 
     await db.withTransactionAsync(async () => {
       for (const insert of planResult.plan.plannedInserts) {

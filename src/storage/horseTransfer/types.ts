@@ -129,7 +129,6 @@ export type HorseTransferImportTarget =
 
 export type ImportHorseTransferOptions = {
   readonly target: HorseTransferImportTarget;
-  readonly skipSafetySnapshot?: boolean;
 };
 
 export type ImportHorseTransferResult =

@@ -79,6 +79,53 @@ function createMareEnvelope(
   };
 }
 
+function createStallionEnvelope(
+  tableOverrides: Partial<HorseTransferTablesV1> = {},
+): HorseTransferEnvelopeV1 {
+  const backup = cloneBackupFixture();
+  const tables: HorseTransferTablesV1 = {
+    mares: [],
+    stallions: backup.tables.stallions,
+    daily_logs: [],
+    uterine_fluid: [],
+    uterine_flushes: [],
+    uterine_flush_products: [],
+    breeding_records: [],
+    pregnancy_checks: [],
+    foaling_records: [],
+    foals: [],
+    medication_logs: [],
+    tasks: [],
+    semen_collections: backup.tables.semen_collections,
+    collection_dose_events: backup.tables.collection_dose_events.map((row) => ({
+      ...row,
+      breeding_record_id: null,
+    })),
+    frozen_semen_batches: backup.tables.frozen_semen_batches,
+    ...tableOverrides,
+  };
+
+  return {
+    artifactType: HORSE_TRANSFER_ARTIFACT_TYPE,
+    transferVersion: HORSE_TRANSFER_VERSION,
+    dataSchemaVersion: BACKUP_SCHEMA_VERSION_CURRENT,
+    createdAt: backup.createdAt,
+    app: backup.app,
+    sourceHorse: {
+      type: 'stallion',
+      id: 'stallion-1',
+      name: 'Atlas',
+      registrationNumber: null,
+      dateOfBirth: '2016-03-03',
+    },
+    privacy: {
+      redactedContextStallions: false,
+      redactedDoseRecipientAndShipping: true,
+    },
+    tables,
+  };
+}
+
 function createStoreFromTables(tables: HorseTransferTablesV1): RowStore {
   const store: RowStore = {};
   for (const tableName of BACKUP_TABLE_NAMES) {
@@ -190,7 +237,6 @@ describe('importHorseTransfer', () => {
 
     const result = await importHorseTransfer(envelope, {
       target: { kind: 'create_new' },
-      skipSafetySnapshot: true,
     });
 
     expect(result.ok).toBe(true);
@@ -200,7 +246,6 @@ describe('importHorseTransfer', () => {
     expect(mareInsert.id).toBe('generated-mare-id');
     expect(dailyLogInsert.mare_id).toBe('generated-mare-id');
     expect(breedingInsert.mare_id).toBe('generated-mare-id');
-    expect(createSafetySnapshot).not.toHaveBeenCalled();
   });
 
   it('maps children to a confirmed existing mare without inserting the root mare', async () => {
@@ -212,7 +257,6 @@ describe('importHorseTransfer', () => {
 
     const result = await importHorseTransfer(envelope, {
       target: { kind: 'confirmed_match', destinationHorseId: 'local-mare-id' },
-      skipSafetySnapshot: true,
     });
 
     expect(result.ok).toBe(true);
@@ -236,7 +280,6 @@ describe('importHorseTransfer', () => {
 
     const result = await importHorseTransfer(envelope, {
       target: { kind: 'create_new' },
-      skipSafetySnapshot: true,
     });
 
     expect(result.ok).toBe(true);
@@ -259,7 +302,6 @@ describe('importHorseTransfer', () => {
 
     const result = await importHorseTransfer(envelope, {
       target: { kind: 'create_new' },
-      skipSafetySnapshot: true,
     });
 
     expect(result.ok).toBe(true);
@@ -298,7 +340,6 @@ describe('importHorseTransfer', () => {
 
     const result = await importHorseTransfer(envelope, {
       target: { kind: 'create_new' },
-      skipSafetySnapshot: true,
     });
 
     expect(result.ok).toBe(true);
@@ -327,7 +368,6 @@ describe('importHorseTransfer', () => {
 
     const result = await importHorseTransfer(envelope, {
       target: { kind: 'confirmed_match', destinationHorseId: 'mare-1' },
-      skipSafetySnapshot: true,
     });
 
     expect(result.ok).toBe(true);
@@ -352,7 +392,6 @@ describe('importHorseTransfer', () => {
 
     const result = await importHorseTransfer(envelope, {
       target: { kind: 'create_new' },
-      skipSafetySnapshot: true,
     });
 
     expect(result.ok).toBe(true);
@@ -380,7 +419,6 @@ describe('importHorseTransfer', () => {
 
     const result = await importHorseTransfer(envelope, {
       target: { kind: 'create_new' },
-      skipSafetySnapshot: true,
     });
 
     expect(result.ok).toBe(true);
@@ -390,6 +428,85 @@ describe('importHorseTransfer', () => {
     expect(breedingInsert.collection_id).toBeNull();
     expect(result.ok && result.summary.tableCounts.stallions.conflict).toBe(1);
     expect(result.ok && result.summary.tableCounts.semen_collections.skipped).toBe(1);
+  });
+
+  it('does not create a safety snapshot when the confirmed match target is missing', async () => {
+    const envelope = createMareEnvelope();
+    const db = createImportDb();
+    vi.mocked(getDb).mockResolvedValue(db as never);
+
+    const result = await importHorseTransfer(envelope, {
+      target: { kind: 'confirmed_match', destinationHorseId: 'missing-mare-id' },
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      safetySnapshotCreated: false,
+      errorMessage: 'Confirmed destination horse was not found.',
+    });
+    expect(createSafetySnapshot).not.toHaveBeenCalled();
+    expect(db.runCalls).toHaveLength(0);
+  });
+
+  it('imports a stallion package and remaps inventory foreign keys when IDs collide', async () => {
+    const envelope = createStallionEnvelope();
+    const db = createImportDb({
+      stallions: [{ ...envelope.tables.stallions[0], name: 'Existing Atlas' } as RowRecord],
+      semen_collections: [
+        {
+          ...envelope.tables.semen_collections[0],
+          stallion_id: 'other-stallion-id',
+        } as RowRecord,
+      ],
+    });
+    vi.mocked(getDb).mockResolvedValue(db as never);
+    vi.mocked(newId)
+      .mockReturnValueOnce('generated-stallion-id')
+      .mockReturnValueOnce('generated-collection-id');
+
+    const result = await importHorseTransfer(envelope, {
+      target: { kind: 'create_new' },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.errorMessage);
+
+    const stallionInsert = expectInsertForTable(db, 'stallions').params;
+    const collectionInsert = expectInsertForTable(db, 'semen_collections').params;
+    const frozenBatchInsert = expectInsertForTable(db, 'frozen_semen_batches').params;
+    const doseEventInsert = expectInsertForTable(db, 'collection_dose_events').params;
+
+    expect(stallionInsert.id).toBe('generated-stallion-id');
+    expect(collectionInsert.id).toBe('generated-collection-id');
+    expect(collectionInsert.stallion_id).toBe('generated-stallion-id');
+    expect(frozenBatchInsert.stallion_id).toBe('generated-stallion-id');
+    expect(frozenBatchInsert.collection_id).toBe('generated-collection-id');
+    expect(doseEventInsert.collection_id).toBe('generated-collection-id');
+    expect(doseEventInsert.breeding_record_id).toBeNull();
+    expect(result.summary.tableCounts.stallions.inserted).toBe(1);
+    expect(result.summary.tableCounts.semen_collections.inserted).toBe(1);
+    expect(result.summary.tableCounts.frozen_semen_batches.inserted).toBe(1);
+    expect(result.summary.tableCounts.collection_dose_events.inserted).toBe(1);
+  });
+
+  it('is idempotent when importing into the same matched stallion', async () => {
+    const envelope = createStallionEnvelope();
+    const db = createImportDb(createStoreFromTables(envelope.tables));
+    vi.mocked(getDb).mockResolvedValue(db as never);
+
+    const result = await importHorseTransfer(envelope, {
+      target: { kind: 'confirmed_match', destinationHorseId: 'stallion-1' },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error(result.errorMessage);
+    expect(result.summary.totalCounts.inserted).toBe(0);
+    expect(result.summary.totalCounts.conflict).toBe(0);
+    expect(result.summary.tableCounts.stallions.already_present).toBe(1);
+    expect(result.summary.tableCounts.semen_collections.already_present).toBe(1);
+    expect(result.summary.tableCounts.frozen_semen_batches.already_present).toBe(1);
+    expect(result.summary.tableCounts.collection_dose_events.already_present).toBe(1);
+    expect(db.runCalls).toHaveLength(0);
   });
 
   it('reports failed transactions with safety snapshot status', async () => {
