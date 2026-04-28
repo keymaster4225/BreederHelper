@@ -9,8 +9,6 @@ import { cloneBackupFixture } from '@/storage/backup/testFixtures';
 import { BACKUP_SCHEMA_VERSION_CURRENT, BACKUP_TABLE_NAMES, type BackupTableName } from '@/storage/backup/types';
 
 import {
-  HORSE_IMPORT_NON_OVERWRITE_MESSAGE,
-  HORSE_IMPORT_SAFETY_SNAPSHOT_PROMISE_MESSAGE,
   HORSE_TRANSFER_ARTIFACT_TYPE,
   HORSE_TRANSFER_VERSION,
   type HorseTransferEnvelopeV1,
@@ -158,6 +156,17 @@ function computeTotalRows(envelope: HorseTransferEnvelopeV1): number {
   return BACKUP_TABLE_NAMES.reduce((total, tableName) => total + envelope.tables[tableName].length, 0);
 }
 
+function createTaskRows(
+  count: number,
+  template: HorseTransferEnvelopeV1['tables']['tasks'][number],
+): HorseTransferEnvelopeV1['tables']['tasks'] {
+  return Array.from({ length: count }, (_, index) => ({
+    ...template,
+    id: `bulk-task-${String(index).padStart(4, '0')}`,
+    title: `Bulk task ${index}`,
+  }));
+}
+
 describe('previewHorseImport', () => {
   it('builds mare preview with counts, conflict estimates, redaction notice, and exact ID match', async () => {
     const envelope = createMareEnvelope();
@@ -195,8 +204,45 @@ describe('previewHorseImport', () => {
     expect(result.preview.redactionNotices.map((notice) => notice.code)).toEqual([
       'context_stallions_redacted',
     ]);
-    expect(result.preview.nonOverwriteMessage).toBe(HORSE_IMPORT_NON_OVERWRITE_MESSAGE);
-    expect(result.preview.safetySnapshotMessage).toBe(HORSE_IMPORT_SAFETY_SNAPSHOT_PROMISE_MESSAGE);
+    expect(result.preview.nonOverwritePolicy).toBe(true);
+    expect(result.preview.safetySnapshotPolicy).toBe('before_import');
+  });
+
+  it('chunks primary-key conflict estimates so large packages stay under SQLite bind limits', async () => {
+    const baseEnvelope = createMareEnvelope();
+    const taskRows = createTaskRows(1005, baseEnvelope.tables.tasks[0]);
+    const envelope: HorseTransferEnvelopeV1 = {
+      ...baseEnvelope,
+      tables: {
+        ...baseEnvelope.tables,
+        tasks: taskRows,
+      },
+    };
+    const db = createPreviewDb({
+      primaryKeyConflicts: {
+        tasks: ['bulk-task-0000', 'bulk-task-0500', 'bulk-task-1004'],
+      },
+    });
+    vi.mocked(getDb).mockResolvedValue(db as never);
+
+    const result = await previewHorseImport(envelope);
+
+    const taskConflictCalls = db.getAllAsync.mock.calls.filter((call) => {
+      const sql = call[0] as string;
+      const normalized = normalizeSql(sql);
+      return normalized.includes('from tasks') && normalized.includes('where id in');
+    });
+
+    expect(result.preview.estimatedConflictCounts.tasks).toBe(3);
+    expect(result.preview.estimatedConflictTotal).toBe(3);
+    expect(taskConflictCalls.map((call) => {
+      const params = call[1] as readonly unknown[];
+      return params.length;
+    })).toEqual([
+      500,
+      500,
+      5,
+    ]);
   });
 
   it('returns create-new target state with fuzzy suggestions when no exact match exists', async () => {

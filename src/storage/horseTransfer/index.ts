@@ -3,5 +3,5 @@ export * from './validate';
 export * from './serializeMare';
 export * from './serializeStallion';
 export * from './fileIO';
-export * from './matching';
 export * from './preview';
+export type { HorseMatchResult } from './matching';

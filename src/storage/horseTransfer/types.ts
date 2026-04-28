@@ -56,35 +56,25 @@ export type HorseTransferPreviewSummary = {
   readonly tableCounts: HorseTransferTableCounts;
 };
 
-export const HORSE_IMPORT_NON_OVERWRITE_MESSAGE = 'Importing never overwrites existing data.' as const;
-export const HORSE_IMPORT_SAFETY_SNAPSHOT_PROMISE_MESSAGE =
-  'A safety backup snapshot will be created before import.' as const;
-
 export type HorseTransferRedactionNoticeCode =
   | 'context_stallions_redacted'
   | 'dose_recipient_shipping_redacted';
 
 export type HorseTransferRedactionNotice = {
   readonly code: HorseTransferRedactionNoticeCode;
-  readonly message: string;
 };
 
 export type HorseImportPreviewTargetState = 'matched' | 'ambiguous' | 'create_new';
+export type HorseImportSafetySnapshotPolicy = 'before_import';
 
-export type HorseImportPreview = {
-  readonly createdAt: BackupIsoDateTime;
-  readonly appVersion: string;
-  readonly dataSchemaVersion: typeof BACKUP_SCHEMA_VERSION_CURRENT;
-  readonly sourceHorse: HorseTransferSourceHorse;
-  readonly privacy: HorseTransferPrivacy;
-  readonly tableCounts: HorseTransferTableCounts;
+export type HorseImportPreview = HorseTransferPreviewSummary & {
   readonly totalRowCount: number;
   readonly estimatedConflictCounts: HorseTransferTableCounts;
   readonly estimatedConflictTotal: number;
   readonly targetState: HorseImportPreviewTargetState;
   readonly redactionNotices: readonly HorseTransferRedactionNotice[];
-  readonly nonOverwriteMessage: typeof HORSE_IMPORT_NON_OVERWRITE_MESSAGE;
-  readonly safetySnapshotMessage: typeof HORSE_IMPORT_SAFETY_SNAPSHOT_PROMISE_MESSAGE;
+  readonly nonOverwritePolicy: true;
+  readonly safetySnapshotPolicy: HorseImportSafetySnapshotPolicy;
 };
 
 export type HorseTransferConflictReason =

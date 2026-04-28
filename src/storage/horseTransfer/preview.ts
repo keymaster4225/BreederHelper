@@ -3,13 +3,14 @@ import { BACKUP_TABLE_NAMES, type BackupTableName } from '@/storage/backup/types
 
 import { matchHorseTransfer, type HorseMatchResult } from './matching';
 import {
-  HORSE_IMPORT_NON_OVERWRITE_MESSAGE,
-  HORSE_IMPORT_SAFETY_SNAPSHOT_PROMISE_MESSAGE,
   type HorseImportPreview,
   type HorseTransferEnvelopeV1,
   type HorseTransferRedactionNotice,
   type HorseTransferTableCounts,
 } from './types';
+import { buildHorseTransferPreviewSummary } from './summary';
+
+const PRIMARY_KEY_CONFLICT_ID_CHUNK_SIZE = 500;
 
 type HorseIdentityQueryRow = {
   readonly id: string;
@@ -37,27 +38,22 @@ export async function previewHorseImport(
     destinationHorses,
   });
 
-  const tableCounts = buildTableCounts(envelope);
-  const totalRowCount = sumCounts(tableCounts);
+  const basePreview = buildHorseTransferPreviewSummary(envelope);
+  const totalRowCount = sumCounts(basePreview.tableCounts);
   const estimatedConflictCounts = await estimatePrimaryKeyConflicts(db, envelope);
   const estimatedConflictTotal = sumCounts(estimatedConflictCounts);
   const redactionNotices = buildRedactionNotices(envelope);
 
   return {
     preview: {
-      createdAt: envelope.createdAt,
-      appVersion: envelope.app.version,
-      dataSchemaVersion: envelope.dataSchemaVersion,
-      sourceHorse: envelope.sourceHorse,
-      privacy: envelope.privacy,
-      tableCounts,
+      ...basePreview,
       totalRowCount,
       estimatedConflictCounts,
       estimatedConflictTotal,
       targetState: match.state,
       redactionNotices,
-      nonOverwriteMessage: HORSE_IMPORT_NON_OVERWRITE_MESSAGE,
-      safetySnapshotMessage: HORSE_IMPORT_SAFETY_SNAPSHOT_PROMISE_MESSAGE,
+      nonOverwritePolicy: true,
+      safetySnapshotPolicy: 'before_import',
     },
     match,
   };
@@ -98,26 +94,16 @@ function mapHorseIdentityRow(row: HorseIdentityQueryRow) {
   };
 }
 
-function buildTableCounts(envelope: HorseTransferEnvelopeV1): HorseTransferTableCounts {
-  const tableCounts = {} as HorseTransferTableCounts;
-  for (const tableName of BACKUP_TABLE_NAMES) {
-    tableCounts[tableName] = envelope.tables[tableName].length;
-  }
-  return tableCounts;
-}
-
 function buildRedactionNotices(envelope: HorseTransferEnvelopeV1): readonly HorseTransferRedactionNotice[] {
   const notices: HorseTransferRedactionNotice[] = [];
   if (envelope.privacy.redactedContextStallions) {
     notices.push({
       code: 'context_stallions_redacted',
-      message: 'Context stallion pedigree and AV details were redacted in this package.',
     });
   }
   if (envelope.privacy.redactedDoseRecipientAndShipping) {
     notices.push({
       code: 'dose_recipient_shipping_redacted',
-      message: 'Dose recipient and shipping details were redacted in this package.',
     });
   }
   return notices;
@@ -135,20 +121,40 @@ async function estimatePrimaryKeyConflicts(
       continue;
     }
 
-    const placeholders = ids.map(() => '?').join(', ');
+    const existingIds = await selectExistingIdsByTable(db, tableName, ids);
+    estimatedConflicts[tableName] = existingIds.size;
+  }
+
+  return estimatedConflicts;
+}
+
+async function selectExistingIdsByTable(
+  db: PreviewDb,
+  tableName: BackupTableName,
+  ids: readonly string[],
+  chunkSize = PRIMARY_KEY_CONFLICT_ID_CHUNK_SIZE,
+): Promise<ReadonlySet<string>> {
+  const existingIds = new Set<string>();
+  const uniqueIds = Array.from(new Set(ids));
+
+  for (let startIndex = 0; startIndex < uniqueIds.length; startIndex += chunkSize) {
+    const idChunk = uniqueIds.slice(startIndex, startIndex + chunkSize);
+    const placeholders = idChunk.map(() => '?').join(', ');
     const rows = await db.getAllAsync<IdRow>(
       `
       SELECT id
       FROM ${tableName}
       WHERE id IN (${placeholders});
       `,
-      ids,
+      idChunk,
     );
 
-    estimatedConflicts[tableName] = rows.length;
+    for (const row of rows) {
+      existingIds.add(row.id);
+    }
   }
 
-  return estimatedConflicts;
+  return existingIds;
 }
 
 function getRowIds(envelope: HorseTransferEnvelopeV1, tableName: BackupTableName): readonly string[] {
