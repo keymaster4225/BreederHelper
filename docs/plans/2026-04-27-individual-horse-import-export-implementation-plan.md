@@ -1,178 +1,423 @@
 # Individual Horse Import / Export — Implementation Plan
 
-> Date: 2026-04-27
-> Roadmap entry: P1 under **Cloud backup & collaboration** (`ROADMAP.md:85–86`, `TODO:39`)
+> Date: 2026-04-27  
+> Status: Decision-complete after Wave 0 hardening  
+> Roadmap entry: P1 under **Cloud backup & collaboration** (`ROADMAP.md:85-86`, `TODO:39`)
 
 ## Context
 
-ROADMAP.md lists this as a P1 in **Cloud backup & collaboration** (added 2026-04-27). It's a deliberately scoped short-term workaround before real multi-user sync (Stage 2–4 in the staged sync path). Use case: a vet, buyer, or seller hands off a single mare's or stallion's records between devices without exposing the whole farm's data and without committing the app to field-level conflict resolution.
+BreedWise currently has full-database backup/restore under `src/storage/backup/`. That pipeline is destructive on restore: it validates a backup, creates a safety snapshot, deletes every managed table, and reinserts all rows. It must continue working unchanged.
 
-Existing `src/storage/backup/` is full-DB-only: `serializeBackup` reads everything, `restoreBackup` deletes every managed table before insert. That pipeline must keep working unchanged. The new horse-package flow is a separate code path that selects a subset, writes a portable file, and imports additively.
+This feature adds a separate horse-transfer pipeline for a single mare or stallion. It is additive, scoped, and non-overwriting. It exists as a short-term handoff mechanism for vets, buyers, sellers, and second devices before true sync/conflict resolution exists.
 
-User-locked decisions:
-- **Conflict policy**: additive merge with skip-on-collision (`INSERT OR IGNORE`). If a row's PK exists, skip; otherwise insert. Re-importing the same mare is a no-op for the mare row but adds new child records since the original export.
-- **Stallion in mare export**: include the full stallion record(s) referenced by mare's breedings as "context-only" — same skip-on-collision rule (existing stallions never overwritten).
-- **Foal scope**: foals travel as part of the dam export only. No standalone foal export action.
+Implementation must not use the full-backup envelope as the horse-transfer file. A distinct discriminator keeps full restore from accidentally treating a horse package as a database backup.
 
-## Format & file shape
+## Locked Behavior
 
-Reuse the existing `BackupEnvelopeV11` (`src/storage/backup/types.ts:75–91`, `serialize.ts:37–413`) with one **optional** added field:
+- Import never overwrites existing rows.
+- Fuzzy matches never auto-merge; they only offer user-selectable suggestions.
+- Conflicting rows are preserved on the destination and reported with row-level reasons.
+- Safety snapshot is created only after validation and user confirmation, immediately before the import transaction.
+- Full backup restore must reject horse-transfer files before destructive restore preview or destructive restore execution.
+- Foals travel only with dam/mare exports. There is no standalone foal export in v1.
+- v1 rejects unsupported horse-transfer versions rather than trying implicit migration.
+
+## Format
+
+Create a new `src/storage/horseTransfer/` module with a dedicated v1 envelope:
 
 ```ts
-exportScope?: {
-  type: 'mare' | 'stallion';
-  primaryId: string;
-  primaryName: string;  // for the import preview ("Importing mare 'Maple'")
-}
+export type HorseTransferEnvelopeV1 = {
+  readonly artifactType: 'breedwise.horseTransfer';
+  readonly transferVersion: 1;
+  readonly dataSchemaVersion: typeof BACKUP_SCHEMA_VERSION_CURRENT;
+  readonly createdAt: string;
+  readonly app: {
+    readonly name: 'BreedWise';
+    readonly version: string;
+  };
+  readonly sourceHorse: {
+    readonly type: 'mare' | 'stallion';
+    readonly id: string;
+    readonly name: string;
+    readonly registrationNumber: string | null;
+    readonly dateOfBirth: string | null;
+  };
+  readonly privacy: {
+    readonly redactedContextStallions: boolean;
+    readonly redactedDoseRecipientAndShipping: boolean;
+  };
+  readonly tables: HorseTransferTablesV1;
+};
 ```
 
-Optional means `validateBackup()` still parses it. The presence of `exportScope` is the marker that distinguishes a horse package from a full backup.
+`HorseTransferTablesV1` uses the current raw backup row types from `src/storage/backup/types.ts` for table shape. All table arrays are present so validators/importers can reason consistently about empty scope.
 
-**Critical safety check**: `restoreBackup()` (`src/storage/backup/restore.ts:87`) must refuse any envelope where `exportScope` is set, returning `errorMessage: 'This file is a horse package. Use Settings → Backup & Restore → Import Horse.'`. Without this, a user picking a horse package via the existing "Restore From File" button would wipe their DB.
+`app.version` and the `privacy` flags are user-facing metadata. Import/export previews and summaries should show the app version when useful for troubleshooting and should use the privacy flags to explain redactions that already occurred. In v1, `redactedContextStallions` and `redactedDoseRecipientAndShipping` are always `true` for the package types where those redactions apply; they are not opt-in toggles.
 
-Filename stem: `breedwise-mare-<slug>-<YYYYMMDD-HHMMSS>.json` and `breedwise-stallion-<slug>-<ts>.json`. (Don't propagate the misnamed `breedwise-backup-v5-` stem from `serialize.ts` — current schema is v11.) MIME stays `application/json`.
+Do not add speculative `photos: []` row fields in v1. Photo bytes and manifests remain out of scope until Photos V1 has a concrete schema.
 
-Reserve `photos: []` arrays per entity in the export shape so Photos V1 (planned, not shipped — `docs/plans/2026-04-26-photos-v1-implementation-plan.md`) can land without breaking compat. Photo bytes are out of scope for v1.
+### Full Restore Guard
 
-## Module layout
+`restoreBackup()` must reject any raw payload whose top-level `artifactType === 'breedwise.horseTransfer'` before calling `validateBackup()` or normalizing the backup. The current backup validator reconstructs a known-field backup object and drops unknown top-level fields, so checking after validation is unsafe.
 
-New sibling directory `src/storage/horseExport/`:
+Required guard behavior:
+
+- For string candidates, parse once, check `artifactType`, then pass the parsed value to backup validation.
+- For object candidates, check the original object before backup validation.
+- Return `errorMessage: 'This file is a horse package. Use Settings > Backup & Restore > Import Horse.'`.
+- `useDataBackup().prepareRestoreFromPickedFile()` should also reject horse-transfer files before showing the destructive restore preview.
+
+## Module Layout
 
 ```
-src/storage/horseExport/
-  types.ts             // HorsePackageEnvelope, HorseExportScope, HorsePackagePreview
-  serializeMare.ts     // serializeMarePackage(mareId)
-  serializeStallion.ts // serializeStallionPackage(stallionId)
-  validate.ts          // validateHorsePackage() — wraps validateBackup, asserts scope
-  importHorse.ts       // importHorsePackage(envelope, options) — additive insert, skip-on-collision
-  fileIO.ts            // createMarePackageFileName / createStallionPackageFileName / pickHorsePackageFile
-  index.ts             // public surface
+src/storage/horseTransfer/
+  types.ts              // envelope, preview, result, conflict reason types
+  serializeMare.ts      // exportMareTransfer(mareId)
+  serializeStallion.ts  // exportStallionTransfer(stallionId, options?)
+  validate.ts           // validateHorseTransferJson / validateHorseTransfer
+  matching.ts           // exact/fuzzy match candidates and precedence
+  preview.ts            // previewHorseImport(envelope)
+  remap.ts              // ID map planning and FK rewrite helpers
+  importHorse.ts        // importHorseTransfer(envelope, options)
+  fileIO.ts             // filename creation, picker, share helpers
+  index.ts              // public surface
 ```
 
-All files target < 400 lines (CLAUDE.md convention). One small modification to `src/storage/backup/restore.ts`: add the `exportScope` guard near the top of `restoreBackup`.
+Keep screen orchestration in hooks:
 
-## Mare-scope query plan (transitive closure)
+- `src/hooks/useHorseExport.ts`
+- `src/hooks/useHorseImport.ts`
 
-Run inside one `db.withTransactionAsync` read transaction. Filter by mare ID. Output table arrays in `BACKUP_INSERT_ORDER` (`types.ts:75`):
+Presentation components should not import storage modules directly.
 
-1. `mares` — `WHERE id = ? AND deleted_at IS NULL` (throw `MareNotFoundError` on 0 rows).
-2. `tasks` — `WHERE mare_id = ?`.
-3. `stallions` — `WHERE id IN (SELECT DISTINCT stallion_id FROM breeding_records WHERE mare_id = ? AND stallion_id IS NOT NULL)` (context-only; emit even if `deleted_at` set — destination needs the row to satisfy FK).
-4. `semen_collections` — `WHERE id IN (SELECT DISTINCT collection_id FROM breeding_records WHERE mare_id = ? AND collection_id IS NOT NULL)` (context-only).
-5. `frozen_semen_batches` — **empty array.** Plan-agent verification: there is no `frozen_semen_batch_id` FK on `breeding_records`. Frozen straws are accounted via `breeding_records.collection_id` + free-text `straw_details` / `straw_volume_ml`. Batches are never reachable from mare side.
-6. `breeding_records` — `WHERE mare_id = ?`.
-7. `daily_logs` — `WHERE mare_id = ?`.
-8. `uterine_fluid` — `WHERE daily_log_id IN (SELECT id FROM daily_logs WHERE mare_id = ?)`.
-9. `uterine_flushes` — same `daily_log_id IN ...` subquery.
-10. `uterine_flush_products` — `WHERE uterine_flush_id IN (SELECT id FROM uterine_flushes WHERE daily_log_id IN ...)`.
-11. `medication_logs` — `WHERE mare_id = ?`.
-12. `pregnancy_checks` — `WHERE mare_id = ?`.
-13. `foaling_records` — `WHERE mare_id = ?`.
-14. `foals` — `WHERE foaling_record_id IN (SELECT id FROM foaling_records WHERE mare_id = ?)`.
-15. `collection_dose_events` — **empty array** for mare scope. Dose events are stallion-side accounting; importing them onto a different device for a mare you imported risks double-counting straw usage on the destination's stallion.
+## Serialization
 
-## Stallion-scope query plan
+All export queries must run inside one read transaction and must specify deterministic `ORDER BY` clauses. Prefer ordering that matches `serializeBackup()` where practical.
 
-1. `stallions` — `WHERE id = ? AND deleted_at IS NULL`.
-2. `semen_collections` — `WHERE stallion_id = ?`.
-3. `frozen_semen_batches` — `WHERE stallion_id = ?`.
-4. `collection_dose_events` — `WHERE collection_id IN (SELECT id FROM semen_collections WHERE stallion_id = ?)`. **At serialize time**, set every `breeding_record_id` to `null`. Reason: `collection_dose_events.breeding_record_id` is `ON DELETE CASCADE` (`migrations/index.ts:636`), and the referenced breeding belongs to a mare not in the stallion package. Keeping the original ID would silently re-bind the dose to whatever happens to share that ID on the destination.
-5. All other tables: empty arrays.
+### Mare Scope
 
-## Additive-merge insert strategy
+Source mare must satisfy `id = ? AND deleted_at IS NULL`; otherwise throw `MareNotFoundError`.
 
-Use `INSERT OR IGNORE` per row inside one `db.withTransactionAsync`. Walk tables in `BACKUP_INSERT_ORDER` so every parent is inserted before its child. SQLite's `INSERT OR IGNORE` skips on PK or UNIQUE conflict, which is exactly skip-on-collision.
+Include:
 
-Per-table row counts: `db.runAsync` returns `{ changes }`. Sum changes per table to derive `inserted`; `skipped = providedRows - inserted`. That feeds the import-summary alert.
+1. `mares`: exactly the source mare.
+2. `tasks`: `WHERE mare_id = ?`.
+3. `breeding_records`: `WHERE mare_id = ?`.
+4. `daily_logs`: `WHERE mare_id = ?`.
+5. `uterine_fluid`: rows reachable through included daily logs.
+6. `uterine_flushes`: rows reachable through included daily logs.
+7. `uterine_flush_products`: rows reachable through included uterine flushes.
+8. `medication_logs`: `WHERE mare_id = ?`.
+9. `pregnancy_checks`: `WHERE mare_id = ?`.
+10. `foaling_records`: `WHERE mare_id = ?`.
+11. `foals`: rows reachable through included foaling records.
+12. Context `stallions`: exactly stallions referenced by included breeding records with non-null `stallion_id`.
+13. Context `semen_collections`: exactly collections referenced by included breeding records with non-null `collection_id`.
 
-`tasks.source_record_id` is a soft TEXT pointer (no `FOREIGN KEY` clause); the existing restore tolerates inserting tasks before their referenced rows. Same applies here.
+Empty:
 
-## Validation reuse
+- `frozen_semen_batches`
+- `collection_dose_events`
 
-`validateBackup()` (`src/storage/backup/validate.ts`) already enforces FK integrity *within* the envelope — every `breeding_records.stallion_id` must appear in `tables.stallions`. That's exactly what a horse package needs (it self-includes referenced stallions/collections). **Reuse as-is.**
+Context stallion privacy redaction is required by default. Export context stallion rows with stable display/FK fields only: `id`, `name`, `breed`, `registration_number`, `date_of_birth`, timestamps, and `deleted_at`. Set `sire`, `dam`, `notes`, and AV fields to `null`.
 
-New thin wrapper `validateHorsePackage(input)`:
-1. Calls `validateBackup(input)`.
-2. Asserts `input.exportScope` is present and well-formed (`type` ∈ `'mare' | 'stallion'`, non-empty `primaryId` and `primaryName`).
-3. Asserts `primaryId` row exists in `tables.mares` or `tables.stallions` per scope.
-4. For stallion scope, asserts mare-only tables (`mares`, `daily_logs`, `uterine_*`, `breeding_records`, `pregnancy_checks`, `foaling_records`, `foals`, `medication_logs`, `tasks`) are empty arrays — sanity check against a mislabeled package.
-5. For mare scope, asserts every non-null `tasks.completed_record_id` resolves to a row inside the package.
+If a referenced context stallion was soft-deleted, include the redacted row anyway so breeding FK validation can succeed. The root mare itself may not be deleted.
 
-## Safety snapshot
+### Stallion Scope
 
-Take a full `createSafetySnapshot()` (`src/storage/backup/safetyBackups.ts`) before every horse import. Storage cost is real but the user explicitly accepted "stale parent + new children" surface area; rollback safety is the floor. The existing 3-snapshot retention applies. Expose `skipSafetySnapshot: true` only for tests.
+Source stallion must satisfy `id = ? AND deleted_at IS NULL`; otherwise throw `StallionNotFoundError`.
 
-## UI surfaces
+Include:
 
-- **Mare detail**: add an Export icon (`accessibilityLabel="Export mare package"`) next to the existing calendar icon in `src/screens/mare-detail/MareDetailHeader.tsx:27–31`.
-- **Stallion detail**: add an Export icon next to the existing pencil edit icon set via `navigation.setOptions({ headerRight })` in `src/screens/StallionDetailScreen.tsx:59–71`.
-- **DataBackupScreen** (`src/screens/DataBackupScreen.tsx`): new "Import Horse" `SecondaryButton` alongside the existing "Restore From File" button. New hook `useHorseImport()` mirroring the structure of `useDataBackup()` (`src/hooks/useDataBackup.ts`).
+1. `stallions`: exactly the source stallion.
+2. `semen_collections`: `WHERE stallion_id = ?`.
+3. `frozen_semen_batches`: `WHERE stallion_id = ?`.
+4. `collection_dose_events`: rows reachable through included semen collections.
+
+For every exported dose event:
+
+- Set `breeding_record_id` to `null`.
+- Redact recipient/shipping fields by default: `recipient = 'Redacted'`; `recipient_phone`, `recipient_street`, `recipient_city`, `recipient_state`, `recipient_zip`, `carrier_service`, `container_type`, `tracking_number`, and `notes` become `null`.
+
+All mare-owned tables are empty.
+
+## Filename And Sharing
+
+Filename stems:
+
+- `breedwise-mare-<slug>-v1-<YYYYMMDD-HHMMSS>.json`
+- `breedwise-stallion-<slug>-v1-<YYYYMMDD-HHMMSS>.json`
+
+Slug rule: lowercase, ASCII alphanumeric words joined with hyphens, repeated hyphens collapsed, max 48 characters, fallback `horse`.
+
+Do not reuse backup-specific share copy. Horse package sharing should use dialog title/copy like "Share horse package".
+
+## Validation
+
+Validation has four layers:
+
+1. JSON parsing and discriminator/version checks.
+2. Row shape checks for every table.
+3. Existing backup-style cross-table integrity where applicable.
+4. Horse-transfer scope checks.
+
+For v1, reject unless:
+
+- `artifactType === 'breedwise.horseTransfer'`
+- `transferVersion === 1`
+- `dataSchemaVersion === BACKUP_SCHEMA_VERSION_CURRENT`
+- `app.name === 'BreedWise'`
+- `sourceHorse` is well-formed
+- every table key exists and is an array
+
+Schema mismatch copy is exact:
+
+- If `dataSchemaVersion` is greater than the current backup schema version: `This horse package was created by a newer version of BreedWise. Update BreedWise and try again.`
+- If `dataSchemaVersion` is less than the current backup schema version: `This horse package uses an older BreedWise data format that cannot be imported by this version. Ask the sender to export it again from an updated app.`
+
+Strict v1 row-shape validation rejects unknown top-level envelope keys, missing top-level envelope keys, unknown table keys, missing table keys, missing row fields, and unknown row fields. It must not silently drop unexpected fields or columns.
+
+### Mare Scope Rules
+
+- `sourceHorse.type === 'mare'`.
+- `tables.mares.length === 1`.
+- The only mare row ID equals `sourceHorse.id`.
+- The root mare has `deleted_at === null`.
+- Every `tasks`, `daily_logs`, `breeding_records`, `medication_logs`, `pregnancy_checks`, and `foaling_records` row points to the root mare.
+- Every foal reaches the root mare through an included foaling record.
+- Every uterine fluid/flush/product row reaches the root mare through included daily-log and flush chains.
+- `collection_dose_events` and `frozen_semen_batches` are empty.
+- Included context stallions equal exactly the non-null stallion IDs referenced by included breeding records.
+- Included semen collections equal exactly the non-null collection IDs referenced by included breeding records, and each collection belongs to the referenced stallion.
+
+### Stallion Scope Rules
+
+- `sourceHorse.type === 'stallion'`.
+- `tables.stallions.length === 1`.
+- The only stallion row ID equals `sourceHorse.id`.
+- The root stallion has `deleted_at === null`.
+- Mare-owned tables are empty: `mares`, `daily_logs`, `uterine_fluid`, `uterine_flushes`, `uterine_flush_products`, `breeding_records`, `pregnancy_checks`, `foaling_records`, `foals`, `medication_logs`, and `tasks`.
+- Every semen collection and frozen semen batch points to the root stallion.
+- Every dose event points to an included semen collection.
+- Every dose event has `breeding_record_id === null`.
+
+### Task Pointer Rules
+
+For mare packages:
+
+- Non-null `completed_record_type/completed_record_id` must resolve to an included row of the corresponding type.
+- Non-manual `source_type/source_record_id` must resolve to an included row of the corresponding type.
+- v1 rejects orphan task pointers instead of importing them as soft broken links.
+
+## Matching
+
+`previewHorseImport()` computes match state before writes.
+
+Exact match precedence:
+
+1. Exported internal ID.
+2. Exact non-empty registration number after trim/case normalization.
+3. Exact normalized name plus exact DOB when both DOBs are present.
+
+If different rules point to different destination horses, mark the import as ambiguous and require user selection. If ID matches but lower-precedence identity fields all contradict the import, also require confirmation. Soft-deleted ID matches are ambiguous; they do not auto-create or auto-merge.
+
+Fuzzy suggestions:
+
+- Normalize by lowercasing, trimming, collapsing whitespace, removing punctuation/apostrophes, and dropping common final suffix tokens: `farm`, `farms`, `ranch`, `rsf`, `llc`, `inc`, `sr`, `jr`.
+- Disqualify when both registration numbers are present and differ.
+- Disqualify when both DOBs are present and differ.
+- Score exact normalized equality, token containment, token overlap, and edit-distance/trigram-style similarity.
+- Include only fuzzy candidates with normalized score `>= 0.6`.
+- Fuzzy candidates are shown only as suggestions; they never auto-match.
+
+## Import Planning And ID Remapping
+
+Build an import plan before opening the SQLite transaction.
+
+Primary horse:
+
+- Confirmed existing match maps `sourceHorse.id` to the destination horse ID.
+- Create-new with unused source ID preserves the source ID.
+- Create-new with source ID already used by any active or soft-deleted row generates a new ID and remaps all child FKs.
+
+Children:
+
+- Unused imported child IDs are preserved.
+- Existing child ID plus same mapped ownership chain triggers effective-data comparison.
+- Existing child ID plus different ownership chain generates a new child ID and updates every downstream FK in the in-memory envelope.
+- ID equality alone never proves a row is already present.
+
+Context links:
+
+- If a mare-package context stallion ID maps safely to the same destination stallion, keep the link.
+- If the context stallion ID collides with a different destination stallion, preserve the breeding record by setting `stallion_id = null`, `stallion_name` to the exported stallion name, and `collection_id = null`.
+- If a semen collection cannot be safely mapped to the same context stallion, null the optional `collection_id` link on the breeding record.
+
+## Effective Data And Conflicts
+
+Effective comparison excludes only `created_at` and `updated_at`.
+
+It includes:
+
+- `deleted_at` differences
+- all domain fields
+- nullable fields with strict equality
+- canonicalized JSON-text fields such as foal `milestones`, foal `igg_tests`, daily-log follicle measurements, and ovary structures
+
+Outcomes:
+
+- Same ID, same ownership chain, same effective data: already present.
+- Same ID, same ownership chain, different effective data: conflict; destination row is preserved.
+- Natural unique conflict with different row ID: conflict; destination row is preserved.
+- Unexpected DB error: abort transaction.
+
+Natural unique conflicts that must be detected and reported before insert:
+
+- `daily_logs` mapped `(mare_id, date, time)` conflicts.
+- `uterine_flushes` mapped `daily_log_id` conflicts.
+- `foals` mapped `foaling_record_id` conflicts.
+- `tasks` partial unique conflicts for open breeding pregnancy-check tasks, using the schema predicate from `idx_tasks_open_breeding_preg_check_unique`: `status = 'open' AND source_type = 'breedingRecord' AND source_reason = 'breedingPregnancyCheck'`.
+
+Do not implement blanket `INSERT OR IGNORE`. It suppresses non-PK conflicts and makes skipped counts lie. Instead:
+
+1. Preflight destination primary keys and known natural unique keys.
+2. Rewrite IDs where safe.
+3. Classify already-present/conflict/skipped rows.
+4. Insert only planned-new rows with regular `INSERT`.
+
+Import result must include inserted, already-present, skipped, and conflict counts by table plus row-level reasons. If a parent conflict drops dependent rows, report the cascade explicitly.
+
+Foal conflicts need rich lost-data context. When an imported foal conflicts with an existing foal for the mapped foaling record, the summary must state that the destination foal was preserved and report whether imported `milestones` and `igg_tests` differ from the destination row. The UI must not collapse this case to only "1 conflict."
+
+## Safety, Transactions, And Invalidation
+
+Import flow:
+
+1. Pick file.
+2. Validate file.
+3. Build preview and match candidates.
+4. User confirms target/create-new path.
+5. Create safety snapshot.
+6. Run one SQLite transaction for planned inserts.
+7. Emit `emitDataInvalidation('all')`.
+8. Refresh safety snapshot list.
+9. Show import summary.
+
+Cancellation and validation failure do not create safety snapshots. If import fails after snapshot creation, the transaction rolls back and the UI reports that a safety snapshot was created before the failed attempt.
+
+Expose `skipSafetySnapshot: true` only for tests.
+
+## UI Surfaces
+
+- **Mare detail**: add a share/export icon beside the calendar action in `src/screens/mare-detail/MareDetailHeader.tsx`; accessibility label `Export mare package`.
+- **Stallion detail**: add a share/export icon beside edit in `src/screens/StallionDetailScreen.tsx`; accessibility label `Export stallion package`.
+- **DataBackupScreen**: add `Import Horse` as an additive action, visually distinct from destructive `Restore From File`.
 - **Foal form**: no export action.
 
-Export flow: tap icon → `serializeMarePackage(mareId)` / `serializeStallionPackage(stallionId)` → write to documents directory via existing `writeBackupFile` pattern in `src/storage/backup/fileIO.ts:50` → `Sharing.shareAsync(fileUri)` → success alert.
+Export preview should show horse name/type, included record categories, and privacy redactions. Import preview should show target match/create-new state, fuzzy suggestions if any, estimated row counts, estimated conflicts, safety-snapshot promise, and explicit copy: "Importing never overwrites existing data."
 
-Import flow: tap "Import Horse" → `pickHorsePackageFile()` (wraps `DocumentPicker.getDocumentAsync`) → `validateHorsePackage()` → build `HorsePackagePreview { scope, primaryName, perTableCount, alreadyPresentCount }` (the `alreadyPresentCount` comes from a cheap `SELECT id FROM <table> WHERE id IN (...)` per table on the destination) → render preview card reusing the pattern in `DataBackupScreen.tsx:165–176` ("Importing mare 'Maple'. Insert 47 new rows. Skip 5 already present.") → confirm → `importHorsePackage()` → success alert with insert/skip counts.
+## Critical Files
 
-If `alreadyPresentCount` for the root mare/stallion is > 0, surface a notice: "An entity with this ID already exists. If you have not previously imported this <mare/stallion>, the IDs may have collided." (`src/utils/id.ts` uses `Math.random().toString(36).slice(2,10)` — ~41 bits of randomness; the warning protects against the genuine-collision case where skip-on-collision would silently hide it.)
+To modify:
 
-## Critical files
+- `src/storage/backup/restore.ts` — raw `artifactType` guard before backup validation.
+- `src/hooks/useDataBackup.ts` — reject horse-transfer files before destructive restore preview.
+- `src/screens/mare-detail/MareDetailHeader.tsx` — export action.
+- `src/screens/StallionDetailScreen.tsx` — export action.
+- `src/screens/DataBackupScreen.tsx` — additive import entry, preview, and summary.
 
-To **modify**:
-- `src/storage/backup/restore.ts` — add `exportScope` guard at the top of `restoreBackup()`.
-- `src/screens/mare-detail/MareDetailHeader.tsx` — Export icon.
-- `src/screens/StallionDetailScreen.tsx` — Export icon in `headerRight`.
-- `src/screens/DataBackupScreen.tsx` — "Import Horse" button + preview/confirm wiring.
+To create:
 
-To **create**:
-- `src/storage/horseExport/{types,serializeMare,serializeStallion,validate,importHorse,fileIO,index}.ts`
-- `src/hooks/useHorseExport.ts` (export action) and `src/hooks/useHorseImport.ts` (import flow).
+- `src/storage/horseTransfer/{types,serializeMare,serializeStallion,validate,matching,preview,remap,importHorse,fileIO,index}.ts`
+- `src/hooks/useHorseExport.ts`
+- `src/hooks/useHorseImport.ts`
 
-To **read** (no edit):
-- `src/storage/backup/types.ts:75–91` — reuse `BACKUP_INSERT_ORDER`.
-- `src/storage/backup/serialize.ts` — pattern reference for table extraction.
-- `src/storage/backup/validate.ts` — wrap, do not modify.
-- `src/storage/backup/safetyBackups.ts` — reuse `createSafetySnapshot`.
-- `src/storage/backup/fileIO.ts` — reuse `writeBackupFile`, `pickBackupFile` patterns.
-- `src/storage/migrations/index.ts` — schema source of truth for FK rules.
-- `src/utils/id.ts` — ID format (relevant for collision warning).
+Shared helper decision:
+
+- Extract reusable table specs and raw insert helpers from `src/storage/backup/restore.ts` when doing so prevents full restore and horse import from drifting, but do not force horse import through a fake full-backup envelope.
+- Consider shared raw select column lists from `src/storage/backup/serialize.ts` where doing so reduces schema drift without over-abstracting.
+- Consider shared row-shape and cross-table validation helpers from `src/storage/backup/validate.ts`; do not fake a full backup envelope with synthetic settings just to reuse `validateBackup()`.
+- Any duplicated restore/import SQL left after Wave 4 must be listed as explicit tech debt.
 
 ## Tests
 
-New:
-- `src/storage/horseExport/serializeMare.test.ts` — fixture: 1 mare, 2 daily logs (one with uterine fluid + flush + 2 products), 2 breedings to different stallions (one with collection), 1 pregnancy check, 1 foaling, 1 foal, 1 medication log, 1 task. Assert exact row sets per table; assert both stallions and the collection included; assert `frozen_semen_batches: []` and `collection_dose_events: []`.
-- `src/storage/horseExport/serializeStallion.test.ts` — fixture: 1 stallion, 2 collections, 5 dose events (2 with `breeding_record_id`, 3 without). Assert all 5 included, the 2 with `breeding_record_id` have it nulled.
-- `src/storage/horseExport/importHorse.test.ts` —
-  - Round-trip: serialize mare → import into empty DB → re-serialize → assert byte-identical (modulo `createdAt`).
-  - Idempotent re-import: import same package twice; second pass inserts 0 rows.
-  - Additive merge: import mare → on source side add a new daily log → re-export → re-import to the destination that already has the original; assert exactly 1 row inserted.
-  - Cross-stallion non-overwrite: destination stallion notes = "X"; import mare whose package contains the same stallion with notes = "Y"; assert destination still says "X".
-- `src/storage/horseExport/validate.test.ts` — reject full backups (no `exportScope`); reject mare-package mislabeled with stallion-only data; reject `tasks.completed_record_id` pointing outside the package.
-- `src/storage/backup/restore.test.ts` — extend with a test that `restoreBackup()` refuses any envelope with `exportScope` set.
-- Screen tests: `MareDetailScreen.screen.test.tsx`, `StallionDetailScreen.screen.test.tsx`, `DataBackupScreen.screen.test.tsx` — happy path (tap export, file written / tap import, preview renders, confirm inserts) and error path (export fails / invalid file picked → alert). Every new icon-only button must have an `accessibilityLabel` (CLAUDE.md).
+Storage tests:
+
+- `validate.test.ts`
+  - rejects non-horse-transfer JSON
+  - rejects unsupported `transferVersion`
+  - rejects newer and older mismatched `dataSchemaVersion` values with the exact schema mismatch copy
+  - rejects malformed table shapes
+  - rejects unknown envelope keys, missing table keys, unknown table keys, missing row fields, and unknown row fields
+  - rejects tampered mare package with multiple mares
+  - rejects stallion package with mare-owned rows
+  - rejects orphan task source/completed pointers
+  - enforces dose-event `breeding_record_id === null`
+- `serializeMare.test.ts`
+  - exports exact mare closure
+  - includes redacted context stallions and referenced collections
+  - keeps `frozen_semen_batches` and `collection_dose_events` empty
+  - produces deterministic ordering
+  - exporting the same unchanged mare package twice produces byte-identical JSON after normalizing `createdAt`
+- `serializeStallion.test.ts`
+  - exports exact stallion closure
+  - nulls dose-event `breeding_record_id`
+  - redacts recipient/shipping fields
+  - produces deterministic ordering
+  - exporting the same unchanged stallion package twice produces byte-identical JSON after normalizing `createdAt`
+- `matching.test.ts`
+  - ID, registration, name+DOB precedence
+  - conflicting exact-match signals become ambiguous
+  - fuzzy suggestions use normalized score threshold `>= 0.6`
+  - fuzzy suggestions never auto-match
+- `importHorse.test.ts`
+  - create-new with unused source ID preserves ID
+  - create-new with source ID collision remaps root and child FKs
+  - existing-match import remaps child FKs to local root
+  - child ID collision under unrelated horse rewrites and inserts
+  - natural daily-log unique conflict reports conflict, not already-present
+  - foal natural conflict reports rich-data conflict, including whether `milestones` and `igg_tests` differ
+  - idempotent re-import inserts 0 rows and reports already-present
+  - same-ID different effective data reports conflict
+  - context stallion collision preserves breeding as custom stallion and nulls unsafe collection link
+  - successful import emits `emitDataInvalidation('all')`
+  - cancellation/validation failure do not create safety snapshots
+  - confirmed import creates safety snapshot before writes
+- `src/storage/backup/restore.test.ts`
+  - full restore rejects horse-transfer JSON string
+  - full restore rejects horse-transfer object candidate
+
+Screen tests:
+
+- `MareDetailScreen.screen.test.tsx` — export action calls hook, success and failure alerts.
+- `StallionDetailScreen.screen.test.tsx` — export action calls hook, success and failure alerts.
+- `DataBackupScreen.screen.test.tsx` — import entry, invalid file, preview, fuzzy candidate selection, confirm import, cancel with no snapshot, final summary, and full-restore rejection of horse package.
 
 ## Verification
 
-End-to-end verification before declaring done:
+Before declaring done:
 
-1. `npm run typecheck && npm test && npm run test:screen && npm run lint` all green.
-2. Run on Android emulator (`npm run android`):
-   - Create mare "TestMare" with 2 daily logs, 1 breeding, 1 pregnancy check.
-   - Tap Export on her detail screen → share sheet opens → save to documents.
-   - In Settings → Backup & Restore → tap Import Horse → pick the file.
-   - Verify preview shows correct counts.
-   - Confirm import → see "Already exists" idempotent path; verify 0 rows inserted on second import.
-   - Wipe DB (full restore from earlier snapshot) → re-import the package → verify mare and all children appear.
-3. Cross-device manual smoke: install on a second emulator/device, transfer the JSON via email/Drive, import, verify the mare and children render correctly.
-4. Try to pick a horse package via the **full backup** "Restore From File" path → assert clean rejection with the exportScope guard message; DB untouched.
-5. Verify safety snapshot was created in `safety-snapshots/` after each import.
+1. `npm run typecheck`
+2. `npm test`
+3. `npm run test:screen`
+4. `npm run lint`
+5. Android manual smoke:
+   - Export mare with daily logs, breeding, pregnancy check, foaling, foal, medication, and task.
+   - Import into same DB and confirm idempotent already-present summary.
+   - Import into clean DB and verify full mare history renders.
+   - Import into DB with a conflicting daily log and verify conflict details.
+   - Try horse package through full restore and verify clean rejection with DB untouched.
+   - Export stallion and verify recipient/shipping redaction in JSON.
+6. Cross-device smoke: transfer JSON to another emulator/device, import, verify records and summary.
 
-## Out of scope (deliberate)
+## Out Of Scope
 
-- Photo bytes (waiting on Photos V1; reserve `photos: []` arrays only).
-- Multi-mare bulk export (use full backup for that).
-- True field-level merge (Stage 4 multi-user sync).
-- Two-way sync / conflict-resolution UI.
-- ID rewriting on collision (warn only).
-- Cross-app or cross-vendor format.
-- Foal-only export (foals travel with dam).
-- Migration of horse packages across schema versions (the existing schemaVersion guard rejects future-versioned files).
+- Photo bytes or photo manifests.
+- Multi-mare bulk export.
+- True field-level merge.
+- Two-way sync.
+- Automatic overwrite/update of destination rows.
+- Cross-app/cross-vendor format.
+- Foal-only export.
+- Legacy horse-transfer version adapters beyond explicit v1/current-schema acceptance.

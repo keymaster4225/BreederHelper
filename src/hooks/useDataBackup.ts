@@ -14,9 +14,14 @@ import {
   type BackupPreviewSummary,
   type RestoreBackupResult,
   type SafetySnapshotSummary,
+  validateBackup,
   validateBackupJson,
   writeJsonFile,
 } from '@/storage/backup';
+import {
+  HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
+  isHorseTransferArtifactPayload,
+} from '@/storage/horseTransfer';
 
 type PendingRestoreState = {
   readonly candidateText: string;
@@ -154,7 +159,21 @@ export function useDataBackup(): UseDataBackupResult {
         const jsonText = await readTextFile(pickedFile.uri);
         setBusyStepLabel('Validating backup...');
 
-        const validation = validateBackupJson(jsonText);
+        const parsedCandidate = parsePickedBackupJson(jsonText);
+        if (
+          parsedCandidate.ok &&
+          isHorseTransferArtifactPayload(parsedCandidate.value)
+        ) {
+          setErrorMessage(HORSE_TRANSFER_RESTORE_ERROR_MESSAGE);
+          return {
+            ok: false,
+            errorMessage: HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
+          };
+        }
+
+        const validation = parsedCandidate.ok
+          ? validateBackup(parsedCandidate.value)
+          : validateBackupJson(jsonText);
         if (!validation.ok) {
           setErrorMessage(validation.error.message);
           return {
@@ -296,4 +315,17 @@ export function useDataBackup(): UseDataBackupResult {
     restoreSafetySnapshot,
     clearPendingRestore,
   };
+}
+
+function parsePickedBackupJson(
+  jsonText: string,
+): { readonly ok: true; readonly value: unknown } | { readonly ok: false } {
+  try {
+    return {
+      ok: true,
+      value: JSON.parse(jsonText),
+    };
+  } catch {
+    return { ok: false };
+  }
 }
