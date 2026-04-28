@@ -13,12 +13,12 @@ import {
   HORSE_TRANSFER_OLDER_SCHEMA_MESSAGE,
   HORSE_TRANSFER_VERSION,
   type HorseTransferEnvelopeV1,
-  type HorseTransferPreviewSummary,
   type HorseTransferSourceHorse,
   type HorseTransferTablesV1,
   type ValidateHorseTransferError,
   type ValidateHorseTransferResult,
 } from './types';
+import { buildHorseTransferPreviewSummary } from './summary';
 
 const ENVELOPE_KEYS = [
   'artifactType',
@@ -176,7 +176,7 @@ export function validateHorseTransfer(input: unknown): ValidateHorseTransferResu
   return {
     ok: true,
     envelope,
-    preview: buildPreview(envelope),
+    preview: buildHorseTransferPreviewSummary(envelope),
   };
 }
 
@@ -780,19 +780,6 @@ function hasTaskPointerTarget(
   }
 
   return false;
-}
-
-function buildPreview(envelope: HorseTransferEnvelopeV1): HorseTransferPreviewSummary {
-  return {
-    createdAt: envelope.createdAt,
-    appVersion: envelope.app.version,
-    dataSchemaVersion: envelope.dataSchemaVersion,
-    sourceHorse: envelope.sourceHorse,
-    privacy: envelope.privacy,
-    tableCounts: Object.fromEntries(
-      BACKUP_TABLE_NAMES.map((tableName) => [tableName, envelope.tables[tableName].length]),
-    ) as Record<BackupTableName, number>,
-  };
 }
 
 function validateExactKeys(

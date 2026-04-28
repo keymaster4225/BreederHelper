@@ -56,6 +56,27 @@ export type HorseTransferPreviewSummary = {
   readonly tableCounts: HorseTransferTableCounts;
 };
 
+export type HorseTransferRedactionNoticeCode =
+  | 'context_stallions_redacted'
+  | 'dose_recipient_shipping_redacted';
+
+export type HorseTransferRedactionNotice = {
+  readonly code: HorseTransferRedactionNoticeCode;
+};
+
+export type HorseImportPreviewTargetState = 'matched' | 'ambiguous' | 'create_new';
+export type HorseImportSafetySnapshotPolicy = 'before_import';
+
+export type HorseImportPreview = HorseTransferPreviewSummary & {
+  readonly totalRowCount: number;
+  readonly estimatedConflictCounts: HorseTransferTableCounts;
+  readonly estimatedConflictTotal: number;
+  readonly targetState: HorseImportPreviewTargetState;
+  readonly redactionNotices: readonly HorseTransferRedactionNotice[];
+  readonly nonOverwritePolicy: true;
+  readonly safetySnapshotPolicy: HorseImportSafetySnapshotPolicy;
+};
+
 export type HorseTransferConflictReason =
   | 'primary_key_conflict'
   | 'natural_key_conflict'
@@ -100,4 +121,3 @@ export type ValidateHorseTransferResult =
       readonly ok: false;
       readonly error: ValidateHorseTransferError;
     };
-
