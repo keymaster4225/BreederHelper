@@ -4,4 +4,5 @@ export * from './serializeMare';
 export * from './serializeStallion';
 export * from './fileIO';
 export * from './preview';
+export * from './importHorse';
 export type { HorseMatchResult } from './matching';
