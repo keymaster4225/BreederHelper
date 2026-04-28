@@ -2,7 +2,10 @@ import {
   BACKUP_SCHEMA_VERSION_CURRENT,
   BACKUP_TABLE_NAMES,
   type BackupTableName,
+  type ValidateBackupError,
 } from '@/storage/backup/types';
+import { BACKUP_CURRENT_TABLE_FIELD_NAMES } from '@/storage/backup/tableSpecs';
+import { validateCurrentBackupTables } from '@/storage/backup/validate';
 
 import {
   HORSE_TRANSFER_ARTIFACT_TYPE,
@@ -40,243 +43,6 @@ const PRIVACY_KEYS = [
   'redactedContextStallions',
   'redactedDoseRecipientAndShipping',
 ] as const;
-
-const TABLE_FIELD_NAMES = {
-  mares: [
-    'id',
-    'name',
-    'breed',
-    'gestation_length_days',
-    'date_of_birth',
-    'registration_number',
-    'is_recipient',
-    'notes',
-    'created_at',
-    'updated_at',
-    'deleted_at',
-  ],
-  stallions: [
-    'id',
-    'name',
-    'breed',
-    'registration_number',
-    'sire',
-    'dam',
-    'notes',
-    'date_of_birth',
-    'av_temperature_f',
-    'av_type',
-    'av_liner_type',
-    'av_water_volume_ml',
-    'av_notes',
-    'created_at',
-    'updated_at',
-    'deleted_at',
-  ],
-  daily_logs: [
-    'id',
-    'mare_id',
-    'date',
-    'time',
-    'teasing_score',
-    'right_ovary',
-    'left_ovary',
-    'ovulation_detected',
-    'edema',
-    'uterine_tone',
-    'uterine_cysts',
-    'right_ovary_ovulation',
-    'right_ovary_follicle_state',
-    'right_ovary_follicle_measurements_mm',
-    'right_ovary_consistency',
-    'right_ovary_structures',
-    'left_ovary_ovulation',
-    'left_ovary_follicle_state',
-    'left_ovary_follicle_measurements_mm',
-    'left_ovary_consistency',
-    'left_ovary_structures',
-    'uterine_tone_category',
-    'cervical_firmness',
-    'discharge_observed',
-    'discharge_notes',
-    'notes',
-    'created_at',
-    'updated_at',
-  ],
-  uterine_fluid: ['id', 'daily_log_id', 'depth_mm', 'location', 'created_at', 'updated_at'],
-  uterine_flushes: [
-    'id',
-    'daily_log_id',
-    'base_solution',
-    'total_volume_ml',
-    'notes',
-    'created_at',
-    'updated_at',
-  ],
-  uterine_flush_products: [
-    'id',
-    'uterine_flush_id',
-    'product_name',
-    'dose',
-    'notes',
-    'created_at',
-    'updated_at',
-  ],
-  breeding_records: [
-    'id',
-    'mare_id',
-    'stallion_id',
-    'stallion_name',
-    'collection_id',
-    'date',
-    'time',
-    'method',
-    'notes',
-    'volume_ml',
-    'concentration_m_per_ml',
-    'motility_percent',
-    'number_of_straws',
-    'straw_volume_ml',
-    'straw_details',
-    'collection_date',
-    'created_at',
-    'updated_at',
-  ],
-  pregnancy_checks: [
-    'id',
-    'mare_id',
-    'breeding_record_id',
-    'date',
-    'result',
-    'heartbeat_detected',
-    'notes',
-    'created_at',
-    'updated_at',
-  ],
-  foaling_records: [
-    'id',
-    'mare_id',
-    'breeding_record_id',
-    'date',
-    'outcome',
-    'foal_sex',
-    'complications',
-    'notes',
-    'created_at',
-    'updated_at',
-  ],
-  foals: [
-    'id',
-    'foaling_record_id',
-    'name',
-    'sex',
-    'color',
-    'markings',
-    'birth_weight_lbs',
-    'milestones',
-    'igg_tests',
-    'notes',
-    'created_at',
-    'updated_at',
-  ],
-  medication_logs: [
-    'id',
-    'mare_id',
-    'date',
-    'medication_name',
-    'dose',
-    'route',
-    'notes',
-    'source_daily_log_id',
-    'created_at',
-    'updated_at',
-  ],
-  tasks: [
-    'id',
-    'mare_id',
-    'task_type',
-    'title',
-    'due_date',
-    'due_time',
-    'notes',
-    'status',
-    'completed_at',
-    'completed_record_type',
-    'completed_record_id',
-    'source_type',
-    'source_record_id',
-    'source_reason',
-    'created_at',
-    'updated_at',
-  ],
-  semen_collections: [
-    'id',
-    'stallion_id',
-    'collection_date',
-    'raw_volume_ml',
-    'extender_type',
-    'concentration_millions_per_ml',
-    'progressive_motility_percent',
-    'target_mode',
-    'target_motile_sperm_millions_per_dose',
-    'target_post_extension_concentration_millions_per_ml',
-    'notes',
-    'created_at',
-    'updated_at',
-  ],
-  collection_dose_events: [
-    'id',
-    'collection_id',
-    'event_type',
-    'recipient',
-    'recipient_phone',
-    'recipient_street',
-    'recipient_city',
-    'recipient_state',
-    'recipient_zip',
-    'carrier_service',
-    'container_type',
-    'tracking_number',
-    'breeding_record_id',
-    'dose_semen_volume_ml',
-    'dose_extender_volume_ml',
-    'dose_count',
-    'event_date',
-    'notes',
-    'created_at',
-    'updated_at',
-  ],
-  frozen_semen_batches: [
-    'id',
-    'stallion_id',
-    'collection_id',
-    'freeze_date',
-    'raw_semen_volume_used_ml',
-    'extender',
-    'extender_other',
-    'was_centrifuged',
-    'centrifuge_speed_rpm',
-    'centrifuge_duration_min',
-    'centrifuge_cushion_used',
-    'centrifuge_cushion_type',
-    'centrifuge_resuspension_vol_ml',
-    'centrifuge_notes',
-    'straw_count',
-    'straws_remaining',
-    'straw_volume_ml',
-    'concentration_millions_per_ml',
-    'straws_per_dose',
-    'straw_color',
-    'straw_color_other',
-    'straw_label',
-    'post_thaw_motility_percent',
-    'longevity_hours',
-    'storage_details',
-    'notes',
-    'created_at',
-    'updated_at',
-  ],
-} as const satisfies Record<BackupTableName, readonly string[]>;
 
 const STALLION_PACKAGE_EMPTY_TABLES: readonly BackupTableName[] = [
   'mares',
@@ -373,6 +139,12 @@ export function validateHorseTransfer(input: unknown): ValidateHorseTransferResu
 
   const tablesResult = validateTables(input.tables);
   if (!tablesResult.ok) return tablesResult;
+
+  const backupTablesError = validateCurrentBackupTables(tablesResult.tables);
+  if (backupTablesError) {
+    return { ok: false, error: mapBackupValidationError(backupTablesError) };
+  }
+
   const app = input.app as { readonly version: string };
   const privacy = input.privacy as {
     readonly redactedContextStallions: boolean;
@@ -519,7 +291,7 @@ function validateTables(
       };
     }
 
-    const rowKeys = TABLE_FIELD_NAMES[tableName];
+    const rowKeys = BACKUP_CURRENT_TABLE_FIELD_NAMES[tableName];
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
       const row = rows[rowIndex];
       if (!isRecord(row)) {
@@ -557,39 +329,77 @@ function validateTables(
 }
 
 function validateScope(envelope: HorseTransferEnvelopeV1): ValidateHorseTransferError | null {
-  if (envelope.sourceHorse.type === 'mare') {
-    if (envelope.tables.mares.length !== 1) {
-      return createError('constraint_violation', 'Mare horse packages must contain exactly one mare row.', {
-        table: 'mares',
-      });
-    }
+  return envelope.sourceHorse.type === 'mare'
+    ? validateMareScope(envelope)
+    : validateStallionScope(envelope);
+}
 
-    const mare = envelope.tables.mares[0];
-    if (mare.id !== envelope.sourceHorse.id) {
-      return createError('constraint_violation', 'Mare row must match sourceHorse.id.', {
-        table: 'mares',
-        rowIndex: 0,
-        field: 'id',
-      });
-    }
-    if (mare.deleted_at !== null) {
-      return createError('constraint_violation', 'Mare horse package root mare cannot be deleted.', {
-        table: 'mares',
-        rowIndex: 0,
-        field: 'deleted_at',
-      });
-    }
-    if (
-      envelope.tables.collection_dose_events.length > 0 ||
-      envelope.tables.frozen_semen_batches.length > 0
-    ) {
-      return createError(
-        'constraint_violation',
-        'Mare horse packages cannot include stallion inventory tables.',
-      );
-    }
-    return null;
+function validateMareScope(envelope: HorseTransferEnvelopeV1): ValidateHorseTransferError | null {
+  const sourceMareId = envelope.sourceHorse.id;
+
+  if (envelope.tables.mares.length !== 1) {
+    return createError('constraint_violation', 'Mare horse packages must contain exactly one mare row.', {
+      table: 'mares',
+    });
   }
+
+  const mare = envelope.tables.mares[0];
+  if (mare.id !== sourceMareId) {
+    return createError('constraint_violation', 'Mare row must match sourceHorse.id.', {
+      table: 'mares',
+      rowIndex: 0,
+      field: 'id',
+    });
+  }
+  if (mare.deleted_at !== null) {
+    return createError('constraint_violation', 'Mare horse package root mare cannot be deleted.', {
+      table: 'mares',
+      rowIndex: 0,
+      field: 'deleted_at',
+    });
+  }
+
+  const mareOwnedError =
+    validateMareOwnedRows('daily_logs', envelope.tables.daily_logs, sourceMareId) ??
+    validateMareOwnedRows('breeding_records', envelope.tables.breeding_records, sourceMareId) ??
+    validateMareOwnedRows('pregnancy_checks', envelope.tables.pregnancy_checks, sourceMareId) ??
+    validateMareOwnedRows('foaling_records', envelope.tables.foaling_records, sourceMareId) ??
+    validateMareOwnedRows('medication_logs', envelope.tables.medication_logs, sourceMareId) ??
+    validateMareOwnedRows('tasks', envelope.tables.tasks, sourceMareId);
+  if (mareOwnedError) return mareOwnedError;
+
+  const foalError = validateMareFoalScope(envelope, sourceMareId);
+  if (foalError) return foalError;
+
+  const uterineError = validateMareUterineScope(envelope, sourceMareId);
+  if (uterineError) return uterineError;
+
+  if (envelope.tables.collection_dose_events.length > 0) {
+    return createError(
+      'constraint_violation',
+      'Mare horse packages cannot include collection dose events.',
+      { table: 'collection_dose_events' },
+    );
+  }
+  if (envelope.tables.frozen_semen_batches.length > 0) {
+    return createError(
+      'constraint_violation',
+      'Mare horse packages cannot include frozen semen batches.',
+      { table: 'frozen_semen_batches' },
+    );
+  }
+
+  const contextStallionError = validateMareContextStallionScope(envelope);
+  if (contextStallionError) return contextStallionError;
+
+  const collectionError = validateMareSemenCollectionScope(envelope);
+  if (collectionError) return collectionError;
+
+  return validateMareTaskPointers(envelope);
+}
+
+function validateStallionScope(envelope: HorseTransferEnvelopeV1): ValidateHorseTransferError | null {
+  const sourceStallionId = envelope.sourceHorse.id;
 
   if (envelope.tables.stallions.length !== 1) {
     return createError('constraint_violation', 'Stallion horse packages must contain exactly one stallion row.', {
@@ -598,7 +408,7 @@ function validateScope(envelope: HorseTransferEnvelopeV1): ValidateHorseTransfer
   }
 
   const stallion = envelope.tables.stallions[0];
-  if (stallion.id !== envelope.sourceHorse.id) {
+  if (stallion.id !== sourceStallionId) {
     return createError('constraint_violation', 'Stallion row must match sourceHorse.id.', {
       table: 'stallions',
       rowIndex: 0,
@@ -627,8 +437,62 @@ function validateScope(envelope: HorseTransferEnvelopeV1): ValidateHorseTransfer
     }
   }
 
+  const collectionIds = new Set<string>();
+  for (let rowIndex = 0; rowIndex < envelope.tables.semen_collections.length; rowIndex += 1) {
+    const row = envelope.tables.semen_collections[rowIndex];
+    collectionIds.add(row.id);
+    if (row.stallion_id !== sourceStallionId) {
+      return createError(
+        'constraint_violation',
+        'Stallion horse package semen collections must point to sourceHorse.id.',
+        {
+          table: 'semen_collections',
+          rowIndex,
+          field: 'stallion_id',
+        },
+      );
+    }
+  }
+
+  for (let rowIndex = 0; rowIndex < envelope.tables.frozen_semen_batches.length; rowIndex += 1) {
+    const row = envelope.tables.frozen_semen_batches[rowIndex];
+    if (row.stallion_id !== sourceStallionId) {
+      return createError(
+        'constraint_violation',
+        'Stallion horse package frozen semen batches must point to sourceHorse.id.',
+        {
+          table: 'frozen_semen_batches',
+          rowIndex,
+          field: 'stallion_id',
+        },
+      );
+    }
+    if (row.collection_id !== null && !collectionIds.has(row.collection_id)) {
+      return createError(
+        'constraint_violation',
+        'Stallion horse package frozen semen batches must reference included collections.',
+        {
+          table: 'frozen_semen_batches',
+          rowIndex,
+          field: 'collection_id',
+        },
+      );
+    }
+  }
+
   for (let rowIndex = 0; rowIndex < envelope.tables.collection_dose_events.length; rowIndex += 1) {
     const row = envelope.tables.collection_dose_events[rowIndex];
+    if (!collectionIds.has(row.collection_id)) {
+      return createError(
+        'constraint_violation',
+        'Stallion horse package dose events must reference included collections.',
+        {
+          table: 'collection_dose_events',
+          rowIndex,
+          field: 'collection_id',
+        },
+      );
+    }
     if (row.breeding_record_id !== null) {
       return createError(
         'constraint_violation',
@@ -643,6 +507,279 @@ function validateScope(envelope: HorseTransferEnvelopeV1): ValidateHorseTransfer
   }
 
   return null;
+}
+
+function validateMareOwnedRows(
+  table: BackupTableName,
+  rows: readonly { readonly mare_id: string }[],
+  sourceMareId: string,
+): ValidateHorseTransferError | null {
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    if (rows[rowIndex].mare_id !== sourceMareId) {
+      return createError(
+        'constraint_violation',
+        `Mare horse package ${table} rows must point to sourceHorse.id.`,
+        {
+          table,
+          rowIndex,
+          field: 'mare_id',
+        },
+      );
+    }
+  }
+
+  return null;
+}
+
+function validateMareFoalScope(
+  envelope: HorseTransferEnvelopeV1,
+  sourceMareId: string,
+): ValidateHorseTransferError | null {
+  const foalingById = new Map(envelope.tables.foaling_records.map((row) => [row.id, row]));
+
+  for (let rowIndex = 0; rowIndex < envelope.tables.foals.length; rowIndex += 1) {
+    const row = envelope.tables.foals[rowIndex];
+    const foaling = foalingById.get(row.foaling_record_id);
+    if (!foaling || foaling.mare_id !== sourceMareId) {
+      return createError(
+        'constraint_violation',
+        'Mare horse package foals must resolve to sourceHorse.id through included foaling records.',
+        {
+          table: 'foals',
+          rowIndex,
+          field: 'foaling_record_id',
+        },
+      );
+    }
+  }
+
+  return null;
+}
+
+function validateMareUterineScope(
+  envelope: HorseTransferEnvelopeV1,
+  sourceMareId: string,
+): ValidateHorseTransferError | null {
+  const dailyLogById = new Map(envelope.tables.daily_logs.map((row) => [row.id, row]));
+  const flushById = new Map(envelope.tables.uterine_flushes.map((row) => [row.id, row]));
+
+  for (let rowIndex = 0; rowIndex < envelope.tables.uterine_fluid.length; rowIndex += 1) {
+    const row = envelope.tables.uterine_fluid[rowIndex];
+    const dailyLog = dailyLogById.get(row.daily_log_id);
+    if (!dailyLog || dailyLog.mare_id !== sourceMareId) {
+      return createError(
+        'constraint_violation',
+        'Mare horse package uterine fluid rows must resolve to sourceHorse.id.',
+        {
+          table: 'uterine_fluid',
+          rowIndex,
+          field: 'daily_log_id',
+        },
+      );
+    }
+  }
+
+  for (let rowIndex = 0; rowIndex < envelope.tables.uterine_flushes.length; rowIndex += 1) {
+    const row = envelope.tables.uterine_flushes[rowIndex];
+    const dailyLog = dailyLogById.get(row.daily_log_id);
+    if (!dailyLog || dailyLog.mare_id !== sourceMareId) {
+      return createError(
+        'constraint_violation',
+        'Mare horse package uterine flush rows must resolve to sourceHorse.id.',
+        {
+          table: 'uterine_flushes',
+          rowIndex,
+          field: 'daily_log_id',
+        },
+      );
+    }
+  }
+
+  for (
+    let rowIndex = 0;
+    rowIndex < envelope.tables.uterine_flush_products.length;
+    rowIndex += 1
+  ) {
+    const row = envelope.tables.uterine_flush_products[rowIndex];
+    const flush = flushById.get(row.uterine_flush_id);
+    const dailyLog = flush ? dailyLogById.get(flush.daily_log_id) : undefined;
+    if (!dailyLog || dailyLog.mare_id !== sourceMareId) {
+      return createError(
+        'constraint_violation',
+        'Mare horse package uterine flush products must resolve to sourceHorse.id.',
+        {
+          table: 'uterine_flush_products',
+          rowIndex,
+          field: 'uterine_flush_id',
+        },
+      );
+    }
+  }
+
+  return null;
+}
+
+function validateMareContextStallionScope(
+  envelope: HorseTransferEnvelopeV1,
+): ValidateHorseTransferError | null {
+  const referencedStallionIds = new Set(
+    envelope.tables.breeding_records
+      .map((row) => row.stallion_id)
+      .filter((id): id is string => id !== null),
+  );
+  const includedStallionIds = new Set(envelope.tables.stallions.map((row) => row.id));
+
+  for (let rowIndex = 0; rowIndex < envelope.tables.stallions.length; rowIndex += 1) {
+    const row = envelope.tables.stallions[rowIndex];
+    if (!referencedStallionIds.has(row.id)) {
+      return createError(
+        'constraint_violation',
+        'Mare horse packages cannot include unreferenced context stallions.',
+        {
+          table: 'stallions',
+          rowIndex,
+          field: 'id',
+        },
+      );
+    }
+  }
+
+  for (let rowIndex = 0; rowIndex < envelope.tables.breeding_records.length; rowIndex += 1) {
+    const row = envelope.tables.breeding_records[rowIndex];
+    if (row.stallion_id !== null && !includedStallionIds.has(row.stallion_id)) {
+      return createError(
+        'constraint_violation',
+        'Mare horse packages must include each referenced context stallion.',
+        {
+          table: 'breeding_records',
+          rowIndex,
+          field: 'stallion_id',
+        },
+      );
+    }
+  }
+
+  return null;
+}
+
+function validateMareSemenCollectionScope(
+  envelope: HorseTransferEnvelopeV1,
+): ValidateHorseTransferError | null {
+  const referencedCollectionIds = new Set(
+    envelope.tables.breeding_records
+      .map((row) => row.collection_id)
+      .filter((id): id is string => id !== null),
+  );
+  const collectionById = new Map(envelope.tables.semen_collections.map((row) => [row.id, row]));
+
+  for (let rowIndex = 0; rowIndex < envelope.tables.semen_collections.length; rowIndex += 1) {
+    const row = envelope.tables.semen_collections[rowIndex];
+    if (!referencedCollectionIds.has(row.id)) {
+      return createError(
+        'constraint_violation',
+        'Mare horse packages cannot include unreferenced semen collections.',
+        {
+          table: 'semen_collections',
+          rowIndex,
+          field: 'id',
+        },
+      );
+    }
+  }
+
+  for (let rowIndex = 0; rowIndex < envelope.tables.breeding_records.length; rowIndex += 1) {
+    const row = envelope.tables.breeding_records[rowIndex];
+    if (row.collection_id === null) {
+      continue;
+    }
+
+    const collection = collectionById.get(row.collection_id);
+    if (!collection) {
+      return createError(
+        'constraint_violation',
+        'Mare horse packages must include each referenced semen collection.',
+        {
+          table: 'breeding_records',
+          rowIndex,
+          field: 'collection_id',
+        },
+      );
+    }
+    if (collection.stallion_id !== row.stallion_id) {
+      return createError(
+        'constraint_violation',
+        'Mare horse package semen collections must belong to the breeding stallion.',
+        {
+          table: 'breeding_records',
+          rowIndex,
+          field: 'collection_id',
+        },
+      );
+    }
+  }
+
+  return null;
+}
+
+function validateMareTaskPointers(
+  envelope: HorseTransferEnvelopeV1,
+): ValidateHorseTransferError | null {
+  for (let rowIndex = 0; rowIndex < envelope.tables.tasks.length; rowIndex += 1) {
+    const row = envelope.tables.tasks[rowIndex];
+    if (
+      row.completed_record_type !== null &&
+      row.completed_record_id !== null &&
+      !hasTaskPointerTarget(envelope, row.completed_record_type, row.completed_record_id)
+    ) {
+      return createError(
+        'constraint_violation',
+        'Mare horse package completed task pointers must resolve to included rows.',
+        {
+          table: 'tasks',
+          rowIndex,
+          field: 'completed_record_id',
+        },
+      );
+    }
+
+    if (row.source_type !== 'manual') {
+      if (
+        row.source_record_id === null ||
+        !hasTaskPointerTarget(envelope, row.source_type, row.source_record_id)
+      ) {
+        return createError(
+          'constraint_violation',
+          'Mare horse package task source pointers must resolve to included rows.',
+          {
+            table: 'tasks',
+            rowIndex,
+            field: 'source_record_id',
+          },
+        );
+      }
+    }
+  }
+
+  return null;
+}
+
+function hasTaskPointerTarget(
+  envelope: HorseTransferEnvelopeV1,
+  recordType: 'dailyLog' | 'medicationLog' | 'breedingRecord' | 'pregnancyCheck',
+  recordId: string,
+): boolean {
+  switch (recordType) {
+    case 'dailyLog':
+      return envelope.tables.daily_logs.some((row) => row.id === recordId);
+    case 'medicationLog':
+      return envelope.tables.medication_logs.some((row) => row.id === recordId);
+    case 'breedingRecord':
+      return envelope.tables.breeding_records.some((row) => row.id === recordId);
+    case 'pregnancyCheck':
+      return envelope.tables.pregnancy_checks.some((row) => row.id === recordId);
+  }
+
+  return false;
 }
 
 function buildPreview(envelope: HorseTransferEnvelopeV1): HorseTransferPreviewSummary {
@@ -688,6 +825,16 @@ function validateExactKeys(
   }
 
   return null;
+}
+
+function mapBackupValidationError(error: ValidateBackupError): ValidateHorseTransferError {
+  return {
+    code: error.code,
+    message: error.message,
+    table: error.table,
+    rowIndex: error.rowIndex,
+    field: error.field,
+  };
 }
 
 function validationFailure(
