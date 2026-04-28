@@ -86,6 +86,15 @@ export type HorseTransferConflictReason =
 
 export type HorseTransferRowOutcome = 'inserted' | 'already_present' | 'skipped' | 'conflict';
 
+export type HorseTransferFoalConflictDetail = {
+  readonly kind: 'foal_conflict';
+  readonly destinationPreserved: true;
+  readonly milestonesDiffer: boolean;
+  readonly iggTestsDiffer: boolean;
+};
+
+export type HorseTransferRowResultDetail = HorseTransferFoalConflictDetail;
+
 export type HorseTransferRowResult = {
   readonly table: BackupTableName;
   readonly sourceId: string;
@@ -93,7 +102,47 @@ export type HorseTransferRowResult = {
   readonly outcome: HorseTransferRowOutcome;
   readonly reason?: HorseTransferConflictReason;
   readonly message?: string;
+  readonly detail?: HorseTransferRowResultDetail;
 };
+
+export type HorseTransferOutcomeCounts = Record<HorseTransferRowOutcome, number>;
+
+export type HorseTransferImportTableCounts = Record<
+  BackupTableName,
+  HorseTransferOutcomeCounts
+>;
+
+export type HorseTransferImportSummary = {
+  readonly tableCounts: HorseTransferImportTableCounts;
+  readonly totalCounts: HorseTransferOutcomeCounts;
+  readonly rowResults: readonly HorseTransferRowResult[];
+};
+
+export type HorseTransferImportTarget =
+  | {
+      readonly kind: 'create_new';
+    }
+  | {
+      readonly kind: 'confirmed_match';
+      readonly destinationHorseId: string;
+    };
+
+export type ImportHorseTransferOptions = {
+  readonly target: HorseTransferImportTarget;
+  readonly skipSafetySnapshot?: boolean;
+};
+
+export type ImportHorseTransferResult =
+  | {
+      readonly ok: true;
+      readonly safetySnapshotCreated: boolean;
+      readonly summary: HorseTransferImportSummary;
+    }
+  | {
+      readonly ok: false;
+      readonly safetySnapshotCreated: boolean;
+      readonly errorMessage: string;
+    };
 
 export type ValidateHorseTransferError = {
   readonly code:
