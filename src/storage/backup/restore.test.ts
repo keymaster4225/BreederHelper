@@ -32,6 +32,10 @@ import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { setOnboardingCompleteValue } from '@/utils/onboarding';
 import { setClockPreference } from '@/utils/clockPreferences';
 import {
+  HORSE_TRANSFER_ARTIFACT_TYPE,
+  HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
+} from '@/storage/horseTransfer';
+import {
   createRepoDb,
   expectInsertForTable,
   expectManagedTableDeleteOrder,
@@ -83,7 +87,7 @@ describe('restoreBackup', () => {
     const steps: string[] = [];
     const db = createRestoreDb();
 
-    vi.mocked(validateBackupJson).mockReturnValue({
+    vi.mocked(validateBackup).mockReturnValue({
       ok: true,
       backup,
       preview: {
@@ -218,6 +222,40 @@ describe('restoreBackup', () => {
       ok: true,
       safetySnapshotCreated: false,
     });
+    expect(createSafetySnapshot).not.toHaveBeenCalled();
+  });
+
+  it('rejects horse-transfer JSON strings before backup validation', async () => {
+    const result = await restoreBackup(
+      JSON.stringify({
+        artifactType: HORSE_TRANSFER_ARTIFACT_TYPE,
+        transferVersion: 1,
+      }),
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      errorMessage: HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
+    });
+    expect(validateBackup).not.toHaveBeenCalled();
+    expect(validateBackupJson).not.toHaveBeenCalled();
+    expect(getDb).not.toHaveBeenCalled();
+    expect(createSafetySnapshot).not.toHaveBeenCalled();
+  });
+
+  it('rejects horse-transfer object candidates before backup validation', async () => {
+    const result = await restoreBackup({
+      artifactType: HORSE_TRANSFER_ARTIFACT_TYPE,
+      transferVersion: 1,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      errorMessage: HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
+    });
+    expect(validateBackup).not.toHaveBeenCalled();
+    expect(validateBackupJson).not.toHaveBeenCalled();
+    expect(getDb).not.toHaveBeenCalled();
     expect(createSafetySnapshot).not.toHaveBeenCalled();
   });
 
