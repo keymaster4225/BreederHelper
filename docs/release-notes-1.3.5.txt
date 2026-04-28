@@ -1,0 +1,179 @@
+BreedWise v1.3.5 — Store Release Notes & Store Listing Copy
+=============================================================
+
+
+APPLE APP STORE
+---------------
+
+What's New in v1.3.5
+
+Tasks & Reminders
+BreedWise now tracks what needs doing, not just what happened.
+A new task system replaces the old dashboard alerts: every
+breeding record automatically creates a pregnancy-check follow-up,
+and you can add your own manual reminders for any mare or stallion.
+Tasks appear on the home screen and route you directly to the right
+form when you tap them.
+
+Sticky Follow-Up Bar
+After saving a daily log, a persistent action bar appears at the
+bottom of the screen so you can immediately jump to a breeding
+record, pregnancy check, or flush form — no hunting through menus.
+
+Daily Log: Fluid Tracking
+You can now record uterine fluid presence and grade directly on
+the daily log. When fluid is detected, a flush follow-up option
+appears automatically.
+
+Breeding Event Detail View
+Tap any breeding record card to open a full detail view —
+method, dates, stallion, frozen batch details, and timestamps
+all in one place.
+
+Breeding Record Timestamps
+Breeding records now capture and display created and updated
+timestamps, giving you a clearer audit trail.
+
+Multiple Daily Checks Per Mare
+You can log more than one ultrasound per mare per day — useful
+for mares being scanned morning and afternoon during peak
+follicle growth.
+
+Collection Wizard Improvements
+The add-collection flow is now fully scrollable on smaller
+screens, and includes a new Motility (%) field for fresh and
+cooled semen evaluations.
+
+12h / 24h Clock Setting
+Choose your preferred time format under Settings. The selection
+applies everywhere times are displayed in the app.
+
+Cleaner Forms
+Optional fields no longer show "(optional)" placeholder text —
+forms are quieter and easier to scan.
+
+Bug Fixes & Polish
+- Fixed daily log wizard hardware-back navigation on Android
+- Corrected ovary display formatting in daily log review step
+- Stability improvements throughout
+
+
+GOOGLE PLAY STORE
+-----------------
+
+v1.3.5: Tasks & workflow improvements
+
+• New task system: breeding records auto-create pregnancy-check follow-ups; add manual reminders for any animal
+• Sticky follow-up bar after saving daily logs
+• Fluid tracking + flush follow-up on daily logs
+• Breeding event detail view
+• Multiple daily checks per mare per day
+• Motility field in collection wizard
+• 12h / 24h clock setting
+• Bug fixes & form polish
+
+
+========================================
+GOOGLE PLAY STORE LISTING COPY
+========================================
+
+SHORT DESCRIPTION (72 / 80 characters)
+---------------------------------------
+
+Horse breeding & reproductive records: mares, stallions, foals. Offline.
+
+
+LONG DESCRIPTION (up to 4,000 characters)
+------------------------------------------
+
+BreedWise is the equine breeding log built for working horse breeders —
+not a generic livestock app adapted for horses. Every screen is designed
+around mare reproductive cycles, stallion breeding records, and foal
+tracking, so you spend less time managing the app and more time in the barn.
+
+BUILT FOR THE BREEDING SHED
+
+Log daily ultrasound exams with structured fields for follicle size, edema
+grade, uterine tone, and fluid presence. The daily log wizard walks you
+through each scan step by step and flags flush follow-ups automatically
+when fluid is detected. Record multiple checks per mare per day — essential
+during peak follicle growth when you're scanning morning and afternoon.
+
+FULL MARE REPRODUCTIVE RECORDS
+
+Every mare has her own profile with swipeable tabs covering the full
+reproductive cycle:
+• Daily logs with ovary and uterine exam data
+• Breeding records (live cover, cooled, and frozen AI)
+• Pregnancy checks with days post-ovulation and estimated due dates
+• Foaling records with outcome tracking
+• Foal profiles with milestone checklists (stood, nursed, IgG tested, and more)
+• Medications log
+
+STALLION RECORDS & FROZEN SEMEN INVENTORY
+
+Track stallion breeding history alongside frozen semen inventory. Each
+semen batch stores collection date, motility, concentration, straw count,
+volume, and storage location. The collection wizard guides you through
+fresh, cooled, and frozen evaluations. Straw counts are tracked at the
+batch level so you always know what inventory remains.
+
+TASKS & FOLLOW-UP REMINDERS
+
+BreedWise generates tasks automatically. Breeding a mare creates a
+pregnancy-check follow-up in the task list. Add manual reminders for any
+mare or stallion. The home screen shows open tasks and routes you directly
+to the right form when you tap one — no hunting through menus.
+
+DESIGNED TO STAY OUT OF YOUR WAY
+
+• Fully offline — all data lives on your device, no account required
+• Configurable 12h or 24h time display
+• Breeding event detail view for a complete record at a glance
+• Breeding and collection timestamps for a clear audit trail
+• Sticky follow-up action bar after daily logs so your next step is one tap away
+
+WHO USES BREEDWISE
+
+Warmblood, Thoroughbred, Quarter Horse, and sport horse breeders managing
+their own mares. Embryo transfer programs tracking multiple recipients.
+Stallion owners recording outside-mare services. Breeding managers at
+small private farms who need accurate records without a full farm-management
+subscription.
+
+Your horses' reproductive history is too important to trust to spreadsheets
+or paper. BreedWise keeps it organized, on your phone, and always with you.
+
+
+========================================
+KEYWORD NOTES
+========================================
+
+APPLE APP STORE — keyword field (94 / 100 characters)
+-------------------------------------------------------
+
+mare,stallion,foal,equine,reproductive,breeding log,heat cycle,ovulation,pregnancy,foaling,farm
+
+
+GOOGLE PLAY — weave these into title / short desc / long desc
+--------------------------------------------------------------
+
+High intent (use in short description or opening paragraph):
+  horse breeding app
+  mare breeding records
+  equine breeding log
+
+Mid intent (use in feature sections):
+  horse farm management
+  stallion records
+  foal tracker
+  pregnancy check
+
+Long tail (use in "Who uses" or feature bullets):
+  mare heat cycle tracker
+  equine reproductive records
+  frozen semen inventory
+  foaling log
+
+Avoid:
+  "horse health" — dominated by vet/wellness apps that aren't your competition
