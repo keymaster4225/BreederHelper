@@ -25,9 +25,10 @@ should leave the app in a coherent state.
   addendum was replaced with resolved decisions, and baseline checks passed.
 - Wave 1 is complete: horse-transfer envelope types, strict v1 validation, full
   restore rejection, and backup-hook rejection are implemented and verified.
-- Next wave: Wave 2, deterministic mare/stallion export and horse-package file
-  I/O.
-- No production export/import write path exists yet.
+- Wave 2 is complete: deterministic mare/stallion export and horse-package file
+  I/O are implemented and verified.
+- Next wave: Wave 3, matching, preview, and import planning.
+- No production import write path exists yet.
 
 ## Global Execution Rules
 
@@ -299,6 +300,14 @@ npm test -- src/storage/horseTransfer/serializeMare.test.ts src/storage/horseTra
 npm test -- src/storage/backup/restore.test.ts
 npm run typecheck
 ```
+
+Wave 2 verification recorded on 2026-04-28:
+
+- `npm test -- src/storage/horseTransfer/serializeMare.test.ts src/storage/horseTransfer/serializeStallion.test.ts src/storage/horseTransfer/fileIO.test.ts src/storage/backup/restore.test.ts` passed: 27 tests across 4 files.
+- `npm run typecheck` passed.
+- Reviewer finding about the `fileIO` public export was resolved by lazy-loading
+  Expo file/share/picker modules so the storage barrel remains safe for backup
+  restore tests.
 
 Required tests:
 
