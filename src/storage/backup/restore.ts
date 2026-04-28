@@ -3,6 +3,10 @@ import { getDb } from '@/storage/db';
 import { DEFAULT_GESTATION_LENGTH_DAYS } from '@/models/types';
 import { setOnboardingCompleteValue } from '@/utils/onboarding';
 import { normalizeClockPreference, setClockPreference } from '@/utils/clockPreferences';
+import {
+  HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
+  isHorseTransferArtifactPayload,
+} from '@/storage/horseTransfer';
 
 import { createSafetySnapshot } from './safetyBackups';
 import {
@@ -90,8 +94,18 @@ export async function restoreBackup(
 ): Promise<RestoreBackupResult> {
   options.onStepChange?.('Validating backup...');
 
+  const validationCandidate = parseRestoreCandidate(candidate);
+  if (validationCandidate.kind === 'horseTransfer') {
+    return {
+      ok: false,
+      errorMessage: HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
+    };
+  }
+
   const validation =
-    typeof candidate === 'string' ? validateBackupJson(candidate) : validateBackup(candidate);
+    validationCandidate.kind === 'parsed'
+      ? validateBackup(validationCandidate.value)
+      : validateBackupJson(validationCandidate.value);
 
   if (!validation.ok) {
     return {
@@ -139,6 +153,28 @@ export async function restoreBackup(
       errorMessage:
         error instanceof Error ? error.message : 'Restore failed unexpectedly.',
     };
+  }
+}
+
+function parseRestoreCandidate(
+  candidate: string | BackupEnvelope | unknown,
+):
+  | { readonly kind: 'parsed'; readonly value: unknown }
+  | { readonly kind: 'unparsedJson'; readonly value: string }
+  | { readonly kind: 'horseTransfer' } {
+  if (typeof candidate !== 'string') {
+    return isHorseTransferArtifactPayload(candidate)
+      ? { kind: 'horseTransfer' }
+      : { kind: 'parsed', value: candidate };
+  }
+
+  try {
+    const parsed = JSON.parse(candidate);
+    return isHorseTransferArtifactPayload(parsed)
+      ? { kind: 'horseTransfer' }
+      : { kind: 'parsed', value: parsed };
+  } catch {
+    return { kind: 'unparsedJson', value: candidate };
   }
 }
 
