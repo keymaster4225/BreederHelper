@@ -88,6 +88,10 @@ function mockBaseDashboardRecords() {
 }
 
 describe('useDashboardData', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockBaseDashboardRecords();
@@ -95,6 +99,7 @@ describe('useDashboardData', () => {
 
   it('returns persisted dashboard tasks instead of inferred alert titles', async () => {
     repositories.listDashboardTasks.mockResolvedValue([]);
+    jest.useFakeTimers({ now: new Date('2026-04-29T15:30:00.000Z') });
 
     const { result } = renderHook(() => useDashboardData());
 
@@ -107,7 +112,7 @@ describe('useDashboardData', () => {
     expect(repositories.listDashboardTasks).toHaveBeenCalledWith(
       expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
       14,
-      expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      '2026-04-28T15:30:00.000Z',
     );
   });
 
