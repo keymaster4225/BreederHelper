@@ -217,3 +217,73 @@ it('opens breeding detail from the card body and edit form from the pencil', () 
     breedingRecordId: 'breeding-1',
   });
 });
+
+it('opens pregnancy check form from the timeline card body and pencil', () => {
+  const navigation = createNavigation();
+
+  const screen = render(
+    <TimelineTab
+      mareId="mare-1"
+      gestationLengthDays={340}
+      dailyLogs={[]}
+      breedingRecords={[
+        {
+          id: 'breeding-1',
+          mareId: 'mare-1',
+          stallionId: 'stallion-1',
+          stallionName: 'Atlas',
+          date: '2026-03-20',
+          time: null,
+          method: 'liveCover',
+          notes: null,
+          createdAt: '2026-03-20T00:00:00Z',
+          updatedAt: '2026-03-20T00:00:00Z',
+        },
+      ]}
+      pregnancyChecks={[
+        {
+          id: 'check-1',
+          mareId: 'mare-1',
+          breedingRecordId: 'breeding-1',
+          date: '2026-04-04',
+          result: 'positive',
+          heartbeatDetected: true,
+          notes: null,
+          createdAt: '2026-04-04T00:00:00Z',
+          updatedAt: '2026-04-04T00:00:00Z',
+        },
+      ]}
+      foalingRecords={[]}
+      medicationLogs={[]}
+      foalByFoalingRecordId={{}}
+      stallionNameById={{ 'stallion-1': 'Atlas' }}
+      breedingById={{
+        'breeding-1': {
+          id: 'breeding-1',
+          mareId: 'mare-1',
+          stallionId: 'stallion-1',
+          stallionName: 'Atlas',
+          date: '2026-03-20',
+          time: null,
+          method: 'liveCover',
+          notes: null,
+          createdAt: '2026-03-20T00:00:00Z',
+          updatedAt: '2026-03-20T00:00:00Z',
+        },
+      }}
+      navigation={navigation as never}
+    />,
+  );
+
+  fireEvent.press(screen.getByLabelText('Open pregnancy check from 2026-04-04'));
+  expect(navigation.navigate).toHaveBeenCalledWith('PregnancyCheckForm', {
+    mareId: 'mare-1',
+    pregnancyCheckId: 'check-1',
+  });
+
+  fireEvent.press(screen.getAllByLabelText('Edit')[1]);
+  expect(navigation.navigate).toHaveBeenCalledWith('PregnancyCheckForm', {
+    mareId: 'mare-1',
+    pregnancyCheckId: 'check-1',
+  });
+});
