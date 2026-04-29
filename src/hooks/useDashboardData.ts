@@ -4,8 +4,8 @@ import {
   listAllBreedingRecords,
   listAllDailyLogs,
   listAllFoalingRecords,
+  listDashboardTasks,
   listAllPregnancyChecks,
-  listOpenDashboardTasks,
   listMares,
   listStallions,
 } from '@/storage/repositories';
@@ -38,6 +38,7 @@ const DASHBOARD_INVALIDATION_DOMAINS: readonly DataInvalidationDomain[] = [
   'tasks',
 ];
 const FOCUS_REFRESH_STALE_MS = 30_000;
+const RECENTLY_COMPLETED_TASK_RETENTION_MS = 24 * 60 * 60 * 1000;
 
 export function useDashboardData(): DashboardData {
   const [totalMares, setTotalMares] = useState(0);
@@ -54,6 +55,7 @@ export function useDashboardData(): DashboardData {
       setError(null);
 
       const today = toLocalDate(new Date());
+      const completedSince = new Date(Date.now() - RECENTLY_COMPLETED_TASK_RETENTION_MS).toISOString();
       const [mares, stallions, dailyLogs, breedingRecords, pregnancyChecks, foalingRecords, dashboardTasks] =
         await Promise.all([
           listMares(),
@@ -62,7 +64,7 @@ export function useDashboardData(): DashboardData {
           listAllBreedingRecords(),
           listAllPregnancyChecks(),
           listAllFoalingRecords(),
-          listOpenDashboardTasks(today, 14),
+          listDashboardTasks(today, 14, completedSince),
         ]);
       const pregnantInfo = buildPregnantInfoMap(mares, dailyLogs, breedingRecords, pregnancyChecks, foalingRecords, today);
 

@@ -19,6 +19,7 @@ import {
   deleteTask,
   ensureBreedingPregnancyCheckTask,
   getTaskById,
+  listDashboardTasks,
   listOpenDashboardTasks,
   updateOpenBreedingPregnancyCheckTaskDueDate,
   updateTask,
@@ -76,13 +77,20 @@ function createTaskRow(overrides: Partial<TaskRow> = {}): TaskRow {
 
 function compareDashboardRows(a: TaskWithMareRow, b: TaskWithMareRow): number {
   return (
+    compareTaskStatus(a.status, b.status) ||
     a.due_date.localeCompare(b.due_date) ||
     compareNullableDueTimes(a.due_time, b.due_time) ||
     a.mare_name.localeCompare(b.mare_name) ||
     a.title.localeCompare(b.title) ||
+    compareNullableIsoDateTimeDesc(a.completed_at, b.completed_at) ||
     a.created_at.localeCompare(b.created_at) ||
     a.id.localeCompare(b.id)
   );
+}
+
+function compareTaskStatus(a: TaskRow['status'], b: TaskRow['status']): number {
+  const rank = (value: TaskRow['status']) => (value === 'open' ? 0 : 1);
+  return rank(a) - rank(b);
 }
 
 function compareNullableDueTimes(a: string | null, b: string | null): number {
@@ -96,6 +104,19 @@ function compareNullableDueTimes(a: string | null, b: string | null): number {
     return -1;
   }
   return a.localeCompare(b);
+}
+
+function compareNullableIsoDateTimeDesc(a: string | null, b: string | null): number {
+  if (a === b) {
+    return 0;
+  }
+  if (a === null) {
+    return 1;
+  }
+  if (b === null) {
+    return -1;
+  }
+  return b.localeCompare(a);
 }
 
 function createTaskRepoHarness() {
@@ -289,9 +310,17 @@ function createTaskRepoHarness() {
       const params = call.params;
 
       if (stmt.includes('from tasks') && stmt.includes('inner join mares')) {
-        const [dueThrough] = params as [string];
+        const [dueThrough, completedSince] = params as [string, string];
         return Array.from(tasks.values())
-          .filter((task) => task.status === 'open' && task.due_date <= dueThrough)
+          .filter((task) => {
+            if (task.status === 'open') {
+              return task.due_date <= dueThrough;
+            }
+            if (task.status === 'completed') {
+              return task.completed_at != null && task.completed_at >= completedSince;
+            }
+            return false;
+          })
           .filter((task) => (
             stmt.includes('mares.deleted_at is null')
               ? mares.get(task.mare_id)?.deleted_at == null
@@ -471,6 +500,61 @@ describe('tasks repository', () => {
 
     expect(result.map((task) => task.id)).toEqual(['overdue', 'today', 'tomorrow', 'day-14']);
     expect(result.map((task) => task.mareName)).toEqual(['Bella', 'Bella', 'Bella', 'Bella']);
+  });
+
+  it('lists dashboard tasks including recently completed items and excluding stale completions', async () => {
+    const { db, tasks } = createTaskRepoHarness();
+    tasks.set('open-overdue', createTaskRow({ id: 'open-overdue', due_date: '2026-04-25', title: 'Open overdue' }));
+    tasks.set('open-today', createTaskRow({ id: 'open-today', due_date: '2026-04-27', title: 'Open today' }));
+    tasks.set('open-day-15', createTaskRow({ id: 'open-day-15', due_date: '2026-05-12', title: 'Open day 15' }));
+    tasks.set(
+      'completed-recent',
+      createTaskRow({
+        id: 'completed-recent',
+        status: 'completed',
+        completed_at: '2026-04-27T09:59:00.000Z',
+        title: 'Completed recent',
+      }),
+    );
+    tasks.set(
+      'completed-stale',
+      createTaskRow({
+        id: 'completed-stale',
+        status: 'completed',
+        completed_at: '2026-04-27T09:58:59.999Z',
+        title: 'Completed stale',
+      }),
+    );
+
+    const result = await listDashboardTasks('2026-04-27', 14, '2026-04-27T09:59:00.000Z', db);
+
+    expect(result.map((task) => task.id)).toEqual(['open-overdue', 'open-today', 'completed-recent']);
+    expect(result[2]).toMatchObject({ status: 'completed' });
+  });
+
+  it('keeps record-completed tasks on the dashboard during the completed retention window', async () => {
+    const { db } = createTaskRepoHarness();
+    await createTask({
+      id: 'linked-task',
+      mareId: 'mare-1',
+      taskType: 'breeding',
+      title: 'Breed mare',
+      dueDate: '2026-04-27',
+    }, db);
+
+    await completeTaskFromRecord('linked-task', 'breedingRecord', 'breeding-1', db);
+    const completedAt = (await getTaskById('linked-task', db))?.completedAt;
+    expect(completedAt).toEqual(expect.any(String));
+
+    const result = await listDashboardTasks('2026-04-27', 14, completedAt!, db);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      id: 'linked-task',
+      status: 'completed',
+      completedRecordType: 'breedingRecord',
+      completedRecordId: 'breeding-1',
+    });
   });
 
   it('excludes dashboard tasks for soft-deleted mares', async () => {

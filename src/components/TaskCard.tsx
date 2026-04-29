@@ -31,21 +31,26 @@ export function TaskCard({
   onComplete,
 }: TaskCardProps): JSX.Element {
   const config = TASK_CONFIG[task.taskType];
+  const isCompleted = task.status === 'completed';
+  const checkboxIcon: IconName = isCompleted ? 'checkbox-marked-circle-outline' : 'checkbox-blank-outline';
+  const completeLabel = isCompleted ? `Completed ${task.title}` : `Complete ${task.title}`;
 
   return (
-    <View style={[styles.card, { borderLeftColor: config.accentColor }]}>
+    <View style={[styles.card, { borderLeftColor: config.accentColor }, isCompleted ? styles.completedCard : null]}>
       <Pressable
         style={({ pressed }) => [styles.completeButton, pressed && styles.pressed]}
-        onPress={() => onComplete(task)}
+        onPress={isCompleted ? undefined : () => onComplete(task)}
+        disabled={isCompleted}
         accessibilityRole="button"
-        accessibilityLabel={`Complete ${task.title}`}
+        accessibilityLabel={completeLabel}
       >
-        <MaterialCommunityIcons name="checkbox-blank-outline" size={22} color={config.accentColor} />
+        <MaterialCommunityIcons name={checkboxIcon} size={22} color={config.accentColor} />
       </Pressable>
 
       <Pressable
         style={({ pressed }) => [styles.contentButton, pressed && styles.pressed]}
-        onPress={() => onPress(task)}
+        onPress={isCompleted ? undefined : () => onPress(task)}
+        disabled={isCompleted}
         accessibilityRole="button"
         accessibilityLabel={`${task.mareName}: ${task.title}`}
       >
@@ -53,21 +58,23 @@ export function TaskCard({
           <MaterialCommunityIcons name={config.icon} size={20} color={config.accentColor} />
         </View>
         <View style={styles.textWrap}>
-          <Text style={styles.mareName} numberOfLines={1}>{task.mareName}</Text>
-          <Text style={styles.title} numberOfLines={1}>{task.title}</Text>
+          <Text style={[styles.mareName, isCompleted ? styles.completedText : null]} numberOfLines={1}>{task.mareName}</Text>
+          <Text style={[styles.title, isCompleted ? styles.completedText : null]} numberOfLines={1}>{task.title}</Text>
           <Text style={styles.dueLabel} numberOfLines={1}>{formatTaskDueLabel(task, today)}</Text>
         </View>
         <MaterialCommunityIcons name="chevron-right" size={20} color={colors.onSurfaceVariant} />
       </Pressable>
 
-      <Pressable
-        style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
-        onPress={() => onEdit(task)}
-        accessibilityRole="button"
-        accessibilityLabel={`Edit ${task.title}`}
-      >
-        <MaterialCommunityIcons name="pencil-outline" size={19} color={colors.onSurfaceVariant} />
-      </Pressable>
+      {isCompleted ? null : (
+        <Pressable
+          style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+          onPress={() => onEdit(task)}
+          accessibilityRole="button"
+          accessibilityLabel={`Edit ${task.title}`}
+        >
+          <MaterialCommunityIcons name="pencil-outline" size={19} color={colors.onSurfaceVariant} />
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -131,5 +138,11 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.85,
+  },
+  completedCard: {
+    opacity: 0.72,
+  },
+  completedText: {
+    color: colors.onSurfaceVariant,
   },
 });

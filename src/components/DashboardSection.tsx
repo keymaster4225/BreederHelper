@@ -31,6 +31,8 @@ export function DashboardSection({
 
   const visibleTasks = tasks.slice(0, MAX_VISIBLE_TASKS);
   const hiddenCount = tasks.length - visibleTasks.length;
+  const openTaskCount = tasks.filter((task) => task.status === 'open').length;
+  const openCountLabel = `${openTaskCount} open task${openTaskCount === 1 ? '' : 's'}`;
 
   return (
     <View style={styles.container}>
@@ -43,8 +45,8 @@ export function DashboardSection({
         <View style={styles.headerContent}>
           <View style={styles.headerLeft}>
             <Text style={styles.headerTitle}>Today's Tasks</Text>
-            <View style={styles.countBadge}>
-              <Text style={styles.countText}>{tasks.length}</Text>
+            <View style={styles.countBadge} accessibilityLabel={openCountLabel}>
+              <Text style={styles.countText}>{openTaskCount}</Text>
             </View>
           </View>
           <Text style={styles.headerSubtitle}>
