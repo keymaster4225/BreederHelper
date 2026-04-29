@@ -1,6 +1,6 @@
 # BreedWise Roadmap
 
-> Last updated: 2026-04-27
+> Last updated: 2026-04-29
 >
 > This document is the prioritized plan for BreedWise. The flat `TODO` file is now a raw inbox — new ideas get dumped there, then triaged into this roadmap during a periodic sweep. See [Intake & triage process](#intake--triage-process).
 
@@ -35,6 +35,8 @@ Features that deepen mare reproductive recordkeeping beyond what the current dai
 
 - **P0 — Cyst mapping** (`TODO:37`)
   Recurring user ask. Needs a design pass: how cysts are located on the uterus, how they're tracked over time, and whether they live on the daily log or as a separate longitudinal record.
+- **P1 — Foaling record summary page** (`TODO:41`)
+  Add a non-edit summary view for established foaling records that preserves quick edit actions while exposing linked foal context and milestone progression. This should become the read-first destination from breeding-event foaling surfaces, instead of dropping users directly into edit forms.
 - **P2 — Mare ovulation trends** (`TODO:27`)
   Analytics view. Blocked on data volume — needs enough historical ovulation logs per mare to be useful.
 
@@ -166,6 +168,7 @@ When a roadmap item is completed and merged to `main`:
 
 ## Change log for this document
 
+- 2026-04-29 — Added *Foaling record summary page* under Mare care depth (P1) from `TODO:41`.
 - 2026-04-27 — Recorded *Dashboard task system, manual reminders, and workflow task routing* as shipped, closed `TODO:31`, and narrowed the remaining *Auto-scheduled events from recorded actions* scope.
 - 2026-04-27 — Added *Individual horse import / export* under Cloud backup & collaboration (P1) as a short-term multi-user workaround.
 - 2026-04-27 — Recorded *Sticky follow-up action bar and daily-log follow-up navigation fix* as shipped.
