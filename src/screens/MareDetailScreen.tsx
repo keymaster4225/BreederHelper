@@ -1,11 +1,12 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Alert, StyleSheet, Text } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import PagerView from 'react-native-pager-view';
 import type { PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 
 import { useMareDetailData } from '@/hooks/useMareDetailData';
+import { useHorseExport } from '@/hooks/useHorseExport';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getMareDetailTabIndex } from '@/screens/detailTabRoutes';
@@ -35,6 +36,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   const initialTabIndex = getMareDetailTabIndex(route.params.initialTab);
   const [activeTabIndex, setActiveTabIndex] = useState(initialTabIndex);
   const pagerRef = useRef<PagerView>(null);
+  const { isExporting, exportMarePackage } = useHorseExport();
   const handleSetTitle = useCallback((title: string) => {
     navigation.setOptions({ title });
   }, [navigation]);
@@ -73,6 +75,22 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
     pagerRef.current?.setPage(index);
   }, []);
 
+  const handleExportMare = useCallback(() => {
+    void (async () => {
+      const result = await exportMarePackage(mareId);
+      if (!result.ok) {
+        Alert.alert('Export failed', result.errorMessage);
+        return;
+      }
+
+      const shareMessage = result.shared
+        ? 'The share sheet opened so you can send or save this horse package.'
+        : 'The horse package was saved locally. Share it from app storage when needed.';
+
+      Alert.alert('Mare package ready', `${result.fileName}\n\n${shareMessage}`);
+    })();
+  }, [exportMarePackage, mareId]);
+
   return (
     <Screen>
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -84,6 +102,8 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             age={age}
             isCurrentlyPregnant={isCurrentlyPregnant}
             onCalendarPress={() => navigation.navigate('MareCalendar', { mareId })}
+            onExportPress={handleExportMare}
+            isExporting={isExporting}
           />
 
           <MareDetailTabStrip tabs={TAB_OPTIONS} activeTabIndex={activeTabIndex} onTabPress={handleTabPress} />

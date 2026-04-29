@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import PagerView from 'react-native-pager-view';
@@ -7,6 +7,7 @@ import type { PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useStallionDetailData } from '@/hooks/useStallionDetailData';
+import { useHorseExport } from '@/hooks/useHorseExport';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getStallionDetailTabIndex } from '@/screens/detailTabRoutes';
@@ -32,6 +33,7 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
   const initialTabIndex = getStallionDetailTabIndex(route.params.initialTab);
   const [activeTabIndex, setActiveTabIndex] = useState(initialTabIndex);
   const pagerRef = useRef<PagerView>(null);
+  const { isExporting, exportStallionPackage } = useHorseExport();
 
   const handleSetTitle = useCallback((title: string) => {
     navigation.setOptions({ title });
@@ -55,20 +57,50 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
     deleteFrozenBatchRecord,
   } = useStallionDetailData({ stallionId, setTitle: handleSetTitle });
 
+  const handleExportStallion = useCallback(() => {
+    void (async () => {
+      const result = await exportStallionPackage(stallionId);
+      if (!result.ok) {
+        Alert.alert('Export failed', result.errorMessage);
+        return;
+      }
+
+      const shareMessage = result.shared
+        ? 'The share sheet opened so you can send or save this horse package.'
+        : 'The horse package was saved locally. Share it from app storage when needed.';
+
+      Alert.alert('Stallion package ready', `${result.fileName}\n\n${shareMessage}`);
+    })();
+  }, [exportStallionPackage, stallionId]);
+
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <Pressable
-          onPress={() => navigation.navigate('StallionForm', { stallionId })}
-          hitSlop={8}
-          accessibilityLabel="Edit Stallion"
-          style={({ pressed }) => pressed ? { opacity: 0.6 } : undefined}
-        >
-          <MaterialCommunityIcons name="pencil" size={22} color={colors.onSurface} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={handleExportStallion}
+            hitSlop={8}
+            accessibilityLabel="Export stallion package"
+            disabled={isExporting}
+            style={({ pressed }) => [
+              isExporting && styles.headerActionDisabled,
+              pressed && !isExporting && styles.headerActionPressed,
+            ]}
+          >
+            <MaterialCommunityIcons name="share-variant" size={22} color={colors.onSurface} />
+          </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate('StallionForm', { stallionId })}
+            hitSlop={8}
+            accessibilityLabel="Edit Stallion"
+            style={({ pressed }) => pressed ? styles.headerActionPressed : undefined}
+          >
+            <MaterialCommunityIcons name="pencil" size={22} color={colors.onSurface} />
+          </Pressable>
+        </View>
       ),
     });
-  }, [navigation, stallionId]);
+  }, [handleExportStallion, isExporting, navigation, stallionId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -149,6 +181,17 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
 }
 
 const styles = StyleSheet.create({
+  headerActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  headerActionPressed: {
+    opacity: 0.6,
+  },
+  headerActionDisabled: {
+    opacity: 0.5,
+  },
   loadingOverlay: {
     alignSelf: 'center',
     position: 'absolute',

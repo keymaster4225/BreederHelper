@@ -1,6 +1,8 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 
 import { StallionDetailScreen } from '@/screens/StallionDetailScreen';
+import { useHorseExport } from '@/hooks/useHorseExport';
 
 jest.mock('@/screens/stallion-detail/DoseEventModal', () => ({
   DoseEventModal: () => null,
@@ -30,7 +32,14 @@ jest.mock('@/storage/repositories', () => ({
   listMares: jest.fn(),
 }));
 
+jest.mock('@/hooks/useHorseExport', () => ({
+  useHorseExport: jest.fn(),
+}));
+
 const repositories = jest.requireMock('@/storage/repositories') as Record<string, jest.Mock>;
+const mockUseHorseExport = useHorseExport as jest.MockedFunction<typeof useHorseExport>;
+const mockExportMarePackage = jest.fn();
+const mockExportStallionPackage = jest.fn();
 
 const makeStallion = (overrides?: Record<string, unknown>) => ({
   id: 'st-1',
@@ -105,6 +114,13 @@ const makeFrozenBatch = (id: string, overrides?: Record<string, unknown>) => ({
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+  mockUseHorseExport.mockReturnValue({
+    isExporting: false,
+    errorMessage: null,
+    exportMarePackage: mockExportMarePackage,
+    exportStallionPackage: mockExportStallionPackage,
+  });
   repositories.getStallionById.mockResolvedValue(makeStallion());
   repositories.listDoseEventsByCollectionIds.mockResolvedValue({});
   repositories.listFrozenSemenBatchesByCollectionIds.mockResolvedValue({});
@@ -113,6 +129,10 @@ beforeEach(() => {
   repositories.listBreedingRecordsForStallion.mockResolvedValue([]);
   repositories.listLegacyBreedingRecordsMatchingStallionName.mockResolvedValue([]);
   repositories.listMares.mockResolvedValue([]);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 function renderScreen(
@@ -435,4 +455,55 @@ it('updates the active tab on tab press', async () => {
   await waitFor(() => expect(screen.getByRole('tab', { name: 'Collections' })).toBeTruthy());
   fireEvent.press(screen.getByRole('tab', { name: 'Breeding' }));
   expect(screen.getByRole('tab', { name: 'Breeding' }).props.accessibilityState.selected).toBe(true);
+});
+
+it('exports a stallion package from the header action', async () => {
+  mockExportStallionPackage.mockResolvedValueOnce({
+    ok: true,
+    fileName: 'breedwise-stallion-thunder-v1-20260428-120000.json',
+    fileUri: 'file:///breedwise-stallion-thunder-v1-20260428-120000.json',
+    shared: true,
+  });
+
+  const screen = renderScreen();
+  await waitFor(() => expect(screen.navigation.setOptions).toHaveBeenCalled());
+
+  const headerOptions = screen.navigation.setOptions.mock.calls
+    .map(([options]) => options)
+    .find((options) => typeof options.headerRight === 'function');
+  expect(headerOptions).toBeTruthy();
+
+  const headerRight = render(headerOptions?.headerRight());
+  fireEvent.press(headerRight.getByLabelText('Export stallion package'));
+
+  await waitFor(() => expect(mockExportStallionPackage).toHaveBeenCalledWith('st-1'));
+  await waitFor(() =>
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Stallion package ready',
+      expect.stringContaining('breedwise-stallion-thunder-v1-20260428-120000.json'),
+    ),
+  );
+});
+
+it('shows stallion export failures', async () => {
+  mockExportStallionPackage.mockResolvedValueOnce({
+    ok: false,
+    errorMessage: 'Stallion st-1 was not found.',
+  });
+
+  const screen = renderScreen();
+  await waitFor(() => expect(screen.navigation.setOptions).toHaveBeenCalled());
+
+  const headerOptions = screen.navigation.setOptions.mock.calls
+    .map(([options]) => options)
+    .find((options) => typeof options.headerRight === 'function');
+  expect(headerOptions).toBeTruthy();
+
+  const headerRight = render(headerOptions?.headerRight());
+  fireEvent.press(headerRight.getByLabelText('Export stallion package'));
+
+  await waitFor(() => expect(mockExportStallionPackage).toHaveBeenCalledWith('st-1'));
+  await waitFor(() =>
+    expect(Alert.alert).toHaveBeenCalledWith('Export failed', 'Stallion st-1 was not found.'),
+  );
 });

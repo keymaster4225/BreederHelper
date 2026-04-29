@@ -1,6 +1,8 @@
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Alert } from 'react-native';
 
 import { MareDetailScreen } from '@/screens/MareDetailScreen';
+import { useHorseExport } from '@/hooks/useHorseExport';
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
@@ -26,10 +28,24 @@ jest.mock('@/storage/repositories', () => ({
   listMedicationLogsByMare: jest.fn(),
 }));
 
+jest.mock('@/hooks/useHorseExport', () => ({
+  useHorseExport: jest.fn(),
+}));
+
 const repositories = jest.requireMock('@/storage/repositories') as Record<string, jest.Mock>;
+const mockUseHorseExport = useHorseExport as jest.MockedFunction<typeof useHorseExport>;
+const mockExportMarePackage = jest.fn();
+const mockExportStallionPackage = jest.fn();
 
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
+  mockUseHorseExport.mockReturnValue({
+    isExporting: false,
+    errorMessage: null,
+    exportMarePackage: mockExportMarePackage,
+    exportStallionPackage: mockExportStallionPackage,
+  });
   repositories.getMareById.mockResolvedValue({
     id: 'mare-1',
     name: 'Nova',
@@ -49,6 +65,10 @@ beforeEach(() => {
   repositories.listFoalsByMare.mockResolvedValue([]);
   repositories.listStallions.mockResolvedValue([]);
   repositories.listMedicationLogsByMare.mockResolvedValue([]);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 it('honors the initialTab route param', async () => {
@@ -119,4 +139,55 @@ it('shows recipient and pregnant badges together in the header when both apply',
 
   await waitFor(() => expect(screen.getByText('Recipient')).toBeTruthy());
   expect(screen.getByText('Pregnant')).toBeTruthy();
+});
+
+it('exports a mare package from the header action', async () => {
+  mockExportMarePackage.mockResolvedValueOnce({
+    ok: true,
+    fileName: 'breedwise-mare-nova-v1-20260428-120000.json',
+    fileUri: 'file:///breedwise-mare-nova-v1-20260428-120000.json',
+    shared: true,
+  });
+
+  const navigation = { navigate: jest.fn(), setOptions: jest.fn() };
+  const screen = render(
+    <MareDetailScreen
+      navigation={navigation as never}
+      route={{ key: 'MareDetail', name: 'MareDetail', params: { mareId: 'mare-1' } } as never}
+    />,
+  );
+
+  await waitFor(() => expect(screen.getByLabelText('Export mare package')).toBeTruthy());
+  fireEvent.press(screen.getByLabelText('Export mare package'));
+
+  await waitFor(() => expect(mockExportMarePackage).toHaveBeenCalledWith('mare-1'));
+  await waitFor(() =>
+    expect(Alert.alert).toHaveBeenCalledWith(
+      'Mare package ready',
+      expect.stringContaining('breedwise-mare-nova-v1-20260428-120000.json'),
+    ),
+  );
+});
+
+it('shows mare export failures', async () => {
+  mockExportMarePackage.mockResolvedValueOnce({
+    ok: false,
+    errorMessage: 'Mare mare-1 was not found.',
+  });
+
+  const navigation = { navigate: jest.fn(), setOptions: jest.fn() };
+  const screen = render(
+    <MareDetailScreen
+      navigation={navigation as never}
+      route={{ key: 'MareDetail', name: 'MareDetail', params: { mareId: 'mare-1' } } as never}
+    />,
+  );
+
+  await waitFor(() => expect(screen.getByLabelText('Export mare package')).toBeTruthy());
+  fireEvent.press(screen.getByLabelText('Export mare package'));
+
+  await waitFor(() => expect(mockExportMarePackage).toHaveBeenCalledWith('mare-1'));
+  await waitFor(() =>
+    expect(Alert.alert).toHaveBeenCalledWith('Export failed', 'Mare mare-1 was not found.'),
+  );
 });
