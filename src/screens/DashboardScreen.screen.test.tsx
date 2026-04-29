@@ -175,6 +175,51 @@ it('completes dashboard tasks from the task card', async () => {
   await waitFor(() => expect(repositories.completeTask).toHaveBeenCalledWith('task-1'));
 });
 
+it('renders recently completed tasks as non-actionable and keeps open-task count in the badge', async () => {
+  const navigation = createNavigation();
+  useDashboardData.mockReturnValue(
+    buildState({
+      tasks: [
+        makeDashboardTask({
+          id: 'open-task',
+          status: 'open',
+          completedAt: null,
+          title: 'Open task',
+        }),
+        makeDashboardTask({
+          id: 'completed-task',
+          status: 'completed',
+          completedAt: '2026-04-27T12:00:00.000Z',
+          title: 'Completed task',
+        }),
+      ],
+    }),
+  );
+
+  const screen = render(
+    <DashboardScreen navigation={navigation as never} route={{ key: 'Home', name: 'Home' } as never} />,
+  );
+
+  await waitFor(() => expect(screen.getByText('Completed task')).toBeTruthy());
+
+  expect(screen.getByLabelText('1 open task')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Completed Completed task' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Edit Completed task' })).toBeNull();
+
+  fireEvent.press(screen.getByRole('button', { name: 'Completed Completed task' }));
+  fireEvent.press(screen.getByRole('button', { name: 'Nova: Completed task' }));
+
+  await waitFor(() => {
+    expect(repositories.completeTask).not.toHaveBeenCalledWith('completed-task');
+  });
+  expect(navigation.navigate).not.toHaveBeenCalledWith('TaskForm', { taskId: 'completed-task' });
+  expect(navigation.navigate).not.toHaveBeenCalledWith('PregnancyCheckForm', {
+    mareId: 'mare-1',
+    taskId: 'completed-task',
+    defaultDate: '2035-04-27',
+  });
+});
+
 it('opens the task form from the dashboard add-task action', async () => {
   const navigation = createNavigation();
   useDashboardData.mockReturnValue(buildState());

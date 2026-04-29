@@ -97,6 +97,10 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
 
   const onTaskPress = useCallback(
     (task: TaskWithMare) => {
+      if (task.status === 'completed') {
+        return;
+      }
+
       if (task.taskType === 'custom' || isTaskFuture(task, today)) {
         navigation.navigate('TaskForm', { taskId: task.id });
         return;
@@ -138,9 +142,16 @@ export function DashboardScreen({ navigation }: Props): JSX.Element {
     [navigation, today],
   );
   const onTaskEdit = useCallback((task: TaskWithMare) => {
+    if (task.status === 'completed') {
+      return;
+    }
     navigation.navigate('TaskForm', { taskId: task.id });
   }, [navigation]);
   const onTaskComplete = useCallback((task: TaskWithMare) => {
+    if (task.status === 'completed') {
+      return;
+    }
+
     void (async () => {
       try {
         await completeTask(task.id);
