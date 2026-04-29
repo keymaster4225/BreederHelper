@@ -195,12 +195,12 @@ export async function listDoseEventsByCollectionIds(
 }
 
 export async function createDoseEvent(
-  input: CreateCollectionDoseEventInput,
+  input: CreateCollectionDoseEventInput & { readonly id?: UUID },
   db?: RepoDb,
 ): Promise<CollectionDoseEvent> {
   const handle = await resolveDb(db);
   const now = new Date().toISOString();
-  const id = newId();
+  const id = input.id ?? newId();
   const eventType = input.eventType;
 
   if (eventType !== 'shipped') {
@@ -375,7 +375,7 @@ export async function deleteDoseEvent(id: UUID, db?: RepoDb): Promise<void> {
   emitDataInvalidation('collectionDoseEvents');
 }
 
-async function getDoseEventById(id: UUID, db?: RepoDb): Promise<CollectionDoseEvent | null> {
+export async function getDoseEventById(id: UUID, db?: RepoDb): Promise<CollectionDoseEvent | null> {
   const handle = await resolveDb(db);
   const row = await handle.getFirstAsync<CollectionDoseEventRow>(
     `

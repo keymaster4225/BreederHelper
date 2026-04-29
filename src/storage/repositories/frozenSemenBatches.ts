@@ -322,14 +322,14 @@ function buildCollectionIdPlaceholders(count: number): string {
 }
 
 export async function createFrozenSemenBatch(
-  input: CreateFrozenSemenBatchInput,
+  input: CreateFrozenSemenBatchInput & { readonly id?: UUID },
   db?: RepoDb,
 ): Promise<FrozenSemenBatch> {
   const collectionId = input.collectionId ?? null;
   const handle = await resolveDb(db);
   await assertValidCreateTarget(input.stallionId, collectionId, handle);
 
-  const id = newId();
+  const id = input.id ?? newId();
   const now = new Date().toISOString();
 
   if (typeof input.wasCentrifuged !== 'boolean') {
