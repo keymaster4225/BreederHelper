@@ -36,7 +36,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   const initialTabIndex = getMareDetailTabIndex(route.params.initialTab);
   const [activeTabIndex, setActiveTabIndex] = useState(initialTabIndex);
   const pagerRef = useRef<PagerView>(null);
-  const { exportMarePackage } = useHorseExport();
+  const { isExporting, exportMarePackage } = useHorseExport();
   const handleSetTitle = useCallback((title: string) => {
     navigation.setOptions({ title });
   }, [navigation]);
@@ -103,6 +103,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             isCurrentlyPregnant={isCurrentlyPregnant}
             onCalendarPress={() => navigation.navigate('MareCalendar', { mareId })}
             onExportPress={handleExportMare}
+            isExporting={isExporting}
           />
 
           <MareDetailTabStrip tabs={TAB_OPTIONS} activeTabIndex={activeTabIndex} onTabPress={handleTabPress} />

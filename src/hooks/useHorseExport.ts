@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import {
   exportMareTransfer,
@@ -29,11 +29,22 @@ type UseHorseExportResult = {
 export function useHorseExport(): UseHorseExportResult {
   const [isExporting, setIsExporting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const isExportingRef = useRef(false);
 
   const exportEnvelope = useCallback(
     async (
       createEnvelope: () => Promise<Awaited<ReturnType<typeof exportMareTransfer>>>,
     ): Promise<ExportHorsePackageResult> => {
+      if (isExportingRef.current) {
+        const message = 'Horse package export is already in progress.';
+        setErrorMessage(message);
+        return {
+          ok: false,
+          errorMessage: message,
+        };
+      }
+
+      isExportingRef.current = true;
       setIsExporting(true);
       setErrorMessage(null);
 
@@ -63,6 +74,7 @@ export function useHorseExport(): UseHorseExportResult {
           errorMessage: message,
         };
       } finally {
+        isExportingRef.current = false;
         setIsExporting(false);
       }
     },

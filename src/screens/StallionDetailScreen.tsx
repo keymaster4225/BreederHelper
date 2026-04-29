@@ -33,7 +33,7 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
   const initialTabIndex = getStallionDetailTabIndex(route.params.initialTab);
   const [activeTabIndex, setActiveTabIndex] = useState(initialTabIndex);
   const pagerRef = useRef<PagerView>(null);
-  const { exportStallionPackage } = useHorseExport();
+  const { isExporting, exportStallionPackage } = useHorseExport();
 
   const handleSetTitle = useCallback((title: string) => {
     navigation.setOptions({ title });
@@ -81,7 +81,11 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
             onPress={handleExportStallion}
             hitSlop={8}
             accessibilityLabel="Export stallion package"
-            style={({ pressed }) => pressed ? styles.headerActionPressed : undefined}
+            disabled={isExporting}
+            style={({ pressed }) => [
+              isExporting && styles.headerActionDisabled,
+              pressed && !isExporting && styles.headerActionPressed,
+            ]}
           >
             <MaterialCommunityIcons name="share-variant" size={22} color={colors.onSurface} />
           </Pressable>
@@ -96,7 +100,7 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
         </View>
       ),
     });
-  }, [handleExportStallion, navigation, stallionId]);
+  }, [handleExportStallion, isExporting, navigation, stallionId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -184,6 +188,9 @@ const styles = StyleSheet.create({
   },
   headerActionPressed: {
     opacity: 0.6,
+  },
+  headerActionDisabled: {
+    opacity: 0.5,
   },
   loadingOverlay: {
     alignSelf: 'center',

@@ -51,16 +51,23 @@ type IconButtonProps = {
   icon: ReactNode;
   onPress: () => void;
   accessibilityLabel?: string;
+  disabled?: boolean;
 };
 
-export function IconButton({ icon, onPress, accessibilityLabel }: IconButtonProps): JSX.Element {
+export function IconButton({ icon, onPress, accessibilityLabel, disabled }: IconButtonProps): JSX.Element {
   return (
     <Pressable
-      style={({ pressed }) => [styles.iconButton, pressed && styles.iconButtonPressed]}
+      style={({ pressed }) => [
+        styles.iconButton,
+        disabled && styles.iconButtonDisabled,
+        pressed && !disabled && styles.iconButtonPressed,
+      ]}
       onPress={onPress}
+      disabled={disabled}
       hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
+      accessibilityState={disabled ? { disabled: true } : undefined}
     >
       {typeof icon === 'string' ? <Text style={styles.iconText}>{icon}</Text> : icon}
     </Pressable>
@@ -126,6 +133,9 @@ const styles = StyleSheet.create({
   },
   iconButtonPressed: {
     backgroundColor: colors.outlineVariant,
+  },
+  iconButtonDisabled: {
+    opacity: 0.5,
   },
   iconText: {
     color: colors.onSurface,
