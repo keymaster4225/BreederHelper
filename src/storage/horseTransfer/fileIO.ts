@@ -1,7 +1,4 @@
 import type { HorseTransferEnvelopeV1, HorseTransferSourceHorse } from './types';
-import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
 
 const JSON_EXTENSION = '.json';
 
@@ -23,6 +20,7 @@ export type WrittenHorseTransferFile = {
 };
 
 export function getHorseTransferDirectoryUri(): string {
+  const FileSystem = require('expo-file-system/legacy') as typeof import('expo-file-system/legacy');
   return ensureTrailingSlash(FileSystem.documentDirectory ?? 'file:///');
 }
 
@@ -46,6 +44,7 @@ export async function writeHorseTransferFile(
   const fileName = createHorseTransferFileName(envelope.sourceHorse, envelope.createdAt);
   const fileUri = joinFileUri(directoryUri, fileName);
   const jsonText = stringifyHorseTransfer(envelope);
+  const FileSystem = await import('expo-file-system/legacy');
 
   await ensureDirectoryExists(directoryUri);
   await FileSystem.writeAsStringAsync(fileUri, jsonText);
@@ -58,6 +57,7 @@ export async function writeHorseTransferFile(
 }
 
 export async function shareHorseTransferFileIfAvailable(fileUri: string): Promise<boolean> {
+  const Sharing = await import('expo-sharing');
   const sharingAvailable = await Sharing.isAvailableAsync();
   if (!sharingAvailable) {
     return false;
@@ -72,6 +72,7 @@ export async function shareHorseTransferFileIfAvailable(fileUri: string): Promis
 }
 
 export async function pickHorseTransferFile(): Promise<PickedHorseTransferFile> {
+  const DocumentPicker = await import('expo-document-picker');
   const result = await DocumentPicker.getDocumentAsync({
     type: 'application/json',
     copyToCacheDirectory: true,
@@ -93,6 +94,7 @@ export async function pickHorseTransferFile(): Promise<PickedHorseTransferFile> 
 }
 
 export async function readHorseTransferTextFile(fileUri: string): Promise<string> {
+  const FileSystem = await import('expo-file-system/legacy');
   return FileSystem.readAsStringAsync(fileUri);
 }
 
@@ -115,6 +117,7 @@ function joinFileUri(directoryUri: string, fileName: string): string {
 }
 
 async function ensureDirectoryExists(directoryUri: string): Promise<void> {
+  const FileSystem = await import('expo-file-system/legacy');
   const info = await FileSystem.getInfoAsync(directoryUri);
   if (info.exists) {
     return;
