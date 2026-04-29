@@ -228,6 +228,21 @@ it('opens foal create flow from live-foal records when no foal is linked yet', a
   });
 });
 
+it('keeps foaling pencil mapped to foaling edit form', async () => {
+  repositories.listPregnancyChecksByMare.mockResolvedValue([]);
+  const screen = renderScreen();
+
+  await waitFor(() => expect(screen.getByText('Foaling Records')).toBeTruthy(), { timeout: 3000 });
+
+  screen.navigation.navigate.mockClear();
+  fireEvent.press(screen.getByLabelText('Edit'));
+  expect(screen.navigation.navigate).toHaveBeenCalledTimes(1);
+  expect(screen.navigation.navigate).toHaveBeenLastCalledWith('FoalingRecordForm', {
+    mareId: 'mare-1',
+    foalingRecordId: 'foaling-1',
+  });
+});
+
 it('wires the header pencil to the existing breeding edit form', async () => {
   const screen = renderScreen();
 
