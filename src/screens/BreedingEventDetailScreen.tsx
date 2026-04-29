@@ -8,7 +8,7 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { Screen } from '@/components/Screen';
 import { useBreedingEventDetail } from '@/hooks/useBreedingEventDetail';
 import { useClockDisplayMode } from '@/hooks/useClockPreference';
-import { FoalingRecord, PregnancyCheck, calculateDaysPostBreeding } from '@/models/types';
+import { Foal, FoalingRecord, PregnancyCheck, calculateDaysPostBreeding } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { colors, spacing, typography } from '@/theme';
 import { formatBreedingRecordTime } from '@/utils/breedingRecordTime';
@@ -312,7 +312,7 @@ function RelatedFoalingSection({
 }: {
   mareId: string;
   foalingRecords: readonly FoalingRecord[];
-  foalByFoalingRecordId: Record<string, { name?: string | null }>;
+  foalByFoalingRecordId: Record<string, Foal>;
   navigation: Props['navigation'];
 }): JSX.Element {
   return (
@@ -323,30 +323,50 @@ function RelatedFoalingSection({
       ) : null}
       {foalingRecords.map((record) => {
         const foal = foalByFoalingRecordId[record.id];
+        const isLiveFoal = record.outcome === 'liveFoal';
+        const foalDateLabel = formatLocalDate(record.date, 'MM-DD-YYYY');
+
+        const cardBody = (
+          <>
+            <View style={cardStyles.cardRow}>
+              <Text style={cardStyles.cardLabel}>Outcome</Text>
+              <StatusBadge label={formatOutcome(record.outcome)} backgroundColor={getOutcomeColor(record.outcome)} textColor="#FFFFFF" />
+            </View>
+            {record.foalSex && getFoalSexColor(record.foalSex) ? (
+              <View style={cardStyles.cardRow}>
+                <Text style={cardStyles.cardLabel}>Foal sex</Text>
+                <StatusBadge label={formatFoalSex(record.foalSex)} backgroundColor={getFoalSexColor(record.foalSex)!} textColor="#FFFFFF" />
+              </View>
+            ) : null}
+            {foal ? <CardRow label="Foal" value={foal.name || 'Unnamed foal'} /> : null}
+          </>
+        );
+
         return (
           <View key={record.id} style={styles.relatedCard}>
             <View style={cardStyles.cardHeader}>
-              <Text style={cardStyles.cardTitle}>{formatLocalDate(record.date, 'MM-DD-YYYY')}</Text>
+              <Text style={cardStyles.cardTitle}>{foalDateLabel}</Text>
               <EditIconButton onPress={() => navigation.navigate('FoalingRecordForm', { mareId, foalingRecordId: record.id })} />
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Open foaling record from ${formatLocalDate(record.date, 'MM-DD-YYYY')}`}
-              onPress={() => navigation.navigate('FoalingRecordForm', { mareId, foalingRecordId: record.id })}
-              style={({ pressed }) => [styles.cardBodyPressable, pressed && styles.pressed]}
-            >
-              <View style={cardStyles.cardRow}>
-                <Text style={cardStyles.cardLabel}>Outcome</Text>
-                <StatusBadge label={formatOutcome(record.outcome)} backgroundColor={getOutcomeColor(record.outcome)} textColor="#FFFFFF" />
-              </View>
-              {record.foalSex && getFoalSexColor(record.foalSex) ? (
-                <View style={cardStyles.cardRow}>
-                  <Text style={cardStyles.cardLabel}>Foal sex</Text>
-                  <StatusBadge label={formatFoalSex(record.foalSex)} backgroundColor={getFoalSexColor(record.foalSex)!} textColor="#FFFFFF" />
-                </View>
-              ) : null}
-              {foal ? <CardRow label="Foal" value={foal.name || 'Unnamed foal'} /> : null}
-            </Pressable>
+            {isLiveFoal ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`${foal ? 'Open' : 'Add'} foal record from ${foalDateLabel}`}
+                onPress={() =>
+                  navigation.navigate('FoalForm', {
+                    mareId,
+                    foalingRecordId: record.id,
+                    foalId: foal?.id,
+                    defaultSex: record.foalSex,
+                  })
+                }
+                style={({ pressed }) => [styles.cardBodyPressable, pressed && styles.pressed]}
+              >
+                {cardBody}
+              </Pressable>
+            ) : (
+              cardBody
+            )}
           </View>
         );
       })}
