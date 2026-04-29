@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { PrimaryButton } from '@/components/Buttons';
@@ -52,25 +52,32 @@ export function PregnancyTab({
                 <Text style={cardStyles.cardTitle}>{check.date}</Text>
                 <EditIconButton onPress={() => navigation.navigate('PregnancyCheckForm', { mareId, pregnancyCheckId: check.id })} />
               </View>
-              <View style={cardStyles.cardRow}>
-                <Text style={cardStyles.cardLabel}>Result</Text>
-                <StatusBadge
-                  label={check.result === 'positive' ? 'Positive' : 'Negative'}
-                  backgroundColor={check.result === 'positive' ? colors.positive : colors.negative}
-                  textColor="#FFFFFF"
-                />
-              </View>
-              <View style={cardStyles.cardRow}>
-                <Text style={cardStyles.cardLabel}>Heartbeat</Text>
-                <StatusBadge
-                  label={check.heartbeatDetected ? 'Yes' : 'No'}
-                  backgroundColor={check.heartbeatDetected ? colors.heartbeat : colors.score0}
-                  textColor={check.heartbeatDetected ? '#FFFFFF' : colors.onSurfaceVariant}
-                />
-              </View>
-              <CardRow label="Days post-breeding" value={daysPost ?? '-'} />
-              {daysPostOvulation !== null && <CardRow label="Days post-ovulation" value={daysPostOvulation} />}
-              {dueDate && <CardRow label="Est. due date" value={formatLocalDate(dueDate, 'MM-DD-YYYY')} />}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Open pregnancy check from ${check.date}`}
+                onPress={() => navigation.navigate('PregnancyCheckForm', { mareId, pregnancyCheckId: check.id })}
+                style={({ pressed }) => [styles.cardBodyPressable, pressed && styles.pressed]}
+              >
+                <View style={cardStyles.cardRow}>
+                  <Text style={cardStyles.cardLabel}>Result</Text>
+                  <StatusBadge
+                    label={check.result === 'positive' ? 'Positive' : 'Negative'}
+                    backgroundColor={check.result === 'positive' ? colors.positive : colors.negative}
+                    textColor="#FFFFFF"
+                  />
+                </View>
+                <View style={cardStyles.cardRow}>
+                  <Text style={cardStyles.cardLabel}>Heartbeat</Text>
+                  <StatusBadge
+                    label={check.heartbeatDetected ? 'Yes' : 'No'}
+                    backgroundColor={check.heartbeatDetected ? colors.heartbeat : colors.score0}
+                    textColor={check.heartbeatDetected ? '#FFFFFF' : colors.onSurfaceVariant}
+                  />
+                </View>
+                <CardRow label="Days post-breeding" value={daysPost ?? '-'} />
+                {daysPostOvulation !== null && <CardRow label="Days post-ovulation" value={daysPostOvulation} />}
+                {dueDate && <CardRow label="Est. due date" value={formatLocalDate(dueDate, 'MM-DD-YYYY')} />}
+              </Pressable>
             </View>
           );
         })}
@@ -86,5 +93,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     gap: spacing.md,
     paddingBottom: spacing.xxxl,
+  },
+  cardBodyPressable: {
+    gap: spacing.xs,
+  },
+  pressed: {
+    opacity: 0.72,
   },
 });

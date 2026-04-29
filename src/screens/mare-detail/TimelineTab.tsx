@@ -187,16 +187,23 @@ function PregCheckCard({
         <Text style={cardStyles.cardTitle}>{event.date}</Text>
         <EditIconButton onPress={() => navigation.navigate('PregnancyCheckForm', { mareId, pregnancyCheckId: check.id })} />
       </View>
-      <View style={cardStyles.cardRow}>
-        <EventTypeBadge type="pregnancyCheck" result={check.result} />
-        <StatusBadge
-          label={check.result === 'positive' ? 'Positive' : 'Negative'}
-          backgroundColor={check.result === 'positive' ? colors.positive : colors.negative}
-          textColor="#FFFFFF"
-        />
-      </View>
-      {daysPost != null ? <CardRow label="Days post-breeding" value={daysPost} /> : null}
-      {dueDate ? <CardRow label="Est. due date" value={formatLocalDate(dueDate, 'MM-DD-YYYY')} /> : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Open pregnancy check from ${event.date}`}
+        onPress={() => navigation.navigate('PregnancyCheckForm', { mareId, pregnancyCheckId: check.id })}
+        style={({ pressed }) => [styles.cardBodyPressable, pressed && styles.pressed]}
+      >
+        <View style={cardStyles.cardRow}>
+          <EventTypeBadge type="pregnancyCheck" result={check.result} />
+          <StatusBadge
+            label={check.result === 'positive' ? 'Positive' : 'Negative'}
+            backgroundColor={check.result === 'positive' ? colors.positive : colors.negative}
+            textColor="#FFFFFF"
+          />
+        </View>
+        {daysPost != null ? <CardRow label="Days post-breeding" value={daysPost} /> : null}
+        {dueDate ? <CardRow label="Est. due date" value={formatLocalDate(dueDate, 'MM-DD-YYYY')} /> : null}
+      </Pressable>
     </View>
   );
 }
