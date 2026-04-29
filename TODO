@@ -37,3 +37,5 @@ auto-schedule events based on recorded actions (eg mare bred on day X → automa
 cyst mapping
 
 import/export individual horses as a temporary workaround for multiple users
+
+foaling record summary page for established foaling records, with edit actions and linked foal milestones when applicable
