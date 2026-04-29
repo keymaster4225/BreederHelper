@@ -1,4 +1,5 @@
 import {
+  ISODateTime,
   LocalDate,
   Task,
   TaskSourceReason,
@@ -309,6 +310,16 @@ export async function listOpenDashboardTasks(
   windowDays: number,
   db?: RepoDb,
 ): Promise<TaskWithMare[]> {
+  const tasks = await listDashboardTasks(today, windowDays, '9999-12-31T23:59:59.999Z', db);
+  return tasks.filter((task) => task.status === 'open');
+}
+
+export async function listDashboardTasks(
+  today: LocalDate,
+  windowDays: number,
+  completedSince: ISODateTime,
+  db?: RepoDb,
+): Promise<TaskWithMare[]> {
   const handle = await resolveDb(db);
   const dueThrough = addDaysToLocalDate(today, windowDays);
   const rows = await handle.getAllAsync<TaskWithMareRow>(
@@ -333,19 +344,23 @@ export async function listOpenDashboardTasks(
       mares.name AS mare_name
     FROM tasks
     INNER JOIN mares ON mares.id = tasks.mare_id
-    WHERE tasks.status = 'open'
-      AND tasks.due_date <= ?
+    WHERE (
+      (tasks.status = 'open' AND tasks.due_date <= ?)
+      OR (tasks.status = 'completed' AND tasks.completed_at IS NOT NULL AND tasks.completed_at >= ?)
+    )
       AND mares.deleted_at IS NULL
     ORDER BY
+      CASE WHEN tasks.status = 'open' THEN 0 ELSE 1 END ASC,
       tasks.due_date ASC,
       tasks.due_time IS NULL ASC,
       tasks.due_time ASC,
       mares.name ASC,
       tasks.title ASC,
+      tasks.completed_at DESC,
       tasks.created_at ASC,
       tasks.id ASC;
     `,
-    [dueThrough],
+    [dueThrough, completedSince],
   );
 
   return rows.map(mapTaskWithMareRow);

@@ -5,9 +5,9 @@ import { emitDataInvalidation } from '@/storage/dataInvalidation';
 jest.mock('@/storage/repositories', () => ({
   listAllBreedingRecords: jest.fn(),
   listAllDailyLogs: jest.fn(),
+  listDashboardTasks: jest.fn(),
   listAllFoalingRecords: jest.fn(),
   listAllPregnancyChecks: jest.fn(),
-  listOpenDashboardTasks: jest.fn(),
   listMares: jest.fn(),
   listStallions: jest.fn(),
 }));
@@ -15,9 +15,9 @@ jest.mock('@/storage/repositories', () => ({
 const repositories = jest.requireMock('@/storage/repositories') as {
   listAllBreedingRecords: jest.Mock;
   listAllDailyLogs: jest.Mock;
+  listDashboardTasks: jest.Mock;
   listAllFoalingRecords: jest.Mock;
   listAllPregnancyChecks: jest.Mock;
-  listOpenDashboardTasks: jest.Mock;
   listMares: jest.Mock;
   listStallions: jest.Mock;
 };
@@ -88,13 +88,18 @@ function mockBaseDashboardRecords() {
 }
 
 describe('useDashboardData', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockBaseDashboardRecords();
   });
 
   it('returns persisted dashboard tasks instead of inferred alert titles', async () => {
-    repositories.listOpenDashboardTasks.mockResolvedValue([]);
+    repositories.listDashboardTasks.mockResolvedValue([]);
+    jest.useFakeTimers({ now: new Date('2026-04-29T15:30:00.000Z') });
 
     const { result } = renderHook(() => useDashboardData());
 
@@ -104,11 +109,15 @@ describe('useDashboardData', () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.tasks).toEqual([]);
-    expect(repositories.listOpenDashboardTasks).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), 14);
+    expect(repositories.listDashboardTasks).toHaveBeenCalledWith(
+      expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      14,
+      '2026-04-28T15:30:00.000Z',
+    );
   });
 
   it('reloads dashboard data when tasks are invalidated', async () => {
-    repositories.listOpenDashboardTasks
+    repositories.listDashboardTasks
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([dashboardTask]);
 
@@ -125,6 +134,6 @@ describe('useDashboardData', () => {
     });
 
     await waitFor(() => expect(result.current.tasks).toEqual([dashboardTask]));
-    expect(repositories.listOpenDashboardTasks).toHaveBeenCalledTimes(2);
+    expect(repositories.listDashboardTasks).toHaveBeenCalledTimes(2);
   });
 });

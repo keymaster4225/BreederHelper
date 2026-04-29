@@ -18,7 +18,7 @@ jest.mock('@/storage/repositories', () => ({
   listAllBreedingRecords: jest.fn(),
   listAllPregnancyChecks: jest.fn(),
   listAllFoalingRecords: jest.fn(),
-  listOpenDashboardTasks: jest.fn(),
+  listDashboardTasks: jest.fn(),
   listAllMedicationLogs: jest.fn(),
   listAllFoals: jest.fn(),
   completeTask: jest.fn(),
@@ -114,7 +114,7 @@ beforeEach(() => {
   ]);
   repositories.listAllPregnancyChecks.mockResolvedValue([]);
   repositories.listAllFoalingRecords.mockResolvedValue([]);
-  repositories.listOpenDashboardTasks.mockResolvedValue([
+  repositories.listDashboardTasks.mockResolvedValue([
     {
       id: 'task-1',
       mareId: 'mare-1',
