@@ -281,8 +281,10 @@ it('opens pregnancy check form from the timeline card body and pencil', () => {
     pregnancyCheckId: 'check-1',
   });
 
-  fireEvent.press(screen.getAllByLabelText('Edit')[1]);
-  expect(navigation.navigate).toHaveBeenCalledWith('PregnancyCheckForm', {
+  navigation.navigate.mockClear();
+  fireEvent.press(screen.getAllByLabelText('Edit')[0]);
+  expect(navigation.navigate).toHaveBeenCalledTimes(1);
+  expect(navigation.navigate).toHaveBeenLastCalledWith('PregnancyCheckForm', {
     mareId: 'mare-1',
     pregnancyCheckId: 'check-1',
   });

@@ -95,8 +95,10 @@ it('opens pregnancy check form from the card body and edit form from the pencil'
     pregnancyCheckId: 'check-1',
   });
 
+  navigation.navigate.mockClear();
   fireEvent.press(screen.getByLabelText('Edit'));
-  expect(navigation.navigate).toHaveBeenCalledWith('PregnancyCheckForm', {
+  expect(navigation.navigate).toHaveBeenCalledTimes(1);
+  expect(navigation.navigate).toHaveBeenLastCalledWith('PregnancyCheckForm', {
     mareId: 'mare-1',
     pregnancyCheckId: 'check-1',
   });
