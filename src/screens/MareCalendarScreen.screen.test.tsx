@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react-native';
+import { act, render, waitFor } from '@testing-library/react-native';
 
 jest.mock('@react-navigation/native', () => {
   const actual = jest.requireActual('@react-navigation/native');
@@ -90,4 +90,32 @@ it('renders custom calendar arrows instead of library asset arrows', async () =>
   expect(screen.getByText('chevron-left')).toBeTruthy();
   expect(screen.getByText('chevron-right')).toBeTruthy();
   expect(Calendar.mock.calls[0][0].renderArrow).toEqual(expect.any(Function));
+});
+
+it('keeps the visible calendar month anchored to the selected day', async () => {
+  const navigation = { navigate: jest.fn(), setOptions: jest.fn(), goBack: jest.fn() };
+  render(
+    <MareCalendarScreen
+      navigation={navigation as never}
+      route={{ key: 'MareCalendar', name: 'MareCalendar', params: { mareId: 'mare-1' } } as never}
+    />,
+  );
+
+  await waitFor(() => expect(Calendar).toHaveBeenCalled());
+
+  act(() => {
+    const latestCalendarProps = Calendar.mock.calls[Calendar.mock.calls.length - 1][0];
+    latestCalendarProps.onDayPress({
+      dateString: '2026-03-25',
+      day: 25,
+      month: 3,
+      timestamp: 1774396800000,
+      year: 2026,
+    });
+  });
+
+  await waitFor(() => {
+    const latestCalendarProps = Calendar.mock.calls[Calendar.mock.calls.length - 1][0];
+    expect(latestCalendarProps.initialDate).toBe('2026-03-25');
+  });
 });

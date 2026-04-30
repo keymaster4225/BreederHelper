@@ -26,6 +26,7 @@ const repositories = jest.requireMock('@/storage/repositories') as {
 };
 
 import { OTHER_STALLION, useBreedingRecordForm } from './useBreedingRecordForm';
+import { toLocalDate } from '@/utils/dates';
 
 type HookCallbacks = {
   mareId: string;
@@ -34,6 +35,10 @@ type HookCallbacks = {
 };
 
 describe('useBreedingRecordForm', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     repositories.completeTaskFromRecord.mockResolvedValue(undefined);
@@ -59,6 +64,23 @@ describe('useBreedingRecordForm', () => {
     await waitFor(() => expect(repositories.listStallions).toHaveBeenCalledTimes(1));
     expect(result.current.date).toBe('1970-01-01');
     expect(result.current.time).toBe('10:15');
+  });
+
+  it('defaults the date to today in create mode without a task date', async () => {
+    const now = new Date('2026-03-15T12:00:00.000Z');
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    jest.setSystemTime(now);
+
+    const { result } = renderHook(() =>
+      useBreedingRecordForm({
+        mareId: 'mare-1',
+        onGoBack: jest.fn(),
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await waitFor(() => expect(repositories.listStallions).toHaveBeenCalledTimes(1));
+    expect(result.current.date).toBe(toLocalDate(now));
   });
 
   it('completes a linked task after a successful create save', async () => {

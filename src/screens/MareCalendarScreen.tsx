@@ -84,6 +84,7 @@ export function MareCalendarScreen({ navigation, route }: Props): JSX.Element {
     <Screen>
       <View style={styles.container}>
         <Calendar
+          initialDate={selectedDay}
           markingType="multi-dot"
           markedDates={markedDates}
           onDayPress={handleDayPress}
