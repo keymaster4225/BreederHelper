@@ -65,11 +65,14 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
         return;
       }
 
-      const shareMessage = result.shared
-        ? 'The share sheet opened so you can send or save this horse package.'
-        : 'The horse package was saved locally. Share it from app storage when needed.';
+      if (result.shared) {
+        return;
+      }
 
-      Alert.alert('Stallion package ready', `${result.fileName}\n\n${shareMessage}`);
+      Alert.alert(
+        'Stallion package ready',
+        `${result.fileName}\n\nThe horse package was saved locally. Share it from app storage when needed.`,
+      );
     })();
   }, [exportStallionPackage, stallionId]);
 
