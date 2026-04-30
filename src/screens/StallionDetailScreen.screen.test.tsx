@@ -457,7 +457,7 @@ it('updates the active tab on tab press', async () => {
   expect(screen.getByRole('tab', { name: 'Breeding' }).props.accessibilityState.selected).toBe(true);
 });
 
-it('exports a stallion package from the header action', async () => {
+it('does not show an extra success alert after sharing a stallion package', async () => {
   mockExportStallionPackage.mockResolvedValueOnce({
     ok: true,
     fileName: 'breedwise-stallion-thunder-v1-20260428-120000.json',
@@ -477,10 +477,33 @@ it('exports a stallion package from the header action', async () => {
   fireEvent.press(headerRight.getByLabelText('Export stallion package'));
 
   await waitFor(() => expect(mockExportStallionPackage).toHaveBeenCalledWith('st-1'));
+  expect(Alert.alert).not.toHaveBeenCalled();
+});
+
+it('shows the local save alert when stallion package sharing does not open', async () => {
+  mockExportStallionPackage.mockResolvedValueOnce({
+    ok: true,
+    fileName: 'breedwise-stallion-thunder-v1-20260428-120000.json',
+    fileUri: 'file:///breedwise-stallion-thunder-v1-20260428-120000.json',
+    shared: false,
+  });
+
+  const screen = renderScreen();
+  await waitFor(() => expect(screen.navigation.setOptions).toHaveBeenCalled());
+
+  const headerOptions = screen.navigation.setOptions.mock.calls
+    .map(([options]) => options)
+    .find((options) => typeof options.headerRight === 'function');
+  expect(headerOptions).toBeTruthy();
+
+  const headerRight = render(headerOptions?.headerRight());
+  fireEvent.press(headerRight.getByLabelText('Export stallion package'));
+
+  await waitFor(() => expect(mockExportStallionPackage).toHaveBeenCalledWith('st-1'));
   await waitFor(() =>
     expect(Alert.alert).toHaveBeenCalledWith(
       'Stallion package ready',
-      expect.stringContaining('breedwise-stallion-thunder-v1-20260428-120000.json'),
+      expect.stringContaining('The horse package was saved locally.'),
     ),
   );
 });

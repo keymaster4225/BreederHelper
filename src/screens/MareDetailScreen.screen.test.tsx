@@ -141,7 +141,7 @@ it('shows recipient and pregnant badges together in the header when both apply',
   expect(screen.getByText('Pregnant')).toBeTruthy();
 });
 
-it('exports a mare package from the header action', async () => {
+it('does not show an extra success alert after sharing a mare package', async () => {
   mockExportMarePackage.mockResolvedValueOnce({
     ok: true,
     fileName: 'breedwise-mare-nova-v1-20260428-120000.json',
@@ -161,10 +161,33 @@ it('exports a mare package from the header action', async () => {
   fireEvent.press(screen.getByLabelText('Export mare package'));
 
   await waitFor(() => expect(mockExportMarePackage).toHaveBeenCalledWith('mare-1'));
+  expect(Alert.alert).not.toHaveBeenCalled();
+});
+
+it('shows the local save alert when mare package sharing does not open', async () => {
+  mockExportMarePackage.mockResolvedValueOnce({
+    ok: true,
+    fileName: 'breedwise-mare-nova-v1-20260428-120000.json',
+    fileUri: 'file:///breedwise-mare-nova-v1-20260428-120000.json',
+    shared: false,
+  });
+
+  const navigation = { navigate: jest.fn(), setOptions: jest.fn() };
+  const screen = render(
+    <MareDetailScreen
+      navigation={navigation as never}
+      route={{ key: 'MareDetail', name: 'MareDetail', params: { mareId: 'mare-1' } } as never}
+    />,
+  );
+
+  await waitFor(() => expect(screen.getByLabelText('Export mare package')).toBeTruthy());
+  fireEvent.press(screen.getByLabelText('Export mare package'));
+
+  await waitFor(() => expect(mockExportMarePackage).toHaveBeenCalledWith('mare-1'));
   await waitFor(() =>
     expect(Alert.alert).toHaveBeenCalledWith(
       'Mare package ready',
-      expect.stringContaining('breedwise-mare-nova-v1-20260428-120000.json'),
+      expect.stringContaining('The horse package was saved locally.'),
     ),
   );
 });
