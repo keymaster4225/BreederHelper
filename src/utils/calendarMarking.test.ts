@@ -139,9 +139,16 @@ describe('buildCalendarMarking', () => {
   it('marks selected day with selected flag on event date', () => {
     const breedings = [makeBreedingRecord({ id: 'br-1', date: '2026-03-10', mareId: MARE_ID })];
     const result = buildCalendarMarking([], breedings, [], [], '2026-03-10');
+    expect(result['2026-03-10'].marked).toBe(true);
     expect(result['2026-03-10'].selected).toBe(true);
     expect(result['2026-03-10'].selectedColor).toBe('#97B498');
     expect(result['2026-03-10'].dots).toHaveLength(1);
+  });
+
+  it('marks event dates for calendar accessibility labels', () => {
+    const logs = [makeDailyLog({ id: 'log-1', date: '2026-03-10', mareId: MARE_ID, teasingScore: 4 })];
+    const result = buildCalendarMarking(logs, [], [], [], null);
+    expect(result['2026-03-10'].marked).toBe(true);
   });
 
   it('does not mark non-selected dates as selected', () => {

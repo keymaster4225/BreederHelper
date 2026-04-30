@@ -8,6 +8,7 @@ interface CalendarDot {
 
 interface DayMarking {
   readonly dots: CalendarDot[];
+  readonly marked?: boolean;
   readonly selected?: boolean;
   readonly selectedColor?: string;
 }
@@ -63,6 +64,7 @@ export function buildCalendarMarking(
     const isSelected = date === selectedDay;
     result[date] = {
       dots: Array.from(dots.values()),
+      marked: true,
       ...(isSelected ? { selected: true, selectedColor: SELECTED_COLOR } : {}),
     };
   }
