@@ -15,7 +15,7 @@ import {
 } from '@/storage/repositories';
 import { normalizeBreedingRecordTime } from '@/utils/breedingRecordTime';
 import { confirmDelete } from '@/utils/confirmDelete';
-import { formatLocalDate } from '@/utils/dates';
+import { formatLocalDate, toLocalDate } from '@/utils/dates';
 import { getCurrentTimeHHMM } from '@/utils/dailyLogTime';
 import { newId } from '@/utils/id';
 import {
@@ -95,7 +95,7 @@ export function useBreedingRecordForm({
   const onAddFollowUpTaskRef = useRef(onAddFollowUpTask);
   const setTitleRef = useRef(setTitle);
 
-  const [date, setDate] = useState(defaultDate ?? '');
+  const [date, setDate] = useState(() => defaultDate ?? toLocalDate(new Date()));
   const [time, setTime] = useState(() => defaultTime ?? getCurrentTimeHHMM());
   const [stallionName, setStallionName] = useState('');
   const [method, setMethod] = useState<BreedingMethod>('liveCover');
