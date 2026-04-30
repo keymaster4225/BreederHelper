@@ -95,7 +95,7 @@ export function useBreedingRecordForm({
   const onAddFollowUpTaskRef = useRef(onAddFollowUpTask);
   const setTitleRef = useRef(setTitle);
 
-  const [date, setDate] = useState(() => defaultDate ?? toLocalDate(new Date()));
+  const [date, setDate] = useState(() => defaultDate ?? toLocalDate(today));
   const [time, setTime] = useState(() => defaultTime ?? getCurrentTimeHHMM());
   const [stallionName, setStallionName] = useState('');
   const [method, setMethod] = useState<BreedingMethod>('liveCover');
