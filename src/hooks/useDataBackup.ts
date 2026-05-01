@@ -20,8 +20,10 @@ import {
 } from '@/storage/backup';
 import {
   HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
+} from '@/storage/horseTransfer/types';
+import {
   isHorseTransferArtifactPayload,
-} from '@/storage/horseTransfer';
+} from '@/storage/horseTransfer/validate';
 
 type PendingRestoreState = {
   readonly candidateText: string;

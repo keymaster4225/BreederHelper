@@ -5,8 +5,10 @@ import { setOnboardingCompleteValue } from '@/utils/onboarding';
 import { normalizeClockPreference, setClockPreference } from '@/utils/clockPreferences';
 import {
   HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
+} from '@/storage/horseTransfer/types';
+import {
   isHorseTransferArtifactPayload,
-} from '@/storage/horseTransfer';
+} from '@/storage/horseTransfer/validate';
 
 import { createSafetySnapshot } from './safetyBackups';
 import {

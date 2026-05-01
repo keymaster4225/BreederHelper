@@ -3,7 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 import {
   HORSE_TRANSFER_ARTIFACT_TYPE,
   HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
-} from '@/storage/horseTransfer';
+} from '@/storage/horseTransfer/types';
 
 jest.mock('@/storage/backup', () => ({
   createManualBackupFileName: jest.fn(),
