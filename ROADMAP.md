@@ -1,6 +1,6 @@
 # BreedWise Roadmap
 
-> Last updated: 2026-04-29
+> Last updated: 2026-05-01
 >
 > This document is the prioritized plan for BreedWise. The flat `TODO` file is now a raw inbox — new ideas get dumped there, then triaged into this roadmap during a periodic sweep. See [Intake & triage process](#intake--triage-process).
 
@@ -21,9 +21,13 @@
 
 ## Currently building
 
-No feature implementation is currently marked in flight.
+**Photos V1 Phase 0** is in flight on `photos-v1-phase-0`.
 
-Latest shipped work on `main` is the dashboard task system and sticky follow-up action bar (pushed 2026-04-27, merge `0770001`).
+Current status: the spike harness, feature flag, image-picker prerequisites, and Android archive/memory hard-gate evidence are in place. The remaining hard gate is running the archive spike in a real iOS Expo runtime and recording binary round-trip, append-write, streamed byte count, peak JS heap, and pass/fail evidence before Phase 1 starts.
+
+This branch also contains a locally committed foaling record summary page (`7631eab`) that should go through PR/merge before being marked shipped.
+
+Latest shipped work on `origin/main` is individual horse import/export with follow-up restore/file-picker fixes and collection motility preservation (`43054b9`, `5ee25d3`, `d34e3d2`).
 
 ---
 
@@ -33,11 +37,11 @@ Latest shipped work on `main` is the dashboard task system and sticky follow-up 
 
 Features that deepen mare reproductive recordkeeping beyond what the current daily log + pregnancy check flow captures.
 
-- **P0 — Cyst mapping** (`TODO:37`)
+- **P0 — Cyst mapping** (`TODO:23`)
   Recurring user ask. Needs a design pass: how cysts are located on the uterus, how they're tracked over time, and whether they live on the daily log or as a separate longitudinal record.
-- **P1 — Foaling record summary page** (`TODO:41`)
-  Add a non-edit summary view for established foaling records that preserves quick edit actions while exposing linked foal context and milestone progression. This should become the read-first destination from breeding-event foaling surfaces, instead of dropping users directly into edit forms.
-- **P2 — Mare ovulation trends** (`TODO:27`)
+- **P1 — Foaling record summary page** (`TODO:25`, locally implemented pending PR)
+  Add a non-edit summary view for established foaling records that preserves quick edit actions while exposing linked foal context and milestone progression. Locally implemented in `7631eab`; keep this item open until it is merged to `main`.
+- **P2 — Mare ovulation trends** (`TODO:15`)
   Analytics view. Blocked on data volume — needs enough historical ovulation logs per mare to be useful.
 
 ### Theme: Stallion depth
@@ -46,15 +50,15 @@ Features that extend stallion records beyond current collection + frozen batch t
 
 - **P1 — Outside-mare breeding records from stallion section**
   Allow recording a breeding against a stallion without requiring the mare to exist in the database. Use case: the user is the stallion owner and an outside mare arrives to be bred — they want to log the service without creating a full mare record. Design questions: (a) minimum fields to capture for an outside mare (name? owner? registration?), (b) whether the record can later be "upgraded" / linked if that mare is eventually added to the database, (c) how outside-mare services render on the stallion's breeding history alongside mare-linked records, (d) whether straw-consumption tracking and fertility-trend analytics include these records or only in-database services.
-- **P1 — Outside-mare allocation in collection workflow** (`TODO:9`)
+- **P1 — Outside-mare allocation in collection workflow** (`TODO:3`)
   On-farm dose allocation in the add-collection workflow should allow an outside mare, not only mares already saved in the app. Coordinate this with the broader outside-mare breeding-record design so the same outside-mare fields and display rules are reused.
-- **P1 — Stallion fertility trends** (`TODO:25`)
+- **P1 — Stallion fertility trends** (`TODO:13`)
   Analytics view. Like mare ovulation trends, benefits from accumulated data — but the per-stallion slice may be useful sooner because a single stallion covers many mares.
-- **P1 — Frozen semen straw consumption** (`TODO:15`)
+- **P1 — Frozen semen straw consumption** (`TODO:5`)
   Decrement `strawsRemaining` on a batch when straws are used in a breeding record. Currently inventory is tracked at batch level but not debited on use.
-- **P2 — Frozen semen low-inventory alerts** (`TODO:17`)
+- **P2 — Frozen semen low-inventory alerts** (`TODO:7`)
   Dashboard alert when a batch drops below a configurable threshold. Depends on consumption tracking above.
-- **P2 — Frozen semen bulk-edit / multi-batch operations** (`TODO:23`)
+- **P2 — Frozen semen bulk-edit / multi-batch operations** (`TODO:11`)
   UX for managing multiple batches at once (e.g. moving many to a different tank).
 - **P2 — Stallion hub Phase 3**
   Meds/health tab, home-screen stallion section, per-stallion analytics surface. Carries over from the earlier stallion-hub planning memory.
@@ -63,19 +67,21 @@ Features that extend stallion records beyond current collection + frozen batch t
 
 Features that make the app tell the user what to do next, rather than only recording what the user already did.
 
-- **P1 — Auto-scheduled events from recorded actions** (`TODO:35`)
+- **P1 — Auto-scheduled events from recorded actions** (`TODO:21`)
   The persisted task foundation and breeding-generated pregnancy-check task path shipped in `0770001`. Remaining scope: broaden generated tasks beyond the current breeding follow-up path, including ovulation → next scan and foaling → IgG / vet-check tasks, and decide whether 30-day pregnancy checks should be generated alongside the current due-date rule.
-- **P2 — Conditional smart prompts** (`TODO:33`)
+- **P2 — Conditional smart prompts** (`TODO:19`)
   Example: fluid detected on a daily log → prompt user to flush/infuse. Needs design — which conditions, how prompts are delivered, how they're dismissed, and how this should build on the shipped daily-log fluid fields and flush follow-up flow.
 
 ### Theme: Media & attachments
 
-- **P1 — Photos V1** (`TODO:29`, ready to implement)
-  Implement the scoped offline-first photo system in [`docs/plans/2026-04-26-photos-v1-implementation-plan.md`](./docs/plans/2026-04-26-photos-v1-implementation-plan.md): mare and stallion profile photos, daily-log attachments, camera/library import, app-owned JPEG masters and thumbnails, and archive backup/restore. Follow the Phase 0 hard gates before storage work: prove SDK 55 file byte/append behavior, streaming archive memory behavior, and backup picker/share support for `.breedwisebackup`.
+- **P1 — Photos V1** (`TODO:17`, Phase 0 in progress)
+  Implement the scoped offline-first photo system in [`docs/plans/2026-04-30-photos-v1-amended-implementation-plan.md`](./docs/plans/2026-04-30-photos-v1-amended-implementation-plan.md): mare and stallion profile photos, daily-log attachments, camera/library import, app-owned JPEG masters and thumbnails, and archive backup/restore. Android binary/archive memory evidence has passed; do not start Phase 1 until the iOS runtime spike also passes and is recorded.
 
 ### Theme: Scheduling & visibility
 
-- **P1 — Calendar-at-a-glance across all mares** (`TODO:21`)
+- **P1 — Configurable gestation / due-date basis** (`TODO:1`)
+  Allow users to choose the gestation-day basis used for calculated due dates, e.g. 240, 245, or another farm-preferred value. Needs a small design pass for default value, settings placement, and whether the value applies globally or per mare/breeding record.
+- **P1 — Calendar-at-a-glance across all mares** (`TODO:9`)
   Visual design is the main unknown. Existing per-mare `MareCalendarScreen` is the starting point.
 
 ### Theme: Cloud backup & collaboration
@@ -84,9 +90,6 @@ Features that move BreedWise beyond single-device local storage while preserving
 
 - **P2 — Staged cloud backup and multi-user sync path**
   Long-term direction from `mare-tracker-spec.md`: data should be recoverable if a phone is lost, and eventually may support more than one user. Stage this deliberately: (1) cloud backup snapshots for lost-phone recovery; (2) single-account cloud restore across devices, still avoiding simultaneous editing; (3) read-only sharing for selected animals or records; (4) full multi-user collaboration with accounts, farm/workspace membership, roles, offline write queues, conflict handling, audit history, and attachment sync. Design prerequisite: make near-term local entities more sync-friendly with stable IDs, consistent `createdAt` / `updatedAt`, soft-delete semantics, and clear ownership boundaries.
-- **P1 — Individual horse import / export** (`TODO:39`)
-  Short-term workaround before real multi-user sync: export one mare, stallion, or foal package from one device and import it on another. Scope needs to define which related records travel with each animal type, including daily logs, breeding records, pregnancy checks, foaling and linked foal records, frozen semen references, photos / attachments, and reminders. Import design should prefer stable IDs and explicit duplicate handling over silent merges so users can share records without corrupting the offline database.
-
 ### Theme: Foundational polish
 
 Cross-cutting UX and structural features that aren't a single user-visible feature but improve the overall app.
@@ -152,6 +155,9 @@ When a roadmap item is completed and merged to `main`:
 
 ## Recently shipped
 
+- 2026-05-01 — Collection motility field preservation across collection, breeding, backup, and restore paths (`d34e3d2`)
+- 2026-04-30 — Individual horse import/export file-picker and restore hardening (`43054b9`, `5ee25d3`)
+- 2026-04-30 — Individual horse import/export — closed `TODO:39` (`0a6400f` through `a2619d1`)
 - 2026-04-27 — Dashboard task system, manual reminders, and workflow task routing — closed `TODO:31`, partially delivered `TODO:35` (`0770001`)
 - 2026-04-27 — Sticky follow-up action bar and daily-log follow-up navigation fix (`0770001`)
 - 2026-04-27 — Breeding record timestamps (`9fc5071`)
@@ -159,15 +165,15 @@ When a roadmap item is completed and merged to `main`:
 - 2026-04-27 — Collection entry wizard / scrollability rework — closed `TODO:7` (`5224d66`)
 - 2026-04-25 — Breeding event detail view — closed `TODO:5` (`3875543`)
 - 2026-04-24 — Remove optional form placeholders — closed `TODO:11` (`50bdd74`)
-- 2026-04-24 — Deduplicated detail tab route maps (`83e0486`)
-- 2026-04-24 — Configurable 12h / 24h clock setting — closed `TODO:1` (`46acf9c`)
-- 2026-04-24 — Daily log wizard step-state refactor (`eae89c5`)
-- 2026-04-23 — Multiple daily checks per mare (`710ad97`)
 
 ---
 
 ## Change log for this document
 
+- 2026-05-01 — Marked Photos V1 Phase 0 as in flight, recorded Android spike evidence status, and linked the amended implementation plan.
+- 2026-05-01 — Marked *Foaling record summary page* as locally implemented pending PR/merge.
+- 2026-05-01 — Recorded *Individual horse import/export* and related hardening as shipped, and removed it from active Cloud backup & collaboration.
+- 2026-05-01 — Added *Configurable gestation / due-date basis* under Scheduling & visibility (P1) from `TODO:1`.
 - 2026-04-29 — Added *Foaling record summary page* under Mare care depth (P1) from `TODO:41`.
 - 2026-04-27 — Recorded *Dashboard task system, manual reminders, and workflow task routing* as shipped, closed `TODO:31`, and narrowed the remaining *Auto-scheduled events from recorded actions* scope.
 - 2026-04-27 — Added *Individual horse import / export* under Cloud backup & collaboration (P1) as a short-term multi-user workaround.
