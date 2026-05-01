@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 
 vi.mock('expo-document-picker', () => ({
   getDocumentAsync: vi.fn(),
@@ -90,6 +91,14 @@ describe('horse transfer file I/O helpers', () => {
       mimeType: 'application/json',
       dialogTitle: 'Share horse package',
     });
+  });
+
+  it('does not lazy-load Expo native modules during file operations', () => {
+    const source = readFileSync(new URL('./fileIO.ts', import.meta.url), 'utf8');
+
+    expect(source).not.toContain("import('expo-document-picker')");
+    expect(source).not.toContain("import('expo-file-system/legacy')");
+    expect(source).not.toContain("import('expo-sharing')");
   });
 });
 

@@ -34,7 +34,7 @@ import { setClockPreference } from '@/utils/clockPreferences';
 import {
   HORSE_TRANSFER_ARTIFACT_TYPE,
   HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
-} from '@/storage/horseTransfer';
+} from '@/storage/horseTransfer/types';
 import {
   createRepoDb,
   expectInsertForTable,
