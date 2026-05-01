@@ -16,7 +16,15 @@
       "expo-asset",
       "@react-native-community/datetimepicker",
       "expo-font",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "BreedWise uses the camera so you can attach horse photos to records.",
+          "photosPermission": "BreedWise lets you choose photos from your library to attach to horse records.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "ios": {
       "bundleIdentifier": "com.tompkins.breedwise",

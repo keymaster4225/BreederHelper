@@ -6,14 +6,17 @@ import { Inter_400Regular, Inter_500Medium } from '@expo-google-fonts/inter';
 
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { WelcomeScreen } from './src/screens/WelcomeScreen';
+import { PhotosArchiveSpikeScreen } from './src/screens/dev/PhotosArchiveSpikeScreen';
 import { useAppBootstrap } from './src/storage/useAppBootstrap';
 import { ClockPreferenceProvider } from './src/hooks/useClockPreference';
+import { shouldRunPhotosArchiveSpike } from './src/config/devSpikes';
 
 const SPLASH_DURATION_MS = 1200;
 
 export default function App(): JSX.Element | null {
   const { isReady, error, errorReportId } = useAppBootstrap();
   const [showSplash, setShowSplash] = useState(true);
+  const runPhotosArchiveSpike = shouldRunPhotosArchiveSpike();
   const [fontsLoaded] = useFonts({
     Lora_400Regular,
     Lora_700Bold,
@@ -58,6 +61,14 @@ export default function App(): JSX.Element | null {
 
   if (!fontsLoaded || !isReady) {
     return null;
+  }
+
+  if (runPhotosArchiveSpike) {
+    return (
+      <SafeAreaProvider>
+        <PhotosArchiveSpikeScreen />
+      </SafeAreaProvider>
+    );
   }
 
   if (showSplash) {

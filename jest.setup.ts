@@ -59,8 +59,36 @@ jest.mock('expo-font', () => ({
 jest.mock('expo-file-system', () => ({
   documentDirectory: 'file:///mock-documents/',
   cacheDirectory: 'file:///mock-cache/',
-  Directory: jest.fn(),
-  File: jest.fn(),
+  Directory: jest.fn().mockImplementation((...parts: readonly string[]) => ({
+    uri: parts.join('/'),
+    exists: true,
+    create: jest.fn(),
+    createDirectory: jest.fn(),
+    createFile: jest.fn(),
+    delete: jest.fn(),
+    info: jest.fn(() => ({ exists: true })),
+    list: jest.fn(() => []),
+  })),
+  File: jest.fn().mockImplementation((...parts: readonly string[]) => ({
+    uri: parts.join('/'),
+    exists: true,
+    size: 0,
+    bytes: jest.fn().mockResolvedValue(new Uint8Array()),
+    bytesSync: jest.fn(() => new Uint8Array()),
+    write: jest.fn(),
+    open: jest.fn(() => ({
+      close: jest.fn(),
+      readBytes: jest.fn(() => new Uint8Array()),
+      writeBytes: jest.fn(),
+      offset: 0,
+      size: 0,
+    })),
+    create: jest.fn(),
+    delete: jest.fn(),
+    info: jest.fn(() => ({ exists: true, size: 0 })),
+    text: jest.fn().mockResolvedValue(''),
+    textSync: jest.fn(() => ''),
+  })),
   Paths: {
     document: 'file:///mock-documents/',
     cache: 'file:///mock-cache/',
@@ -95,6 +123,34 @@ jest.mock('expo-sharing', () => ({
 
 jest.mock('expo-document-picker', () => ({
   getDocumentAsync: jest.fn().mockResolvedValue({ canceled: true, assets: null }),
+}));
+
+jest.mock('expo-image-picker', () => ({
+  MediaTypeOptions: {
+    Images: 'Images',
+  },
+  PermissionStatus: {
+    GRANTED: 'granted',
+    DENIED: 'denied',
+    UNDETERMINED: 'undetermined',
+  },
+  requestCameraPermissionsAsync: jest.fn().mockResolvedValue({ granted: true, status: 'granted' }),
+  requestMediaLibraryPermissionsAsync: jest.fn().mockResolvedValue({ granted: true, status: 'granted' }),
+  launchCameraAsync: jest.fn().mockResolvedValue({ canceled: true, assets: null }),
+  launchImageLibraryAsync: jest.fn().mockResolvedValue({ canceled: true, assets: null }),
+}));
+
+jest.mock('expo-image-manipulator', () => ({
+  SaveFormat: {
+    JPEG: 'jpeg',
+    PNG: 'png',
+    WEBP: 'webp',
+  },
+  manipulateAsync: jest.fn().mockResolvedValue({
+    uri: 'file:///mock-cache/manipulated.jpg',
+    width: 1,
+    height: 1,
+  }),
 }));
 
 jest.mock('@/storage/useAppBootstrap', () => ({
