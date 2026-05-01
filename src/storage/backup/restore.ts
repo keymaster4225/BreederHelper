@@ -5,8 +5,10 @@ import { setOnboardingCompleteValue } from '@/utils/onboarding';
 import { normalizeClockPreference, setClockPreference } from '@/utils/clockPreferences';
 import {
   HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
+} from '@/storage/horseTransfer/types';
+import {
   isHorseTransferArtifactPayload,
-} from '@/storage/horseTransfer';
+} from '@/storage/horseTransfer/validate';
 
 import { createSafetySnapshot } from './safetyBackups';
 import {
@@ -59,6 +61,8 @@ type RestoreOptions = {
   readonly skipSafetySnapshot?: boolean;
   readonly onStepChange?: (stepLabel: string) => void;
 };
+
+type RestoreDb = Pick<Awaited<ReturnType<typeof getDb>>, 'runAsync'>;
 
 const LEGACY_USED_ON_SITE_COLLAPSE_NOTE =
   'Legacy migration: collapsed used-on-site dose count to 1 during collection volume rework.';
@@ -124,9 +128,9 @@ export async function restoreBackup(
 
     const db = await getDb();
     options.onStepChange?.('Restoring data...');
-    await db.withTransactionAsync(async () => {
-      await deleteManagedTables(db);
-      await insertManagedTables(db, backupForRestore);
+    await db.withExclusiveTransactionAsync(async (transactionDb) => {
+      await deleteManagedTables(transactionDb);
+      await insertManagedTables(transactionDb, backupForRestore);
     });
 
     let warningMessage: string | undefined;
@@ -178,7 +182,7 @@ function parseRestoreCandidate(
   }
 }
 
-async function deleteManagedTables(db: Awaited<ReturnType<typeof getDb>>): Promise<void> {
+async function deleteManagedTables(db: RestoreDb): Promise<void> {
   await db.runAsync('DELETE FROM collection_dose_events;');
   await db.runAsync('DELETE FROM frozen_semen_batches;');
   await db.runAsync('DELETE FROM foals;');
@@ -197,7 +201,7 @@ async function deleteManagedTables(db: Awaited<ReturnType<typeof getDb>>): Promi
 }
 
 async function insertManagedTables(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   backup: NormalizedBackupForRestore,
 ): Promise<void> {
   for (const row of backup.tables.mares) {
@@ -248,7 +252,7 @@ async function insertManagedTables(
 }
 
 async function insertMare(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupMareRowV6,
 ): Promise<void> {
   await db.runAsync(
@@ -284,7 +288,7 @@ async function insertMare(
 }
 
 async function insertStallion(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupStallionRow,
 ): Promise<void> {
   await db.runAsync(
@@ -330,7 +334,7 @@ async function insertStallion(
 }
 
 async function insertSemenCollection(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupSemenCollectionRowV3,
 ): Promise<void> {
   const hasTargetValues =
@@ -378,7 +382,7 @@ async function insertSemenCollection(
 }
 
 async function insertFrozenSemenBatch(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupFrozenSemenBatchRow,
 ): Promise<void> {
   await db.runAsync(
@@ -448,7 +452,7 @@ async function insertFrozenSemenBatch(
 }
 
 async function insertBreedingRecord(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupBreedingRecordRow,
 ): Promise<void> {
   await db.runAsync(
@@ -498,7 +502,7 @@ async function insertBreedingRecord(
 }
 
 async function insertDailyLog(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupDailyLogRow,
 ): Promise<void> {
   await db.runAsync(
@@ -568,7 +572,7 @@ async function insertDailyLog(
 }
 
 async function insertUterineFluid(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupUterineFluidRow,
 ): Promise<void> {
   await db.runAsync(
@@ -587,7 +591,7 @@ async function insertUterineFluid(
 }
 
 async function insertUterineFlush(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupUterineFlushRow,
 ): Promise<void> {
   await db.runAsync(
@@ -615,7 +619,7 @@ async function insertUterineFlush(
 }
 
 async function insertUterineFlushProduct(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupUterineFlushProductRow,
 ): Promise<void> {
   await db.runAsync(
@@ -643,7 +647,7 @@ async function insertUterineFlushProduct(
 }
 
 async function insertMedicationLog(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupMedicationLogRow,
 ): Promise<void> {
   await db.runAsync(
@@ -677,7 +681,7 @@ async function insertMedicationLog(
 }
 
 async function insertTask(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupTaskRow,
 ): Promise<void> {
   await db.runAsync(
@@ -723,7 +727,7 @@ async function insertTask(
 }
 
 async function insertPregnancyCheck(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupPregnancyCheckRow,
 ): Promise<void> {
   await db.runAsync(
@@ -755,7 +759,7 @@ async function insertPregnancyCheck(
 }
 
 async function insertFoalingRecord(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupFoalingRecordRow,
 ): Promise<void> {
   await db.runAsync(
@@ -788,7 +792,7 @@ async function insertFoalingRecord(
   );
 }
 
-async function insertFoal(db: Awaited<ReturnType<typeof getDb>>, row: BackupFoalRow): Promise<void> {
+async function insertFoal(db: RestoreDb, row: BackupFoalRow): Promise<void> {
   await db.runAsync(
     `
     INSERT INTO foals (
@@ -824,7 +828,7 @@ async function insertFoal(db: Awaited<ReturnType<typeof getDb>>, row: BackupFoal
 }
 
 async function insertCollectionDoseEvent(
-  db: Awaited<ReturnType<typeof getDb>>,
+  db: RestoreDb,
   row: BackupCollectionDoseEventRowV3,
 ): Promise<void> {
   await db.runAsync(

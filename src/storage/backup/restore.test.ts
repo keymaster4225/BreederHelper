@@ -34,7 +34,7 @@ import { setClockPreference } from '@/utils/clockPreferences';
 import {
   HORSE_TRANSFER_ARTIFACT_TYPE,
   HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
-} from '@/storage/horseTransfer';
+} from '@/storage/horseTransfer/types';
 import {
   createRepoDb,
   expectInsertForTable,
@@ -122,6 +122,8 @@ describe('restoreBackup', () => {
       'Restoring data...',
       'Updating app settings...',
     ]);
+    expect(db.withExclusiveTransactionAsync).toHaveBeenCalledTimes(1);
+    expect(db.withTransactionAsync).not.toHaveBeenCalled();
     expectManagedTableDeleteOrder(db, MANAGED_TABLE_DELETE_ORDER);
 
     const mareInsertParams = expectInsertForTable(db, 'mares').params;

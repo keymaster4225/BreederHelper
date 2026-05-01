@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 import { DataBackupScreen } from '@/screens/DataBackupScreen';
 import { useDataBackup } from '@/hooks/useDataBackup';
 import { useHorseImport, type PendingHorseImportPreview } from '@/hooks/useHorseImport';
-import { HORSE_TRANSFER_RESTORE_ERROR_MESSAGE } from '@/storage/horseTransfer';
+import { HORSE_TRANSFER_RESTORE_ERROR_MESSAGE } from '@/storage/horseTransfer/types';
 import type { SafetySnapshotSummary } from '@/storage/backup';
 
 jest.mock('@/hooks/useDataBackup', () => ({
