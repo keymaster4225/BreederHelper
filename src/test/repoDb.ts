@@ -28,12 +28,15 @@ type GetAllAsyncMock = ReturnType<typeof vi.fn> &
   (<T>(sql: string, params?: readonly unknown[]) => Promise<T[]>);
 type TransactionAsyncMock = ReturnType<typeof vi.fn> &
   (<T>(callback: () => Promise<T>) => Promise<T>);
+type ExclusiveTransactionAsyncMock = ReturnType<typeof vi.fn> &
+  (<T>(callback: (transactionDb: RepoDbHarness) => Promise<T>) => Promise<T>);
 
 export type RepoDbHarness = {
   readonly runAsync: RunAsyncMock;
   readonly getFirstAsync: GetFirstAsyncMock;
   readonly getAllAsync: GetAllAsyncMock;
   readonly withTransactionAsync: TransactionAsyncMock;
+  readonly withExclusiveTransactionAsync: ExclusiveTransactionAsyncMock;
   readonly runCalls: SqlCall[];
   readonly getFirstCalls: SqlCall[];
   readonly getAllCalls: SqlCall[];
@@ -145,6 +148,9 @@ export function createRepoDb(options: RepoDbOptions = {}): RepoDbHarness {
       }
       return callback();
     }) as TransactionAsyncMock,
+    withExclusiveTransactionAsync: vi.fn(
+      async <T>(callback: (transactionDb: RepoDbHarness) => Promise<T>) => callback(harness),
+    ) as ExclusiveTransactionAsyncMock,
     runCalls,
     getFirstCalls,
     getAllCalls,
