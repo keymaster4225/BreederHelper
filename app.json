@@ -2,7 +2,7 @@
   "expo": {
     "name": "BreedWise",
     "slug": "breeder-helper",
-    "version": "1.3.5",
+    "version": "1.3.7",
     "icon": "./assets/icon.png",
     "orientation": "portrait",
     "platforms": [
@@ -16,7 +16,15 @@
       "expo-asset",
       "@react-native-community/datetimepicker",
       "expo-font",
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "BreedWise uses the camera so you can attach horse photos to records.",
+          "photosPermission": "BreedWise lets you choose photos from your library to attach to horse records.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "ios": {
       "bundleIdentifier": "com.tompkins.breedwise",

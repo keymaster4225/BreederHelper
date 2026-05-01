@@ -1,22 +1,10 @@
-setting to change between 12/24h clock
-
 ability to change what due date is based off of (240, 245, etc).
 
-when clicking a breeding record on the mare summary, it should take you to a summary of that breeding event. similar to the edit screen, but not editable
-
-add collection screen very difficult to scroll.  another wizard?
-
 on add collection workflow, on farm dose allocation needs an option for an outside mare, not ust the ones added to the app
-
-remove 'optional' from all the text input fields.  if they don't have an asterisk, they know they're optional
-
-frozen semen inventory
 
 frozen semen: decrement straws-remaining when straws are used in a breeding (consumption tracking)
 
 frozen semen: dashboard alerts for low frozen inventory
-
-fluid tracking (need more detail)
 
 calendar at a glance for all mares, need to think on visual design
 
@@ -28,14 +16,10 @@ mare ovulation trends
 
 photos (mares? foals? U/S screen?)
 
-able to set reminders in-app (ie next scan, next meds dose, etc)
-
 prompts/notifications based on recorded actions (ie fluid detected: remind user to flush/infuse) - need to think on this
 
 auto-schedule events based on recorded actions (eg mare bred on day X → automatically add 14-day and 30-day pregnancy checks to the calendar; ovulation detected → schedule next scan; foal born → schedule IgG test, first vet check, etc)
 
 cyst mapping
-
-import/export individual horses as a temporary workaround for multiple users
 
 foaling record summary page for established foaling records, with edit actions and linked foal milestones when applicable

@@ -7,6 +7,7 @@ import { MareDetailScreen } from '@/screens/MareDetailScreen';
 import { EditMareScreen } from '@/screens/EditMareScreen';
 import { DailyLogFormScreen } from '@/screens/DailyLogFormScreen';
 import { BreedingEventDetailScreen } from '@/screens/BreedingEventDetailScreen';
+import { FoalingEventDetailScreen } from '@/screens/FoalingEventDetailScreen';
 import { BreedingRecordFormScreen } from '@/screens/BreedingRecordFormScreen';
 import { PregnancyCheckFormScreen } from '@/screens/PregnancyCheckFormScreen';
 import { FoalingRecordFormScreen } from '@/screens/FoalingRecordFormScreen';
@@ -67,6 +68,7 @@ export type RootStackParamList = {
     defaultDate?: LocalDate;
   };
   FoalingRecordForm: { mareId: string; foalingRecordId?: string };
+  FoalingEventDetail: { foalingRecordId: string };
   FoalForm: { mareId: string; foalingRecordId: string; foalId?: string; defaultSex?: FoalSex | null };
   MedicationForm: { mareId: string; medicationLogId?: string; taskId?: string; defaultDate?: LocalDate };
   TaskForm: {
@@ -106,6 +108,7 @@ export function AppNavigator(): JSX.Element {
         <Stack.Screen name="BreedingEventDetail" component={BreedingEventDetailScreen} options={{ title: 'Breeding Event' }} />
         <Stack.Screen name="BreedingRecordForm" component={BreedingRecordFormScreen} options={{ title: 'Breeding Record' }} />
         <Stack.Screen name="PregnancyCheckForm" component={PregnancyCheckFormScreen} options={{ title: 'Pregnancy Check' }} />
+        <Stack.Screen name="FoalingEventDetail" component={FoalingEventDetailScreen} options={{ title: 'Foaling Record' }} />
         <Stack.Screen name="FoalingRecordForm" component={FoalingRecordFormScreen} options={{ title: 'Foaling Record' }} />
         <Stack.Screen name="FoalForm" component={FoalFormScreen} options={{ title: 'Foal Record' }} />
         <Stack.Screen name="MedicationForm" component={MedicationFormScreen} options={{ title: 'Medication' }} />

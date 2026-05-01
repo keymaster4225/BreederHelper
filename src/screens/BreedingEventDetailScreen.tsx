@@ -326,7 +326,6 @@ function RelatedFoalingSection({
       ) : null}
       {foalingRecords.map((record) => {
         const foal = foalByFoalingRecordId[record.id];
-        const isLiveFoal = record.outcome === 'liveFoal';
         const foalDateLabel = formatLocalDate(record.date, 'MM-DD-YYYY');
 
         const cardBody = (
@@ -351,25 +350,14 @@ function RelatedFoalingSection({
               <Text style={cardStyles.cardTitle}>{foalDateLabel}</Text>
               <EditIconButton onPress={() => navigation.navigate('FoalingRecordForm', { mareId, foalingRecordId: record.id })} />
             </View>
-            {isLiveFoal ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`${foal ? 'Open' : 'Add'} foal record from ${foalDateLabel}`}
-                onPress={() =>
-                  navigation.navigate('FoalForm', {
-                    mareId,
-                    foalingRecordId: record.id,
-                    foalId: foal?.id,
-                    defaultSex: record.foalSex,
-                  })
-                }
-                style={({ pressed }) => [styles.cardBodyPressable, pressed && styles.pressed]}
-              >
-                {cardBody}
-              </Pressable>
-            ) : (
-              cardBody
-            )}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Open foaling record from ${foalDateLabel}`}
+              onPress={() => navigation.navigate('FoalingEventDetail', { foalingRecordId: record.id })}
+              style={({ pressed }) => [styles.cardBodyPressable, pressed && styles.pressed]}
+            >
+              {cardBody}
+            </Pressable>
           </View>
         );
       })}
