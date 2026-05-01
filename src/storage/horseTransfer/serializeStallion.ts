@@ -80,6 +80,7 @@ export async function exportStallionTransfer(
           raw_volume_ml,
           extender_type,
           concentration_millions_per_ml,
+          motility_percent,
           progressive_motility_percent,
           target_mode,
           target_motile_sperm_millions_per_dose,
