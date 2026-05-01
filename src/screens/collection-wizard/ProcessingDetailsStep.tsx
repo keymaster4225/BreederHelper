@@ -26,6 +26,7 @@ import { EXTENDER_TYPES } from '@/utils/extenderTypes';
 type Props = {
   rawVolumeMl: number | null;
   concentrationMillionsPerMl: number | null;
+  motilityPercent: number | null;
   progressiveMotilityPercent: number | null;
   targetMode: CollectionTargetMode;
   onTargetModeChange: (value: CollectionTargetMode) => void;
@@ -57,6 +58,7 @@ function formatApprox(value: number | null): string {
 export function ProcessingDetailsStep({
   rawVolumeMl,
   concentrationMillionsPerMl,
+  motilityPercent,
   progressiveMotilityPercent,
   targetMode,
   onTargetModeChange,
@@ -109,6 +111,12 @@ export function ProcessingDetailsStep({
           </View>
           <View style={styles.chip}>
             <Text style={styles.chipLabel}>Motility</Text>
+            <Text style={styles.chipValue}>
+              {motilityPercent == null ? '-' : `${motilityPercent}%`}
+            </Text>
+          </View>
+          <View style={styles.chip}>
+            <Text style={styles.chipLabel}>Progressive</Text>
             <Text style={styles.chipValue}>
               {progressiveMotilityPercent == null ? '-' : `${progressiveMotilityPercent}%`}
             </Text>

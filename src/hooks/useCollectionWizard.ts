@@ -62,6 +62,7 @@ type StepFieldErrors = {
   collectionDate?: string;
   rawVolumeMl?: string;
   concentrationMillionsPerMl?: string;
+  motilityPercent?: string;
   progressiveMotilityPercent?: string;
   targetSpermMillionsPerDose?: string;
   targetPostExtensionConcentrationMillionsPerMl?: string;
@@ -124,6 +125,7 @@ export function useCollectionWizard({
   const [collectionDate, setCollectionDate] = useState('');
   const [rawVolumeMl, setRawVolumeMl] = useState('');
   const [concentrationMillionsPerMl, setConcentrationMillionsPerMl] = useState('');
+  const [motilityPercent, setMotilityPercent] = useState('');
   const [progressiveMotilityPercent, setProgressiveMotilityPercent] = useState('');
   const [targetMode, setTargetMode] = useState<CollectionTargetMode>('progressive');
 
@@ -171,6 +173,10 @@ export function useCollectionWizard({
   const parsedConcentrationMillionsPerMl = useMemo(
     () => parseOptionalNumber(concentrationMillionsPerMl),
     [concentrationMillionsPerMl],
+  );
+  const parsedMotilityPercent = useMemo(
+    () => parseOptionalInteger(motilityPercent),
+    [motilityPercent],
   );
   const parsedProgressiveMotilityPercent = useMemo(
     () => parseOptionalInteger(progressiveMotilityPercent),
@@ -288,10 +294,17 @@ export function useCollectionWizard({
         'Concentration',
         100000,
       ),
+      motilityPercent:
+        validateNumberRange(
+          parsedMotilityPercent,
+          'Motility',
+          0,
+          100,
+        ) ?? undefined,
       progressiveMotilityPercent:
         validateNumberRange(
           parsedProgressiveMotilityPercent,
-          'Motility',
+          'Progressive Motility',
           0,
           100,
         ) ?? undefined,
@@ -504,6 +517,7 @@ export function useCollectionWizard({
           rawVolumeMl: parsedRawVolumeMl,
           extenderType: extenderType || null,
           concentrationMillionsPerMl: parsedConcentrationMillionsPerMl,
+          motilityPercent: parsedMotilityPercent,
           progressiveMotilityPercent: parsedProgressiveMotilityPercent,
           targetMode: getPersistedCollectionTargetMode({
             targetMode,
@@ -537,6 +551,8 @@ export function useCollectionWizard({
     setRawVolumeMl,
     concentrationMillionsPerMl,
     setConcentrationMillionsPerMl,
+    motilityPercent,
+    setMotilityPercent,
     progressiveMotilityPercent,
     setProgressiveMotilityPercent,
     targetMode,
@@ -554,6 +570,7 @@ export function useCollectionWizard({
     setNotes,
     parsedRawVolumeMl,
     parsedConcentrationMillionsPerMl,
+    parsedMotilityPercent,
     parsedProgressiveMotilityPercent,
     parsedTargetSpermMillionsPerDose,
     parsedTargetPostExtensionConcentrationMillionsPerMl,

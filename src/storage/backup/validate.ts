@@ -1083,6 +1083,9 @@ function validateSemenCollectionRow(
   if (!isNullableFiniteNumberAtLeast(row.concentration_millions_per_ml, 0)) {
     return rowFailure('semen_collections', rowIndex, 'concentration_millions_per_ml', 'must be >= 0 or null');
   }
+  if ('motility_percent' in row && !isNullableIntegerInRange(row.motility_percent, 0, 100)) {
+    return rowFailure('semen_collections', rowIndex, 'motility_percent', 'must be 0-100 or null');
+  }
   if (!isNullableIntegerInRange(row.progressive_motility_percent, 0, 100)) {
     return rowFailure('semen_collections', rowIndex, 'progressive_motility_percent', 'must be 0-100 or null');
   }

@@ -62,8 +62,8 @@ function formatCollectionLabel(collection: SemenCollection): string {
   const date = formatLocalDate(collection.collectionDate, 'MM-DD-YYYY');
   const volume = collection.rawVolumeMl != null ? `${collection.rawVolumeMl} mL` : '-';
   const motility =
-    collection.progressiveMotilityPercent != null
-      ? `${collection.progressiveMotilityPercent}%`
+    collection.motilityPercent != null
+      ? `${collection.motilityPercent}%`
       : '-';
   return `${date} - ${volume} - ${motility} motility`;
 }
@@ -285,8 +285,8 @@ export function useBreedingRecordForm({
       if (collection.concentrationMillionsPerMl != null) {
         setConcentrationMPerMl(String(collection.concentrationMillionsPerMl));
       }
-      if (collection.progressiveMotilityPercent != null) {
-        setMotilityPercent(String(collection.progressiveMotilityPercent));
+      if (collection.motilityPercent != null || collection.progressiveMotilityPercent != null) {
+        setMotilityPercent(String(collection.motilityPercent ?? collection.progressiveMotilityPercent));
       }
       if (collection.collectionDate) {
         setCollectionDate(collection.collectionDate);

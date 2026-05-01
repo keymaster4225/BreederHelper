@@ -1341,6 +1341,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_open_breeding_preg_check_unique
     AND source_reason = 'breedingPregnancyCheck';
 `;
 
+const migration028 = `
+ALTER TABLE semen_collections
+  ADD COLUMN motility_percent INTEGER CHECK (motility_percent IS NULL OR motility_percent BETWEEN 0 AND 100);
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -1567,6 +1572,12 @@ const migrations: Migration[] = [
       (await indexExists(db, 'idx_tasks_open_due')) &&
       (await indexExists(db, 'idx_tasks_source')) &&
       (await indexExists(db, 'idx_tasks_open_breeding_preg_check_unique')),
+  },
+  {
+    id: 28,
+    name: '028_collection_motility_percent',
+    statements: splitStatements(migration028),
+    shouldSkip: async (db) => hasColumn(db, 'semen_collections', 'motility_percent'),
   },
 ];
 

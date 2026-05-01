@@ -466,6 +466,7 @@ function createFakeDb(options: {
                 'extender_volume_ml',
                 'extender_type',
                 'concentration_millions_per_ml',
+                'motility_percent',
                 'progressive_motility_percent',
                 'dose_count',
                 'dose_size_millions',
@@ -725,6 +726,7 @@ describe('applyMigrations', () => {
         'raw_volume_ml',
         'extender_type',
         'concentration_millions_per_ml',
+        'motility_percent',
         'progressive_motility_percent',
         'target_motile_sperm_millions_per_dose',
         'target_post_extension_concentration_millions_per_ml',
@@ -816,7 +818,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([21, 22, 23, 24, 25, 26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([21, 22, 23, 24, 25, 26, 27, 28]);
   });
 
   it('applies migration022 when frozen_semen_batches artifacts are missing', async () => {
@@ -864,7 +866,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([22, 23, 24, 25, 26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([22, 23, 24, 25, 26, 27, 28]);
   });
 
   it('skips migration019 when target and dose volume columns already exist', async () => {
@@ -882,6 +884,7 @@ describe('applyMigrations', () => {
         'raw_volume_ml',
         'extender_type',
         'concentration_millions_per_ml',
+        'motility_percent',
         'progressive_motility_percent',
         'target_mode',
         'target_motile_sperm_millions_per_dose',
@@ -920,7 +923,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20, 21, 22, 23, 24, 25, 26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20, 21, 22, 23, 24, 25, 26, 27, 28]);
   });
 
   it('skips the repair migration when breeding_records already references semen_collections', async () => {
@@ -959,7 +962,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]);
   });
 
   it('runs the repair migration when the legacy table still exists even if breeding_records already looks correct', async () => {
@@ -997,6 +1000,7 @@ describe('applyMigrations', () => {
         'raw_volume_ml',
         'extended_volume_ml',
         'concentration_millions_per_ml',
+        'motility_percent',
         'progressive_motility_percent',
         'dose_count',
         'dose_size_millions',
@@ -1100,7 +1104,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]);
   });
 
   it('rebuilds stallions and semen_collections when canonical constraint checks are missing', async () => {
@@ -1202,7 +1206,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE stallions_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]);
   });
 
   it('fails the canonical repair migration with a targeted error when legacy stallion rows are invalid', async () => {
@@ -1356,7 +1360,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([24, 25, 26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([24, 25, 26, 27, 28]);
   });
 
   it('adds uterine flush tables and medication source linkage in migration025', async () => {
@@ -1397,7 +1401,7 @@ describe('applyMigrations', () => {
     expect(
       execCalls.some((sql) => sql.includes('CREATE INDEX IF NOT EXISTS idx_medication_logs_source_daily_log_id')),
     ).toBe(true);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27, 28]);
   });
 
   it('skips migration025 when flush and medication linkage artifacts already exist', async () => {
@@ -1413,7 +1417,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27, 28]);
   });
 
   it('completes partially present migration025 artifacts without re-adding the medication column', async () => {
@@ -1437,7 +1441,7 @@ describe('applyMigrations', () => {
     expect(
       execCalls.some((sql) => sql.includes('CREATE INDEX IF NOT EXISTS idx_medication_logs_source_daily_log_id')),
     ).toBe(true);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27, 28]);
   });
 
   it('rebuilds breeding_records with time and date-time indexes in migration026', async () => {
@@ -1496,7 +1500,7 @@ describe('applyMigrations', () => {
       ),
     ).toBe(true);
     expect(execCalls.some((sql) => sql.includes('DROP TABLE breeding_records'))).toBe(true);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([26, 27, 28]);
   });
 
   it('skips migration026 when time and date-time index artifacts already exist', async () => {
@@ -1513,7 +1517,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([26, 27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([26, 27, 28]);
   });
 
   it('creates the tasks table in migration027', async () => {
@@ -1540,7 +1544,7 @@ describe('applyMigrations', () => {
     expect(createTableSql).toContain('completed_record_type TEXT');
     expect(createTableSql).toContain('source_reason TEXT');
     expect(createTableSql).toContain('FOREIGN KEY (mare_id) REFERENCES mares(id) ON UPDATE CASCADE ON DELETE RESTRICT');
-    expect(runCalls.map(({ params }) => params[0])).toEqual([27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([27, 28]);
   });
 
   it('creates all task indexes in migration027', async () => {
@@ -1591,6 +1595,6 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([27]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([27, 28]);
   });
 });

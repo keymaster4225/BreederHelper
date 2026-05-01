@@ -34,6 +34,7 @@ type CollectionRow = {
   raw_volume_ml: number | null;
   extender_type: string | null;
   concentration_millions_per_ml: number | null;
+  motility_percent: number | null;
   progressive_motility_percent: number | null;
   target_mode: 'progressive' | 'total' | null;
   target_motile_sperm_millions_per_dose: number | null;
@@ -102,6 +103,7 @@ function createCollectionWizardRepoHarness() {
           rawVolumeMl,
           extenderType,
           concentrationMillionsPerMl,
+          motilityPercent,
           progressiveMotilityPercent,
           targetMode,
           targetSpermMillionsPerDose,
@@ -115,6 +117,7 @@ function createCollectionWizardRepoHarness() {
           string,
           number | null,
           string | null,
+          number | null,
           number | null,
           number | null,
           'progressive' | 'total' | null,
@@ -131,6 +134,7 @@ function createCollectionWizardRepoHarness() {
           raw_volume_ml: rawVolumeMl,
           extender_type: extenderType,
           concentration_millions_per_ml: concentrationMillionsPerMl,
+          motility_percent: motilityPercent,
           progressive_motility_percent: progressiveMotilityPercent,
           target_mode: targetMode,
           target_motile_sperm_millions_per_dose: targetSpermMillionsPerDose,
@@ -344,6 +348,7 @@ describe('collection wizard repository', () => {
         collectionDate: '2026-04-01',
         rawVolumeMl: 50,
         concentrationMillionsPerMl: 200,
+        motilityPercent: 85,
         progressiveMotilityPercent: 75,
         targetMode: 'progressive',
         targetSpermMillionsPerDose: 500,
@@ -383,7 +388,10 @@ describe('collection wizard repository', () => {
     expect(fakeDb.collections.size).toBe(1);
     expect(fakeDb.breedingRecords.size).toBe(1);
     expect(fakeDb.doseEvents.size).toBe(2);
-    expect(fakeDb.collections.get('collection-1')?.target_mode).toBe('progressive');
+    const collection = fakeDb.collections.get('collection-1');
+    expect(collection?.motility_percent).toBe(85);
+    expect(collection?.progressive_motility_percent).toBe(75);
+    expect(collection?.target_mode).toBe('progressive');
 
     const breedingRecord = fakeDb.breedingRecords.get('breeding-1');
     expect(breedingRecord?.collection_id).toBe('collection-1');
@@ -391,7 +399,7 @@ describe('collection wizard repository', () => {
     expect(breedingRecord?.time).toBe('09:30');
     expect(breedingRecord?.volume_ml).toBe(5);
     expect(breedingRecord?.concentration_m_per_ml).toBe(200);
-    expect(breedingRecord?.motility_percent).toBe(75);
+    expect(breedingRecord?.motility_percent).toBe(85);
     expect(breedingRecord?.collection_date).toBe('2026-04-01');
 
     const usedOnSiteEvent = Array.from(fakeDb.doseEvents.values()).find((event) => event.event_type === 'usedOnSite');

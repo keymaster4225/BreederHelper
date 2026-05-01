@@ -12,6 +12,7 @@ type SemenCollectionRow = {
   raw_volume_ml: number | null;
   extender_type: string | null;
   concentration_millions_per_ml: number | null;
+  motility_percent: number | null;
   progressive_motility_percent: number | null;
   target_mode: 'progressive' | 'total' | null;
   target_motile_sperm_millions_per_dose: number | null;
@@ -29,6 +30,7 @@ function mapRow(row: SemenCollectionRow): SemenCollection {
     rawVolumeMl: row.raw_volume_ml,
     extenderType: row.extender_type,
     concentrationMillionsPerMl: row.concentration_millions_per_ml,
+    motilityPercent: row.motility_percent,
     progressiveMotilityPercent: row.progressive_motility_percent,
     targetMode: row.target_mode,
     targetSpermMillionsPerDose: row.target_motile_sperm_millions_per_dose,
@@ -76,6 +78,7 @@ export async function createSemenCollection(input: {
   rawVolumeMl?: number | null;
   extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
+  motilityPercent?: number | null;
   progressiveMotilityPercent?: number | null;
   targetMode?: 'progressive' | 'total' | null;
   targetSpermMillionsPerDose?: number | null;
@@ -97,10 +100,10 @@ export async function createSemenCollection(input: {
     `INSERT INTO semen_collections (
       id, stallion_id, collection_date,
       raw_volume_ml, extender_type, concentration_millions_per_ml,
-      progressive_motility_percent, target_mode, target_motile_sperm_millions_per_dose,
+      motility_percent, progressive_motility_percent, target_mode, target_motile_sperm_millions_per_dose,
       target_post_extension_concentration_millions_per_ml,
       notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     [
       input.id,
       input.stallionId,
@@ -108,6 +111,7 @@ export async function createSemenCollection(input: {
       input.rawVolumeMl ?? null,
       input.extenderType ?? null,
       input.concentrationMillionsPerMl ?? null,
+      input.motilityPercent ?? null,
       input.progressiveMotilityPercent ?? null,
       input.targetMode ?? null,
       input.targetSpermMillionsPerDose ?? null,
@@ -127,6 +131,7 @@ export async function updateSemenCollection(
     rawVolumeMl?: number | null;
     extenderType?: string | null;
     concentrationMillionsPerMl?: number | null;
+    motilityPercent?: number | null;
     progressiveMotilityPercent?: number | null;
     targetMode?: 'progressive' | 'total' | null;
     targetSpermMillionsPerDose?: number | null;
@@ -145,6 +150,7 @@ export async function updateSemenCollection(
        raw_volume_ml = ?,
        extender_type = ?,
        concentration_millions_per_ml = ?,
+       motility_percent = ?,
        progressive_motility_percent = ?,
        target_mode = ?,
        target_motile_sperm_millions_per_dose = ?,
@@ -157,6 +163,7 @@ export async function updateSemenCollection(
       input.rawVolumeMl ?? null,
       input.extenderType ?? null,
       input.concentrationMillionsPerMl ?? null,
+      input.motilityPercent ?? null,
       input.progressiveMotilityPercent ?? null,
       input.targetMode ?? null,
       input.targetSpermMillionsPerDose ?? null,

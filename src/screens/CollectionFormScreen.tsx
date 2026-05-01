@@ -35,6 +35,7 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
     rawVolumeMl,
     extenderType,
     concentrationMillionsPerMl,
+    motilityPercent,
     progressiveMotilityPercent,
     targetMode,
     targetSpermMillionsPerDose,
@@ -56,6 +57,7 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
     setRawVolumeMl,
     setExtenderType,
     setConcentrationMillionsPerMl,
+    setMotilityPercent,
     setProgressiveMotilityPercent,
     setTargetSpermMillionsPerDose,
     setTargetPostExtensionConcentrationMillionsPerMl,
@@ -93,6 +95,15 @@ export function CollectionFormScreen({ navigation, route }: Props): JSX.Element 
             <FormTextInput
               value={concentrationMillionsPerMl}
               onChangeText={setConcentrationMillionsPerMl}
+              keyboardType="numeric"
+            />
+          </FormField>
+
+          <FormField label="Motility (%)" error={errors.motilityPercent}>
+            <FormTextInput
+              value={motilityPercent}
+              onChangeText={setMotilityPercent}
+              placeholder="0-100"
               keyboardType="numeric"
             />
           </FormField>
