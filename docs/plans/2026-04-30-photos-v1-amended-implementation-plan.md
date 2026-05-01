@@ -614,9 +614,28 @@ Verification completed:
 - `npm run lint` passed.
 - Standalone TypeScript check for `scripts/spikes/photos-archive-spike.ts` passed.
 
+Device runtime spike evidence:
+
+- Android runtime result recorded on 2026-04-30 from `adb logcat` with tag `PHOTOS_ARCHIVE_SPIKE_RESULT`.
+- Android passed the binary round-trip, append-write, and 100 x 2 MB heap gate: `streamedBytesWritten` was `209715200`, `peakJsHeapBytes` was `8890536`, and `passed` was `true`.
+- Raw Android result:
+
+```json
+{
+  "platform": "android",
+  "fileSystemImportPath": "expo-file-system",
+  "bytesRoundTrip": true,
+  "appendWrite": true,
+  "streamedBytesWritten": 209715200,
+  "peakJsHeapBytes": 8890536,
+  "fallbackDecision": "Proceed only if this passes on both iOS and Android and peak JS heap remains below 150 MB.",
+  "passed": true
+}
+```
+
 Remaining Phase 0 hard gate:
 
-- Run `scripts/spikes/photos-archive-spike.ts` in real iOS and Android Expo runtimes.
+- Run `scripts/spikes/photos-archive-spike.ts` in a real iOS Expo runtime.
 - Record platform, binary round-trip result, append-write result, streamed byte count, peak JS heap, and pass/fail fallback decision.
 - Do not start Phase 1 until both platforms pass binary append writes and the 100 x 2 MB stress spike records peak JS heap below 150 MB.
 
