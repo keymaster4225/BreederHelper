@@ -352,6 +352,7 @@ async function insertSemenCollection(
       raw_volume_ml,
       extender_type,
       concentration_millions_per_ml,
+      motility_percent,
       progressive_motility_percent,
       target_mode,
       target_motile_sperm_millions_per_dose,
@@ -359,7 +360,7 @@ async function insertSemenCollection(
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
@@ -368,6 +369,7 @@ async function insertSemenCollection(
       row.raw_volume_ml,
       row.extender_type,
       row.concentration_millions_per_ml,
+      row.motility_percent ?? null,
       row.progressive_motility_percent,
       normalizedTargetMode,
       row.target_motile_sperm_millions_per_dose,
@@ -1059,6 +1061,7 @@ function normalizeLegacySemenCollectionRow(
     raw_volume_ml: row.raw_volume_ml,
     extender_type: row.extender_type ?? null,
     concentration_millions_per_ml: row.concentration_millions_per_ml,
+    motility_percent: null,
     progressive_motility_percent: row.progressive_motility_percent,
     target_mode: null,
     target_motile_sperm_millions_per_dose: null,

@@ -208,8 +208,11 @@ export function BreedingEventDetailScreen({ navigation, route }: Props): JSX.Ele
               )
             ) : null}
             {collection?.rawVolumeMl != null ? <CardRow label="Raw volume" value={formatMl(collection.rawVolumeMl)} /> : null}
+            {collection?.motilityPercent != null ? (
+              <CardRow label="Collection motility" value={formatPercent(collection.motilityPercent)} />
+            ) : null}
             {collection?.progressiveMotilityPercent != null ? (
-              <CardRow label="Collection motility" value={formatPercent(collection.progressiveMotilityPercent)} />
+              <CardRow label="Collection progressive motility" value={formatPercent(collection.progressiveMotilityPercent)} />
             ) : null}
             {record.collectionDate ? <CardRow label="Collection date" value={formatLocalDate(record.collectionDate, 'MM-DD-YYYY')} /> : null}
             {(record.method === 'freshAI' || record.method === 'shippedCooledAI') ? (

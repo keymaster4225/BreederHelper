@@ -36,6 +36,7 @@ type FormErrors = {
   collectionDate?: string;
   rawVolumeMl?: string;
   concentrationMillionsPerMl?: string;
+  motilityPercent?: string;
   progressiveMotilityPercent?: string;
   targetSpermMillionsPerDose?: string;
   targetPostExtensionConcentrationMillionsPerMl?: string;
@@ -78,6 +79,7 @@ export function useCollectionForm({
   const [rawVolumeMl, setRawVolumeMl] = useState('');
   const [extenderType, setExtenderType] = useState('');
   const [concentrationMillionsPerMl, setConcentrationMillionsPerMl] = useState('');
+  const [motilityPercent, setMotilityPercent] = useState('');
   const [progressiveMotilityPercent, setProgressiveMotilityPercent] = useState('');
   const [targetMode, setTargetMode] = useState<CollectionTargetMode>('progressive');
   const [targetSpermMillionsPerDose, setTargetSpermMillionsPerDose] = useState('');
@@ -117,6 +119,11 @@ export function useCollectionForm({
             ? String(record.concentrationMillionsPerMl)
             : '',
         );
+        setMotilityPercent(
+          record.motilityPercent != null
+            ? String(record.motilityPercent)
+            : '',
+        );
         setProgressiveMotilityPercent(
           record.progressiveMotilityPercent != null
             ? String(record.progressiveMotilityPercent)
@@ -144,6 +151,10 @@ export function useCollectionForm({
   const parsedConcentrationMillionsPerMl = useMemo(
     () => parseOptionalNumber(concentrationMillionsPerMl),
     [concentrationMillionsPerMl],
+  );
+  const parsedMotilityPercent = useMemo(
+    () => parseOptionalInteger(motilityPercent),
+    [motilityPercent],
   );
   const parsedProgressiveMotilityPercent = useMemo(
     () => parseOptionalInteger(progressiveMotilityPercent),
@@ -233,6 +244,13 @@ export function useCollectionForm({
         'Concentration',
         100000,
       ),
+      motilityPercent:
+        validateNumberRange(
+          parsedMotilityPercent,
+          'Motility',
+          0,
+          100,
+        ) ?? undefined,
       progressiveMotilityPercent:
         validateNumberRange(
           parsedProgressiveMotilityPercent,
@@ -254,6 +272,7 @@ export function useCollectionForm({
   }, [
     collectionDate,
     concentrationMillionsPerMl,
+    parsedMotilityPercent,
     parsedProgressiveMotilityPercent,
     rawVolumeMl,
     targetPostExtensionConcentrationMillionsPerMl,
@@ -274,6 +293,7 @@ export function useCollectionForm({
         rawVolumeMl: parsedRawVolumeMl,
         extenderType: extenderType.trim() || null,
         concentrationMillionsPerMl: parsedConcentrationMillionsPerMl,
+        motilityPercent: parsedMotilityPercent,
         progressiveMotilityPercent: parsedProgressiveMotilityPercent,
         targetMode: getPersistedCollectionTargetMode({
           targetMode,
@@ -301,6 +321,7 @@ export function useCollectionForm({
     notes,
     onGoBack,
     parsedConcentrationMillionsPerMl,
+    parsedMotilityPercent,
     parsedProgressiveMotilityPercent,
     parsedRawVolumeMl,
     parsedTargetPostExtensionConcentrationMillionsPerMl,
@@ -337,6 +358,7 @@ export function useCollectionForm({
     extenderType,
     concentrationMillionsPerMl,
     progressiveMotilityPercent,
+    motilityPercent,
     targetMode,
     targetSpermMillionsPerDose,
     targetPostExtensionConcentrationMillionsPerMl,
@@ -359,6 +381,7 @@ export function useCollectionForm({
     setRawVolumeMl,
     setExtenderType,
     setConcentrationMillionsPerMl,
+    setMotilityPercent,
     setProgressiveMotilityPercent,
     setTargetSpermMillionsPerDose,
     setTargetPostExtensionConcentrationMillionsPerMl,

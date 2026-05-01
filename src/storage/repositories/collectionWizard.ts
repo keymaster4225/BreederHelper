@@ -16,6 +16,7 @@ type CollectionDraftInput = {
   rawVolumeMl?: number | null;
   extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
+  motilityPercent?: number | null;
   progressiveMotilityPercent?: number | null;
   targetMode?: 'progressive' | 'total' | null;
   targetSpermMillionsPerDose?: number | null;
@@ -186,6 +187,7 @@ async function insertCollection(
       raw_volume_ml,
       extender_type,
       concentration_millions_per_ml,
+      motility_percent,
       progressive_motility_percent,
       target_mode,
       target_motile_sperm_millions_per_dose,
@@ -193,7 +195,7 @@ async function insertCollection(
       notes,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       collectionId,
@@ -202,6 +204,7 @@ async function insertCollection(
       input.rawVolumeMl ?? null,
       normalizeOptionalText(input.extenderType),
       input.concentrationMillionsPerMl ?? null,
+      input.motilityPercent ?? null,
       input.progressiveMotilityPercent ?? null,
       input.targetMode ?? null,
       input.targetSpermMillionsPerDose ?? null,
@@ -314,7 +317,7 @@ async function insertOnFarmAllocation(
       normalizeOptionalText(row.notes),
       row.doseSemenVolumeMl ?? null,
       collection.concentrationMillionsPerMl ?? null,
-      collection.progressiveMotilityPercent ?? null,
+      collection.motilityPercent ?? collection.progressiveMotilityPercent ?? null,
       null,
       null,
       null,

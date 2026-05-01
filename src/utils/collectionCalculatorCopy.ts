@@ -77,8 +77,8 @@ export function getTargetPostExtensionModeHelperText(
   targetMode: CollectionTargetMode | null | undefined,
 ): string {
   return getEffectiveCollectionTargetMode(targetMode) === 'total'
-    ? 'BreedWise uses total sperm/mL here. If motility is recorded, BreedWise will also show the progressive equivalent for comparison.'
-    : 'BreedWise uses progressive sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: progressive = total x (motility / 100).';
+    ? 'BreedWise uses total sperm/mL here. If progressive motility is recorded, BreedWise will also show the progressive equivalent for comparison.'
+    : 'BreedWise uses progressive sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: progressive = total x (progressive motility / 100).';
 }
 
 export function formatCollectionEquivalentHelperText(args: {
@@ -100,8 +100,8 @@ export function formatCollectionEquivalentHelperText(args: {
   }
 
   return getEffectiveCollectionTargetMode(targetMode) === 'total'
-    ? `At ${progressiveMotilityPercent}% motility, this target equals ${equivalentConcentrationMillionsPerMl.toFixed(2)} M progressive/mL.`
-    : `At ${progressiveMotilityPercent}% motility, this target equals ${equivalentConcentrationMillionsPerMl.toFixed(2)} M total/mL in calculators that use total sperm/mL.`;
+    ? `At ${progressiveMotilityPercent}% progressive motility, this target equals ${equivalentConcentrationMillionsPerMl.toFixed(2)} M progressive/mL.`
+    : `At ${progressiveMotilityPercent}% progressive motility, this target equals ${equivalentConcentrationMillionsPerMl.toFixed(2)} M total/mL in calculators that use total sperm/mL.`;
 }
 
 export function formatCollectionEquivalentValue(args: {
@@ -120,5 +120,5 @@ export function formatCollectionEquivalentValue(args: {
     return null;
   }
 
-  return `${equivalentConcentrationMillionsPerMl.toFixed(2)} M/mL at ${progressiveMotilityPercent}% motility`;
+  return `${equivalentConcentrationMillionsPerMl.toFixed(2)} M/mL at ${progressiveMotilityPercent}% progressive motility`;
 }

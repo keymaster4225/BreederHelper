@@ -53,6 +53,7 @@ type CollectionRow = {
   raw_volume_ml: number | null;
   extender_type: string | null;
   concentration_millions_per_ml: number | null;
+  motility_percent: number | null;
   progressive_motility_percent: number | null;
   target_mode: 'progressive' | 'total' | null;
   target_motile_sperm_millions_per_dose: number | null;
@@ -143,6 +144,7 @@ function createSemenCollectionRepoHarness() {
           extenderType,
           conc,
           motility,
+          progressiveMotility,
           targetMode,
           targetMotile,
           targetPostExtension,
@@ -157,6 +159,7 @@ function createSemenCollectionRepoHarness() {
           string | null,
           number | null,
           number | null,
+          number | null,
           'progressive' | 'total' | null,
           number | null,
           number | null,
@@ -167,7 +170,9 @@ function createSemenCollectionRepoHarness() {
         collections.set(id, {
           id, stallion_id: stallionId, collection_date: collectionDate,
           raw_volume_ml: rawVol, extender_type: extenderType,
-          concentration_millions_per_ml: conc, progressive_motility_percent: motility,
+          concentration_millions_per_ml: conc,
+          motility_percent: motility,
+          progressive_motility_percent: progressiveMotility,
           target_mode: targetMode,
           target_motile_sperm_millions_per_dose: targetMotile,
           target_post_extension_concentration_millions_per_ml: targetPostExtension,
@@ -184,6 +189,7 @@ function createSemenCollectionRepoHarness() {
           extenderType,
           conc,
           motility,
+          progressiveMotility,
           targetMode,
           targetMotile,
           targetPostExtension,
@@ -194,6 +200,7 @@ function createSemenCollectionRepoHarness() {
           string,
           number | null,
           string | null,
+          number | null,
           number | null,
           number | null,
           'progressive' | 'total' | null,
@@ -208,7 +215,9 @@ function createSemenCollectionRepoHarness() {
           collections.set(id, {
             ...existing, collection_date: collectionDate,
             raw_volume_ml: rawVol, extender_type: extenderType,
-            concentration_millions_per_ml: conc, progressive_motility_percent: motility,
+            concentration_millions_per_ml: conc,
+            motility_percent: motility,
+            progressive_motility_percent: progressiveMotility,
             target_mode: targetMode,
             target_motile_sperm_millions_per_dose: targetMotile,
             target_post_extension_concentration_millions_per_ml: targetPostExtension,
@@ -410,6 +419,7 @@ describe('semen collection repository', () => {
       collectionDate: '2026-04-01',
       rawVolumeMl: 50,
       extenderType: 'INRA 96',
+      motilityPercent: 85,
       progressiveMotilityPercent: 75,
       targetMode: 'progressive',
       targetSpermMillionsPerDose: 500,
@@ -421,6 +431,7 @@ describe('semen collection repository', () => {
     expect(fetched?.stallionId).toBe('st-1');
     expect(fetched?.rawVolumeMl).toBe(50);
     expect(fetched?.extenderType).toBe('INRA 96');
+    expect(fetched?.motilityPercent).toBe(85);
     expect(fetched?.progressiveMotilityPercent).toBe(75);
     expect(fetched?.targetMode).toBe('progressive');
     expect(fetched?.targetSpermMillionsPerDose).toBe(500);
@@ -430,6 +441,7 @@ describe('semen collection repository', () => {
       collectionDate: '2026-04-02',
       rawVolumeMl: 55,
       extenderType: 'BotuSemen',
+      motilityPercent: 88,
       progressiveMotilityPercent: 80,
       targetMode: 'total',
       targetSpermMillionsPerDose: 550,
@@ -440,6 +452,7 @@ describe('semen collection repository', () => {
     expect(updated?.collectionDate).toBe('2026-04-02');
     expect(updated?.rawVolumeMl).toBe(55);
     expect(updated?.extenderType).toBe('BotuSemen');
+    expect(updated?.motilityPercent).toBe(88);
     expect(updated?.targetMode).toBe('total');
     expect(updated?.targetSpermMillionsPerDose).toBe(550);
     expect(updated?.targetPostExtensionConcentrationMillionsPerMl).toBe(220);
