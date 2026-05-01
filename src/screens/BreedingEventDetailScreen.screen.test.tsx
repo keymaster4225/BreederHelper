@@ -204,27 +204,9 @@ it('renders breeding details and navigates to related records and cross-links', 
     pregnancyCheckId: 'check-1',
   });
 
-  fireEvent.press(screen.getByLabelText('Open foal record from 03-07-2027'));
-  expect(screen.navigation.navigate).toHaveBeenCalledWith('FoalForm', {
-    mareId: 'mare-1',
+  fireEvent.press(screen.getByLabelText('Open foaling record from 03-07-2027'));
+  expect(screen.navigation.navigate).toHaveBeenCalledWith('FoalingEventDetail', {
     foalingRecordId: 'foaling-1',
-    foalId: 'foal-1',
-    defaultSex: 'filly',
-  });
-});
-
-it('opens foal create flow from live-foal records when no foal is linked yet', async () => {
-  repositories.listFoalsByMare.mockResolvedValue([]);
-  const screen = renderScreen();
-
-  await waitFor(() => expect(screen.getByText('Foaling Records')).toBeTruthy(), { timeout: 3000 });
-
-  fireEvent.press(screen.getByLabelText('Add foal record from 03-07-2027'));
-  expect(screen.navigation.navigate).toHaveBeenCalledWith('FoalForm', {
-    mareId: 'mare-1',
-    foalingRecordId: 'foaling-1',
-    foalId: undefined,
-    defaultSex: 'filly',
   });
 });
 
