@@ -7,12 +7,15 @@ type Props = {
   setRawVolumeMl: (value: string) => void;
   concentrationMillionsPerMl: string;
   setConcentrationMillionsPerMl: (value: string) => void;
+  motilityPercent: string;
+  setMotilityPercent: (value: string) => void;
   progressiveMotilityPercent: string;
   setProgressiveMotilityPercent: (value: string) => void;
   errors: {
     collectionDate?: string;
     rawVolumeMl?: string;
     concentrationMillionsPerMl?: string;
+    motilityPercent?: string;
     progressiveMotilityPercent?: string;
   };
 };
@@ -24,6 +27,8 @@ export function CollectionBasicsStep({
   setRawVolumeMl,
   concentrationMillionsPerMl,
   setConcentrationMillionsPerMl,
+  motilityPercent,
+  setMotilityPercent,
   progressiveMotilityPercent,
   setProgressiveMotilityPercent,
   errors,
@@ -60,6 +65,18 @@ export function CollectionBasicsStep({
 
       <FormField
         label="Motility (%)"
+        error={errors.motilityPercent}
+      >
+        <FormTextInput
+          value={motilityPercent}
+          onChangeText={setMotilityPercent}
+          placeholder="0-100"
+          keyboardType="numeric"
+        />
+      </FormField>
+
+      <FormField
+        label="Progressive Motility (%)"
         error={errors.progressiveMotilityPercent}
       >
         <FormTextInput

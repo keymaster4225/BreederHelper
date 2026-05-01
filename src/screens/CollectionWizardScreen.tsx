@@ -60,6 +60,8 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
               setRawVolumeMl={wizard.setRawVolumeMl}
               concentrationMillionsPerMl={wizard.concentrationMillionsPerMl}
               setConcentrationMillionsPerMl={wizard.setConcentrationMillionsPerMl}
+              motilityPercent={wizard.motilityPercent}
+              setMotilityPercent={wizard.setMotilityPercent}
               progressiveMotilityPercent={wizard.progressiveMotilityPercent}
               setProgressiveMotilityPercent={wizard.setProgressiveMotilityPercent}
               errors={wizard.errors}
@@ -70,6 +72,7 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
             <ProcessingDetailsStep
               rawVolumeMl={wizard.parsedRawVolumeMl}
               concentrationMillionsPerMl={wizard.parsedConcentrationMillionsPerMl}
+              motilityPercent={wizard.parsedMotilityPercent}
               progressiveMotilityPercent={wizard.parsedProgressiveMotilityPercent}
               targetMode={wizard.targetMode}
               onTargetModeChange={wizard.onTargetModeChange}
@@ -113,6 +116,7 @@ export function CollectionWizardScreen({ navigation, route }: Props): JSX.Elemen
               collectionDate={wizard.collectionDate}
               rawVolumeMl={wizard.parsedRawVolumeMl}
               concentrationMillionsPerMl={wizard.parsedConcentrationMillionsPerMl}
+              motilityPercent={wizard.parsedMotilityPercent}
               progressiveMotilityPercent={wizard.parsedProgressiveMotilityPercent}
               targetMode={wizard.targetMode}
               targetSpermMillionsPerDose={wizard.parsedTargetSpermMillionsPerDose}

@@ -21,6 +21,7 @@ type Props = {
   collectionDate: string;
   rawVolumeMl: number | null;
   concentrationMillionsPerMl: number | null;
+  motilityPercent: number | null;
   progressiveMotilityPercent: number | null;
   targetMode: CollectionTargetMode;
   targetSpermMillionsPerDose: number | null;
@@ -43,6 +44,7 @@ export function ReviewStep({
   collectionDate,
   rawVolumeMl,
   concentrationMillionsPerMl,
+  motilityPercent,
   progressiveMotilityPercent,
   targetMode,
   targetSpermMillionsPerDose,
@@ -88,6 +90,12 @@ export function ReviewStep({
         />
         <CardRow
           label="Motility"
+          value={
+            motilityPercent == null ? '-' : `${motilityPercent}%`
+          }
+        />
+        <CardRow
+          label="Progressive Motility"
           value={
             progressiveMotilityPercent == null ? '-' : `${progressiveMotilityPercent}%`
           }

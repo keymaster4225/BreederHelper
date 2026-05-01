@@ -247,6 +247,14 @@ export function CollectionsTab({
                   <CardRow
                     label="Motility"
                     value={
+                      collection.motilityPercent != null
+                        ? `${collection.motilityPercent}%`
+                        : null
+                    }
+                  />
+                  <CardRow
+                    label="Progressive Motility"
+                    value={
                       collection.progressiveMotilityPercent != null
                         ? `${collection.progressiveMotilityPercent}%`
                         : null

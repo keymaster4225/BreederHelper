@@ -270,6 +270,7 @@ export interface SemenCollection {
   rawVolumeMl?: number | null;
   extenderType?: string | null;
   concentrationMillionsPerMl?: number | null;
+  motilityPercent?: number | null;
   progressiveMotilityPercent?: number | null;
   targetMode?: CollectionTargetMode | null;
   targetSpermMillionsPerDose?: number | null;

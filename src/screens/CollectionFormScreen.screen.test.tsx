@@ -97,6 +97,7 @@ beforeEach(() => {
     rawVolumeMl: 100,
     extenderType: 'INRA 96',
     concentrationMillionsPerMl: 200,
+    motilityPercent: 80,
     progressiveMotilityPercent: 50,
     targetMode: 'total',
     targetSpermMillionsPerDose: 500,
@@ -138,6 +139,7 @@ it('renders updated collection fields and derived plan panel', async () => {
     expect(screen.getByText('Collection Date *')).toBeTruthy();
     expect(screen.getByText('Total Volume (mL)')).toBeTruthy();
     expect(screen.getByText('Concentration (M/mL, raw)')).toBeTruthy();
+    expect(screen.getByText('Motility (%)')).toBeTruthy();
     expect(screen.getByText('Progressive Motility (%)')).toBeTruthy();
     expect(screen.getByText('Target Total Sperm / Dose (M)')).toBeTruthy();
     expect(screen.getByText('Target Post-Extension Total Concentration (M/mL)')).toBeTruthy();
@@ -153,7 +155,7 @@ it('renders updated collection fields and derived plan panel', async () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        'BreedWise uses total sperm/mL here. If motility is recorded, BreedWise will also show the progressive equivalent for comparison.',
+        'BreedWise uses total sperm/mL here. If progressive motility is recorded, BreedWise will also show the progressive equivalent for comparison.',
       ),
     ).toBeTruthy();
     expect(screen.getByText('Derived Plan')).toBeTruthy();
@@ -161,7 +163,7 @@ it('renders updated collection fields and derived plan panel', async () => {
     expect(screen.getByText('Semen Per Dose')).toBeTruthy();
     expect(screen.getByText('Extender Per Dose')).toBeTruthy();
     expect(screen.getByText('Progressive Equivalent')).toBeTruthy();
-    expect(screen.getByText('50.00 M/mL at 50% motility')).toBeTruthy();
+    expect(screen.getByText('50.00 M/mL at 50% progressive motility')).toBeTruthy();
   });
 });
 
@@ -189,6 +191,7 @@ it('shows the total-mode missing-motility warning without blocking edit mode', a
     rawVolumeMl: 100,
     extenderType: 'INRA 96',
     concentrationMillionsPerMl: 200,
+    motilityPercent: 80,
     progressiveMotilityPercent: null,
     targetMode: 'total',
     targetSpermMillionsPerDose: 500,
@@ -229,7 +232,7 @@ it('clears both target inputs when switching target mode in edit mode', async ()
   expect(screen.getByText('Target Post-Extension Progressive Concentration (M/mL)')).toBeTruthy();
   expect(
     screen.getByText(
-      'BreedWise uses progressive sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: progressive = total x (motility / 100).',
+      'BreedWise uses progressive sperm/mL here. If another calculator shows total sperm/mL, convert it before entering: progressive = total x (progressive motility / 100).',
     ),
   ).toBeTruthy();
   expect(
