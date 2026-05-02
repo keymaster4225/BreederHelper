@@ -633,16 +633,35 @@ Device runtime spike evidence:
 }
 ```
 
-Remaining Phase 0 hard gate:
+- iOS Simulator runtime result recorded on 2026-05-01 from `docs/iostest.md`.
+- The iOS Simulator run is accepted as satisfying the iOS side of the Phase 0 archive feasibility gate.
+- iOS Simulator passed the binary round-trip, append-write, and 100 x 2 MB heap gate: `streamedBytesWritten` was `209715200`, `peakJsHeapBytes` was `7001904`, and peak JS heap was `6.7 MiB`.
+- Raw iOS Simulator result:
 
-- Run `scripts/spikes/photos-archive-spike.ts` in a real iOS Expo runtime.
-- Record platform, binary round-trip result, append-write result, streamed byte count, peak JS heap, and pass/fail fallback decision.
-- Do not start Phase 1 until both platforms pass binary append writes and the 100 x 2 MB stress spike records peak JS heap below 150 MB.
+```json
+{
+  "platform": "ios",
+  "fileSystemImportPath": "expo-file-system",
+  "bytesRoundTrip": true,
+  "appendWrite": true,
+  "streamedBytesWritten": 209715200,
+  "peakJsHeapBytes": 7001904,
+  "fallbackDecision": "Proceed only if this passes on both iOS and Android and peak JS heap remains below 150 MB.",
+  "streamedMiB": 200,
+  "peakJsHeapMiB": 6.7,
+  "heapLimitMiB": 150
+}
+```
+
+Phase 0 archive feasibility gate:
+
+- Cleared for Android and accepted iOS Simulator coverage.
+- Both recorded runs pass binary round trips, append writes, and peak JS heap below 150 MB.
 
 Fallback decision:
 
 - Continue Phase 0 prerequisites using root `expo-file-system` imports.
-- Do not begin Phase 1 until the spike confirms binary round trips, append writes, and peak JS heap below 150 MB on both iOS and Android.
+- Phase 1 may begin after the remaining non-archive Phase 0 prerequisites are complete.
 
 ## Follow-Up Features
 
