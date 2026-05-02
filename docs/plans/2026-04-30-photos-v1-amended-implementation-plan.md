@@ -7,6 +7,8 @@ Incorporates: `2026-04-26-photos-v1-adversarial-review-round-2.md`
 
 ## Brooks-Lint Plan Review
 
+This review is retained as historical context for why the plan was amended. The sections under **Amended Source Of Truth** and later are controlling when wording differs.
+
 **Mode:** Plan Review
 **Scope:** `docs/plans/2026-04-26-photos-v1-implementation-plan.md` plus `docs/plans/2026-04-26-photos-v1-adversarial-review-round-2.md`
 **Artifact Type:** Combined Spec+Plan
@@ -19,14 +21,14 @@ Not ready to execute as written. The product shape is coherent, but the executio
 **Migration, Rollback, And Data Safety Gap - Backup schema version is stale**
 Symptom: The plan says Phase 3 will add backup schema v10, but the current repo already defines `BACKUP_SCHEMA_VERSION_V11` as current in `src/storage/backup/types.ts`.
 Source: Software Engineering at Google - backward compatibility and sustainability
-Consequence: Implementing photos as v10 would collide with existing backup semantics, confuse restore branching, and make v10/v11/v12 validation paths unreliable.
-Remedy: Treat photos as the next backup schema after rebase. As of 2026-04-30 this is expected to be v12, but the plan must say "next backup version" and explicitly update `types.ts`, `tableSpecs.ts`, `serialize.ts`, `validate.ts`, `restore.ts`, `safetyBackups.ts`, `fileIO.ts`, `testFixtures.ts`, and related tests.
+Consequence: Implementing photos as a stale hard-coded version would collide with existing backup semantics, confuse restore branching, and make versioned validation paths unreliable.
+Remedy: Treat photos as the next backup schema after rebase. The plan must say "next backup version" and explicitly update `types.ts`, `tableSpecs.ts`, `serialize.ts`, `validate.ts`, `restore.ts`, `safetyBackups.ts`, `fileIO.ts`, `testFixtures.ts`, and related tests.
 
 **Migration, Rollback, And Data Safety Gap - Archive write strategy is unproven**
 Symptom: The plan depends on modern `expo-file-system` binary APIs and chunked `fflate` output, while the current app uses `expo-file-system/legacy` for backup text I/O and `expo-file-system` is pinned to `~55.0.16`.
 Source: Code Complete - defensive programming and explicit error paths
 Consequence: If append-mode binary writes are unavailable or buffered in JS heap, backup creation can OOM or silently regress to the rejected base64-in-JSON approach.
-Remedy: Make Phase 0 a hard feasibility gate. Verify `expo-file-system/next` import path, `File.bytes()`, and append-style binary writes on iOS and Android with SDK 55 before adding feature work. If it fails, stop Photos V1 or rescope to a smaller explicit photo cap with user-visible storage warnings.
+Remedy: Make Phase 0 a hard feasibility gate. Verify the SDK 55 binary file API import path, `File.bytes()`, append-style binary writes, and the real archive writer on iOS and Android before adding feature work. If it fails, stop Photos V1 or rescope to a smaller explicit photo cap with user-visible storage warnings.
 
 **Migration, Rollback, And Data Safety Gap - Consistency sweep can delete live writes**
 Symptom: The implementation plan says to run a photo consistency sweep on app bootstrap and before backup/restore, but does not guard against photo writes that finalize files before their metadata transaction commits.
@@ -85,12 +87,14 @@ The storage decision remains hybrid:
 
 Implementation must not start beyond Phase 0 until these are true:
 
-1. `expo-file-system/next` binary read/write APIs are proven on SDK 55.0.16 on iOS and Android.
-2. Archive creation uses chunked output and incremental binary file writes. It must not build one full base64 archive string in memory.
-3. A stress spike with 100 synthetic 2 MB JPEG-like files records peak JS heap below 150 MB, or the feature is rescoped before UI work starts.
-4. The exact ZIP library API is documented. Preferred path is `fflate` `Zip` with streaming/chunk callbacks, not sync `zip()`.
-5. Backup schema and migration numbers are assigned only after rebasing from `main`.
-6. The boot consistency sweep is completed before photo write paths are reachable.
+1. The SDK 55 binary file API import path is proven on iOS and Android. Current evidence points to root `expo-file-system` imports (`File`, `Directory`, `Paths`), not `expo-file-system/next`.
+2. The actual `.breedwisebackup` archive path is proven end to end: create an archive containing `backup.json` plus binary photo entries, write it incrementally to disk, read it back, and validate the manifest and entries.
+3. Archive creation uses chunked output and incremental binary file writes. It must not build one full ZIP `Uint8Array`, one full base64 archive string, or one full JSON-with-base64 payload in memory.
+4. A stress spike with 100 synthetic 2 MB JPEG-like files records peak JS heap below 150 MB while using the same archive writer shape intended for production.
+5. The exact ZIP library API is documented. Required path is `fflate` `Zip` with streaming/chunk callbacks, not sync `zip()` or async `zip()` if either buffers the full archive.
+6. Backup schema and migration numbers are assigned only after rebasing from `main`.
+
+The boot consistency sweep is not a Phase 0 prerequisite because the sweep is built in Phase 2. It is a Phase 2 exit gate: no file-backed photo UI, file finalization path, backup archive write, or restore archive write may be reachable until the boot sweep and photo storage mutex are implemented and wired.
 
 If any hard gate fails, stop and revise this plan before touching Phase 1.
 
@@ -104,13 +108,13 @@ Install SDK-compatible native dependencies:
 npx expo install expo-image-picker expo-image-manipulator
 ```
 
-Add `fflate` only after the Phase 0 archive spike succeeds:
+Add `fflate` during Phase 0 only after the raw binary file API sub-gate passes. Keep it committed only if the real archive spike succeeds; if the archive spike fails, remove the dependency and revise scope before Phase 1.
 
 ```bash
 npm install --save fflate
 ```
 
-Use `expo-file-system/next` only where the spike proves binary APIs work. Keep existing legacy JSON text helpers for legacy backup restore until deliberately migrated.
+Use root `expo-file-system` imports for the SDK 55 binary APIs unless a new spike proves another import path. Keep existing legacy JSON text helpers for legacy backup restore until deliberately migrated.
 
 ### Permissions
 
@@ -167,7 +171,7 @@ Add `formatPhotoOwnerType` in `src/utils/outcomeDisplay.ts` so raw values like `
 
 ### Data Model
 
-Add the next available migration after rebasing from `main`. As of this review, the latest migration is `027_dashboard_tasks`; photos are expected to use `028`, but do not hard-code that until branch creation.
+Add the next available migration after rebasing from `main`. Do not include an expected numeric ID in the plan or branch notes; inspect `src/storage/migrations/index.ts` after rebase and allocate the next unused ID at implementation time.
 
 Create `photo_assets`:
 
@@ -276,23 +280,69 @@ The sweep must:
 - Delete attachments whose owner no longer exists, then delete newly orphaned assets and files.
 - Never delete files still referenced by valid DB rows.
 
+### Backup Archive Ownership
+
+Photo archives require an explicit archive boundary under `src/storage/backup/`; do not bury archive file I/O inside `serialize.ts` alone.
+
+Add a dedicated archive reader/writer module, for example `src/storage/backup/archiveIO.ts`, that owns:
+
+- `.breedwisebackup` entry naming.
+- Streaming `backup.json` and image entries into an archive.
+- Reading `backup.json` and image entries back from an archive.
+- Rejecting duplicate entries, absolute paths, URL schemes, backslashes, `..`, entries outside `photo-assets/<storageId>/{master,thumbnail}.jpg`, and manifest paths that do not exactly match `photo_assets` rows.
+- Returning a typed parsed archive object to validation and restore code.
+
+`serialize.ts` remains responsible for building the JSON backup envelope. The archive writer is responsible for turning that envelope plus photo files into a portable backup file. `useDataBackup.ts`, `safetyBackups.ts`, restore preview, and restore execution must all route through the archive boundary for photo-capable backups.
+
+Safety snapshots must use the same archive format once photos exist. A safety snapshot created before destructive restore work must contain both photo rows and binary photo entries and must itself be restorable.
+
+### Restore File Remapping
+
+Archive restore must never insert `photo_assets` rows verbatim if their paths are rewritten on disk.
+
+Restore flow:
+
+1. Acquire the photo storage mutex.
+2. Validate the archive before any destructive restore step.
+3. Create a safety snapshot of the current state, including photo binaries when present.
+4. Extract archive photo entries into a restore-temp directory.
+5. Generate collision-free final `storageId` values under `photo-assets/`.
+6. Rewrite `photo_assets.master_relative_path` and `photo_assets.thumbnail_relative_path` to the final relative paths before DB insert.
+7. Move or copy temp files into final paths.
+8. Replace DB rows inside one transaction using the managed insert/delete order.
+9. After commit, delete old photo files and restore-temp files as best effort.
+10. On failure before commit, leave current DB state intact and let the sweep clean temp/finalized leftovers that are not referenced.
+
+Add tests for archive restore onto a device that already has photos, failure after files are written but before the DB transaction commits, duplicate archive entries, path traversal entries, and mismatched manifest paths.
+
+### Horse Transfer Scope
+
+Photos V1 does not include individual-horse photo import/export unless this plan is amended again.
+
+Before adding `photo_assets` and `photo_attachments` to full-backup table types, decouple horse transfer from the full backup table list or explicitly omit photo tables from horse packages. Horse packages must keep their current JSON-only behavior and must not silently drop or corrupt photo metadata because `HorseTransferTablesV1` happens to alias the current full backup table type.
+
 ## Phased Implementation
 
 ### Phase 0: Feasibility, Dependencies, And Test Seams
 
-Goal: prove binary archive feasibility and install only safe prerequisites.
+Goal: prove the exact binary archive path before schema, repository, backup, or UI work starts.
 
 Tasks:
 
-- Create a temporary spike under `scripts/spikes/photos-archive-spike.ts` or an equivalent throwaway file that is not shipped.
-- Verify `expo-file-system/next` imports and binary reads/writes on iOS and Android.
-- Verify append-style binary archive writes using the chosen ZIP library.
-- Measure peak JS heap while archiving 100 x 2 MB representative files.
+- Create a temporary spike under `scripts/spikes/photos-archive-spike.ts` or an equivalent Phase 0-only file. If it is wired into `App.tsx`, remove that wiring before Phase 0 is considered complete unless the app entrypoint keeps it behind a deliberate dev-only path that cannot run in preview/release builds.
+- Verify root `expo-file-system` imports expose `File`, `Directory`, `Paths`, `File.bytes()`, `File.write(Uint8Array, { append: true })`, `File.open()`, and `FileHandle.writeBytes()` on iOS and Android.
+- Document that `expo-file-system/next` is not exported on SDK 55.0.16 unless future evidence changes that.
+- After the raw binary file API sub-gate passes, add `fflate` and create a real archive spike using `fflate` `Zip` streaming/chunk callbacks.
+- The archive spike must write a `.breedwisebackup`-shaped file with `backup.json`, one `photo-assets/<id>/master.jpg`, and one `photo-assets/<id>/thumbnail.jpg` at minimum.
+- The archive spike must write every emitted archive chunk incrementally to disk through the verified binary file API.
+- The archive spike must read the archive back, prove `backup.json` and binary entries are present, and prove entry names match the expected manifest.
+- Measure peak JS heap while archiving 100 x 2 MB representative files through the same writer shape, not through a raw non-ZIP byte stream.
 - Install `expo-image-picker` and `expo-image-manipulator` with Expo.
 - Add `expo-image-picker` app config with `microphonePermission: false`.
 - Add `src/config/featureFlags.ts`.
 - Add unconditional Jest mocks in `jest.setup.ts` for `expo-image-picker`, `expo-image-manipulator`, and any new file/archive APIs.
 - Add dependency-injected adapters or per-test Vitest mocks for native file/image/archive APIs. Do not rely on a global Vitest setup file unless one is added deliberately.
+- Put image picking behind an adapter so screen tests mock app behavior instead of raw native module details. Cover denied permissions, limited library access, empty selection, and Android pending-result recovery with adapter tests or per-test fakes.
 - Add an architecture note to this plan or a spike result section documenting the exact import paths and archive API.
 
 Acceptance:
@@ -301,11 +351,14 @@ Acceptance:
 - `npm test` passes.
 - `npm run test:screen` passes.
 - No photo UI is visible.
-- Spike evidence records platform, API, archive strategy, heap result, and fallback decision.
+- Spike evidence records platform, raw file API result, ZIP API, archive write/read result, heap result, and fallback decision.
+- Phase 0 notes explicitly say whether Phase 1 is allowed. Raw append-write success alone is not enough.
 
 Stop condition:
 
-- If binary append writes or heap limits fail, do not start Phase 1.
+- If raw binary append writes fail, do not start Phase 1.
+- If the real archive writer buffers the full archive, cannot be read back, or exceeds the heap limit, do not start Phase 1.
+- If `fflate` cannot support the required streaming shape in Expo/Hermes, remove it and revise the backup design before Phase 1.
 
 ### Phase 1: Storage Foundation
 
@@ -322,6 +375,7 @@ Tasks:
 - Add formatter and tests in `src/utils/outcomeDisplay.ts`.
 - Add `src/storage/repositories/photos.ts`.
 - Export repository functions through the existing repository index.
+- If horse transfer still aliases the current full backup table type, decouple or explicitly omit photo tables before adding photo tables to backup type lists.
 
 Repository responsibilities:
 
@@ -378,6 +432,7 @@ Tasks:
 - Delete asset directories idempotently.
 - Run boot sweep before photo write paths are reachable.
 - Run sweep before backup and restore under the photo mutex.
+- Wire boot sweep readiness into app bootstrap or a photo-readiness hook before any Phase 4 or Phase 5 photo control can call finalize/write APIs.
 
 Tests:
 
@@ -398,6 +453,7 @@ Acceptance:
 
 - SQLite stores relative paths only.
 - Sweep cannot run concurrently with finalize, backup, or restore.
+- Boot sweep and mutex readiness are enforced before any file-backed photo UI, file finalization path, backup archive write, or restore archive write is reachable.
 - Existing no-photo app flows are unchanged.
 
 ### Phase 3: Backup And Restore Archives
@@ -407,8 +463,8 @@ Goal: make photos recoverable before exposing any UI.
 Tasks:
 
 - Rebase from `main`.
-- Add the next backup schema version. As of this review the expected version is v12, not v10.
-- Keep restore support for legacy v1-v11 JSON backups.
+- Add the next backup schema version only after rebasing from `main`; do not include an expected numeric version in the plan or branch notes.
+- Keep restore support for every legacy JSON backup version up to the previous current backup schema.
 - Add `.breedwisebackup` archive constants.
 - Update `src/storage/backup/fileIO.ts` so manual and safety backup naming supports archive files.
 - Parameterize `shareFileIfAvailable` MIME and title.
@@ -420,10 +476,13 @@ Tasks:
   - Add `photo_assets` before `photo_attachments` in `BACKUP_INSERT_ORDER`.
   - Add `photo_attachments` before `photo_assets` in `BACKUP_DELETE_ORDER`.
 - Update `src/storage/backup/tableSpecs.ts`.
-- Update `src/storage/backup/serialize.ts` to write `backup.json` plus binary photo entries.
+- Keep `src/storage/backup/serialize.ts` responsible for the JSON backup envelope.
+- Add `src/storage/backup/archiveIO.ts` or equivalent to write `backup.json` plus binary photo entries and read them back.
+- Update `src/hooks/useDataBackup.ts`, restore preview, restore execution, and safety snapshot creation to route photo-capable backups through the archive reader/writer instead of JSON-only text helpers.
 - Update `src/storage/backup/validate.ts` to validate archive manifest entries, row references, owner references, MIME, dimensions, captions, and unsupported future schema versions.
-- Update `src/storage/backup/restore.ts` to write photo files to collision-free paths first, then replace DB rows inside one transaction using backup insert order.
-- Update `src/storage/backup/safetyBackups.ts` to list and prune both `.json` and `.breedwisebackup` during the transition.
+- Update `src/storage/backup/restore.ts` to extract photo entries to temp, generate final collision-free storage IDs, rewrite `photo_assets` paths before insert, move files into final paths, then replace DB rows inside one transaction using backup insert order.
+- Refactor or update `deleteManagedTables()` and `insertManagedTables()` so their actual order matches the shared backup insert/delete order, not just the constants.
+- Update `src/storage/backup/safetyBackups.ts` to create photo-capable safety snapshots as `.breedwisebackup` archives, and to list and prune both `.json` and `.breedwisebackup` during the transition.
 - Add a checked-in tiny JPEG fixture, for example a 1x1 byte literal in `testFixtures.ts`.
 - Add clear downgrade behavior: older app versions cannot restore newer archive versions; current app rejects future versions with a user-safe message.
 
@@ -434,13 +493,20 @@ Validation rules:
 - Every attachment owner must exist, except soft-deleted mares/stallions are valid owners.
 - Attachment role must match owner constraints: `profile` only for mare/stallion in V1; `attachment` for daily logs and restored future owners.
 - Captions are accepted and preserved as nullable text even though no V1 UI edits them.
+- Archive entry paths must be relative, use forward slashes, match the expected manifest, and stay under `photo-assets/<storageId>/`.
 
 Tests:
 
 - Existing backup tests still pass.
 - Legacy JSON v1-v11 restore still works.
 - Archive round trip restores photo rows and files.
+- Safety snapshot archive contains photo rows and binary files and can itself be restored.
+- Archive restore onto a device with existing photos rewrites paths and does not point restored rows at stale files.
+- Failure after archive files are written but before the DB transaction commits leaves current DB state intact and sweep-cleanable file leftovers.
 - Missing archive file entry fails validation.
+- Duplicate archive entry fails validation.
+- Archive entry with an absolute path, URL scheme, backslash, or `..` segment fails validation.
+- Archive entry whose path does not match its `photo_assets` row fails validation.
 - Broken photo asset reference fails validation.
 - Broken owner reference fails validation.
 - Restore from legacy JSON onto a device with photos removes current photo rows and leaves old files for sweep cleanup.
@@ -451,6 +517,7 @@ Tests:
 Acceptance:
 
 - No photo UI is exposed until archive backup/restore tests pass.
+- Full backup, safety snapshot, restore preview, and restore execution all use the archive boundary for photo-capable backups.
 - Backup and restore acquire the photo mutex.
 
 ### Phase 4: Mare And Stallion Profile Photos
@@ -461,6 +528,8 @@ Tasks:
 
 - Add `src/hooks/useProfilePhotoDraft.ts`.
 - Add a shared profile photo picker component under `src/components/`.
+- Allocate new mare and stallion IDs in hook state before profile photo staging so drafts can bind to a stable future owner.
+- Save mare/stallion row and profile photo metadata through one owned DB transaction path after file finalization; do not navigate away if photo persistence fails.
 - Wire profile photo staging into mare form hooks.
 - Wire profile photo staging into stallion form hooks.
 - Render profile thumbnail or initials fallback in mare detail header.
@@ -468,6 +537,15 @@ Tasks:
 - Load profile photos through detail data hooks.
 - Open the viewer when tapping an existing profile photo.
 - Keep initials non-interactive when no photo exists.
+
+UI contract:
+
+- Use the same shared avatar component for mare and stallion headers.
+- Avatar size: 72 px on detail headers, 56 px in forms.
+- Header placement: avatar leads the title block; existing action icons remain trailing.
+- Long names wrap within the title block and must not overlap actions or badges.
+- Badges stay below the name/title row.
+- Tapping an existing avatar opens the viewer; initials fallback is non-interactive.
 
 Tests:
 
@@ -478,6 +556,7 @@ Tests:
 - Long names and badges do not overlap avatar layout.
 - Profile photos survive app reload through DB/file state.
 - Missing thumbnail falls back cleanly.
+- New-record profile photo save failure keeps the user on the form with staged photo state intact.
 
 Acceptance:
 
@@ -492,17 +571,21 @@ Tasks:
 
 - Add `src/hooks/usePhotoDrafts.ts`.
 - Add optional Photos section to the daily log wizard review step.
+- Add a photo-aware daily-log save service or lower-level repository writer that accepts an existing transaction handle; do not nest `createDailyLog`/`updateDailyLog` transactions inside a photo transaction.
 - Support camera add flow.
 - Support library multi-select with `selectionLimit` set to remaining slots where supported.
 - Accept returned assets in returned-array order up to remaining slots.
 - Show a clear skipped-count message when selection exceeds the remaining daily-log slots.
 - Support staged delete and reorder.
 - Persist daily log and photo metadata through one photo-aware DB transaction after file finalization.
+- Delete daily-log attachment rows inside the existing daily-log delete DB transaction, then delete files after commit under the photo mutex.
 - Hydrate existing attachments when editing a daily log.
+- Load `attachmentPhotosByDailyLogId` in `useMareDetailData` or an equivalent detail hook and pass it into `DailyLogsTab`; screens must not import photo repositories directly.
 - Show fixed-size horizontal thumbnail strip on daily log cards.
+- Add a typed `PhotoViewer` route in `RootStackParamList` and `AppNavigator` before wiring thumbnail navigation.
 - Add full-screen viewer with close, loading, missing-file, and same-log swipe navigation.
 - Delete daily log photo attachments/assets during daily log delete.
-- Delete restored-but-invisible pregnancy check and foaling record attachments/assets during those owner delete flows.
+- Make pregnancy check and foaling record delete flows photo-aware for restored-but-invisible attachments: acquire the photo mutex, delete attachment rows in the same owner-delete DB transaction, then delete files after commit as best effort.
 
 Tests:
 
@@ -515,12 +598,16 @@ Tests:
 - Saved thumbnail rendering on 320 px width.
 - Viewer open, close, loading, missing-file, and swipe states.
 - Daily log delete cleanup.
+- DB failure after file finalization keeps the daily log/photo metadata transaction from partially committing.
 - Pregnancy check and foaling hard-delete cleanup for restored attachments.
+- Mare detail daily log thumbnails render from hook-provided photo data, not screen-local repository calls.
+- `PhotoViewer` route type and navigator wiring.
 
 Acceptance:
 
 - Daily log photo limit is enforced in repository/service logic, not only UI.
 - If photo persistence fails, the user stays on the review step with staged photos intact.
+- No nested SQLite transaction is introduced for daily log save or delete.
 
 ### Phase 6: Enable And Verify
 
@@ -587,10 +674,11 @@ Acceptance:
 
 Started on branch `photos-v1-phase-0`.
 
-Status as of 2026-04-30:
+Status as of 2026-05-02:
 
 - Branch created from the current dirty `main` worktree without discarding existing local changes.
 - Installed SDK-compatible `expo-image-picker@~55.0.19` and `expo-image-manipulator@~55.0.15` with `npx expo install`.
+- Installed `fflate@^0.8.2` after the raw binary file API sub-gate passed.
 - Added the `expo-image-picker` config plugin to `app.json` with camera and photo-library permission copy and `microphonePermission: false`.
 - Added `src/config/featureFlags.ts` with `FEATURE_FLAGS.photos` defaulting to `false`.
 - Added unconditional Jest mocks for `expo-image-picker`, `expo-image-manipulator`, and the root `expo-file-system` binary API surface in `jest.setup.ts`.
@@ -603,8 +691,9 @@ Current local evidence:
 - `require.resolve('expo-file-system/next')` fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`.
 - The SDK 55 binary APIs are available from the root `expo-file-system` export: `File`, `Directory`, `Paths`, `File.bytes()`, `File.write(Uint8Array, { append: true })`, `File.open()`, and `FileHandle.writeBytes()`.
 - Phase 0 spike code must therefore use `import { Directory, File, Paths } from 'expo-file-system'`, not `expo-file-system/next`.
-- `fflate` is not installed yet. Keep it out of app dependencies until the append-write and memory spike passes on real iOS and Android targets.
-- Local Node/package inspection cannot prove native iOS and Android file behavior. The remaining hard-gate evidence must come from running `scripts/spikes/photos-archive-spike.ts` in an Expo runtime on both platforms.
+- `fflate` is installed and `scripts/spikes/photos-archive-spike.ts` now writes a `.breedwisebackup`-shaped ZIP archive with `backup.json`, `photo-assets/<id>/master.jpg`, and `photo-assets/<id>/thumbnail.jpg` entries.
+- The archive spike uses `fflate` `Zip` plus `ZipPassThrough` streaming callbacks, writes emitted chunks incrementally with root `expo-file-system`, reads the archive back with `Unzip`, and reports archive readback fields.
+- Local Node/package inspection cannot prove native iOS and Android file behavior. Runtime evidence must come from Expo runtime runs on the target platforms.
 
 Verification completed:
 
@@ -634,7 +723,7 @@ Device runtime spike evidence:
 ```
 
 - iOS Simulator runtime result recorded on 2026-05-01 from `docs/iostest.md`.
-- The iOS Simulator run is accepted as satisfying the iOS side of the Phase 0 archive feasibility gate.
+- The iOS Simulator run is accepted as satisfying the iOS side of the raw binary file API sub-gate.
 - iOS Simulator passed the binary round-trip, append-write, and 100 x 2 MB heap gate: `streamedBytesWritten` was `209715200`, `peakJsHeapBytes` was `7001904`, and peak JS heap was `6.7 MiB`.
 - Raw iOS Simulator result:
 
@@ -653,15 +742,17 @@ Device runtime spike evidence:
 }
 ```
 
-Phase 0 archive feasibility gate:
+Phase 0 gate status:
 
-- Cleared for Android and accepted iOS Simulator coverage.
-- Both recorded runs pass binary round trips, append writes, and peak JS heap below 150 MB.
+- Raw binary file API sub-gate: cleared for Android and accepted iOS Simulator coverage.
+- The recorded runs prove binary round trips, append writes, and low heap usage for a raw 200 MB streamed write.
+- Real archive sub-gate: implementation is ready to test but not cleared yet. It must pass and record results on Android and iOS before Phase 1 starts.
 
 Fallback decision:
 
-- Continue Phase 0 prerequisites using root `expo-file-system` imports.
-- Phase 1 may begin after the remaining non-archive Phase 0 prerequisites are complete.
+- Continue Phase 0 using root `expo-file-system` imports.
+- Run the real archive spike described in Phase 0 on Android and iOS.
+- Phase 1 must not begin until the real archive sub-gate passes and this section records that result.
 
 ## Follow-Up Features
 
