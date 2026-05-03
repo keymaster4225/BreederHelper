@@ -1,3 +1,4 @@
+export * from './archiveIO';
 export * from './fileIO';
 export * from './restore';
 export * from './safetyBackups';

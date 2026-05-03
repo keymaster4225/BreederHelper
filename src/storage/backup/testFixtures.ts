@@ -4,7 +4,7 @@ import type {
   BackupEnvelopeV4,
   BackupEnvelopeV5,
   BackupEnvelopeV6,
-  BackupEnvelopeV11,
+  BackupEnvelopeV12,
   BackupBreedingRecordRow,
   BackupBreedingRecordRowLegacy,
 } from './types';
@@ -17,9 +17,11 @@ function stripBreedingRecordTime(
   return rows.map(({ time: _time, ...row }) => row);
 }
 
-export function createBackupFixture(): BackupEnvelopeV11 {
+export const TINY_JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 0xff, 0xd9]);
+
+export function createBackupFixture(): BackupEnvelopeV12 {
   return {
-    schemaVersion: 11,
+    schemaVersion: 12,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -329,12 +331,14 @@ export function createBackupFixture(): BackupEnvelopeV11 {
           updated_at: BASE_TIMESTAMP,
         },
       ],
+      photo_assets: [],
+      photo_attachments: [],
     },
   };
 }
 
-export function cloneBackupFixture(): BackupEnvelopeV11 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV11;
+export function cloneBackupFixture(): BackupEnvelopeV12 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV12;
 }
 
 export function createBackupFixtureV6(): BackupEnvelopeV6 {

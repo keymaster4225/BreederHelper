@@ -7,12 +7,14 @@ import {
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV11,
+  type BackupEnvelopeV12,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
   type BackupFrozenSemenBatchRow,
   type BackupMareRow,
   type BackupMedicationLogRow,
+  type BackupPhotoAssetRow,
+  type BackupPhotoAttachmentRow,
   type BackupPregnancyCheckRow,
   type BackupSemenCollectionRowV3,
   type BackupStallionRow,
@@ -34,7 +36,7 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV11> {
+export async function serializeBackup(): Promise<BackupEnvelopeV12> {
   const db = await getDb();
 
   const [
@@ -53,6 +55,8 @@ export async function serializeBackup(): Promise<BackupEnvelopeV11> {
     semenCollections,
     collectionDoseEvents,
     frozenSemenBatches,
+    photoAssets,
+    photoAttachments,
     onboardingComplete,
     clockPreference,
   ] = await Promise.all([
@@ -378,6 +382,40 @@ export async function serializeBackup(): Promise<BackupEnvelopeV11> {
       ORDER BY freeze_date DESC, id ASC;
       `,
     ),
+    db.getAllAsync<BackupPhotoAssetRow>(
+      `
+      SELECT
+        id,
+        master_relative_path,
+        thumbnail_relative_path,
+        master_mime_type,
+        thumbnail_mime_type,
+        width,
+        height,
+        file_size_bytes,
+        source_kind,
+        created_at,
+        updated_at
+      FROM photo_assets
+      ORDER BY created_at ASC, id ASC;
+      `,
+    ),
+    db.getAllAsync<BackupPhotoAttachmentRow>(
+      `
+      SELECT
+        id,
+        photo_asset_id,
+        owner_type,
+        owner_id,
+        role,
+        sort_order,
+        caption,
+        created_at,
+        updated_at
+      FROM photo_attachments
+      ORDER BY owner_type ASC, owner_id ASC, role ASC, sort_order ASC, created_at ASC, id ASC;
+      `,
+    ),
     getOnboardingComplete(),
     getClockPreference(),
   ]);
@@ -409,6 +447,8 @@ export async function serializeBackup(): Promise<BackupEnvelopeV11> {
       semen_collections: semenCollections,
       collection_dose_events: collectionDoseEvents,
       frozen_semen_batches: frozenSemenBatches,
+      photo_assets: photoAssets,
+      photo_attachments: photoAttachments,
     },
   };
 }

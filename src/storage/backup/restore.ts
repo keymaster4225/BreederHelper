@@ -9,7 +9,13 @@ import {
 import {
   isHorseTransferArtifactPayload,
 } from '@/storage/horseTransfer/validate';
+import { withPhotoStorageLock } from '@/storage/photoFiles/mutex';
 
+import {
+  type BackupArchive,
+  restorePhotoFilesFromArchive,
+  validateBackupArchiveEntries,
+} from './archiveIO';
 import { createSafetySnapshot } from './safetyBackups';
 import {
   BACKUP_SCHEMA_VERSION_V3,
@@ -21,6 +27,7 @@ import {
   BACKUP_SCHEMA_VERSION_V9,
   BACKUP_SCHEMA_VERSION_V10,
   BACKUP_SCHEMA_VERSION_V11,
+  BACKUP_SCHEMA_VERSION_V12,
 } from './types';
 import type {
   BackupBreedingRecordRowLegacy,
@@ -37,6 +44,7 @@ import type {
   BackupEnvelopeV9,
   BackupEnvelopeV10,
   BackupEnvelopeV11,
+  BackupEnvelopeV12,
   BackupFoalingRecordRow,
   BackupFoalRow,
   BackupFrozenSemenBatchRow,
@@ -45,6 +53,8 @@ import type {
   BackupMareRowV6,
   BackupMedicationLogRow,
   BackupMedicationLogRowV7,
+  BackupPhotoAssetRow,
+  BackupPhotoAttachmentRow,
   BackupPregnancyCheckRow,
   BackupSemenCollectionRowV2,
   BackupSemenCollectionRowV3,
@@ -89,11 +99,13 @@ type NormalizedBackupForRestore = {
     readonly foals: readonly BackupFoalRow[];
     readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
     readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
+    readonly photo_assets: readonly BackupPhotoAssetRow[];
+    readonly photo_attachments: readonly BackupPhotoAttachmentRow[];
   };
 };
 
 export async function restoreBackup(
-  candidate: string | BackupEnvelope | unknown,
+  candidate: string | BackupEnvelope | BackupArchive | unknown,
   options: RestoreOptions = {},
 ): Promise<RestoreBackupResult> {
   options.onStepChange?.('Validating backup...');
@@ -107,9 +119,11 @@ export async function restoreBackup(
   }
 
   const validation =
-    validationCandidate.kind === 'parsed'
-      ? validateBackup(validationCandidate.value)
-      : validateBackupJson(validationCandidate.value);
+    validationCandidate.kind === 'archive'
+      ? validateBackup(validationCandidate.value.backup)
+      : validationCandidate.kind === 'parsed'
+        ? validateBackup(validationCandidate.value)
+        : validateBackupJson(validationCandidate.value);
 
   if (!validation.ok) {
     return {
@@ -117,20 +131,44 @@ export async function restoreBackup(
       errorMessage: validation.error.message,
     };
   }
-
-  const backupForRestore = normalizeBackupForRestore(validation.backup);
+  if (validationCandidate.kind === 'archive') {
+    const archiveValidation = validateBackupArchiveEntries(validationCandidate.value);
+    if (!archiveValidation.ok) {
+      return {
+        ok: false,
+        errorMessage: archiveValidation.message,
+      };
+    }
+  }
 
   try {
-    if (!options.skipSafetySnapshot) {
-      options.onStepChange?.('Creating safety snapshot...');
-      await createSafetySnapshot();
-    }
+    const backupForRestore = await withPhotoStorageLock(async () => {
+      const normalizedBackup = normalizeBackupForRestore(validation.backup);
 
-    const db = await getDb();
-    options.onStepChange?.('Restoring data...');
-    await db.withExclusiveTransactionAsync(async (transactionDb) => {
-      await deleteManagedTables(transactionDb);
-      await insertManagedTables(transactionDb, backupForRestore);
+      if (!options.skipSafetySnapshot) {
+        options.onStepChange?.('Creating safety snapshot...');
+        await createSafetySnapshot();
+      }
+
+      const restoreInput =
+        validationCandidate.kind === 'archive'
+          ? {
+              ...normalizedBackup,
+              tables: {
+                ...normalizedBackup.tables,
+                photo_assets: restorePhotoFilesFromArchive(validationCandidate.value),
+              },
+            }
+          : normalizedBackup;
+
+      const db = await getDb();
+      options.onStepChange?.('Restoring data...');
+      await db.withExclusiveTransactionAsync(async (transactionDb) => {
+        await deleteManagedTables(transactionDb);
+        await insertManagedTables(transactionDb, restoreInput);
+      });
+
+      return restoreInput;
     });
 
     let warningMessage: string | undefined;
@@ -161,12 +199,16 @@ export async function restoreBackup(
 }
 
 function parseRestoreCandidate(
-  candidate: string | BackupEnvelope | unknown,
+  candidate: string | BackupEnvelope | BackupArchive | unknown,
 ):
+  | { readonly kind: 'archive'; readonly value: BackupArchive }
   | { readonly kind: 'parsed'; readonly value: unknown }
   | { readonly kind: 'unparsedJson'; readonly value: string }
   | { readonly kind: 'horseTransfer' } {
   if (typeof candidate !== 'string') {
+    if (isBackupArchive(candidate)) {
+      return { kind: 'archive', value: candidate };
+    }
     return isHorseTransferArtifactPayload(candidate)
       ? { kind: 'horseTransfer' }
       : { kind: 'parsed', value: candidate };
@@ -183,6 +225,8 @@ function parseRestoreCandidate(
 }
 
 async function deleteManagedTables(db: RestoreDb): Promise<void> {
+  await db.runAsync('DELETE FROM photo_attachments;');
+  await db.runAsync('DELETE FROM photo_assets;');
   await db.runAsync('DELETE FROM collection_dose_events;');
   await db.runAsync('DELETE FROM frozen_semen_batches;');
   await db.runAsync('DELETE FROM foals;');
@@ -249,6 +293,22 @@ async function insertManagedTables(
   for (const row of backup.tables.collection_dose_events) {
     await insertCollectionDoseEvent(db, row);
   }
+  for (const row of backup.tables.photo_assets) {
+    await insertPhotoAsset(db, row);
+  }
+  for (const row of backup.tables.photo_attachments) {
+    await insertPhotoAttachment(db, row);
+  }
+}
+
+function isBackupArchive(candidate: unknown): candidate is BackupArchive {
+  return (
+    typeof candidate === 'object' &&
+    candidate !== null &&
+    'backup' in candidate &&
+    'entries' in candidate &&
+    candidate.entries instanceof Map
+  );
 }
 
 async function insertMare(
@@ -881,18 +941,85 @@ async function insertCollectionDoseEvent(
   );
 }
 
+async function insertPhotoAsset(db: RestoreDb, row: BackupPhotoAssetRow): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO photo_assets (
+      id,
+      master_relative_path,
+      thumbnail_relative_path,
+      master_mime_type,
+      thumbnail_mime_type,
+      width,
+      height,
+      file_size_bytes,
+      source_kind,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.master_relative_path,
+      row.thumbnail_relative_path,
+      row.master_mime_type,
+      row.thumbnail_mime_type,
+      row.width,
+      row.height,
+      row.file_size_bytes,
+      row.source_kind,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
+async function insertPhotoAttachment(
+  db: RestoreDb,
+  row: BackupPhotoAttachmentRow,
+): Promise<void> {
+  await db.runAsync(
+    `
+    INSERT INTO photo_attachments (
+      id,
+      photo_asset_id,
+      owner_type,
+      owner_id,
+      role,
+      sort_order,
+      caption,
+      created_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    `,
+    [
+      row.id,
+      row.photo_asset_id,
+      row.owner_type,
+      row.owner_id,
+      row.role,
+      row.sort_order,
+      row.caption,
+      row.created_at,
+      row.updated_at,
+    ],
+  );
+}
+
 function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForRestore {
   if (
     backup.schemaVersion === BACKUP_SCHEMA_VERSION_V8 ||
     backup.schemaVersion === BACKUP_SCHEMA_VERSION_V9 ||
     backup.schemaVersion === BACKUP_SCHEMA_VERSION_V10 ||
-    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V11
+    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V11 ||
+    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V12
   ) {
     const currentBackup = backup as
       | BackupEnvelopeV8
       | BackupEnvelopeV9
       | BackupEnvelopeV10
-      | BackupEnvelopeV11;
+      | BackupEnvelopeV11
+      | BackupEnvelopeV12;
     return {
       settings: normalizeBackupSettings(currentBackup.settings),
       tables: {
@@ -907,6 +1034,14 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
             : (currentBackup.tables.breeding_records as readonly BackupBreedingRecordRowLegacy[]).map(
                 normalizePreV10BreedingRecordRow,
               ),
+        photo_assets:
+          backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V12
+            ? (currentBackup.tables as BackupEnvelopeV12['tables']).photo_assets
+            : [],
+        photo_attachments:
+          backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V12
+            ? (currentBackup.tables as BackupEnvelopeV12['tables']).photo_attachments
+            : [],
       },
     };
   }
@@ -968,6 +1103,8 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
       foals: backup.tables.foals,
       collection_dose_events: collectionDoseEvents,
       frozen_semen_batches: frozenSemenBatches,
+      photo_assets: [],
+      photo_attachments: [],
     },
   };
 }

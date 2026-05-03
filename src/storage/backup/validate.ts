@@ -12,6 +12,9 @@ import {
   FREEZING_EXTENDER_VALUES,
   MEDICATION_ROUTE_VALUES,
   OVARY_CONSISTENCY_VALUES,
+  PHOTO_ATTACHMENT_ROLE_VALUES,
+  PHOTO_OWNER_TYPE_VALUES,
+  PHOTO_SOURCE_KIND_VALUES,
   PREGNANCY_RESULT_VALUES,
   STRAW_COLOR_VALUES,
   UTERINE_TONE_CATEGORY_VALUES,
@@ -29,6 +32,7 @@ import {
   BACKUP_SCHEMA_VERSION_V9,
   BACKUP_SCHEMA_VERSION_V10,
   BACKUP_SCHEMA_VERSION_V11,
+  BACKUP_SCHEMA_VERSION_V12,
   type BackupBreedingRecordRow,
   type BackupBreedingRecordRowLegacy,
   type BackupCollectionDoseEventRowV3,
@@ -38,7 +42,7 @@ import {
   type BackupSemenCollectionRowV2,
   type BackupSemenCollectionRowV3,
   type BackupSettings,
-  type BackupTableName,
+  type ManagedBackupTableName,
   type BackupTablesV1,
   type BackupTablesV2,
   type BackupTablesV3,
@@ -50,6 +54,7 @@ import {
   type BackupTablesV9,
   type BackupTablesV10,
   type BackupTablesV11,
+  type BackupTablesV12,
   type ValidateBackupError,
   type ValidateBackupResult,
 } from './types';
@@ -89,6 +94,9 @@ const TASK_COMPLETED_RECORD_TYPES = new Set([
   'pregnancyCheck',
 ]);
 const TASK_SOURCE_REASONS = new Set(['manualFollowUp', 'breedingPregnancyCheck']);
+const PHOTO_OWNER_TYPES = new Set(PHOTO_OWNER_TYPE_VALUES);
+const PHOTO_ATTACHMENT_ROLES = new Set(PHOTO_ATTACHMENT_ROLE_VALUES);
+const PHOTO_SOURCE_KINDS = new Set(PHOTO_SOURCE_KIND_VALUES);
 
 type BackupTables =
   | BackupTablesV1
@@ -101,7 +109,8 @@ type BackupTables =
   | BackupTablesV8
   | BackupTablesV9
   | BackupTablesV10
-  | BackupTablesV11;
+  | BackupTablesV11
+  | BackupTablesV12;
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;
@@ -154,7 +163,8 @@ export function validateBackup(input: unknown): ValidateBackupResult {
     schemaVersion !== BACKUP_SCHEMA_VERSION_V8 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V9 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V10 &&
-    schemaVersion !== BACKUP_SCHEMA_VERSION_V11
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V11 &&
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V12
   ) {
     return validationFailure(
       'unsupported_schema_version',
@@ -259,10 +269,16 @@ export function validateBackup(input: unknown): ValidateBackupResult {
                           ...baseEnvelopeFields,
                           tables: tableArrays.tables as BackupTablesV10,
                         }
-                      : {
+                    : schemaVersion === BACKUP_SCHEMA_VERSION_V11
+                      ? {
                           schemaVersion: BACKUP_SCHEMA_VERSION_V11,
                           ...baseEnvelopeFields,
                           tables: tableArrays.tables as BackupTablesV11,
+                        }
+                      : {
+                          schemaVersion: BACKUP_SCHEMA_VERSION_V12,
+                          ...baseEnvelopeFields,
+                          tables: tableArrays.tables as BackupTablesV12,
                         };
 
   const rowError = validateRows(backup.tables, schemaVersion);
@@ -294,7 +310,10 @@ export function buildBackupPreview(backup: BackupEnvelope): BackupPreviewSummary
   };
 }
 
-export function validateCurrentBackupTables(input: unknown): ValidateBackupError | null {
+export function validateCurrentBackupTables(
+  input: unknown,
+  options: { readonly includePhotoTables?: boolean } = {},
+): ValidateBackupError | null {
   if (!isRecord(input)) {
     return {
       code: 'invalid_shape',
@@ -302,13 +321,17 @@ export function validateCurrentBackupTables(input: unknown): ValidateBackupError
     };
   }
 
-  const tableArrays = getTableArrays(input, BACKUP_SCHEMA_VERSION_CURRENT);
+  const schemaVersion =
+    options.includePhotoTables === false
+      ? BACKUP_SCHEMA_VERSION_V11
+      : BACKUP_SCHEMA_VERSION_CURRENT;
+  const tableArrays = getTableArrays(input, schemaVersion);
   if (!tableArrays.ok) {
     return getValidationError(tableArrays.error);
   }
 
-  const tables = tableArrays.tables as BackupTablesV11;
-  const rowError = validateRows(tables, BACKUP_SCHEMA_VERSION_CURRENT);
+  const tables = tableArrays.tables as BackupTablesV11 | BackupTablesV12;
+  const rowError = validateRows(tables, schemaVersion);
   if (rowError) {
     return getValidationError(rowError);
   }
@@ -317,7 +340,7 @@ export function validateCurrentBackupTables(input: unknown): ValidateBackupError
   const crossTableError = validateCrossTableRules(
     tables,
     indexes,
-    BACKUP_SCHEMA_VERSION_CURRENT,
+    schemaVersion,
   );
   if (crossTableError) {
     return getValidationError(crossTableError);
@@ -351,7 +374,7 @@ function getTableArrays(
 ):
   | { ok: true; tables: BackupTables }
   | { ok: false; error: ValidateBackupResult } {
-  const requiredTables: BackupTableName[] = [
+  const requiredTables: ManagedBackupTableName[] = [
     'mares',
     'stallions',
     'daily_logs',
@@ -374,6 +397,9 @@ function getTableArrays(
   }
   if (schemaVersion >= BACKUP_SCHEMA_VERSION_V11) {
     requiredTables.push('tasks');
+  }
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V12) {
+    requiredTables.push('photo_assets', 'photo_attachments');
   }
 
   for (const tableName of requiredTables) {
@@ -472,6 +498,103 @@ function validateRows(
       const error = validateFrozenSemenBatchRow(frozenRows[index], index);
       if (error) return error;
     }
+  }
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V12) {
+    const photoTables = tables as BackupTablesV12;
+    for (let index = 0; index < photoTables.photo_assets.length; index += 1) {
+      const error = validatePhotoAssetRow(photoTables.photo_assets[index], index);
+      if (error) return error;
+    }
+    for (let index = 0; index < photoTables.photo_attachments.length; index += 1) {
+      const error = validatePhotoAttachmentRow(photoTables.photo_attachments[index], index);
+      if (error) return error;
+    }
+  }
+
+  return null;
+}
+
+function validatePhotoAssetRow(row: unknown, rowIndex: number): ValidateBackupResult | null {
+  if (!isRecord(row)) {
+    return rowFailure('photo_assets', rowIndex, 'row', 'must be an object');
+  }
+
+  if (!isNonEmptyString(row.id)) return rowFailure('photo_assets', rowIndex, 'id', 'is required');
+  if (!isSafePhotoAssetPath(row.master_relative_path, 'master')) {
+    return rowFailure(
+      'photo_assets',
+      rowIndex,
+      'master_relative_path',
+      'must be photo-assets/<storageId>/master.jpg',
+    );
+  }
+  if (!isSafePhotoAssetPath(row.thumbnail_relative_path, 'thumbnail')) {
+    return rowFailure(
+      'photo_assets',
+      rowIndex,
+      'thumbnail_relative_path',
+      'must be photo-assets/<storageId>/thumbnail.jpg',
+    );
+  }
+  if (photoStorageId(row.master_relative_path) !== photoStorageId(row.thumbnail_relative_path)) {
+    return rowFailure(
+      'photo_assets',
+      rowIndex,
+      'thumbnail_relative_path',
+      'must use the same storage id as master_relative_path',
+    );
+  }
+  if (row.master_mime_type !== 'image/jpeg' || row.thumbnail_mime_type !== 'image/jpeg') {
+    return rowFailure('photo_assets', rowIndex, 'mime_type', 'must be image/jpeg');
+  }
+  if (!isPositiveInteger(row.width)) {
+    return rowFailure('photo_assets', rowIndex, 'width', 'must be a positive integer');
+  }
+  if (!isPositiveInteger(row.height)) {
+    return rowFailure('photo_assets', rowIndex, 'height', 'must be a positive integer');
+  }
+  if (!isPositiveInteger(row.file_size_bytes)) {
+    return rowFailure('photo_assets', rowIndex, 'file_size_bytes', 'must be a positive integer');
+  }
+  if (!isStringEnum(row.source_kind, PHOTO_SOURCE_KINDS)) {
+    return rowFailure('photo_assets', rowIndex, 'source_kind', 'must be a supported source kind');
+  }
+  if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
+    return rowFailure('photo_assets', rowIndex, 'timestamps', 'created_at and updated_at are required');
+  }
+
+  return null;
+}
+
+function validatePhotoAttachmentRow(row: unknown, rowIndex: number): ValidateBackupResult | null {
+  if (!isRecord(row)) {
+    return rowFailure('photo_attachments', rowIndex, 'row', 'must be an object');
+  }
+
+  if (!isNonEmptyString(row.id)) return rowFailure('photo_attachments', rowIndex, 'id', 'is required');
+  if (!isNonEmptyString(row.photo_asset_id)) {
+    return rowFailure('photo_attachments', rowIndex, 'photo_asset_id', 'is required');
+  }
+  if (!isStringEnum(row.owner_type, PHOTO_OWNER_TYPES)) {
+    return rowFailure('photo_attachments', rowIndex, 'owner_type', 'must be a supported owner type');
+  }
+  if (!isNonEmptyString(row.owner_id)) {
+    return rowFailure('photo_attachments', rowIndex, 'owner_id', 'is required');
+  }
+  if (!isStringEnum(row.role, PHOTO_ATTACHMENT_ROLES)) {
+    return rowFailure('photo_attachments', rowIndex, 'role', 'must be profile or attachment');
+  }
+  if (!isPositiveOrZeroInteger(row.sort_order)) {
+    return rowFailure('photo_attachments', rowIndex, 'sort_order', 'must be an integer >= 0');
+  }
+  if (!isNullableString(row.caption)) {
+    return rowFailure('photo_attachments', rowIndex, 'caption', 'must be a string or null');
+  }
+  if (typeof row.caption === 'string' && row.caption.length > 500) {
+    return rowFailure('photo_attachments', rowIndex, 'caption', 'must be 500 characters or fewer');
+  }
+  if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
+    return rowFailure('photo_attachments', rowIndex, 'timestamps', 'created_at and updated_at are required');
   }
 
   return null;
@@ -1654,6 +1777,16 @@ function validateCrossTableRules(
           'frozen_semen_batches',
           (tables as BackupTablesV5).frozen_semen_batches.map((row) => row.id),
         )
+      : null) ??
+    (schemaVersion >= BACKUP_SCHEMA_VERSION_V12
+      ? ensureUniqueIds(
+          'photo_assets',
+          (tables as BackupTablesV12).photo_assets.map((row) => row.id),
+        ) ??
+        ensureUniqueIds(
+          'photo_attachments',
+          (tables as BackupTablesV12).photo_attachments.map((row) => row.id),
+        )
       : null);
   if (idError) return idError;
 
@@ -1887,6 +2020,51 @@ function validateCrossTableRules(
     }
   }
 
+  if (schemaVersion >= BACKUP_SCHEMA_VERSION_V12) {
+    const photoTables = tables as BackupTablesV12;
+    const photoAssetIds = new Set(photoTables.photo_assets.map((row) => row.id));
+    const profileOwners = new Set<string>();
+    const pregnancyCheckIds = new Set(tables.pregnancy_checks.map((row) => row.id));
+    const foalingRecordIds = new Set(tables.foaling_records.map((row) => row.id));
+
+    for (let index = 0; index < photoTables.photo_attachments.length; index += 1) {
+      const row = photoTables.photo_attachments[index];
+      if (!photoAssetIds.has(row.photo_asset_id)) {
+        return rowFailure('photo_attachments', index, 'photo_asset_id', 'references missing photo asset');
+      }
+
+      if (row.role === 'profile') {
+        if (row.owner_type !== 'mare' && row.owner_type !== 'stallion') {
+          return rowFailure('photo_attachments', index, 'role', 'profile is only valid for mares and stallions');
+        }
+        const ownerKey = `${row.owner_type}:${row.owner_id}`;
+        if (profileOwners.has(ownerKey)) {
+          return rowFailure('photo_attachments', index, 'owner_id', 'duplicate profile photo owner');
+        }
+        profileOwners.add(ownerKey);
+      }
+
+      if (row.role === 'attachment' && (row.owner_type === 'mare' || row.owner_type === 'stallion')) {
+        return rowFailure('photo_attachments', index, 'role', 'mare and stallion photos must use profile role');
+      }
+
+      const ownerExists =
+        row.owner_type === 'mare'
+          ? indexes.mareIds.has(row.owner_id)
+          : row.owner_type === 'stallion'
+            ? indexes.stallionIds.has(row.owner_id)
+            : row.owner_type === 'dailyLog'
+              ? indexes.dailyLogIds.has(row.owner_id)
+              : row.owner_type === 'pregnancyCheck'
+                ? pregnancyCheckIds.has(row.owner_id)
+                : foalingRecordIds.has(row.owner_id);
+
+      if (!ownerExists) {
+        return rowFailure('photo_attachments', index, 'owner_id', 'references missing owner');
+      }
+    }
+  }
+
   if (schemaVersion >= BACKUP_SCHEMA_VERSION_V3) {
     const collectionAllocatedSemenMl = new Map<string, number>();
     for (const row of tables.collection_dose_events as readonly BackupCollectionDoseEventRowV3[]) {
@@ -1923,7 +2101,7 @@ function validateCrossTableRules(
 }
 
 function ensureUniqueIds(
-  table: BackupTableName,
+  table: ManagedBackupTableName,
   ids: readonly string[],
 ): ValidateBackupResult | null {
   const seen = new Set<string>();
@@ -1964,7 +2142,7 @@ function getValidationError(result: ValidateBackupResult): ValidateBackupError {
 }
 
 function rowFailure(
-  table: BackupTableName,
+  table: ManagedBackupTableName,
   rowIndex: number,
   field: string,
   message: string,
@@ -2012,6 +2190,14 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0;
+}
+
+function isPositiveOrZeroInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
+}
+
 function hasAtMostOneDecimalPlace(value: number): boolean {
   const scaled = value * 10;
   return Math.abs(scaled - Math.round(scaled)) < 1e-9;
@@ -2051,6 +2237,25 @@ function isNullableIntegerInRange(value: unknown, min: number, max: number): boo
 
 function isNullableFlag(value: unknown): value is 0 | 1 | null {
   return value == null || value === 0 || value === 1;
+}
+
+function isSafePhotoAssetPath(value: unknown, variant: 'master' | 'thumbnail'): value is string {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  if (value.startsWith('/') || value.includes('://') || value.includes('\\')) {
+    return false;
+  }
+  if (value.split('/').includes('..')) {
+    return false;
+  }
+
+  return new RegExp(`^photo-assets/[^/]+/${variant}\\.jpg$`).test(value);
+}
+
+function photoStorageId(value: unknown): string | null {
+  return typeof value === 'string' ? value.split('/')[1] ?? null : null;
 }
 
 function isNullableDailyLogTime(value: unknown): value is string | null {

@@ -23,7 +23,7 @@ describe('validateBackup', () => {
     expect(result.preview.mareCount).toBe(1);
     expect(result.preview.dailyLogCount).toBe(1);
     expect(result.preview.onboardingComplete).toBe(true);
-    expect(result.preview.schemaVersion).toBe(11);
+    expect(result.preview.schemaVersion).toBe(12);
   });
 
   it('requires tasks in v11 backups', () => {
@@ -801,7 +801,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 12,
+      schemaVersion: 13,
     });
 
     const result = validateBackupJson(jsonText);

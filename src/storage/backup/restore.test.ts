@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const photoFileMockState = vi.hoisted(() => ({
+  writes: [] as Array<{
+    readonly storageId: string;
+    readonly variant: 'master' | 'thumbnail';
+    readonly bytes: readonly number[];
+  }>,
+}));
+
 vi.mock('@/storage/db', () => ({
   getDb: vi.fn(),
 }));
@@ -16,6 +24,30 @@ vi.mock('@/utils/clockPreferences', () => ({
   normalizeClockPreference: (value: unknown) =>
     value === 'system' || value === '12h' || value === '24h' ? value : 'system',
   setClockPreference: vi.fn(),
+}));
+
+vi.mock('@/storage/photoFiles/paths', () => ({
+  ensurePhotoRootDirectories: vi.fn(),
+  getPhotoAssetDirectory: vi.fn(() => ({
+    create: vi.fn(),
+  })),
+  getPhotoAssetFile: vi.fn((storageId: string, variant: 'master' | 'thumbnail') => ({
+    create: vi.fn(),
+    write: vi.fn((bytes: Uint8Array) => {
+      photoFileMockState.writes.push({
+        storageId,
+        variant,
+        bytes: Array.from(bytes),
+      });
+    }),
+  })),
+  getPhotoAssetRelativePath: (storageId: string, variant: 'master' | 'thumbnail') =>
+    `photo-assets/${storageId}/${variant}.jpg`,
+  storageIdFromPhotoAssetRelativePath: (relativePath: string) => relativePath.split('/')[1] ?? null,
+}));
+
+vi.mock('@/storage/photoFiles/assets', () => ({
+  createCollisionFreeStorageId: vi.fn((preferredStorageId: string) => `${preferredStorageId}-restored`),
 }));
 
 vi.mock('./safetyBackups', () => ({
@@ -50,12 +82,16 @@ import {
   createBackupFixtureV4,
   createBackupFixtureV5,
   createBackupFixtureV6,
+  TINY_JPEG_BYTES,
 } from './testFixtures';
 import { restoreBackup } from './restore';
 import { validateBackup, validateBackupJson } from './validate';
-import type { BackupEnvelope } from './types';
+import type { BackupEnvelope, BackupEnvelopeV12 } from './types';
+import type { BackupArchive } from './archiveIO';
 
 const MANAGED_TABLE_DELETE_ORDER = [
+  'photo_attachments',
+  'photo_assets',
   'collection_dose_events',
   'frozen_semen_batches',
   'foals',
@@ -80,6 +116,7 @@ function createRestoreDb(onRun?: (call: RepoDbHarness['runCalls'][number]) => vo
 describe('restoreBackup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    photoFileMockState.writes.length = 0;
   });
 
   it('deletes and inserts tables in order, then updates onboarding and emits one invalidation', async () => {
@@ -96,7 +133,7 @@ describe('restoreBackup', () => {
         stallionCount: 1,
         dailyLogCount: 1,
         onboardingComplete: true,
-        schemaVersion: 11,
+        schemaVersion: 12,
       },
     });
     vi.mocked(getDb).mockResolvedValue(db as never);
@@ -105,7 +142,7 @@ describe('restoreBackup', () => {
       fileUri: 'file:///snapshot.json',
       createdAt: backup.createdAt,
         mareCount: 1,
-        schemaVersion: 11,
+        schemaVersion: 12,
       });
 
     const result = await restoreBackup(JSON.stringify(backup), {
@@ -168,6 +205,97 @@ describe('restoreBackup', () => {
     expect(setClockPreference).toHaveBeenCalledWith('system');
     expect(emitDataInvalidation).toHaveBeenCalledTimes(1);
     expect(emitDataInvalidation).toHaveBeenCalledWith('all');
+  });
+
+  it('restores photo files from archives and inserts rewritten photo metadata', async () => {
+    const baseBackup = cloneBackupFixture();
+    const backup: BackupEnvelopeV12 = {
+      ...baseBackup,
+      tables: {
+        ...baseBackup.tables,
+        photo_assets: [
+          {
+            id: 'photo-asset-1',
+            master_relative_path: 'photo-assets/photo-asset-1/master.jpg',
+            thumbnail_relative_path: 'photo-assets/photo-asset-1/thumbnail.jpg',
+            master_mime_type: 'image/jpeg' as const,
+            thumbnail_mime_type: 'image/jpeg' as const,
+            width: 640,
+            height: 480,
+            file_size_bytes: TINY_JPEG_BYTES.byteLength,
+            source_kind: 'camera' as const,
+            created_at: baseBackup.createdAt,
+            updated_at: baseBackup.createdAt,
+          },
+        ],
+        photo_attachments: [
+          {
+            id: 'photo-attachment-1',
+            photo_asset_id: 'photo-asset-1',
+            owner_type: 'mare' as const,
+            owner_id: 'mare-1',
+            role: 'attachment' as const,
+            sort_order: 0,
+            caption: null,
+            created_at: baseBackup.createdAt,
+            updated_at: baseBackup.createdAt,
+          },
+        ],
+      },
+    };
+    const archive: BackupArchive = {
+      backup,
+      entries: new Map([
+        ['backup.json', new Uint8Array([1])],
+        ['photo-assets/photo-asset-1/master.jpg', TINY_JPEG_BYTES],
+        ['photo-assets/photo-asset-1/thumbnail.jpg', TINY_JPEG_BYTES],
+      ]),
+    };
+    const db = createRestoreDb();
+
+    vi.mocked(validateBackup).mockReturnValue({
+      ok: true,
+      backup,
+      preview: {
+        createdAt: backup.createdAt,
+        mareCount: 1,
+        stallionCount: 1,
+        dailyLogCount: 1,
+        onboardingComplete: true,
+        schemaVersion: 12,
+      },
+    });
+    vi.mocked(getDb).mockResolvedValue(db as never);
+
+    const result = await restoreBackup(archive, { skipSafetySnapshot: true });
+
+    if (!result.ok) {
+      throw new Error(result.errorMessage);
+    }
+    expect(photoFileMockState.writes).toEqual([
+      {
+        storageId: 'photo-asset-1-restored',
+        variant: 'master',
+        bytes: Array.from(TINY_JPEG_BYTES),
+      },
+      {
+        storageId: 'photo-asset-1-restored',
+        variant: 'thumbnail',
+        bytes: Array.from(TINY_JPEG_BYTES),
+      },
+    ]);
+
+    const photoAssetInsertParams = expectInsertForTable(db, 'photo_assets').params;
+    expect(photoAssetInsertParams.id).toBe('photo-asset-1');
+    expect(photoAssetInsertParams.master_relative_path).toBe(
+      'photo-assets/photo-asset-1-restored/master.jpg',
+    );
+    expect(photoAssetInsertParams.thumbnail_relative_path).toBe(
+      'photo-assets/photo-asset-1-restored/thumbnail.jpg',
+    );
+
+    const attachmentInsertParams = expectInsertForTable(db, 'photo_attachments').params;
+    expect(attachmentInsertParams.photo_asset_id).toBe('photo-asset-1');
   });
 
   it('restores the clock preference from current backups', async () => {

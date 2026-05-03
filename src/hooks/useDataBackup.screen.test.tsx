@@ -6,19 +6,24 @@ import {
 } from '@/storage/horseTransfer/types';
 
 jest.mock('@/storage/backup', () => ({
+  BACKUP_ARCHIVE_MIME_TYPE: 'application/octet-stream',
+  BACKUP_ARCHIVE_SHARE_TITLE: 'Share backup',
   createManualBackupFileName: jest.fn(),
   ensureDirectoryExists: jest.fn(),
   getManualBackupDirectoryUri: jest.fn(),
+  isBackupArchiveFileName: jest.fn((fileName: string) => fileName.endsWith('.breedwisebackup')),
   joinFileUri: jest.fn(),
   listSafetySnapshots: jest.fn(),
   pickBackupFile: jest.fn(),
+  readBackupArchive: jest.fn(),
   readTextFile: jest.fn(),
   restoreBackup: jest.fn(),
   serializeBackup: jest.fn(),
   shareFileIfAvailable: jest.fn(),
   validateBackup: jest.fn(),
+  validateBackupArchiveEntries: jest.fn(),
   validateBackupJson: jest.fn(),
-  writeJsonFile: jest.fn(),
+  writeBackupArchive: jest.fn(),
 }));
 
 const backup = jest.requireMock('@/storage/backup') as {

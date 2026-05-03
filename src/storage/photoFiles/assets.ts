@@ -23,7 +23,7 @@ function copyFile(sourceUri: string, destination: File): void {
   new File(sourceUri).copy(destination);
 }
 
-function createCollisionFreeStorageId(preferredStorageId: string): string {
+export function createCollisionFreeStorageId(preferredStorageId: string): string {
   let storageId = preferredStorageId;
   let attempts = 0;
 

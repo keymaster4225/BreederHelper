@@ -11,6 +11,9 @@ import type {
   FoalingOutcome,
   MedicationRoute,
   OvaryConsistency,
+  PhotoAttachmentRole,
+  PhotoOwnerType,
+  PhotoSourceKind,
   PregnancyResult,
   StrawColor,
   TaskSourceReason,
@@ -32,7 +35,8 @@ export const BACKUP_SCHEMA_VERSION_V8 = 8 as const;
 export const BACKUP_SCHEMA_VERSION_V9 = 9 as const;
 export const BACKUP_SCHEMA_VERSION_V10 = 10 as const;
 export const BACKUP_SCHEMA_VERSION_V11 = 11 as const;
-export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V11;
+export const BACKUP_SCHEMA_VERSION_V12 = 12 as const;
+export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V12;
 
 export const BACKUP_TABLE_NAMES = [
   'mares',
@@ -52,9 +56,13 @@ export const BACKUP_TABLE_NAMES = [
   'frozen_semen_batches',
 ] as const;
 
+export type PhotoBackupTableName = 'photo_assets' | 'photo_attachments';
 export type BackupTableName = (typeof BACKUP_TABLE_NAMES)[number];
+export type ManagedBackupTableName = BackupTableName | PhotoBackupTableName;
 
-export const BACKUP_DELETE_ORDER: readonly BackupTableName[] = [
+export const BACKUP_DELETE_ORDER: readonly ManagedBackupTableName[] = [
+  'photo_attachments',
+  'photo_assets',
   'collection_dose_events',
   'frozen_semen_batches',
   'foals',
@@ -72,7 +80,7 @@ export const BACKUP_DELETE_ORDER: readonly BackupTableName[] = [
   'stallions',
 ];
 
-export const BACKUP_INSERT_ORDER: readonly BackupTableName[] = [
+export const BACKUP_INSERT_ORDER: readonly ManagedBackupTableName[] = [
   'mares',
   'tasks',
   'stallions',
@@ -88,6 +96,8 @@ export const BACKUP_INSERT_ORDER: readonly BackupTableName[] = [
   'foaling_records',
   'foals',
   'collection_dose_events',
+  'photo_assets',
+  'photo_attachments',
 ];
 
 export type BackupIsoDateTime = string;
@@ -309,6 +319,32 @@ export type BackupTaskRow = {
   readonly source_type: TaskSourceType;
   readonly source_record_id: string | null;
   readonly source_reason: TaskSourceReason | null;
+  readonly created_at: BackupIsoDateTime;
+  readonly updated_at: BackupIsoDateTime;
+};
+
+export type BackupPhotoAssetRow = {
+  readonly id: string;
+  readonly master_relative_path: string;
+  readonly thumbnail_relative_path: string;
+  readonly master_mime_type: 'image/jpeg';
+  readonly thumbnail_mime_type: 'image/jpeg';
+  readonly width: number;
+  readonly height: number;
+  readonly file_size_bytes: number;
+  readonly source_kind: PhotoSourceKind;
+  readonly created_at: BackupIsoDateTime;
+  readonly updated_at: BackupIsoDateTime;
+};
+
+export type BackupPhotoAttachmentRow = {
+  readonly id: string;
+  readonly photo_asset_id: string;
+  readonly owner_type: PhotoOwnerType;
+  readonly owner_id: string;
+  readonly role: PhotoAttachmentRole;
+  readonly sort_order: number;
+  readonly caption: string | null;
   readonly created_at: BackupIsoDateTime;
   readonly updated_at: BackupIsoDateTime;
 };
@@ -557,6 +593,11 @@ export type BackupTablesV11 = BackupTablesV10 & {
   readonly tasks: readonly BackupTaskRow[];
 };
 
+export type BackupTablesV12 = BackupTablesV11 & {
+  readonly photo_assets: readonly BackupPhotoAssetRow[];
+  readonly photo_attachments: readonly BackupPhotoAttachmentRow[];
+};
+
 export type BackupEnvelopeV1 = {
   readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V1;
   readonly createdAt: BackupIsoDateTime;
@@ -645,6 +686,14 @@ export type BackupEnvelopeV11 = {
   readonly tables: BackupTablesV11;
 };
 
+export type BackupEnvelopeV12 = {
+  readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V12;
+  readonly createdAt: BackupIsoDateTime;
+  readonly app: BackupAppMetadata;
+  readonly settings: BackupSettings;
+  readonly tables: BackupTablesV12;
+};
+
 export type BackupEnvelope =
   | BackupEnvelopeV1
   | BackupEnvelopeV2
@@ -656,7 +705,8 @@ export type BackupEnvelope =
   | BackupEnvelopeV8
   | BackupEnvelopeV9
   | BackupEnvelopeV10
-  | BackupEnvelopeV11;
+  | BackupEnvelopeV11
+  | BackupEnvelopeV12;
 
 export type BackupPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;
@@ -676,7 +726,7 @@ export type ValidateBackupError = {
     | 'invalid_row'
     | 'constraint_violation';
   readonly message: string;
-  readonly table?: BackupTableName;
+  readonly table?: ManagedBackupTableName;
   readonly rowIndex?: number;
   readonly field?: string;
 };
