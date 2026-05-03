@@ -1346,6 +1346,45 @@ ALTER TABLE semen_collections
   ADD COLUMN motility_percent INTEGER CHECK (motility_percent IS NULL OR motility_percent BETWEEN 0 AND 100);
 `;
 
+const migration029 = `
+CREATE TABLE IF NOT EXISTS photo_assets (
+  id TEXT PRIMARY KEY,
+  master_relative_path TEXT NOT NULL,
+  thumbnail_relative_path TEXT NOT NULL,
+  master_mime_type TEXT NOT NULL CHECK (master_mime_type = 'image/jpeg'),
+  thumbnail_mime_type TEXT NOT NULL CHECK (thumbnail_mime_type = 'image/jpeg'),
+  width INTEGER NOT NULL CHECK (width > 0),
+  height INTEGER NOT NULL CHECK (height > 0),
+  file_size_bytes INTEGER NOT NULL CHECK (file_size_bytes > 0),
+  source_kind TEXT NOT NULL CHECK (source_kind IN ('camera', 'library', 'imported')),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS photo_attachments (
+  id TEXT PRIMARY KEY,
+  photo_asset_id TEXT NOT NULL,
+  owner_type TEXT NOT NULL CHECK (owner_type IN ('mare', 'stallion', 'dailyLog', 'pregnancyCheck', 'foalingRecord')),
+  owner_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('profile', 'attachment')),
+  sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
+  caption TEXT CHECK (caption IS NULL OR length(caption) <= 500),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  FOREIGN KEY (photo_asset_id) REFERENCES photo_assets(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_photo_attachments_owner_role_order
+  ON photo_attachments (owner_type, owner_id, role, sort_order, created_at, id);
+
+CREATE INDEX IF NOT EXISTS idx_photo_attachments_asset_id
+  ON photo_attachments (photo_asset_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_photo_attachments_profile_unique
+  ON photo_attachments (owner_type, owner_id, role)
+  WHERE role = 'profile';
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -1578,6 +1617,17 @@ const migrations: Migration[] = [
     name: '028_collection_motility_percent',
     statements: splitStatements(migration028),
     shouldSkip: async (db) => hasColumn(db, 'semen_collections', 'motility_percent'),
+  },
+  {
+    id: 29,
+    name: '029_photo_assets_and_attachments',
+    statements: splitStatements(migration029),
+    shouldSkip: async (db) =>
+      (await tableExists(db, 'photo_assets')) &&
+      (await tableExists(db, 'photo_attachments')) &&
+      (await indexExists(db, 'idx_photo_attachments_owner_role_order')) &&
+      (await indexExists(db, 'idx_photo_attachments_asset_id')) &&
+      (await indexExists(db, 'idx_photo_attachments_profile_unique')),
   },
 ];
 

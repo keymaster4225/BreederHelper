@@ -40,6 +40,11 @@ function createFakeDb(options: {
   hasTasksOpenDueIndex?: boolean;
   hasTasksSourceIndex?: boolean;
   hasTasksOpenBreedingPregCheckUniqueIndex?: boolean;
+  hasPhotoAssetsTable?: boolean;
+  hasPhotoAttachmentsTable?: boolean;
+  hasPhotoAttachmentsOwnerRoleOrderIndex?: boolean;
+  hasPhotoAttachmentsAssetIdIndex?: boolean;
+  hasPhotoAttachmentsProfileUniqueIndex?: boolean;
   failDropBreedingRecordsWhenForeignKeysEnabled?: boolean;
   invalidStallionDateOfBirthId?: string;
   invalidExtenderVolumeCollectionId?: string;
@@ -146,6 +151,13 @@ function createFakeDb(options: {
   let hasTasksSourceIndex = options.hasTasksSourceIndex ?? true;
   let hasTasksOpenBreedingPregCheckUniqueIndex =
     options.hasTasksOpenBreedingPregCheckUniqueIndex ?? true;
+  let hasPhotoAssetsTable = options.hasPhotoAssetsTable ?? true;
+  let hasPhotoAttachmentsTable = options.hasPhotoAttachmentsTable ?? true;
+  let hasPhotoAttachmentsOwnerRoleOrderIndex =
+    options.hasPhotoAttachmentsOwnerRoleOrderIndex ?? true;
+  let hasPhotoAttachmentsAssetIdIndex = options.hasPhotoAttachmentsAssetIdIndex ?? true;
+  let hasPhotoAttachmentsProfileUniqueIndex =
+    options.hasPhotoAttachmentsProfileUniqueIndex ?? true;
   let hasBreedingRecordsMareDateTimeIndex = options.hasBreedingRecordsMareDateTimeIndex ?? true;
   let hasBreedingRecordsStallionDateTimeIndex =
     options.hasBreedingRecordsStallionDateTimeIndex ?? true;
@@ -310,6 +322,26 @@ function createFakeDb(options: {
         hasTasksOpenBreedingPregCheckUniqueIndex = true;
       }
 
+      if (trimmed.startsWith('CREATE TABLE IF NOT EXISTS photo_assets')) {
+        hasPhotoAssetsTable = true;
+      }
+
+      if (trimmed.startsWith('CREATE TABLE IF NOT EXISTS photo_attachments')) {
+        hasPhotoAttachmentsTable = true;
+      }
+
+      if (trimmed.startsWith('CREATE INDEX IF NOT EXISTS idx_photo_attachments_owner_role_order')) {
+        hasPhotoAttachmentsOwnerRoleOrderIndex = true;
+      }
+
+      if (trimmed.startsWith('CREATE INDEX IF NOT EXISTS idx_photo_attachments_asset_id')) {
+        hasPhotoAttachmentsAssetIdIndex = true;
+      }
+
+      if (trimmed.startsWith('CREATE UNIQUE INDEX IF NOT EXISTS idx_photo_attachments_profile_unique')) {
+        hasPhotoAttachmentsProfileUniqueIndex = true;
+      }
+
       if (trimmed.startsWith('DROP INDEX IF EXISTS idx_breeding_records_mare_date')) {
         hasBreedingRecordsMareDateIndex = false;
       }
@@ -392,6 +424,12 @@ function createFakeDb(options: {
         if (tableName === 'tasks' && hasTasksTable) {
           return { name: tableName } as T;
         }
+        if (tableName === 'photo_assets' && hasPhotoAssetsTable) {
+          return { name: tableName } as T;
+        }
+        if (tableName === 'photo_attachments' && hasPhotoAttachmentsTable) {
+          return { name: tableName } as T;
+        }
         return null;
       }
 
@@ -442,6 +480,24 @@ function createFakeDb(options: {
         if (
           indexName === 'idx_breeding_records_stallion_date' &&
           hasBreedingRecordsStallionDateIndex
+        ) {
+          return { name: indexName } as T;
+        }
+        if (
+          indexName === 'idx_photo_attachments_owner_role_order' &&
+          hasPhotoAttachmentsOwnerRoleOrderIndex
+        ) {
+          return { name: indexName } as T;
+        }
+        if (
+          indexName === 'idx_photo_attachments_asset_id' &&
+          hasPhotoAttachmentsAssetIdIndex
+        ) {
+          return { name: indexName } as T;
+        }
+        if (
+          indexName === 'idx_photo_attachments_profile_unique' &&
+          hasPhotoAttachmentsProfileUniqueIndex
         ) {
           return { name: indexName } as T;
         }
@@ -818,7 +874,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([21, 22, 23, 24, 25, 26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([21, 22, 23, 24, 25, 26, 27, 28, 29]);
   });
 
   it('applies migration022 when frozen_semen_batches artifacts are missing', async () => {
@@ -866,7 +922,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([22, 23, 24, 25, 26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([22, 23, 24, 25, 26, 27, 28, 29]);
   });
 
   it('skips migration019 when target and dose volume columns already exist', async () => {
@@ -923,7 +979,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20, 21, 22, 23, 24, 25, 26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]);
   });
 
   it('skips the repair migration when breeding_records already references semen_collections', async () => {
@@ -962,7 +1018,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]);
   });
 
   it('runs the repair migration when the legacy table still exists even if breeding_records already looks correct', async () => {
@@ -1104,7 +1160,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE breeding_records_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([15, 16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]);
   });
 
   it('rebuilds stallions and semen_collections when canonical constraint checks are missing', async () => {
@@ -1206,7 +1262,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls.some((sql) => sql.includes('CREATE TABLE stallions_new'))).toBe(false);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([16, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]);
   });
 
   it('fails the canonical repair migration with a targeted error when legacy stallion rows are invalid', async () => {
@@ -1360,7 +1416,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([24, 25, 26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([24, 25, 26, 27, 28, 29]);
   });
 
   it('adds uterine flush tables and medication source linkage in migration025', async () => {
@@ -1401,7 +1457,7 @@ describe('applyMigrations', () => {
     expect(
       execCalls.some((sql) => sql.includes('CREATE INDEX IF NOT EXISTS idx_medication_logs_source_daily_log_id')),
     ).toBe(true);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27, 28, 29]);
   });
 
   it('skips migration025 when flush and medication linkage artifacts already exist', async () => {
@@ -1417,7 +1473,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27, 28, 29]);
   });
 
   it('completes partially present migration025 artifacts without re-adding the medication column', async () => {
@@ -1441,7 +1497,7 @@ describe('applyMigrations', () => {
     expect(
       execCalls.some((sql) => sql.includes('CREATE INDEX IF NOT EXISTS idx_medication_logs_source_daily_log_id')),
     ).toBe(true);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([25, 26, 27, 28, 29]);
   });
 
   it('rebuilds breeding_records with time and date-time indexes in migration026', async () => {
@@ -1500,7 +1556,7 @@ describe('applyMigrations', () => {
       ),
     ).toBe(true);
     expect(execCalls.some((sql) => sql.includes('DROP TABLE breeding_records'))).toBe(true);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([26, 27, 28, 29]);
   });
 
   it('skips migration026 when time and date-time index artifacts already exist', async () => {
@@ -1517,7 +1573,7 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([26, 27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([26, 27, 28, 29]);
   });
 
   it('creates the tasks table in migration027', async () => {
@@ -1544,7 +1600,7 @@ describe('applyMigrations', () => {
     expect(createTableSql).toContain('completed_record_type TEXT');
     expect(createTableSql).toContain('source_reason TEXT');
     expect(createTableSql).toContain('FOREIGN KEY (mare_id) REFERENCES mares(id) ON UPDATE CASCADE ON DELETE RESTRICT');
-    expect(runCalls.map(({ params }) => params[0])).toEqual([27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([27, 28, 29]);
   });
 
   it('creates all task indexes in migration027', async () => {
@@ -1595,6 +1651,98 @@ describe('applyMigrations', () => {
     await applyMigrations(db as never);
 
     expect(execCalls).toHaveLength(1);
-    expect(runCalls.map(({ params }) => params[0])).toEqual([27, 28]);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([27, 28, 29]);
+  });
+
+  it('creates photo metadata tables and indexes on a fresh migration path', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: [],
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY,
+          time TEXT
+        )
+      `,
+      hasPhotoAssetsTable: false,
+      hasPhotoAttachmentsTable: false,
+      hasPhotoAttachmentsOwnerRoleOrderIndex: false,
+      hasPhotoAttachmentsAssetIdIndex: false,
+      hasPhotoAttachmentsProfileUniqueIndex: false,
+    });
+
+    await applyMigrations(db as never);
+
+    const createAssetsSql = execCalls.find((sql) =>
+      sql.includes('CREATE TABLE IF NOT EXISTS photo_assets'),
+    );
+    const createAttachmentsSql = execCalls.find((sql) =>
+      sql.includes('CREATE TABLE IF NOT EXISTS photo_attachments'),
+    );
+    expect(createAssetsSql).toContain("source_kind TEXT NOT NULL CHECK (source_kind IN ('camera', 'library', 'imported'))");
+    expect(createAssetsSql).toContain("master_mime_type TEXT NOT NULL CHECK (master_mime_type = 'image/jpeg')");
+    expect(createAttachmentsSql).toContain("owner_type TEXT NOT NULL CHECK (owner_type IN ('mare', 'stallion', 'dailyLog', 'pregnancyCheck', 'foalingRecord'))");
+    expect(createAttachmentsSql).toContain("role TEXT NOT NULL CHECK (role IN ('profile', 'attachment'))");
+    expect(createAttachmentsSql).toContain('FOREIGN KEY (photo_asset_id) REFERENCES photo_assets(id) ON UPDATE CASCADE ON DELETE RESTRICT');
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('CREATE INDEX IF NOT EXISTS idx_photo_attachments_owner_role_order'),
+      ),
+    ).toBe(true);
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('CREATE INDEX IF NOT EXISTS idx_photo_attachments_asset_id'),
+      ),
+    ).toBe(true);
+    expect(
+      execCalls.some((sql) =>
+        sql.includes('CREATE UNIQUE INDEX IF NOT EXISTS idx_photo_attachments_profile_unique'),
+      ),
+    ).toBe(true);
+    expect(runCalls.map(({ params }) => params[0])).toContain(29);
+  });
+
+  it('creates photo metadata tables and indexes when upgrading from migration028', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 28 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY,
+          time TEXT
+        )
+      `,
+      hasPhotoAssetsTable: false,
+      hasPhotoAttachmentsTable: false,
+      hasPhotoAttachmentsOwnerRoleOrderIndex: false,
+      hasPhotoAttachmentsAssetIdIndex: false,
+      hasPhotoAttachmentsProfileUniqueIndex: false,
+    });
+
+    await applyMigrations(db as never);
+
+    expect(execCalls.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS photo_assets'))).toBe(true);
+    expect(execCalls.some((sql) => sql.includes('CREATE TABLE IF NOT EXISTS photo_attachments'))).toBe(true);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([29]);
+  });
+
+  it('skips migration029 when photo tables and indexes already exist', async () => {
+    const { db, execCalls, runCalls } = createFakeDb({
+      appliedMigrationIds: Array.from({ length: 28 }, (_, index) => index + 1),
+      breedingRecordsSql: `
+        CREATE TABLE breeding_records (
+          id TEXT PRIMARY KEY,
+          time TEXT
+        )
+      `,
+      hasPhotoAssetsTable: true,
+      hasPhotoAttachmentsTable: true,
+      hasPhotoAttachmentsOwnerRoleOrderIndex: true,
+      hasPhotoAttachmentsAssetIdIndex: true,
+      hasPhotoAttachmentsProfileUniqueIndex: true,
+    });
+
+    await applyMigrations(db as never);
+
+    expect(execCalls).toHaveLength(1);
+    expect(runCalls.map(({ params }) => params[0])).toEqual([29]);
   });
 });
