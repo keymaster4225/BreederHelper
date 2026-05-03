@@ -1,7 +1,7 @@
 # Photos V1 Amended Implementation Plan
 
 Date: 2026-04-30
-Status: Amended after Brooks-Lint plan review
+Status: Phase 3 complete; resume at Phase 4
 Supersedes: `2026-04-26-photos-v1-implementation-plan.md`
 Incorporates: `2026-04-26-photos-v1-adversarial-review-round-2.md`
 
@@ -782,6 +782,43 @@ Fallback decision:
 - Continue Phase 0 using root `expo-file-system` imports.
 - Phase 1 may begin with the root `expo-file-system` plus `fflate` streaming archive approach.
 - Preserve the 150 MiB peak JS heap ceiling as a production guardrail for future backup/archive regression tests.
+
+## Phase 3 Execution Notes
+
+Status as of 2026-05-03:
+
+- Work is leaving off after Phase 3, "Backup And Restore Archives".
+- Resume with Phase 4, "Mare And Stallion Profile Photos".
+- Current branch: `photos-v1-phase-0`.
+- Phase 3 implementation commit: `24a60c4 Implement photo backup archive restore`.
+- Phase 3 was committed locally only. Do not push or merge without explicit user permission.
+
+What Phase 3 delivered:
+
+- Backup schema advanced to v12 with `photo_assets` and `photo_attachments`.
+- `.breedwisebackup` archive support was added through `src/storage/backup/archiveIO.ts`.
+- Manual backups, safety snapshots, document picker handling, share metadata, restore preview, and restore execution now route photo-capable backups through the archive boundary.
+- Legacy `.json` backup restore remains supported.
+- Restore writes photo files under the photo storage lock, allocates collision-free storage paths, rewrites `photo_assets` relative paths, and then replaces DB rows through the exclusive restore transaction.
+- Validation now covers photo row shape, MIME, dimensions, captions, owner references, attachment asset references, safe archive paths, expected archive entries, and unsupported future schemas.
+- Horse-transfer validation remains separate from photo archives; it strips empty v12 photo-table placeholders and rejects non-empty photo payloads because horse packages do not carry photo binary archives yet.
+- `createCollisionFreeStorageId` is exported from `src/storage/photoFiles/assets.ts` for restore reuse instead of duplicating path allocation logic.
+
+Verification completed for the Phase 3 commit:
+
+- `npm.cmd run typecheck` passed.
+- `npm.cmd test` passed: 52 test files, 544 tests.
+- `npm.cmd run test:screen -- src/hooks/useDataBackup.screen.test.tsx src/navigation/AppNavigator.smoke.screen.test.tsx src/screens/DataBackupScreen.screen.test.tsx` passed: 3 suites, 14 tests.
+- `git diff --check` passed before commit.
+
+Known carry-forward notes for Phase 4:
+
+- Start from the Phase 4 tasks above, beginning with `src/hooks/useProfilePhotoDraft.ts` and a shared profile photo picker/avatar component.
+- Keep `FEATURE_FLAGS.photos` false by default during Phase 4.
+- Do not let screens import photo repositories or photo file APIs directly; route through hooks/components.
+- New mare/stallion create flows need stable IDs before photo staging so profile drafts can bind to the future owner.
+- Save owner row and profile photo metadata through one owned DB transaction path after file finalization; if photo persistence fails, keep the user on the form with staged state intact.
+- Continue using the existing photo storage mutex and boot-sweep readiness contracts before any UI path can finalize photo writes.
 
 ## Follow-Up Features
 
