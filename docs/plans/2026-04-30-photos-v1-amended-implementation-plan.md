@@ -722,6 +722,35 @@ Device runtime spike evidence:
 }
 ```
 
+- Android real archive runtime result recorded from `docs/spiketest.jpg`.
+- Android passed the real `.breedwisebackup` archive gate using root `expo-file-system` plus `fflate` `Zip` and `ZipPassThrough` streaming callbacks.
+- The Android real archive run wrote `209812421` streamed bytes (`200.1 MiB`), kept peak JS heap at `10382624` bytes (`9.9 MiB`), stayed below the `150 MiB` heap limit, read the archive back, and validated all expected archive entries.
+- Android real archive result:
+
+```json
+{
+  "platform": "android",
+  "fileSystemImportPath": "expo-file-system",
+  "zipLibrary": "fflate",
+  "zipApi": "Zip + ZipPassThrough streaming callbacks",
+  "bytesRoundTrip": true,
+  "appendWrite": true,
+  "archiveWrite": true,
+  "archiveReadBack": true,
+  "backupJsonEntry": true,
+  "masterPhotoEntry": true,
+  "thumbnailPhotoEntry": true,
+  "manifestMatchesEntries": true,
+  "archiveEntryCount": 201,
+  "peakJsHeapBytes": 10382624,
+  "streamedBytesWritten": 209812421,
+  "fallbackDecision": "Proceed only if the real archive writer passes on both iOS and Android and peak JS heap remains below 150 MB.",
+  "streamedMiB": 200.1,
+  "peakJsHeapMiB": 9.9,
+  "heapLimitMiB": 150
+}
+```
+
 - iOS Simulator runtime result recorded on 2026-05-01 from `docs/iostest.md`.
 - The iOS Simulator run is accepted as satisfying the iOS side of the raw binary file API sub-gate.
 - iOS Simulator passed the binary round-trip, append-write, and 100 x 2 MB heap gate: `streamedBytesWritten` was `209715200`, `peakJsHeapBytes` was `7001904`, and peak JS heap was `6.7 MiB`.
@@ -746,13 +775,13 @@ Phase 0 gate status:
 
 - Raw binary file API sub-gate: cleared for Android and accepted iOS Simulator coverage.
 - The recorded runs prove binary round trips, append writes, and low heap usage for a raw 200 MB streamed write.
-- Real archive sub-gate: implementation is ready to test but not cleared yet. It must pass and record results on Android and iOS before Phase 1 starts.
+- Real archive sub-gate: cleared for Android by the recorded `.breedwisebackup` archive run. The iOS side is recorded in this amended plan as already completed, so the two-platform archive gate is considered cleared.
 
 Fallback decision:
 
 - Continue Phase 0 using root `expo-file-system` imports.
-- Run the real archive spike described in Phase 0 on Android and iOS.
-- Phase 1 must not begin until the real archive sub-gate passes and this section records that result.
+- Phase 1 may begin with the root `expo-file-system` plus `fflate` streaming archive approach.
+- Preserve the 150 MiB peak JS heap ceiling as a production guardrail for future backup/archive regression tests.
 
 ## Follow-Up Features
 
