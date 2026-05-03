@@ -23,3 +23,5 @@ auto-schedule events based on recorded actions (eg mare bred on day X → automa
 cyst mapping
 
 foaling record summary page for established foaling records, with edit actions and linked foal milestones when applicable
+
+daily log needs to handle multiple measured follicles on the same ovary

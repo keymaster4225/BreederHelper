@@ -1,6 +1,6 @@
 # BreedWise Roadmap
 
-> Last updated: 2026-05-01
+> Last updated: 2026-05-03
 >
 > This document is the prioritized plan for BreedWise. The flat `TODO` file is now a raw inbox — new ideas get dumped there, then triaged into this roadmap during a periodic sweep. See [Intake & triage process](#intake--triage-process).
 
@@ -41,6 +41,8 @@ Features that deepen mare reproductive recordkeeping beyond what the current dai
   Recurring user ask. Needs a design pass: how cysts are located on the uterus, how they're tracked over time, and whether they live on the daily log or as a separate longitudinal record.
 - **P1 — Foaling record summary page** (`TODO:25`, locally implemented pending PR)
   Add a non-edit summary view for established foaling records that preserves quick edit actions while exposing linked foal context and milestone progression. Locally implemented in `7631eab`; keep this item open until it is merged to `main`.
+- **P1 — Multiple measured follicles per ovary in daily logs** (`TODO:27`)
+  Extend daily-log capture so one ovary can record multiple measured follicles in the same exam instead of forcing a single follicle-size value per side. The stored ovary data already supports measurement arrays; the main work is exposing that capability through the wizard while preserving existing single-follicle workflows.
 - **P2 — Mare ovulation trends** (`TODO:15`)
   Analytics view. Blocked on data volume — needs enough historical ovulation logs per mare to be useful.
 
@@ -170,6 +172,7 @@ When a roadmap item is completed and merged to `main`:
 
 ## Change log for this document
 
+- 2026-05-03 — Added *Multiple measured follicles per ovary in daily logs* under Mare care depth (P1) from `TODO:27`.
 - 2026-05-01 — Marked Photos V1 Phase 0 as in flight, recorded Android spike evidence status, and linked the amended implementation plan.
 - 2026-05-01 — Marked *Foaling record summary page* as locally implemented pending PR/merge.
 - 2026-05-01 — Recorded *Individual horse import/export* and related hardening as shipped, and removed it from active Cloud backup & collaboration.
