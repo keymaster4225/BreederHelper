@@ -43,41 +43,45 @@ export function PhotoDraftsSection({
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.draftList}>
           {photos.map((photo, index) => (
             <View key={photo.clientId} style={styles.draftItem}>
-              <Image source={{ uri: photo.thumbnailUri }} style={styles.draftImage} />
-              <View style={styles.draftControls}>
-                <Pressable
-                  accessibilityLabel="Move photo left"
-                  accessibilityRole="button"
-                  disabled={index === 0}
-                  onPress={() => onMovePhoto(photo.clientId, 'left')}
-                  style={({ pressed }) => [
-                    styles.iconButton,
-                    index === 0 && styles.iconButtonDisabled,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <MaterialCommunityIcons name="chevron-left" size={18} color={colors.onSurface} />
-                </Pressable>
+              <View style={styles.draftImageFrame}>
+                <Image source={{ uri: photo.thumbnailUri }} style={styles.draftImage} />
                 <Pressable
                   accessibilityLabel="Remove photo"
                   accessibilityRole="button"
                   onPress={() => onRemovePhoto(photo.clientId)}
-                  style={({ pressed }) => [styles.iconButton, pressed && styles.pressed]}
+                  style={({ pressed }) => [styles.deleteIconButton, pressed && styles.pressed]}
                 >
-                  <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.error} />
+                  <MaterialCommunityIcons name="trash-can-outline" size={22} color={colors.error} />
+                </Pressable>
+              </View>
+              <View style={styles.draftControls}>
+                <Pressable
+                  accessibilityLabel="Move photo left"
+                  accessibilityRole="button"
+                  accessibilityState={index === 0 ? { disabled: true } : undefined}
+                  disabled={index === 0}
+                  onPress={() => onMovePhoto(photo.clientId, 'left')}
+                  style={({ pressed }) => [
+                    styles.moveIconButton,
+                    index === 0 && styles.iconButtonDisabled,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <MaterialCommunityIcons name="chevron-left" size={24} color={colors.onSurface} />
                 </Pressable>
                 <Pressable
                   accessibilityLabel="Move photo right"
                   accessibilityRole="button"
+                  accessibilityState={index === photos.length - 1 ? { disabled: true } : undefined}
                   disabled={index === photos.length - 1}
                   onPress={() => onMovePhoto(photo.clientId, 'right')}
                   style={({ pressed }) => [
-                    styles.iconButton,
+                    styles.moveIconButton,
                     index === photos.length - 1 && styles.iconButtonDisabled,
                     pressed && styles.pressed,
                   ]}
                 >
-                  <MaterialCommunityIcons name="chevron-right" size={18} color={colors.onSurface} />
+                  <MaterialCommunityIcons name="chevron-right" size={24} color={colors.onSurface} />
                 </Pressable>
               </View>
             </View>
@@ -154,26 +158,42 @@ const styles = StyleSheet.create({
   },
   draftItem: {
     gap: spacing.xs,
-    width: 104,
+    width: 128,
+  },
+  draftImageFrame: {
+    position: 'relative',
   },
   draftImage: {
     aspectRatio: 1,
     backgroundColor: colors.surfaceVariant,
     borderRadius: borderRadius.md,
-    width: 104,
+    width: 128,
+  },
+  deleteIconButton: {
+    alignItems: 'center',
+    backgroundColor: colors.errorContainer,
+    borderColor: colors.error,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: spacing.xs,
+    top: spacing.xs,
+    width: 44,
   },
   draftControls: {
+    columnGap: spacing.sm,
     flexDirection: 'row',
-    justifyContent: 'space-between',
   },
-  iconButton: {
+  moveIconButton: {
     alignItems: 'center',
     borderColor: colors.outlineVariant,
     borderRadius: borderRadius.full,
     borderWidth: 1,
-    height: 28,
+    flex: 1,
+    height: 44,
     justifyContent: 'center',
-    width: 28,
   },
   iconButtonDisabled: {
     opacity: 0.32,
