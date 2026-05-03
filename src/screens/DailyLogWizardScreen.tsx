@@ -12,8 +12,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-import { PrimaryButton, SecondaryButton } from '@/components/Buttons';
-import { FormActionBar, STICKY_ACTION_BAR_SCROLL_PADDING } from '@/components/FormActionBar';
+import { DeleteButton, PrimaryButton, SecondaryButton } from '@/components/Buttons';
 import { Screen } from '@/components/Screen';
 import { formStyles } from '@/components/FormControls';
 import { useDailyLogWizard } from '@/hooks/useDailyLogWizard';
@@ -59,7 +58,6 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
   });
   const currentStepIndex = wizard.currentStepIndex;
   const goBack = wizard.goBack;
-  const isReviewStep = wizard.currentStepId === 'review';
 
   useEffect(() => {
     return navigation.addListener('beforeRemove', (event) => {
@@ -105,11 +103,9 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView
+          testID="daily-log-wizard-scroll"
           style={styles.scrollView}
-          contentContainerStyle={[
-            formStyles.form,
-            isReviewStep ? styles.formWithActionBar : null,
-          ]}
+          contentContainerStyle={formStyles.form}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.stepHeader}>
@@ -204,6 +200,32 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
             />
           ) : null}
 
+          {wizard.currentStepId === 'review' ? (
+            <View style={styles.actions} testID="daily-log-review-actions">
+              <PrimaryButton
+                label={wizard.isSaving ? 'Saving...' : 'Save'}
+                onPress={() => {
+                  void wizard.save();
+                }}
+                disabled={wizard.isSaving || wizard.isDeleting}
+              />
+              <SecondaryButton
+                label="Save & Add Follow-up"
+                onPress={() => {
+                  void wizard.saveAndAddFollowUp();
+                }}
+                disabled={wizard.isSaving || wizard.isDeleting}
+              />
+              {wizard.isEdit ? (
+                <DeleteButton
+                  label={wizard.isDeleting ? 'Deleting...' : 'Delete'}
+                  onPress={wizard.requestDelete}
+                  disabled={wizard.isSaving || wizard.isDeleting}
+                />
+              ) : null}
+            </View>
+          ) : null}
+
           {wizard.currentStepId !== 'review' ? (
             <View style={styles.actions}>
               {wizard.currentStepIndex > 0 ? (
@@ -221,23 +243,6 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
             </View>
           ) : null}
         </ScrollView>
-        {isReviewStep ? (
-          <FormActionBar
-            primaryLabel={wizard.isSaving ? 'Saving...' : 'Save'}
-            onPrimaryPress={() => {
-              void wizard.save();
-            }}
-            primaryDisabled={wizard.isSaving || wizard.isDeleting}
-            secondaryLabel="Save & Add Follow-up"
-            onSecondaryPress={() => {
-              void wizard.saveAndAddFollowUp();
-            }}
-            secondaryDisabled={wizard.isSaving || wizard.isDeleting}
-            destructiveLabel={wizard.isEdit ? (wizard.isDeleting ? 'Deleting...' : 'Delete') : undefined}
-            onDestructivePress={wizard.isEdit ? wizard.requestDelete : undefined}
-            destructiveDisabled={wizard.isSaving || wizard.isDeleting}
-          />
-        ) : null}
       </KeyboardAvoidingView>
     </Screen>
   );
@@ -246,9 +251,6 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
 const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
-  },
-  formWithActionBar: {
-    paddingBottom: STICKY_ACTION_BAR_SCROLL_PADDING,
   },
   stepHeader: {
     gap: spacing.xs,
