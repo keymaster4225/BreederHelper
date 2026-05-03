@@ -29,6 +29,18 @@ export type AddAttachmentPhotoInput = {
   readonly caption?: string | null;
 };
 
+export type ReplaceAttachmentPhotoInput =
+  | {
+      readonly kind: 'existing';
+      readonly attachmentId: UUID;
+    }
+  | {
+      readonly kind: 'new';
+      readonly attachmentId: UUID;
+      readonly asset: PhotoAsset;
+      readonly caption?: string | null;
+    };
+
 type PhotoAssetRow = {
   id: string;
   master_relative_path: string;
@@ -248,7 +260,33 @@ async function listAssetIdsForProfile(
   return rows.map((row) => row.photo_asset_id);
 }
 
-async function cleanupOrphanedAssets(assetIds: readonly string[], db: RepoDb): Promise<void> {
+async function getAssetById(assetId: string, db: RepoDb): Promise<PhotoAsset | null> {
+  const row = await db.getFirstAsync<PhotoAssetRow>(
+    `
+    SELECT
+      id,
+      master_relative_path,
+      thumbnail_relative_path,
+      master_mime_type,
+      thumbnail_mime_type,
+      width,
+      height,
+      file_size_bytes,
+      source_kind,
+      created_at,
+      updated_at
+    FROM photo_assets
+    WHERE id = ?;
+    `,
+    [assetId],
+  );
+
+  return row ? mapAssetRow(row) : null;
+}
+
+async function cleanupOrphanedAssets(assetIds: readonly string[], db: RepoDb): Promise<PhotoAsset[]> {
+  const deletedAssets: PhotoAsset[] = [];
+
   for (const assetId of new Set(assetIds)) {
     const row = await db.getFirstAsync<CountRow>(
       `
@@ -260,9 +298,15 @@ async function cleanupOrphanedAssets(assetIds: readonly string[], db: RepoDb): P
     );
 
     if ((row?.count ?? 0) === 0) {
+      const asset = await getAssetById(assetId, db);
       await db.runAsync('DELETE FROM photo_assets WHERE id = ?;', [assetId]);
+      if (asset) {
+        deletedAssets.push(asset);
+      }
     }
   }
+
+  return deletedAssets;
 }
 
 async function countAttachmentPhotos(
@@ -436,6 +480,82 @@ export async function addDailyLogAttachmentPhotos(
   });
 }
 
+export async function replaceDailyLogAttachmentPhotosInTransaction(
+  dailyLogId: UUID,
+  photos: readonly ReplaceAttachmentPhotoInput[],
+  db: RepoDb,
+): Promise<PhotoAsset[]> {
+  if (photos.length > DAILY_LOG_PHOTO_LIMIT) {
+    throw new Error('Daily logs can have at most 12 photos.');
+  }
+
+  const existing = await listAttachmentPhotos('dailyLog', dailyLogId, db);
+  const existingById = new Map(existing.map((photo) => [photo.id, photo]));
+  const retainedIds = new Set(
+    photos
+      .filter((photo): photo is Extract<ReplaceAttachmentPhotoInput, { kind: 'existing' }> => photo.kind === 'existing')
+      .map((photo) => photo.attachmentId),
+  );
+
+  for (const retainedId of retainedIds) {
+    if (!existingById.has(retainedId)) {
+      throw new Error('Photo attachment order includes an unknown attachment.');
+    }
+  }
+
+  const removedAssetIds = existing
+    .filter((photo) => !retainedIds.has(photo.id))
+    .map((photo) => photo.photoAssetId);
+
+  if (removedAssetIds.length > 0) {
+    await db.runAsync(
+      `
+      DELETE FROM photo_attachments
+      WHERE owner_type = 'dailyLog'
+        AND owner_id = ?
+        AND id NOT IN (${Array.from(retainedIds).map(() => '?').join(', ') || "''"});
+      `,
+      [dailyLogId, ...Array.from(retainedIds)],
+    );
+  }
+
+  for (let index = 0; index < photos.length; index += 1) {
+    const photo = photos[index]!;
+
+    if (photo.kind === 'new') {
+      await insertAsset(photo.asset, db);
+      await insertAttachment(
+        {
+          id: photo.attachmentId,
+          photoAssetId: photo.asset.id,
+          ownerType: 'dailyLog',
+          ownerId: dailyLogId,
+          role: 'attachment',
+          sortOrder: index,
+          caption: photo.caption,
+          createdAt: photo.asset.createdAt,
+          updatedAt: photo.asset.updatedAt,
+        },
+        db,
+      );
+      continue;
+    }
+
+    await db.runAsync(
+      `
+      UPDATE photo_attachments
+      SET sort_order = ?, updated_at = ?
+      WHERE id = ?
+        AND owner_type = 'dailyLog'
+        AND owner_id = ?;
+      `,
+      [index, new Date().toISOString(), photo.attachmentId, dailyLogId],
+    );
+  }
+
+  return cleanupOrphanedAssets(removedAssetIds, db);
+}
+
 export async function replaceAttachmentPhotoOrder(
   ownerType: PhotoOwnerType,
   ownerId: UUID,
@@ -481,6 +601,37 @@ export async function deleteAttachmentPhoto(id: UUID, db?: RepoDb): Promise<void
   });
 }
 
+export async function deleteAttachmentPhotosForOwnersInTransaction(
+  ownerType: Extract<PhotoOwnerType, 'dailyLog' | 'pregnancyCheck' | 'foalingRecord'>,
+  ownerIds: readonly UUID[],
+  db: RepoDb,
+): Promise<PhotoAsset[]> {
+  if (ownerIds.length === 0) {
+    return [];
+  }
+
+  const placeholders = ownerIds.map(() => '?').join(', ');
+  const rows = await db.getAllAsync<PhotoAttachmentRow>(
+    `
+    SELECT id, photo_asset_id, owner_type, owner_id, role, sort_order, caption, created_at, updated_at
+    FROM photo_attachments
+    WHERE owner_type = ?
+      AND owner_id IN (${placeholders});
+    `,
+    [ownerType, ...ownerIds],
+  );
+  const assetIds = rows.map((row) => row.photo_asset_id);
+  await db.runAsync(
+    `
+    DELETE FROM photo_attachments
+    WHERE owner_type = ?
+      AND owner_id IN (${placeholders});
+    `,
+    [ownerType, ...ownerIds],
+  );
+  return cleanupOrphanedAssets(assetIds, db);
+}
+
 export async function deleteAttachmentPhotosForOwners(
   ownerType: Extract<PhotoOwnerType, 'dailyLog' | 'pregnancyCheck' | 'foalingRecord'>,
   ownerIds: readonly UUID[],
@@ -491,26 +642,7 @@ export async function deleteAttachmentPhotosForOwners(
   }
 
   const handle = await resolveDb(db);
-  const placeholders = ownerIds.map(() => '?').join(', ');
   await handle.withTransactionAsync(async () => {
-    const rows = await handle.getAllAsync<PhotoAttachmentRow>(
-      `
-      SELECT id, photo_asset_id, owner_type, owner_id, role, sort_order, caption, created_at, updated_at
-      FROM photo_attachments
-      WHERE owner_type = ?
-        AND owner_id IN (${placeholders});
-      `,
-      [ownerType, ...ownerIds],
-    );
-    const assetIds = rows.map((row) => row.photo_asset_id);
-    await handle.runAsync(
-      `
-      DELETE FROM photo_attachments
-      WHERE owner_type = ?
-        AND owner_id IN (${placeholders});
-      `,
-      [ownerType, ...ownerIds],
-    );
-    await cleanupOrphanedAssets(assetIds, handle);
+    await deleteAttachmentPhotosForOwnersInTransaction(ownerType, ownerIds, handle);
   });
 }

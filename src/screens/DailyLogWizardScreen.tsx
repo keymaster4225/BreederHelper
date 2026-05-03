@@ -198,6 +198,7 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
               legacyNotes={wizard.legacyNotes}
               legacyOvulationDetected={wizard.legacyOvulationDetected}
               ovulationSource={wizard.ovulationSource}
+              photos={wizard.photos}
               onNotesChange={wizard.setNotes}
               onJumpToStep={wizard.goToStep}
             />

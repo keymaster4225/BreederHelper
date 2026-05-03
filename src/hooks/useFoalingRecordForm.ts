@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
-import type { FoalSex, FoalingOutcome } from '@/models/types';
+import type { FoalSex, FoalingOutcome, PhotoAsset } from '@/models/types';
 import {
   createFoalingRecord,
   deleteFoalingRecord,
@@ -10,6 +10,7 @@ import {
   listBreedingRecordsByMare,
   updateFoalingRecord,
 } from '@/storage/repositories';
+import { deletePhotoAssetDirectoryByRelativePath } from '@/storage/photoFiles/assets';
 import { buildBreedingRecordPickerOptions } from '@/utils/breedingRecordTime';
 import { confirmDelete } from '@/utils/confirmDelete';
 import { newId } from '@/utils/id';
@@ -17,6 +18,16 @@ import { validateLocalDate, validateLocalDateNotInFuture } from '@/utils/validat
 
 import { useRecordForm } from './useRecordForm';
 import { useClockDisplayMode } from './useClockPreference';
+
+async function deletePhotoAssetFilesBestEffort(assets: readonly PhotoAsset[]): Promise<void> {
+  for (const asset of assets) {
+    try {
+      await deletePhotoAssetDirectoryByRelativePath(asset.masterRelativePath);
+    } catch {
+      // Metadata has committed; the boot consistency sweep can remove leftovers.
+    }
+  }
+}
 
 type FormErrors = {
   date?: string;
@@ -191,7 +202,8 @@ export function useFoalingRecordForm({
       onConfirm: async () => {
         await runDelete(
           async () => {
-            await deleteFoalingRecord(foalingRecordId);
+            const deletedPhotoAssets = await deleteFoalingRecord(foalingRecordId);
+            await deletePhotoAssetFilesBestEffort(deletedPhotoAssets);
             onGoBack();
           },
           {

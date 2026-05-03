@@ -21,6 +21,7 @@ import {
   listPregnancyChecksByMare,
   listStallions,
   getProfilePhoto,
+  listAttachmentPhotos,
 } from '@/storage/repositories';
 import { resolvePhotoUri } from '@/storage/photoFiles/assets';
 import { deriveAgeYears } from '@/utils/dates';
@@ -36,6 +37,7 @@ type MareDetailData = {
   readonly profilePhotosEnabled: boolean;
   readonly profilePhoto: ResolvedProfilePhoto | null;
   readonly dailyLogs: DailyLog[];
+  readonly attachmentPhotosByDailyLogId: Record<string, ResolvedDailyLogPhoto[]>;
   readonly breedingRecords: BreedingRecord[];
   readonly pregnancyChecks: PregnancyCheck[];
   readonly foalingRecords: FoalingRecord[];
@@ -50,11 +52,18 @@ type MareDetailData = {
   readonly loadData: () => Promise<void>;
 };
 
+export type ResolvedDailyLogPhoto = {
+  readonly id: string;
+  readonly thumbnailUri: string;
+  readonly masterUri: string;
+};
+
 export function useMareDetailData({ mareId, setTitle }: UseMareDetailDataArgs): MareDetailData {
   const profilePhotosEnabled = isPhotosEnabled();
   const [mare, setMare] = useState<Mare | null>(null);
   const [profilePhoto, setProfilePhoto] = useState<ResolvedProfilePhoto | null>(null);
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
+  const [attachmentPhotosByDailyLogId, setAttachmentPhotosByDailyLogId] = useState<Record<string, ResolvedDailyLogPhoto[]>>({});
   const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
   const [pregnancyChecks, setPregnancyChecks] = useState<PregnancyCheck[]>([]);
   const [foalingRecords, setFoalingRecords] = useState<FoalingRecord[]>([]);
@@ -98,6 +107,24 @@ export function useMareDetailData({ mareId, setTitle }: UseMareDetailDataArgs): 
           : null,
       );
       setDailyLogs(logs);
+      if (profilePhotosEnabled) {
+        const photoEntries = await Promise.all(
+          logs.map(async (log) => {
+            const photos = await listAttachmentPhotos('dailyLog', log.id);
+            return [
+              log.id,
+              photos.map((photo) => ({
+                id: photo.id,
+                thumbnailUri: resolvePhotoUri(photo.asset.thumbnailRelativePath),
+                masterUri: resolvePhotoUri(photo.asset.masterRelativePath),
+              })),
+            ] as const;
+          }),
+        );
+        setAttachmentPhotosByDailyLogId(Object.fromEntries(photoEntries));
+      } else {
+        setAttachmentPhotosByDailyLogId({});
+      }
       setBreedingRecords(breeding);
       setPregnancyChecks(checks);
       setFoalingRecords(foaling);
@@ -127,6 +154,7 @@ export function useMareDetailData({ mareId, setTitle }: UseMareDetailDataArgs): 
     profilePhotosEnabled,
     profilePhoto,
     dailyLogs,
+    attachmentPhotosByDailyLogId,
     breedingRecords,
     pregnancyChecks,
     foalingRecords,

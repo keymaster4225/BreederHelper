@@ -1,9 +1,10 @@
-import { PregnancyCheck } from '@/models/types';
+import { PregnancyCheck, type PhotoAsset } from '@/models/types';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import type { RepoDb } from './internal/dbTypes';
 import { resolveDb } from './internal/resolveDb';
 import { getBreedingRecordById } from './breedingRecords';
 import { completeOpenBreedingPregnancyCheckTask } from './tasks';
+import { deleteAttachmentPhotosForOwnersInTransaction } from './photos';
 
 type PregnancyCheckRow = {
   id: string;
@@ -156,10 +157,15 @@ export async function getPregnancyCheckById(id: string, db?: RepoDb): Promise<Pr
   return row ? mapPregnancyCheckRow(row) : null;
 }
 
-export async function deletePregnancyCheck(id: string, db?: RepoDb): Promise<void> {
+export async function deletePregnancyCheck(id: string, db?: RepoDb): Promise<PhotoAsset[]> {
   const handle = await resolveDb(db);
-  await handle.runAsync('DELETE FROM pregnancy_checks WHERE id = ?;', [id]);
+  let deletedPhotoAssets: PhotoAsset[] = [];
+  await handle.withTransactionAsync(async () => {
+    deletedPhotoAssets = await deleteAttachmentPhotosForOwnersInTransaction('pregnancyCheck', [id], handle);
+    await handle.runAsync('DELETE FROM pregnancy_checks WHERE id = ?;', [id]);
+  });
   emitDataInvalidation('pregnancyChecks');
+  return deletedPhotoAssets;
 }
 
 export async function listAllPregnancyChecks(db?: RepoDb): Promise<PregnancyCheck[]> {

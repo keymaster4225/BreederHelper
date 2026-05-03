@@ -45,6 +45,7 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
     profilePhotosEnabled,
     profilePhoto,
     dailyLogs,
+    attachmentPhotosByDailyLogId,
     breedingRecords,
     pregnancyChecks,
     foalingRecords,
@@ -129,7 +130,13 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             initialPage={initialTabIndex}
             onPageSelected={handlePageSelected}
           >
-            <DailyLogsTab key="0" mareId={mareId} dailyLogs={dailyLogs} navigation={navigation} />
+            <DailyLogsTab
+              key="0"
+              mareId={mareId}
+              dailyLogs={dailyLogs}
+              attachmentPhotosByDailyLogId={attachmentPhotosByDailyLogId}
+              navigation={navigation}
+            />
             <BreedingTab key="1" mareId={mareId} breedingRecords={breedingRecords} stallionNameById={stallionNameById} navigation={navigation} />
             <PregnancyTab
               key="2"

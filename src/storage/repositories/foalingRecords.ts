@@ -1,8 +1,9 @@
-import { FoalingRecord } from '@/models/types';
+import { FoalingRecord, type PhotoAsset } from '@/models/types';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import type { RepoDb } from './internal/dbTypes';
 import { resolveDb } from './internal/resolveDb';
 import { getBreedingRecordById } from './breedingRecords';
+import { deleteAttachmentPhotosForOwnersInTransaction } from './photos';
 
 type FoalingRecordRow = {
   id: string;
@@ -159,10 +160,15 @@ export async function getFoalingRecordById(id: string, db?: RepoDb): Promise<Foa
   return row ? mapFoalingRecordRow(row) : null;
 }
 
-export async function deleteFoalingRecord(id: string, db?: RepoDb): Promise<void> {
+export async function deleteFoalingRecord(id: string, db?: RepoDb): Promise<PhotoAsset[]> {
   const handle = await resolveDb(db);
-  await handle.runAsync('DELETE FROM foaling_records WHERE id = ?;', [id]);
+  let deletedPhotoAssets: PhotoAsset[] = [];
+  await handle.withTransactionAsync(async () => {
+    deletedPhotoAssets = await deleteAttachmentPhotosForOwnersInTransaction('foalingRecord', [id], handle);
+    await handle.runAsync('DELETE FROM foaling_records WHERE id = ?;', [id]);
+  });
   emitDataInvalidation('foalingRecords');
+  return deletedPhotoAssets;
 }
 
 export async function listAllFoalingRecords(db?: RepoDb): Promise<FoalingRecord[]> {

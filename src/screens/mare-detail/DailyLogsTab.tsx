@@ -4,6 +4,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { PrimaryButton } from '../../components/Buttons';
+import { DailyLogThumbnailStrip } from '../../components/DailyLogPhotos';
 import { StatusBadge } from '../../components/StatusBadge';
 import { CardRow, EditIconButton, ScoreBadge, cardStyles } from '../../components/RecordCardParts';
 import type { DailyLog } from '../../models/types';
@@ -16,6 +17,7 @@ import { useClockDisplayMode } from '@/hooks/useClockPreference';
 type Props = {
   mareId: string;
   dailyLogs: readonly DailyLog[];
+  attachmentPhotosByDailyLogId?: Record<string, { id: string; thumbnailUri: string; masterUri: string }[]>;
   navigation: NativeStackNavigationProp<RootStackParamList, 'MareDetail'>;
 };
 
@@ -92,7 +94,12 @@ function OvaryDisclosure({
   );
 }
 
-export function DailyLogsTab({ mareId, dailyLogs, navigation }: Props): JSX.Element {
+export function DailyLogsTab({
+  mareId,
+  dailyLogs,
+  attachmentPhotosByDailyLogId = {},
+  navigation,
+}: Props): JSX.Element {
   const groupedLogs = groupDailyLogsByDate(dailyLogs);
   const clockDisplayMode = useClockDisplayMode();
 
@@ -112,6 +119,7 @@ export function DailyLogsTab({ mareId, dailyLogs, navigation }: Props): JSX.Elem
               const rightOvaryDetails = buildOvaryDetailLines(log, 'right');
               const leftOvaryDetails = buildOvaryDetailLines(log, 'left');
               const uterusSummary = buildUterusSummary(log);
+              const photos = attachmentPhotosByDailyLogId[log.id] ?? [];
 
               return (
                 <View key={log.id} style={cardStyles.card}>
@@ -136,6 +144,18 @@ export function DailyLogsTab({ mareId, dailyLogs, navigation }: Props): JSX.Elem
                   <OvaryDisclosure title="Right ovary" details={rightOvaryDetails} />
                   <OvaryDisclosure title="Left ovary" details={leftOvaryDetails} />
                   {uterusSummary ? <CardRow label="Uterus" value={uterusSummary} /> : null}
+                  <DailyLogThumbnailStrip
+                    photos={photos}
+                    onPressPhoto={(index) => {
+                      navigation.navigate('PhotoViewer', {
+                        photos: photos.map((photo) => ({
+                          uri: photo.masterUri,
+                          title: `${log.date} photo`,
+                        })),
+                        initialIndex: index,
+                      });
+                    }}
+                  />
                 </View>
               );
             })}

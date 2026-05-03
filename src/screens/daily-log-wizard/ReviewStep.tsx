@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { CardRow, cardStyles } from '@/components/RecordCardParts';
 import { FormField, FormTextInput } from '@/components/FormControls';
+import { PhotoDraftsSection } from '@/components/DailyLogPhotos';
 import {
   CERVICAL_FIRMNESS_LABELS,
   FLUID_LOCATION_LABELS,
@@ -19,6 +20,7 @@ import {
   type FlushDecision,
   type ScoreOption,
 } from '@/hooks/useDailyLogWizard';
+import type { UsePhotoDraftsState } from '@/hooks/usePhotoDrafts';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 import { formatDailyLogTime } from '@/utils/dailyLogTime';
 import { useClockDisplayMode } from '@/hooks/useClockPreference';
@@ -36,6 +38,7 @@ type Props = {
   legacyNotes: DailyLogWizardLegacyNotes;
   legacyOvulationDetected: boolean | null;
   ovulationSource: DailyLogOvulationSource;
+  photos?: UsePhotoDraftsState;
   onNotesChange: (value: string) => void;
   onJumpToStep: (stepIndex: number) => void;
 };
@@ -201,6 +204,7 @@ export function ReviewStep({
   legacyNotes,
   legacyOvulationDetected,
   ovulationSource,
+  photos,
   onNotesChange,
   onJumpToStep,
 }: Props): JSX.Element {
@@ -268,6 +272,22 @@ export function ReviewStep({
       <FormField label="Notes">
         <FormTextInput value={notes} onChangeText={onNotesChange} multiline />
       </FormField>
+
+      {photos?.enabled ? (
+        <PhotoDraftsSection
+          photos={photos.items}
+          remainingSlots={photos.remainingSlots}
+          isProcessing={photos.isProcessing}
+          onTakePhoto={() => {
+            void photos.takePhoto();
+          }}
+          onChoosePhotos={() => {
+            void photos.choosePhotos();
+          }}
+          onRemovePhoto={photos.removePhoto}
+          onMovePhoto={photos.movePhoto}
+        />
+      ) : null}
     </>
   );
 }

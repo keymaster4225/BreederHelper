@@ -1,7 +1,7 @@
 # Photos V1 Amended Implementation Plan
 
 Date: 2026-04-30
-Status: Phase 3 complete; resume at Phase 4
+Status: Phase 5 implemented locally; resume at Phase 6 after review/commit
 Supersedes: `2026-04-26-photos-v1-implementation-plan.md`
 Incorporates: `2026-04-26-photos-v1-adversarial-review-round-2.md`
 
@@ -861,6 +861,39 @@ Known carry-forward notes for Phase 4:
 - New mare/stallion create flows need stable IDs before photo staging so profile drafts can bind to the future owner.
 - Save owner row and profile photo metadata through one owned DB transaction path after file finalization; if photo persistence fails, keep the user on the form with staged state intact.
 - Continue using the existing photo storage mutex and boot-sweep readiness contracts before any UI path can finalize photo writes.
+
+## Phase 5 Execution Notes
+
+Status as of 2026-05-03:
+
+- Phase 4 profile photos are committed at `b2a7150`.
+- Phase 5, "Daily Log Attachments And Viewer", is implemented locally on `photos-v1-phase-0`.
+- `FEATURE_FLAGS.photos` remains false by default; Phase 6 should be the enable-and-verify pass.
+
+What Phase 5 delivered:
+
+- Added `src/hooks/usePhotoDrafts.ts` for daily-log multi-photo staging, camera add, library multi-select, limit handling, remove, reorder, finalize, and retry state.
+- Added a photos section to the daily-log review step behind the photos feature flag.
+- Added transaction-aware daily-log create/update paths that persist daily-log data and photo metadata in one DB transaction without nesting the existing daily-log transactions.
+- Daily-log delete, pregnancy-check delete, and foaling-record delete now remove restored/invisible photo attachment metadata in the owner delete transaction and return orphaned assets for best-effort file cleanup by hooks.
+- Mare detail data loads daily-log attachment photos in the hook and passes resolved URIs into `DailyLogsTab`; screens still do not import photo repositories directly.
+- Daily-log cards render a fixed horizontal thumbnail strip, and thumbnails open the typed `PhotoViewer` route.
+- `PhotoViewer` now supports close, loading, missing-file, and same-log previous/next navigation states while preserving the existing single-photo route shape used by profile photos.
+
+Verification completed for the Phase 5 local work:
+
+- `npm run typecheck` passed.
+- `npm run lint` passed.
+- `npm test -- src/storage/repositories/photos.test.ts src/storage/repositories/dailyLogs.test.ts` passed: 2 files, 26 tests.
+- `npm run test:screen -- src/screens/mare-detail/DailyLogsTab.screen.test.tsx src/screens/PhotoViewerScreen.screen.test.tsx src/screens/DailyLogFormScreen.screen.test.tsx src/navigation/AppNavigator.wiring.screen.test.tsx` passed: 4 suites, 18 tests.
+- Full `npm test` passed: 52 files, 544 tests.
+- Full `npm run test:screen` passed: 43 suites, 221 tests.
+
+Known carry-forward notes for Phase 6:
+
+- Run the full unit and screen suites, not only the focused Phase 5 subset.
+- Flip `FEATURE_FLAGS.photos` to true only after final device verification.
+- Manually verify iOS and Android photo picker permissions, camera capture, HEIC/JPEG library assets, daily-log create/edit/delete cleanup, archive backup/restore with daily-log photos, and missing-file behavior.
 
 ## Follow-Up Features
 

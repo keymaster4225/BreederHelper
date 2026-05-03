@@ -130,3 +130,32 @@ it('renders structured ovary details in an expandable ovary row', () => {
   expect(screen.getByText('Structures')).toBeTruthy();
   expect(screen.getByText('Corpus Luteum, Hemorrhagic Anovulatory Follicle')).toBeTruthy();
 });
+
+it('renders daily log thumbnails from hook-provided photo data and opens the viewer', () => {
+  const navigation = createNavigation();
+  const screen = render(
+    <DailyLogsTab
+      mareId="mare-1"
+      dailyLogs={[
+        makeDailyLog({ id: 'log-with-photo', date: '2026-04-23', time: '08:00' }),
+      ]}
+      attachmentPhotosByDailyLogId={{
+        'log-with-photo': [
+          {
+            id: 'photo-1',
+            thumbnailUri: 'file:///photo-assets/photo-1/thumbnail.jpg',
+            masterUri: 'file:///photo-assets/photo-1/master.jpg',
+          },
+        ],
+      }}
+      navigation={navigation as never}
+    />,
+  );
+
+  fireEvent.press(screen.getByLabelText('Open daily log photo 1'));
+
+  expect(navigation.navigate).toHaveBeenCalledWith('PhotoViewer', {
+    photos: [{ uri: 'file:///photo-assets/photo-1/master.jpg', title: '2026-04-23 photo' }],
+    initialIndex: 0,
+  });
+});

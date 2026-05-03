@@ -85,7 +85,9 @@ export type RootStackParamList = {
   } | undefined;
   MareCalendar: { mareId: string };
   DataBackup: undefined;
-  PhotoViewer: { uri: string; title?: string };
+  PhotoViewer:
+    | { uri: string; title?: string }
+    | { photos: readonly { uri: string; title?: string }[]; initialIndex?: number };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
