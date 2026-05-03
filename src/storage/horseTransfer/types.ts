@@ -24,7 +24,7 @@ export const HORSE_TRANSFER_ARTIFACT_TYPE = 'breedwise.horseTransfer' as const;
 export const HORSE_TRANSFER_VERSION = 1 as const;
 
 export const HORSE_TRANSFER_RESTORE_ERROR_MESSAGE =
-  'This file is a horse package. Use Settings > Backup & Restore > Import Horse.';
+  'This file is a horse package. Use Settings > Backup, Restore & Horse Import > Import Horse.';
 
 export const HORSE_TRANSFER_NEWER_SCHEMA_MESSAGE =
   'This horse package was created by a newer version of BreedWise. Update BreedWise and try again.';

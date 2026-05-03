@@ -75,14 +75,14 @@ export function SettingsScreen({ navigation }: Props): JSX.Element {
           style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
           onPress={() => navigation.navigate('DataBackup')}
           accessibilityRole="button"
-          accessibilityLabel="Data Backup & Restore"
+          accessibilityLabel="Backup, Restore & Horse Import"
         >
           <View style={styles.iconWrap}>
             <MaterialCommunityIcons name="database-arrow-up-outline" size={22} color={colors.primary} />
           </View>
           <View style={styles.cardText}>
-            <Text style={styles.cardTitle}>Data Backup & Restore</Text>
-            <Text style={styles.cardSubtitle}>Create a backup file or replace local data from a backup.</Text>
+            <Text style={styles.cardTitle}>Backup, Restore & Horse Import</Text>
+            <Text style={styles.cardSubtitle}>Create backups, restore local data, or import a horse package.</Text>
           </View>
           <MaterialCommunityIcons name="chevron-right" size={22} color={colors.onSurfaceVariant} />
         </Pressable>

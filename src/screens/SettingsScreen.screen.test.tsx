@@ -41,9 +41,9 @@ it('renders the backup row and navigates to data backup', () => {
   const screen = renderScreen();
 
   expect(screen.getByText('Settings')).toBeTruthy();
-  expect(screen.getByText('Data Backup & Restore')).toBeTruthy();
+  expect(screen.getByText('Backup, Restore & Horse Import')).toBeTruthy();
 
-  fireEvent.press(screen.getByLabelText('Data Backup & Restore'));
+  fireEvent.press(screen.getByLabelText('Backup, Restore & Horse Import'));
   expect(screen.navigation.navigate).toHaveBeenCalledWith('DataBackup');
 });
 
