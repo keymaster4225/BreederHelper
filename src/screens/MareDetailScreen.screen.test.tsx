@@ -26,6 +26,8 @@ jest.mock('@/storage/repositories', () => ({
   listFoalsByMare: jest.fn(),
   listStallions: jest.fn(),
   listMedicationLogsByMare: jest.fn(),
+  getProfilePhoto: jest.fn(),
+  listAttachmentPhotos: jest.fn(),
 }));
 
 jest.mock('@/hooks/useHorseExport', () => ({
@@ -65,6 +67,8 @@ beforeEach(() => {
   repositories.listFoalsByMare.mockResolvedValue([]);
   repositories.listStallions.mockResolvedValue([]);
   repositories.listMedicationLogsByMare.mockResolvedValue([]);
+  repositories.getProfilePhoto.mockResolvedValue(null);
+  repositories.listAttachmentPhotos.mockResolvedValue([]);
 });
 
 afterEach(() => {

@@ -1,7 +1,7 @@
 # Photos V1 Amended Implementation Plan
 
 Date: 2026-04-30
-Status: Phase 5 implemented locally; resume at Phase 6 after review/commit
+Status: Phase 6 automated enable pass completed locally; manual device verification pending
 Supersedes: `2026-04-26-photos-v1-implementation-plan.md`
 Incorporates: `2026-04-26-photos-v1-adversarial-review-round-2.md`
 
@@ -892,8 +892,29 @@ Verification completed for the Phase 5 local work:
 Known carry-forward notes for Phase 6:
 
 - Run the full unit and screen suites, not only the focused Phase 5 subset.
-- Flip `FEATURE_FLAGS.photos` to true only after final device verification.
+- Do not treat the default-on flag as release-ready until final device verification is complete.
 - Manually verify iOS and Android photo picker permissions, camera capture, HEIC/JPEG library assets, daily-log create/edit/delete cleanup, archive backup/restore with daily-log photos, and missing-file behavior.
+
+## Phase 6 Execution Notes
+
+Status as of 2026-05-03:
+
+- Set `FEATURE_FLAGS.photos` default to `true`.
+- Updated screen-test repository mocks so default-on photo paths can load profile photos and daily-log attachment photos without crashing stale manual mocks.
+- Updated `useDailyLogWizard` screen expectations to assert the default-on photo-aware daily-log save path with an empty photo list.
+
+Automated verification completed:
+
+- `npm run typecheck` passed.
+- `npm test` passed: 52 files, 544 tests.
+- `npm run test:screen` passed: 43 suites, 221 tests.
+- `npm run lint` passed.
+
+Manual/device verification status:
+
+- Android runtime manual verification was not run in this workspace. `adb devices` starts successfully only with elevated permissions and reports no attached devices.
+- iOS runtime manual verification was not run in this workspace. The current environment is Linux/aarch64 and does not provide `xcrun`.
+- Local Android native config review found `android:allowBackup="true"` in `android/app/src/main/AndroidManifest.xml` and no checked-in `dataExtractionRules`, `fullBackupContent`, or generated backup-rule XML. This still needs real Android backup/restore validation from the Phase 6 matrix before release.
 
 ## Follow-Up Features
 

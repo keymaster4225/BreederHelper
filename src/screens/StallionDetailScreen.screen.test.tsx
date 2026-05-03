@@ -30,6 +30,7 @@ jest.mock('@/storage/repositories', () => ({
   listBreedingRecordsForStallion: jest.fn(),
   listLegacyBreedingRecordsMatchingStallionName: jest.fn(),
   listMares: jest.fn(),
+  getProfilePhoto: jest.fn(),
 }));
 
 jest.mock('@/hooks/useHorseExport', () => ({
@@ -129,6 +130,7 @@ beforeEach(() => {
   repositories.listBreedingRecordsForStallion.mockResolvedValue([]);
   repositories.listLegacyBreedingRecordsMatchingStallionName.mockResolvedValue([]);
   repositories.listMares.mockResolvedValue([]);
+  repositories.getProfilePhoto.mockResolvedValue(null);
 });
 
 afterEach(() => {

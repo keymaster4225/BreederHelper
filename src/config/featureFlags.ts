@@ -1,5 +1,5 @@
 export const FEATURE_FLAGS = {
-  photos: false as boolean,
+  photos: true as boolean,
 };
 
 export function isPhotosEnabled(): boolean {

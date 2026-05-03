@@ -27,6 +27,7 @@ jest.mock('@/utils/id', () => ({
 const repositories = jest.requireMock('@/storage/repositories') as {
   createMare: jest.Mock;
   getMareById: jest.Mock;
+  getProfilePhoto: jest.Mock;
   updateMare: jest.Mock;
 };
 
@@ -42,6 +43,7 @@ describe('useEditMareForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     repositories.getMareById.mockResolvedValue(null);
+    repositories.getProfilePhoto.mockResolvedValue(null);
     repositories.createMare.mockResolvedValue(undefined);
     repositories.updateMare.mockResolvedValue(undefined);
   });
