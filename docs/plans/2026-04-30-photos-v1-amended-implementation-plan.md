@@ -206,6 +206,8 @@ Indexes:
 - `idx_photo_attachments_asset_id` on `(photo_asset_id)`.
 - `idx_photo_attachments_profile_unique` unique on `(owner_type, owner_id, role)` where `role = 'profile'`.
 
+The owner-role-order index is the heavy-mare read path: it supports bulk loading and stable ordering for daily-log attachment thumbnails when a mare has many logs, including the 50 daily logs x 12 photos scenario called out in the round-2 review.
+
 Migration skip predicate must require:
 
 - `tableExists(db, 'photo_assets')`
@@ -653,6 +655,9 @@ Manual verification matrix:
 - Restored photo display.
 - Missing file fallback.
 - Low-storage or mocked `ENOSPC` import/archive failure.
+- Android reinstall with device backup/restore enabled; verify the app does not leave user-visible breakage if SQLite metadata is restored without matching `documentDirectory/photo-assets/` files, and that the boot sweep repairs dangling rows.
+- Review generated Android backup configuration (`allowBackup`, `dataExtractionRules`, `fullBackupContent`, or generated backup rules if present) so `photo-assets/` is not partially included or excluded without a matching SQLite strategy.
+- iOS reinstall or app-data restore path; verify restored photo metadata and `documentDirectory` files remain consistent, or that missing files fall back and sweep cleanly.
 
 Acceptance:
 
@@ -683,7 +688,7 @@ Status as of 2026-05-02:
 - Added `src/config/featureFlags.ts` with `FEATURE_FLAGS.photos` defaulting to `false`.
 - Added unconditional Jest mocks for `expo-image-picker`, `expo-image-manipulator`, and the root `expo-file-system` binary API surface in `jest.setup.ts`.
 - Added `scripts/spikes/photos-archive-spike.ts` as the Phase 0 runtime spike artifact. It is not included in the normal TypeScript project include set.
-- Fixed `useDashboardData` to load on mount and guard concurrent reloads after the navigator smoke test exposed that the dashboard could remain on its spinner if focus-based reload did not fire under native-stack screen tests.
+- Wired the temporary spike screen through `App.tsx` with `src/screens/dev/PhotosArchiveSpikeScreen.tsx` and `src/config/devSpikes.ts`; `shouldRunPhotosArchiveSpike()` requires both `__DEV__` and `EXPO_PUBLIC_RUN_PHOTOS_ARCHIVE_SPIKE=1`, so preview and release builds cannot launch it through the env flag alone.
 
 Current local evidence:
 
@@ -695,6 +700,10 @@ Current local evidence:
 - The archive spike uses `fflate` `Zip` plus `ZipPassThrough` streaming callbacks, writes emitted chunks incrementally with root `expo-file-system`, reads the archive back with `Unzip`, and reports archive readback fields.
 - Local Node/package inspection cannot prove native iOS and Android file behavior. Runtime evidence must come from Expo runtime runs on the target platforms.
 
+Incidental non-Photos fix:
+
+- Adjusted dashboard focus-loading behavior after the navigator smoke test exposed that the dashboard could remain on its spinner if focus-based reload did not fire under native-stack screen tests. This was a test-infrastructure discovery, not a Photos V1 hard-gate deliverable.
+
 Verification completed:
 
 - `npm run typecheck` passed.
@@ -703,7 +712,7 @@ Verification completed:
 - `npm run lint` passed.
 - Standalone TypeScript check for `scripts/spikes/photos-archive-spike.ts` passed.
 
-Device runtime spike evidence:
+Raw binary runtime spike evidence:
 
 - Android runtime result recorded on 2026-04-30 from `adb logcat` with tag `PHOTOS_ARCHIVE_SPIKE_RESULT`.
 - Android passed the binary round-trip, append-write, and 100 x 2 MB heap gate: `streamedBytesWritten` was `209715200`, `peakJsHeapBytes` was `8890536`, and `passed` was `true`.
@@ -722,7 +731,7 @@ Device runtime spike evidence:
 }
 ```
 
-- Android real archive runtime result recorded from `docs/spiketest.jpg`.
+- Android real archive runtime result recorded from `docs/Screenshot_20260502_222858_BreedWise.jpg`.
 - Android passed the real `.breedwisebackup` archive gate using root `expo-file-system` plus `fflate` `Zip` and `ZipPassThrough` streaming callbacks.
 - The Android real archive run wrote `209812421` streamed bytes (`200.1 MiB`), kept peak JS heap at `10382624` bytes (`9.9 MiB`), stayed below the `150 MiB` heap limit, read the archive back, and validated all expected archive entries.
 - Android real archive result:
@@ -751,7 +760,7 @@ Device runtime spike evidence:
 }
 ```
 
-- iOS Simulator runtime result recorded on 2026-05-01 from `docs/iostest.md`.
+- iOS Simulator raw binary runtime result recorded inline from the 2026-05-01 simulator run; no separate `docs/iostest.md` evidence file is kept.
 - The iOS Simulator run is accepted as satisfying the iOS side of the raw binary file API sub-gate.
 - iOS Simulator passed the binary round-trip, append-write, and 100 x 2 MB heap gate: `streamedBytesWritten` was `209715200`, `peakJsHeapBytes` was `7001904`, and peak JS heap was `6.7 MiB`.
 - Raw iOS Simulator result:
@@ -771,11 +780,44 @@ Device runtime spike evidence:
 }
 ```
 
+Real archive runtime spike evidence:
+
+- iOS Simulator real archive result recorded on 2026-05-02 from `docs/iostest2.md`.
+- Environment: MacBook Air M2, macOS 26.2, Xcode 26.4.1, iPhone 17 Pro Simulator on iOS 26.4.
+- iOS Simulator passed the real `.breedwisebackup` archive gate with root `expo-file-system`, `fflate` `Zip + ZipPassThrough` streaming callbacks, incremental binary archive writes, archive readback, required backup/photo entries, manifest validation, and 100 x 2 MB stress coverage.
+- The archive writer streamed `209812421` bytes, recorded `archiveEntryCount` of `201`, and reported peak JS heap of `10906552` bytes / `10.4 MiB`, below the 150 MiB limit.
+- Real archive iOS Simulator result:
+
+```json
+{
+  "platform": "ios",
+  "fileSystemImportPath": "expo-file-system",
+  "zipLibrary": "fflate",
+  "zipApi": "Zip + ZipPassThrough streaming callbacks",
+  "bytesRoundTrip": true,
+  "appendWrite": true,
+  "archiveWrite": true,
+  "archiveReadBack": true,
+  "backupJsonEntry": true,
+  "masterPhotoEntry": true,
+  "thumbnailPhotoEntry": true,
+  "manifestMatchesEntries": true,
+  "archiveEntryCount": 201,
+  "peakJsHeapBytes": 10906552,
+  "streamedBytesWritten": 209812421,
+  "fallbackDecision": "Proceed only if the real archive writer passes on both iOS and Android and peak JS heap remains below 150 MB.",
+  "passed": true,
+  "streamedMiB": 200.1,
+  "peakJsHeapMiB": 10.4,
+  "heapLimitMiB": 150
+}
+```
+
 Phase 0 gate status:
 
 - Raw binary file API sub-gate: cleared for Android and accepted iOS Simulator coverage.
 - The recorded runs prove binary round trips, append writes, and low heap usage for a raw 200 MB streamed write.
-- Real archive sub-gate: cleared for Android by the recorded `.breedwisebackup` archive run. The iOS side is recorded in this amended plan as already completed, so the two-platform archive gate is considered cleared.
+- Real archive sub-gate: cleared for Android by the recorded `.breedwisebackup` archive run and cleared for iOS Simulator by the 2026-05-02 `docs/iostest2.md` run, so the two-platform archive gate is considered cleared.
 
 Fallback decision:
 
@@ -790,8 +832,8 @@ Status as of 2026-05-03:
 - Work is leaving off after Phase 3, "Backup And Restore Archives".
 - Resume with Phase 4, "Mare And Stallion Profile Photos".
 - Current branch: `photos-v1-phase-0`.
-- Phase 3 implementation commit: `24a60c4 Implement photo backup archive restore`.
-- Phase 3 was committed locally only. Do not push or merge without explicit user permission.
+- Phase 3 implementation commit: `122a564 Implement photo backup archive restore`.
+- Phase 3 is pushed on `origin/photos-v1-phase-0`; do not merge without explicit user permission.
 
 What Phase 3 delivered:
 
