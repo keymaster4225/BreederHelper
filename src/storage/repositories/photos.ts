@@ -335,31 +335,7 @@ export async function setProfilePhoto(
 ): Promise<void> {
   const handle = await resolveDb(db);
   await handle.withTransactionAsync(async () => {
-    const oldAssetIds = await listAssetIdsForProfile(input.ownerType, input.ownerId, handle);
-    await insertAsset(input.asset, handle);
-    await handle.runAsync(
-      `
-      DELETE FROM photo_attachments
-      WHERE owner_type = ?
-        AND owner_id = ?
-        AND role = 'profile';
-      `,
-      [input.ownerType, input.ownerId],
-    );
-    await cleanupOrphanedAssets(oldAssetIds, handle);
-    await insertAttachment(
-      {
-        id: input.attachmentId,
-        photoAssetId: input.asset.id,
-        ownerType: input.ownerType,
-        ownerId: input.ownerId,
-        role: 'profile',
-        sortOrder: 0,
-        createdAt: input.asset.createdAt,
-        updatedAt: input.asset.updatedAt,
-      },
-      handle,
-    );
+    await setProfilePhotoInTransaction(input, handle);
   });
 }
 
@@ -370,18 +346,57 @@ export async function clearProfilePhoto(
 ): Promise<void> {
   const handle = await resolveDb(db);
   await handle.withTransactionAsync(async () => {
-    const oldAssetIds = await listAssetIdsForProfile(ownerType, ownerId, handle);
-    await handle.runAsync(
-      `
-      DELETE FROM photo_attachments
-      WHERE owner_type = ?
-        AND owner_id = ?
-        AND role = 'profile';
-      `,
-      [ownerType, ownerId],
-    );
-    await cleanupOrphanedAssets(oldAssetIds, handle);
+    await clearProfilePhotoInTransaction(ownerType, ownerId, handle);
   });
+}
+
+export async function setProfilePhotoInTransaction(
+  input: SetProfilePhotoInput,
+  db: RepoDb,
+): Promise<void> {
+  const oldAssetIds = await listAssetIdsForProfile(input.ownerType, input.ownerId, db);
+  await insertAsset(input.asset, db);
+  await db.runAsync(
+    `
+    DELETE FROM photo_attachments
+    WHERE owner_type = ?
+      AND owner_id = ?
+      AND role = 'profile';
+    `,
+    [input.ownerType, input.ownerId],
+  );
+  await cleanupOrphanedAssets(oldAssetIds, db);
+  await insertAttachment(
+    {
+      id: input.attachmentId,
+      photoAssetId: input.asset.id,
+      ownerType: input.ownerType,
+      ownerId: input.ownerId,
+      role: 'profile',
+      sortOrder: 0,
+      createdAt: input.asset.createdAt,
+      updatedAt: input.asset.updatedAt,
+    },
+    db,
+  );
+}
+
+export async function clearProfilePhotoInTransaction(
+  ownerType: Extract<PhotoOwnerType, 'mare' | 'stallion'>,
+  ownerId: UUID,
+  db: RepoDb,
+): Promise<void> {
+  const oldAssetIds = await listAssetIdsForProfile(ownerType, ownerId, db);
+  await db.runAsync(
+    `
+    DELETE FROM photo_attachments
+    WHERE owner_type = ?
+      AND owner_id = ?
+      AND role = 'profile';
+    `,
+    [ownerType, ownerId],
+  );
+  await cleanupOrphanedAssets(oldAssetIds, db);
 }
 
 export async function addDailyLogAttachmentPhotos(

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 
+import { isPhotosEnabled } from '@/config/featureFlags';
 import {
   BreedingRecord,
   DailyLog,
@@ -19,8 +20,11 @@ import {
   listMedicationLogsByMare,
   listPregnancyChecksByMare,
   listStallions,
+  getProfilePhoto,
 } from '@/storage/repositories';
+import { resolvePhotoUri } from '@/storage/photoFiles/assets';
 import { deriveAgeYears } from '@/utils/dates';
+import type { ResolvedProfilePhoto } from './useProfilePhotoDraft';
 
 type UseMareDetailDataArgs = {
   readonly mareId: string;
@@ -29,6 +33,8 @@ type UseMareDetailDataArgs = {
 
 type MareDetailData = {
   readonly mare: Mare | null;
+  readonly profilePhotosEnabled: boolean;
+  readonly profilePhoto: ResolvedProfilePhoto | null;
   readonly dailyLogs: DailyLog[];
   readonly breedingRecords: BreedingRecord[];
   readonly pregnancyChecks: PregnancyCheck[];
@@ -45,7 +51,9 @@ type MareDetailData = {
 };
 
 export function useMareDetailData({ mareId, setTitle }: UseMareDetailDataArgs): MareDetailData {
+  const profilePhotosEnabled = isPhotosEnabled();
   const [mare, setMare] = useState<Mare | null>(null);
+  const [profilePhoto, setProfilePhoto] = useState<ResolvedProfilePhoto | null>(null);
   const [dailyLogs, setDailyLogs] = useState<DailyLog[]>([]);
   const [breedingRecords, setBreedingRecords] = useState<BreedingRecord[]>([]);
   const [pregnancyChecks, setPregnancyChecks] = useState<PregnancyCheck[]>([]);
@@ -61,7 +69,7 @@ export function useMareDetailData({ mareId, setTitle }: UseMareDetailDataArgs): 
       setIsLoading(true);
       setError(null);
 
-      const [mareRecord, logs, breeding, checks, foaling, foals, stallions, meds] = await Promise.all([
+      const [mareRecord, logs, breeding, checks, foaling, foals, stallions, meds, loadedProfilePhoto] = await Promise.all([
         getMareById(mareId),
         listDailyLogsByMare(mareId),
         listBreedingRecordsByMare(mareId),
@@ -70,15 +78,25 @@ export function useMareDetailData({ mareId, setTitle }: UseMareDetailDataArgs): 
         listFoalsByMare(mareId),
         listStallions(),
         listMedicationLogsByMare(mareId),
+        profilePhotosEnabled ? getProfilePhoto('mare', mareId) : Promise.resolve(null),
       ]);
 
       if (!mareRecord) {
         setError('Mare not found.');
         setMare(null);
+        setProfilePhoto(null);
         return;
       }
 
       setMare(mareRecord);
+      setProfilePhoto(
+        loadedProfilePhoto
+          ? {
+              thumbnailUri: resolvePhotoUri(loadedProfilePhoto.asset.thumbnailRelativePath),
+              masterUri: resolvePhotoUri(loadedProfilePhoto.asset.masterRelativePath),
+            }
+          : null,
+      );
       setDailyLogs(logs);
       setBreedingRecords(breeding);
       setPregnancyChecks(checks);
@@ -93,7 +111,7 @@ export function useMareDetailData({ mareId, setTitle }: UseMareDetailDataArgs): 
     } finally {
       setIsLoading(false);
     }
-  }, [mareId, setTitle]);
+  }, [mareId, profilePhotosEnabled, setTitle]);
 
   const breedingById = useMemo(
     () => Object.fromEntries(breedingRecords.map((record) => [record.id, record])),
@@ -106,6 +124,8 @@ export function useMareDetailData({ mareId, setTitle }: UseMareDetailDataArgs): 
 
   return {
     mare,
+    profilePhotosEnabled,
+    profilePhoto,
     dailyLogs,
     breedingRecords,
     pregnancyChecks,

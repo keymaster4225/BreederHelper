@@ -1,10 +1,23 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 jest.mock('@/storage/repositories', () => ({
+  clearProfilePhotoInTransaction: jest.fn(),
   createMare: jest.fn(),
   getMareById: jest.fn(),
+  getProfilePhoto: jest.fn(),
+  setProfilePhotoInTransaction: jest.fn(),
   softDeleteMare: jest.fn(),
   updateMare: jest.fn(),
+}));
+
+const mockDb = {
+  withTransactionAsync: jest.fn(async (callback: () => Promise<void>) => {
+    await callback();
+  }),
+};
+
+jest.mock('@/storage/db', () => ({
+  getDb: jest.fn(async () => mockDb),
 }));
 
 jest.mock('@/utils/id', () => ({
@@ -56,16 +69,19 @@ describe('useEditMareForm', () => {
       await result.current.onSave();
     });
 
-    expect(repositories.createMare).toHaveBeenCalledWith({
-      id: 'new-mare-id',
-      name: 'Nova',
-      breed: 'Warmblood',
-      gestationLengthDays: 340,
-      dateOfBirth: null,
-      registrationNumber: null,
-      isRecipient: true,
-      notes: null,
-    });
+    expect(repositories.createMare).toHaveBeenCalledWith(
+      {
+        id: 'new-mare-id',
+        name: 'Nova',
+        breed: 'Warmblood',
+        gestationLengthDays: 340,
+        dateOfBirth: null,
+        registrationNumber: null,
+        isRecipient: true,
+        notes: null,
+      },
+      mockDb,
+    );
     expect(onGoBack).toHaveBeenCalled();
   });
 
@@ -107,15 +123,19 @@ describe('useEditMareForm', () => {
       await result.current.onSave();
     });
 
-    expect(repositories.updateMare).toHaveBeenCalledWith('mare-1', {
-      name: 'Maple',
-      breed: 'Quarter Horse',
-      gestationLengthDays: 345,
-      dateOfBirth: '2018-02-02',
-      registrationNumber: null,
-      isRecipient: false,
-      notes: null,
-    });
+    expect(repositories.updateMare).toHaveBeenCalledWith(
+      'mare-1',
+      {
+        name: 'Maple',
+        breed: 'Quarter Horse',
+        gestationLengthDays: 345,
+        dateOfBirth: '2018-02-02',
+        registrationNumber: null,
+        isRecipient: false,
+        notes: null,
+      },
+      mockDb,
+    );
     expect(onGoBack).toHaveBeenCalled();
   });
 

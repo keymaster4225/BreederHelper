@@ -42,6 +42,8 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   }, [navigation]);
   const {
     mare,
+    profilePhotosEnabled,
+    profilePhoto,
     dailyLogs,
     breedingRecords,
     pregnancyChecks,
@@ -107,6 +109,15 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             onCalendarPress={() => navigation.navigate('MareCalendar', { mareId })}
             onExportPress={handleExportMare}
             isExporting={isExporting}
+            profilePhotoUri={profilePhotosEnabled ? profilePhoto?.thumbnailUri ?? null : undefined}
+            onProfilePhotoPress={
+              profilePhoto
+                ? () => navigation.navigate('PhotoViewer', {
+                    uri: profilePhoto.masterUri,
+                    title: mare.name,
+                  })
+                : undefined
+            }
           />
 
           <MareDetailTabStrip tabs={TAB_OPTIONS} activeTabIndex={activeTabIndex} onTabPress={handleTabPress} />

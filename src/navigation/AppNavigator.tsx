@@ -23,6 +23,7 @@ import { FrozenBatchFormScreen } from '@/screens/FrozenBatchFormScreen';
 import { AVPreferencesFormScreen } from '@/screens/AVPreferencesFormScreen';
 import { DataBackupScreen } from '@/screens/DataBackupScreen';
 import { TaskFormScreen } from '@/screens/TaskFormScreen';
+import { PhotoViewerScreen } from '@/screens/PhotoViewerScreen';
 
 import { FoalSex, LocalDate, TaskSourceReason, TaskSourceType, TaskType } from '@/models/types';
 import { colors } from '@/theme';
@@ -84,6 +85,7 @@ export type RootStackParamList = {
   } | undefined;
   MareCalendar: { mareId: string };
   DataBackup: undefined;
+  PhotoViewer: { uri: string; title?: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -122,6 +124,7 @@ export function AppNavigator(): JSX.Element {
         <Stack.Screen name="AVPreferencesForm" component={AVPreferencesFormScreen} options={{ title: 'AV Preferences' }} />
         <Stack.Screen name="MareCalendar" component={MareCalendarScreen} options={{ title: 'Calendar' }} />
         <Stack.Screen name="DataBackup" component={DataBackupScreen} options={{ title: 'Data Backup & Restore' }} />
+        <Stack.Screen name="PhotoViewer" component={PhotoViewerScreen} options={{ title: 'Photo' }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

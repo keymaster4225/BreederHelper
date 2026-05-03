@@ -41,6 +41,20 @@ function createHookState(overrides: Record<string, unknown> = {}) {
     setNotes: jest.fn(),
     onSave: jest.fn(),
     requestDelete: jest.fn(),
+    profilePhoto: {
+      enabled: false,
+      ownerId: 'mare-1',
+      photoUri: null,
+      existingPhoto: null,
+      isProcessing: false,
+      error: null,
+      hasStagedChange: false,
+      takePhoto: jest.fn(),
+      choosePhoto: jest.fn(),
+      removePhoto: jest.fn(),
+      prepareForSave: jest.fn(),
+      markSaveCommitted: jest.fn(),
+    },
     ...overrides,
   };
 }
@@ -114,4 +128,38 @@ it('renders validation errors and forwards field edits in create mode', () => {
   expect(hookState.onSave).toHaveBeenCalled();
   expect(screen.getByText('Breed is required.')).toBeTruthy();
   expect(screen.getByText('Gestation length must be between 300 and 420.')).toBeTruthy();
+});
+
+it('renders profile photo controls when photos are enabled', () => {
+  const navigation = createNavigation();
+  const profilePhoto = {
+    enabled: true,
+    ownerId: 'mare-1',
+    photoUri: 'file:///photo.jpg',
+    existingPhoto: null,
+    isProcessing: false,
+    error: null,
+    hasStagedChange: true,
+    takePhoto: jest.fn(),
+    choosePhoto: jest.fn(),
+    removePhoto: jest.fn(),
+    prepareForSave: jest.fn(),
+    markSaveCommitted: jest.fn(),
+  };
+  useEditMareForm.mockReturnValue(createHookState({ name: 'Nova', profilePhoto }));
+
+  const screen = render(
+    <EditMareScreen
+      navigation={navigation as never}
+      route={{ key: 'EditMare', name: 'EditMare', params: undefined } as never}
+    />,
+  );
+
+  fireEvent.press(screen.getByText('Camera'));
+  fireEvent.press(screen.getByText('Library'));
+  fireEvent.press(screen.getByLabelText('Remove profile photo'));
+
+  expect(profilePhoto.takePhoto).toHaveBeenCalled();
+  expect(profilePhoto.choosePhoto).toHaveBeenCalled();
+  expect(profilePhoto.removePhoto).toHaveBeenCalled();
 });

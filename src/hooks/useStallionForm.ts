@@ -2,11 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
 import {
+  clearProfilePhotoInTransaction,
   createStallion,
   getStallionById,
+  setProfilePhotoInTransaction,
   softDeleteStallion,
   updateStallion,
 } from '@/storage/repositories';
+import { getDb } from '@/storage/db';
+import type { RepoDb } from '@/storage/repositories/internal/dbTypes';
 import { confirmDelete } from '@/utils/confirmDelete';
 import { newId } from '@/utils/id';
 import {
@@ -16,6 +20,7 @@ import {
 } from '@/utils/validation';
 
 import { useRecordForm } from './useRecordForm';
+import { useProfilePhotoDraft } from './useProfilePhotoDraft';
 
 type FormErrors = {
   name?: string;
@@ -34,6 +39,7 @@ export function useStallionForm({
   setTitle,
 }: UseStallionFormArgs) {
   const isEdit = Boolean(stallionId);
+  const [stableStallionId] = useState(() => stallionId ?? newId());
   const today = useMemo(() => new Date(), []);
   const onGoBackRef = useRef(onGoBack);
   const setTitleRef = useRef(setTitle);
@@ -48,6 +54,10 @@ export function useStallionForm({
   const [errors, setErrors] = useState<FormErrors>({});
   const { isLoading, isSaving, isDeleting, setIsLoading, runLoad, runSave, runDelete } =
     useRecordForm({ initialLoading: isEdit });
+  const profilePhoto = useProfilePhotoDraft({
+    ownerType: 'stallion',
+    ownerId: stallionId ?? stableStallionId,
+  });
 
   useEffect(() => {
     onGoBackRef.current = onGoBack;
@@ -120,12 +130,44 @@ export function useStallionForm({
           dateOfBirth: dateOfBirth.trim() || null,
         };
 
+        const profilePhotoAction = await profilePhoto.prepareForSave();
+        const db = (await getDb()) as unknown as RepoDb;
+
         if (isEdit && stallionId) {
-          await updateStallion(stallionId, payload);
+          await db.withTransactionAsync(async () => {
+            await updateStallion(stallionId, payload, db);
+            if (profilePhotoAction.kind === 'set') {
+              await setProfilePhotoInTransaction(
+                {
+                  attachmentId: profilePhotoAction.attachmentId,
+                  ownerType: 'stallion',
+                  ownerId: stallionId,
+                  asset: profilePhotoAction.asset,
+                },
+                db,
+              );
+            } else if (profilePhotoAction.kind === 'clear') {
+              await clearProfilePhotoInTransaction('stallion', stallionId, db);
+            }
+          });
         } else {
-          await createStallion({ id: newId(), ...payload });
+          await db.withTransactionAsync(async () => {
+            await createStallion({ id: stableStallionId, ...payload }, db);
+            if (profilePhotoAction.kind === 'set') {
+              await setProfilePhotoInTransaction(
+                {
+                  attachmentId: profilePhotoAction.attachmentId,
+                  ownerType: 'stallion',
+                  ownerId: stableStallionId,
+                  asset: profilePhotoAction.asset,
+                },
+                db,
+              );
+            }
+          });
         }
 
+        profilePhoto.markSaveCommitted();
         onGoBack();
       },
       {
@@ -143,9 +185,11 @@ export function useStallionForm({
     name,
     notes,
     onGoBack,
+    profilePhoto,
     registrationNumber,
     runSave,
     sire,
+    stableStallionId,
     stallionId,
     validate,
   ]);
@@ -199,5 +243,6 @@ export function useStallionForm({
     setNotes,
     onSave,
     requestDelete,
+    profilePhoto,
   };
 }

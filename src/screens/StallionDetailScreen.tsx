@@ -41,6 +41,8 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
 
   const {
     stallion,
+    profilePhotosEnabled,
+    profilePhoto,
     collections,
     linkedBreedings,
     legacyBreedings,
@@ -131,6 +133,15 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
           <StallionDetailHeader
             stallion={stallion}
             age={age}
+            profilePhotoUri={profilePhotosEnabled ? profilePhoto?.thumbnailUri ?? null : undefined}
+            onProfilePhotoPress={
+              profilePhoto
+                ? () => navigation.navigate('PhotoViewer', {
+                    uri: profilePhoto.masterUri,
+                    title: stallion.name,
+                  })
+                : undefined
+            }
           />
 
           <MareDetailTabStrip tabs={TAB_OPTIONS} activeTabIndex={activeTabIndex} onTabPress={handleTabPress} />
