@@ -1,7 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
-import { DEFAULT_GESTATION_LENGTH_DAYS, type BreedingRecord, type LocalDate, type PregnancyResult } from '@/models/types';
+import {
+  DEFAULT_GESTATION_LENGTH_DAYS,
+  type BreedingRecord,
+  type LocalDate,
+  type PhotoAsset,
+  type PregnancyResult,
+} from '@/models/types';
 import {
   calculateDaysPostBreeding,
   estimateFoalingDate,
@@ -14,6 +20,7 @@ import {
   listBreedingRecordsByMare,
   updatePregnancyCheck,
 } from '@/storage/repositories';
+import { deletePhotoAssetDirectoryByRelativePath } from '@/storage/photoFiles/assets';
 import { confirmDelete } from '@/utils/confirmDelete';
 import { newId } from '@/utils/id';
 import {
@@ -27,6 +34,16 @@ import {
   type FollowUpTaskParams,
 } from './completeLinkedTaskAfterSave';
 import { useRecordForm } from './useRecordForm';
+
+async function deletePhotoAssetFilesBestEffort(assets: readonly PhotoAsset[]): Promise<void> {
+  for (const asset of assets) {
+    try {
+      await deletePhotoAssetDirectoryByRelativePath(asset.masterRelativePath);
+    } catch {
+      // Metadata has committed; the boot consistency sweep can remove leftovers.
+    }
+  }
+}
 
 type ResultOption = PregnancyResult;
 type YesNo = 'yes' | 'no';
@@ -269,7 +286,8 @@ export function usePregnancyCheckForm({
       onConfirm: async () => {
         await runDelete(
           async () => {
-            await deletePregnancyCheck(pregnancyCheckId);
+            const deletedPhotoAssets = await deletePregnancyCheck(pregnancyCheckId);
+            await deletePhotoAssetFilesBestEffort(deletedPhotoAssets);
             onGoBack();
           },
           {

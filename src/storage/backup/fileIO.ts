@@ -4,7 +4,12 @@ import * as Sharing from 'expo-sharing';
 
 const MANUAL_BACKUP_PREFIX = 'breedwise-backup-v5-';
 const SAFETY_BACKUP_PREFIX = 'breedwise-safety-backup-v5-';
-const JSON_EXTENSION = '.json';
+export const BACKUP_JSON_EXTENSION = '.json';
+export const BACKUP_ARCHIVE_EXTENSION = '.breedwisebackup';
+export const BACKUP_JSON_MIME_TYPE = 'application/json';
+export const BACKUP_ARCHIVE_MIME_TYPE = 'application/octet-stream';
+export const BACKUP_ARCHIVE_SHARE_TITLE = 'Share backup';
+export const BACKUP_JSON_SHARE_TITLE = 'Share legacy backup';
 
 export type PickedBackupFile =
   | {
@@ -26,11 +31,19 @@ export function getSafetySnapshotDirectoryUri(): string {
 }
 
 export function createManualBackupFileName(createdAtIso: string): string {
-  return `${MANUAL_BACKUP_PREFIX}${formatTimestampForFileName(createdAtIso)}${JSON_EXTENSION}`;
+  return `${MANUAL_BACKUP_PREFIX}${formatTimestampForFileName(createdAtIso)}${BACKUP_ARCHIVE_EXTENSION}`;
 }
 
 export function createSafetySnapshotFileName(createdAtIso: string): string {
-  return `${SAFETY_BACKUP_PREFIX}${formatTimestampForFileName(createdAtIso)}${JSON_EXTENSION}`;
+  return `${SAFETY_BACKUP_PREFIX}${formatTimestampForFileName(createdAtIso)}${BACKUP_ARCHIVE_EXTENSION}`;
+}
+
+export function isBackupArchiveFileName(fileName: string): boolean {
+  return fileName.toLowerCase().endsWith(BACKUP_ARCHIVE_EXTENSION);
+}
+
+export function isLegacyJsonBackupFileName(fileName: string): boolean {
+  return fileName.toLowerCase().endsWith(BACKUP_JSON_EXTENSION);
 }
 
 export function joinFileUri(directoryUri: string, fileName: string): string {
@@ -54,15 +67,21 @@ export async function readTextFile(fileUri: string): Promise<string> {
   return FileSystem.readAsStringAsync(fileUri);
 }
 
-export async function shareFileIfAvailable(fileUri: string): Promise<boolean> {
+export async function shareFileIfAvailable(
+  fileUri: string,
+  options: {
+    readonly mimeType?: string;
+    readonly dialogTitle?: string;
+  } = {},
+): Promise<boolean> {
   const sharingAvailable = await Sharing.isAvailableAsync();
   if (!sharingAvailable) {
     return false;
   }
 
   await Sharing.shareAsync(fileUri, {
-    mimeType: 'application/json',
-    dialogTitle: 'Share backup',
+    mimeType: options.mimeType ?? BACKUP_ARCHIVE_MIME_TYPE,
+    dialogTitle: options.dialogTitle ?? BACKUP_ARCHIVE_SHARE_TITLE,
   });
 
   return true;
@@ -70,7 +89,7 @@ export async function shareFileIfAvailable(fileUri: string): Promise<boolean> {
 
 export async function pickBackupFile(): Promise<PickedBackupFile> {
   const result = await DocumentPicker.getDocumentAsync({
-    type: 'application/json',
+    type: [BACKUP_ARCHIVE_MIME_TYPE, BACKUP_JSON_MIME_TYPE, '*/*'],
     copyToCacheDirectory: true,
     multiple: false,
   });

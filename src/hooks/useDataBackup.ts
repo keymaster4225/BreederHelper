@@ -1,11 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import {
+  BACKUP_ARCHIVE_MIME_TYPE,
+  BACKUP_ARCHIVE_SHARE_TITLE,
+  type BackupArchive,
   createManualBackupFileName,
   ensureDirectoryExists,
   getManualBackupDirectoryUri,
+  isBackupArchiveFileName,
   joinFileUri,
   pickBackupFile,
+  readBackupArchive,
   readTextFile,
   restoreBackup,
   serializeBackup,
@@ -15,8 +20,9 @@ import {
   type RestoreBackupResult,
   type SafetySnapshotSummary,
   validateBackup,
+  validateBackupArchiveEntries,
   validateBackupJson,
-  writeJsonFile,
+  writeBackupArchive,
 } from '@/storage/backup';
 import {
   HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
@@ -26,7 +32,7 @@ import {
 } from '@/storage/horseTransfer/validate';
 
 type PendingRestoreState = {
-  readonly candidateText: string;
+  readonly candidate: string | BackupArchive;
   readonly preview: PendingRestorePreview;
 };
 
@@ -112,12 +118,15 @@ export function useDataBackup(): UseDataBackupResult {
       const fileUri = joinFileUri(directoryUri, fileName);
 
       await ensureDirectoryExists(directoryUri);
-      await writeJsonFile(fileUri, JSON.stringify(backup, null, 2));
+      await writeBackupArchive(fileUri, backup);
 
       let shared = false;
       try {
         setBusyStepLabel('Sharing backup...');
-        shared = await shareFileIfAvailable(fileUri);
+        shared = await shareFileIfAvailable(fileUri, {
+          mimeType: BACKUP_ARCHIVE_MIME_TYPE,
+          dialogTitle: BACKUP_ARCHIVE_SHARE_TITLE,
+        });
       } catch {
         shared = false;
       }
@@ -158,24 +167,27 @@ export function useDataBackup(): UseDataBackupResult {
           };
         }
 
-        const jsonText = await readTextFile(pickedFile.uri);
         setBusyStepLabel('Validating backup...');
 
-        const parsedCandidate = parsePickedBackupJson(jsonText);
-        if (
-          parsedCandidate.ok &&
-          isHorseTransferArtifactPayload(parsedCandidate.value)
-        ) {
-          setErrorMessage(HORSE_TRANSFER_RESTORE_ERROR_MESSAGE);
-          return {
-            ok: false,
-            errorMessage: HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
-          };
+        const candidate = isBackupArchiveFileName(pickedFile.name)
+          ? readBackupArchive(pickedFile.uri)
+          : await readLegacyJsonBackupCandidate(pickedFile.uri);
+
+        if (typeof candidate !== 'string') {
+          const archiveValidation = validateBackupArchiveEntries(candidate);
+          if (!archiveValidation.ok) {
+            setErrorMessage(archiveValidation.message);
+            return {
+              ok: false,
+              errorMessage: archiveValidation.message,
+            };
+          }
         }
 
-        const validation = parsedCandidate.ok
-          ? validateBackup(parsedCandidate.value)
-          : validateBackupJson(jsonText);
+        const validation =
+          typeof candidate === 'string'
+            ? validatePickedBackupJson(candidate)
+            : validateBackup(candidate.backup);
         if (!validation.ok) {
           setErrorMessage(validation.error.message);
           return {
@@ -190,7 +202,7 @@ export function useDataBackup(): UseDataBackupResult {
         };
 
         setPendingRestore({
-          candidateText: jsonText,
+          candidate,
           preview,
         });
 
@@ -229,7 +241,7 @@ export function useDataBackup(): UseDataBackupResult {
     setErrorMessage(null);
 
     try {
-      const result = await restoreBackup(pendingRestore.candidateText, {
+      const result = await restoreBackup(pendingRestore.candidate, {
         onStepChange: setBusyStepLabel,
       });
 
@@ -256,10 +268,27 @@ export function useDataBackup(): UseDataBackupResult {
       setPendingRestore(null);
 
       try {
-        const jsonText = await readTextFile(snapshot.fileUri);
         setBusyStepLabel('Validating backup...');
 
-        const validation = validateBackupJson(jsonText);
+        const candidate = isBackupArchiveFileName(snapshot.fileName)
+          ? readBackupArchive(snapshot.fileUri)
+          : await readLegacyJsonBackupCandidate(snapshot.fileUri);
+
+        if (typeof candidate !== 'string') {
+          const archiveValidation = validateBackupArchiveEntries(candidate);
+          if (!archiveValidation.ok) {
+            setErrorMessage(archiveValidation.message);
+            return {
+              ok: false,
+              errorMessage: archiveValidation.message,
+            };
+          }
+        }
+
+        const validation =
+          typeof candidate === 'string'
+            ? validatePickedBackupJson(candidate)
+            : validateBackup(candidate.backup);
         if (!validation.ok) {
           setErrorMessage(validation.error.message);
           return {
@@ -268,7 +297,7 @@ export function useDataBackup(): UseDataBackupResult {
           };
         }
 
-        const result = await restoreBackup(jsonText, {
+        const result = await restoreBackup(candidate, {
           skipSafetySnapshot: true,
           onStepChange: setBusyStepLabel,
         });
@@ -319,15 +348,24 @@ export function useDataBackup(): UseDataBackupResult {
   };
 }
 
-function parsePickedBackupJson(
-  jsonText: string,
-): { readonly ok: true; readonly value: unknown } | { readonly ok: false } {
+async function readLegacyJsonBackupCandidate(fileUri: string): Promise<string> {
+  return readTextFile(fileUri);
+}
+
+function validatePickedBackupJson(jsonText: string): ReturnType<typeof validateBackupJson> {
   try {
-    return {
-      ok: true,
-      value: JSON.parse(jsonText),
-    };
+    const parsed = JSON.parse(jsonText);
+    if (isHorseTransferArtifactPayload(parsed)) {
+      return {
+        ok: false,
+        error: {
+          code: 'invalid_shape',
+          message: HORSE_TRANSFER_RESTORE_ERROR_MESSAGE,
+        },
+      };
+    }
+    return validateBackup(parsed);
   } catch {
-    return { ok: false };
+    return validateBackupJson(jsonText);
   }
 }

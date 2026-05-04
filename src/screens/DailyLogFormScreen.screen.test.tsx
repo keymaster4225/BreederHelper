@@ -181,6 +181,23 @@ function renderScreen(overrides: Record<string, unknown> = {}) {
   return { navigation, screen, wizard };
 }
 
+type TestNode = {
+  readonly parent: TestNode | null;
+};
+
+function isDescendantOf(child: TestNode, ancestor: TestNode): boolean {
+  let current: TestNode | null = child;
+
+  while (current) {
+    if (current === ancestor) {
+      return true;
+    }
+    current = current.parent;
+  }
+
+  return false;
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   useClockDisplayMode.mockReturnValue('12h');
@@ -226,6 +243,22 @@ it('renders review step actions and triggers save/delete callbacks', () => {
   expect(wizard.save).toHaveBeenCalledTimes(1);
   expect(wizard.saveAndAddFollowUp).toHaveBeenCalledTimes(1);
   expect(wizard.requestDelete).toHaveBeenCalledTimes(1);
+});
+
+it('keeps review step actions in the scrollable form content', () => {
+  const { screen } = renderScreen({
+    currentStepIndex: 4,
+    currentStepTitle: 'Review',
+    isEdit: true,
+    time: '14:05',
+  });
+
+  expect(
+    isDescendantOf(
+      screen.getByTestId('daily-log-review-actions'),
+      screen.getByTestId('daily-log-wizard-scroll'),
+    ),
+  ).toBe(true);
 });
 
 it('renders review step time in 24-hour format when selected', () => {

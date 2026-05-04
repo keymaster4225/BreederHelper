@@ -51,7 +51,7 @@ export function PhotosArchiveSpikeScreen(): JSX.Element {
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.title}>Photos Archive Memory Spike</Text>
         <Text style={styles.body}>
-          Runtime test for binary file round-trip, append writes, and 100 x 2 MB streamed output.
+          Runtime test for binary file round-trip, append writes, and the streaming .breedwisebackup archive path.
         </Text>
 
         {state.status === 'running' ? (
@@ -86,7 +86,15 @@ function passesHardGate(result: PhotosArchiveSpikeResult): boolean {
   return (
     result.bytesRoundTrip &&
     result.appendWrite &&
-    result.streamedBytesWritten === EXPECTED_STREAMED_BYTES &&
+    result.zipLibrary === 'fflate' &&
+    result.zipApi === 'Zip + ZipPassThrough streaming callbacks' &&
+    result.archiveWrite &&
+    result.archiveReadBack &&
+    result.backupJsonEntry &&
+    result.masterPhotoEntry &&
+    result.thumbnailPhotoEntry &&
+    result.manifestMatchesEntries &&
+    result.streamedBytesWritten >= EXPECTED_STREAMED_BYTES &&
     result.peakJsHeapBytes != null &&
     result.peakJsHeapBytes <= HEAP_LIMIT_BYTES
   );

@@ -1,6 +1,7 @@
 ﻿import { useEffect, useState } from 'react';
 
 import { initDb } from '@/storage/db';
+import { runBootPhotoConsistencySweep } from '@/storage/photoFiles/sweep';
 import { persistStartupError } from '@/utils/startupErrorLog';
 
 export function useAppBootstrap(): {
@@ -16,6 +17,7 @@ export function useAppBootstrap(): {
     let mounted = true;
 
     initDb()
+      .then(() => runBootPhotoConsistencySweep())
       .then(() => {
         if (mounted) {
           setIsReady(true);

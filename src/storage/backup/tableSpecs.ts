@@ -1,4 +1,4 @@
-import type { BackupTableName } from './types';
+import type { ManagedBackupTableName } from './types';
 
 export const BACKUP_CURRENT_TABLE_FIELD_NAMES = {
   mares: [
@@ -236,4 +236,28 @@ export const BACKUP_CURRENT_TABLE_FIELD_NAMES = {
     'created_at',
     'updated_at',
   ],
-} as const satisfies Record<BackupTableName, readonly string[]>;
+  photo_assets: [
+    'id',
+    'master_relative_path',
+    'thumbnail_relative_path',
+    'master_mime_type',
+    'thumbnail_mime_type',
+    'width',
+    'height',
+    'file_size_bytes',
+    'source_kind',
+    'created_at',
+    'updated_at',
+  ],
+  photo_attachments: [
+    'id',
+    'photo_asset_id',
+    'owner_type',
+    'owner_id',
+    'role',
+    'sort_order',
+    'caption',
+    'created_at',
+    'updated_at',
+  ],
+} as const satisfies Record<ManagedBackupTableName, readonly string[]>;

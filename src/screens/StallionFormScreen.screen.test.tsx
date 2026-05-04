@@ -41,6 +41,20 @@ function createHookState(overrides: Record<string, unknown> = {}) {
     setNotes: jest.fn(),
     onSave: jest.fn(),
     requestDelete: jest.fn(),
+    profilePhoto: {
+      enabled: false,
+      ownerId: 'stallion-1',
+      photoUri: null,
+      existingPhoto: null,
+      isProcessing: false,
+      error: null,
+      hasStagedChange: false,
+      takePhoto: jest.fn(),
+      choosePhoto: jest.fn(),
+      removePhoto: jest.fn(),
+      prepareForSave: jest.fn(),
+      markSaveCommitted: jest.fn(),
+    },
     ...overrides,
   };
 }
@@ -100,4 +114,38 @@ it('renders create-mode errors and forwards user input to the hook setters', () 
   expect(hookState.setBreed).toHaveBeenCalledWith('Warmblood');
   expect(hookState.onSave).toHaveBeenCalled();
   expect(screen.getByText('Name is required.')).toBeTruthy();
+});
+
+it('renders profile photo controls when photos are enabled', () => {
+  const navigation = createNavigation();
+  const profilePhoto = {
+    enabled: true,
+    ownerId: 'stallion-1',
+    photoUri: 'file:///photo.jpg',
+    existingPhoto: null,
+    isProcessing: false,
+    error: null,
+    hasStagedChange: true,
+    takePhoto: jest.fn(),
+    choosePhoto: jest.fn(),
+    removePhoto: jest.fn(),
+    prepareForSave: jest.fn(),
+    markSaveCommitted: jest.fn(),
+  };
+  useStallionForm.mockReturnValue(createHookState({ name: 'Atlas', profilePhoto }));
+
+  const screen = render(
+    <StallionFormScreen
+      navigation={navigation as never}
+      route={{ key: 'StallionForm', name: 'StallionForm', params: undefined } as never}
+    />,
+  );
+
+  fireEvent.press(screen.getByText('Camera'));
+  fireEvent.press(screen.getByText('Library'));
+  fireEvent.press(screen.getByLabelText('Remove profile photo'));
+
+  expect(profilePhoto.takePhoto).toHaveBeenCalled();
+  expect(profilePhoto.choosePhoto).toHaveBeenCalled();
+  expect(profilePhoto.removePhoto).toHaveBeenCalled();
 });

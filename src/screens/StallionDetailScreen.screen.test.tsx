@@ -30,6 +30,7 @@ jest.mock('@/storage/repositories', () => ({
   listBreedingRecordsForStallion: jest.fn(),
   listLegacyBreedingRecordsMatchingStallionName: jest.fn(),
   listMares: jest.fn(),
+  getProfilePhoto: jest.fn(),
 }));
 
 jest.mock('@/hooks/useHorseExport', () => ({
@@ -129,6 +130,7 @@ beforeEach(() => {
   repositories.listBreedingRecordsForStallion.mockResolvedValue([]);
   repositories.listLegacyBreedingRecordsMatchingStallionName.mockResolvedValue([]);
   repositories.listMares.mockResolvedValue([]);
+  repositories.getProfilePhoto.mockResolvedValue(null);
 });
 
 afterEach(() => {
@@ -179,6 +181,24 @@ it('shows AV preferences when values exist', async () => {
   expect(screen.getByText('Colorado')).toBeTruthy();
   expect(screen.getByText('Disposable')).toBeTruthy();
   expect(screen.getByText('500 mL')).toBeTruthy();
+});
+
+it('opens the profile photo selector from the stallion header photo area', async () => {
+  const screen = renderScreen();
+
+  await waitFor(() => expect(screen.getByLabelText('Change Thunder profile photo')).toBeTruthy());
+  fireEvent.press(screen.getByLabelText('Change Thunder profile photo'));
+
+  expect(Alert.alert).toHaveBeenCalledWith(
+    'Profile Photo',
+    undefined,
+    expect.arrayContaining([
+      expect.objectContaining({ text: 'Camera' }),
+      expect.objectContaining({ text: 'Library' }),
+      expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
+    ]),
+  );
+  expect(screen.navigation.navigate).not.toHaveBeenCalledWith('PhotoViewer', expect.anything());
 });
 
 it('shows empty state when no collections', async () => {

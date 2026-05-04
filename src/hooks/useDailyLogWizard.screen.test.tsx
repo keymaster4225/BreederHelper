@@ -6,9 +6,12 @@ import type { DailyLogDetail } from '@/models/types';
 jest.mock('@/storage/repositories', () => ({
   completeTaskFromRecord: jest.fn(),
   createDailyLog: jest.fn(),
+  createDailyLogWithPhotos: jest.fn(),
   deleteDailyLog: jest.fn(),
   getDailyLogById: jest.fn(),
+  listAttachmentPhotos: jest.fn(),
   updateDailyLog: jest.fn(),
+  updateDailyLogWithPhotos: jest.fn(),
 }));
 
 jest.mock('@/utils/confirmDelete', () => ({
@@ -30,9 +33,12 @@ jest.mock('@/utils/id', () => ({
 const repositories = jest.requireMock('@/storage/repositories') as {
   completeTaskFromRecord: jest.Mock;
   createDailyLog: jest.Mock;
+  createDailyLogWithPhotos: jest.Mock;
   deleteDailyLog: jest.Mock;
   getDailyLogById: jest.Mock;
+  listAttachmentPhotos: jest.Mock;
   updateDailyLog: jest.Mock;
+  updateDailyLogWithPhotos: jest.Mock;
 };
 const idUtils = jest.requireMock('@/utils/id') as {
   newId: jest.Mock;
@@ -84,9 +90,12 @@ describe('useDailyLogWizard', () => {
     idUtils.newId.mockImplementation(() => 'new-log-id');
     repositories.completeTaskFromRecord.mockResolvedValue(undefined);
     repositories.createDailyLog.mockResolvedValue(undefined);
+    repositories.createDailyLogWithPhotos.mockResolvedValue([]);
     repositories.deleteDailyLog.mockResolvedValue(undefined);
     repositories.getDailyLogById.mockResolvedValue(null);
+    repositories.listAttachmentPhotos.mockResolvedValue([]);
     repositories.updateDailyLog.mockResolvedValue(undefined);
+    repositories.updateDailyLogWithPhotos.mockResolvedValue([]);
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(jest.fn());
   });
 
@@ -169,7 +178,7 @@ describe('useDailyLogWizard', () => {
 
   it('maps duplicate timed save errors to the time field and returns to step 0', async () => {
     repositories.getDailyLogById.mockResolvedValue(createDailyLogDetail());
-    repositories.updateDailyLog.mockRejectedValue(
+    repositories.updateDailyLogWithPhotos.mockRejectedValue(
       new Error('UNIQUE constraint failed: daily_logs.mare_id, daily_logs.date, daily_logs.time'),
     );
 
@@ -214,6 +223,7 @@ describe('useDailyLogWizard', () => {
     });
 
     expect(repositories.createDailyLog).not.toHaveBeenCalled();
+    expect(repositories.createDailyLogWithPhotos).not.toHaveBeenCalled();
     expect(repositories.completeTaskFromRecord).not.toHaveBeenCalled();
     expect(result.current.currentStepIndex).toBe(0);
     expect(result.current.errors.basics.time).toBe('Time is required.');
@@ -234,8 +244,9 @@ describe('useDailyLogWizard', () => {
       await result.current.save();
     });
 
-    expect(repositories.createDailyLog).toHaveBeenCalledWith(
+    expect(repositories.createDailyLogWithPhotos).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'new-log-id', mareId: 'mare-1' }),
+      [],
     );
     expect(repositories.completeTaskFromRecord).toHaveBeenCalledWith('task-1', 'dailyLog', 'new-log-id');
     expect(onGoBack).toHaveBeenCalledTimes(1);
@@ -257,8 +268,9 @@ describe('useDailyLogWizard', () => {
       await result.current.saveAndAddFollowUp();
     });
 
-    expect(repositories.createDailyLog).toHaveBeenCalledWith(
+    expect(repositories.createDailyLogWithPhotos).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'new-log-id', mareId: 'mare-1' }),
+      [],
     );
     expect(onAddFollowUpTask).toHaveBeenCalledWith({
       mareId: 'mare-1',
@@ -286,7 +298,7 @@ describe('useDailyLogWizard', () => {
       await result.current.save();
     });
 
-    expect(repositories.createDailyLog).toHaveBeenCalled();
+    expect(repositories.createDailyLogWithPhotos).toHaveBeenCalled();
     expect(alertSpy).toHaveBeenCalledWith('Task update failed', 'task write failed', [
       expect.objectContaining({ text: 'OK' }),
     ]);

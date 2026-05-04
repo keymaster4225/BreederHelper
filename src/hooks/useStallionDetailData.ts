@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 
+import { isPhotosEnabled } from '@/config/featureFlags';
 import {
   BreedingRecord,
   CollectionDoseEvent,
@@ -15,10 +16,13 @@ import {
   listFrozenSemenBatchesByStallion,
   listDoseEventsByCollectionIds,
   listBreedingRecordsForStallion,
+  getProfilePhoto,
   listLegacyBreedingRecordsMatchingStallionName,
   listMares,
   listSemenCollectionsByStallion,
 } from '@/storage/repositories';
+import { resolvePhotoUri } from '@/storage/photoFiles/assets';
+import type { ResolvedProfilePhoto } from './useProfilePhotoDraft';
 
 type UseStallionDetailDataArgs = {
   readonly stallionId: string;
@@ -27,6 +31,8 @@ type UseStallionDetailDataArgs = {
 
 type StallionDetailData = {
   readonly stallion: Stallion | null;
+  readonly profilePhotosEnabled: boolean;
+  readonly profilePhoto: ResolvedProfilePhoto | null;
   readonly collections: SemenCollection[];
   readonly linkedBreedings: BreedingRecord[];
   readonly legacyBreedings: BreedingRecord[];
@@ -51,7 +57,9 @@ function deriveHorseAge(dateOfBirth?: string | null): number | null {
 }
 
 export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetailDataArgs): StallionDetailData {
+  const profilePhotosEnabled = isPhotosEnabled();
   const [stallion, setStallion] = useState<Stallion | null>(null);
+  const [profilePhoto, setProfilePhoto] = useState<ResolvedProfilePhoto | null>(null);
   const [collections, setCollections] = useState<SemenCollection[]>([]);
   const [linkedBreedings, setLinkedBreedings] = useState<BreedingRecord[]>([]);
   const [legacyBreedings, setLegacyBreedings] = useState<BreedingRecord[]>([]);
@@ -78,18 +86,28 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
       if (!stallionRecord) {
         setError('Stallion not found.');
         setStallion(null);
+        setProfilePhoto(null);
         return;
       }
 
       setStallion(stallionRecord);
       setTitle(stallionRecord.name);
 
-      const [cols, linked, legacy, allMares] = await Promise.all([
+      const [cols, linked, legacy, allMares, loadedProfilePhoto] = await Promise.all([
         listSemenCollectionsByStallion(stallionId),
         listBreedingRecordsForStallion(stallionId),
         listLegacyBreedingRecordsMatchingStallionName(stallionRecord.name),
         listMares(),
+        profilePhotosEnabled ? getProfilePhoto('stallion', stallionId) : Promise.resolve(null),
       ]);
+      setProfilePhoto(
+        loadedProfilePhoto
+          ? {
+              thumbnailUri: resolvePhotoUri(loadedProfilePhoto.asset.thumbnailRelativePath),
+              masterUri: resolvePhotoUri(loadedProfilePhoto.asset.masterRelativePath),
+            }
+          : null,
+      );
       const collectionIds = cols.map((collection) => collection.id);
       const [doseEvents, frozenByCollection, allFrozenBatches] = await Promise.all([
         listDoseEventsByCollectionIds(collectionIds),
@@ -121,7 +139,7 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
     } finally {
       setIsLoading(false);
     }
-  }, [stallionId, setTitle]);
+  }, [profilePhotosEnabled, stallionId, setTitle]);
 
   const deleteDoseEventRecord = useCallback(
     async (doseEventId: string): Promise<void> => {
@@ -141,6 +159,8 @@ export function useStallionDetailData({ stallionId, setTitle }: UseStallionDetai
 
   return {
     stallion,
+    profilePhotosEnabled,
+    profilePhoto,
     collections,
     linkedBreedings,
     legacyBreedings,

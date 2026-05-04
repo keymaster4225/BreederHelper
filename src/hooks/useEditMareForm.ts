@@ -6,7 +6,16 @@ import {
   MAX_GESTATION_LENGTH_DAYS,
   MIN_GESTATION_LENGTH_DAYS,
 } from '@/models/types';
-import { createMare, getMareById, softDeleteMare, updateMare } from '@/storage/repositories';
+import { getDb } from '@/storage/db';
+import type { RepoDb } from '@/storage/repositories/internal/dbTypes';
+import {
+  clearProfilePhotoInTransaction,
+  createMare,
+  getMareById,
+  setProfilePhotoInTransaction,
+  softDeleteMare,
+  updateMare,
+} from '@/storage/repositories';
 import { confirmDelete } from '@/utils/confirmDelete';
 import { newId } from '@/utils/id';
 import {
@@ -18,6 +27,7 @@ import {
 } from '@/utils/validation';
 
 import { useRecordForm } from './useRecordForm';
+import { useProfilePhotoDraft } from './useProfilePhotoDraft';
 
 type FormErrors = {
   name?: string;
@@ -40,6 +50,7 @@ export function useEditMareForm({
   setTitle,
 }: UseEditMareFormArgs) {
   const isEdit = Boolean(mareId);
+  const [stableMareId] = useState(() => mareId ?? newId());
   const today = useMemo(() => new Date(), []);
   const onGoBackRef = useRef(onGoBack);
   const setTitleRef = useRef(setTitle);
@@ -56,6 +67,10 @@ export function useEditMareForm({
   const [errors, setErrors] = useState<FormErrors>({});
   const { isLoading, isSaving, isDeleting, setIsLoading, runLoad, runSave, runDelete } =
     useRecordForm({ initialLoading: isEdit });
+  const profilePhoto = useProfilePhotoDraft({
+    ownerType: 'mare',
+    ownerId: mareId ?? stableMareId,
+  });
 
   useEffect(() => {
     onGoBackRef.current = onGoBack;
@@ -148,14 +163,50 @@ export function useEditMareForm({
         };
 
         if (mareId) {
-          await updateMare(mareId, payload);
+          const profilePhotoAction = await profilePhoto.prepareForSave();
+          const db = (await getDb()) as unknown as RepoDb;
+          await db.withTransactionAsync(async () => {
+            await updateMare(mareId, payload, db);
+            if (profilePhotoAction.kind === 'set') {
+              await setProfilePhotoInTransaction(
+                {
+                  attachmentId: profilePhotoAction.attachmentId,
+                  ownerType: 'mare',
+                  ownerId: mareId,
+                  asset: profilePhotoAction.asset,
+                },
+                db,
+              );
+            } else if (profilePhotoAction.kind === 'clear') {
+              await clearProfilePhotoInTransaction('mare', mareId, db);
+            }
+          });
         } else {
-          await createMare({
-            id: newId(),
-            ...payload,
+          const profilePhotoAction = await profilePhoto.prepareForSave();
+          const db = (await getDb()) as unknown as RepoDb;
+          await db.withTransactionAsync(async () => {
+            await createMare(
+              {
+                id: stableMareId,
+                ...payload,
+              },
+              db,
+            );
+            if (profilePhotoAction.kind === 'set') {
+              await setProfilePhotoInTransaction(
+                {
+                  attachmentId: profilePhotoAction.attachmentId,
+                  ownerType: 'mare',
+                  ownerId: stableMareId,
+                  asset: profilePhotoAction.asset,
+                },
+                db,
+              );
+            }
           });
         }
 
+        profilePhoto.markSaveCommitted();
         onGoBack();
       },
       {
@@ -174,8 +225,10 @@ export function useEditMareForm({
     name,
     notes,
     onGoBack,
+    profilePhoto,
     registrationNumber,
     runSave,
+    stableMareId,
     validate,
   ]);
 
@@ -227,5 +280,6 @@ export function useEditMareForm({
     setNotes,
     onSave,
     requestDelete,
+    profilePhoto,
   };
 }

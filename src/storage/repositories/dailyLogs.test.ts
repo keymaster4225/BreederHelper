@@ -295,13 +295,14 @@ describe('daily log repository structured storage', () => {
     expect(db.getAllAsync.mock.calls[0]?.[0]).toContain('CASE WHEN time IS NULL THEN 1 ELSE 0 END');
   });
 
-  it('deletes uterine fluid children before deleting the daily log parent row', async () => {
+  it('deletes child rows before deleting the daily log parent row', async () => {
     await deleteDailyLog('log-1', db);
 
-    expect(db.runAsync).toHaveBeenCalledTimes(3);
+    expect(db.runAsync).toHaveBeenCalledTimes(4);
     expectRunOrderForTables(db, [
       { operation: 'delete', table: 'medication_logs' },
       { operation: 'delete', table: 'uterine_fluid' },
+      { operation: 'delete', table: 'photo_attachments' },
       { operation: 'delete', table: 'daily_logs' },
     ]);
   });

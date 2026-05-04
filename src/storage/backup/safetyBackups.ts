@@ -1,16 +1,22 @@
 import {
+  readBackupArchive,
+  validateBackupArchiveEntries,
+  writeBackupArchive,
+} from './archiveIO';
+import {
   createSafetySnapshotFileName,
   deleteFile,
   ensureDirectoryExists,
   getSafetySnapshotDirectoryUri,
+  isBackupArchiveFileName,
+  isLegacyJsonBackupFileName,
   joinFileUri,
   listDirectoryFiles,
   readTextFile,
-  writeJsonFile,
 } from './fileIO';
 import { serializeBackup } from './serialize';
 import type { SafetySnapshotSummary } from './types';
-import { validateBackupJson } from './validate';
+import { validateBackup, validateBackupJson } from './validate';
 
 const MAX_SAFETY_SNAPSHOTS = 3;
 
@@ -21,7 +27,7 @@ export async function createSafetySnapshot(): Promise<SafetySnapshotSummary> {
   const fileUri = joinFileUri(directoryUri, fileName);
 
   await ensureDirectoryExists(directoryUri);
-  await writeJsonFile(fileUri, JSON.stringify(backup, null, 2));
+  await writeBackupArchive(fileUri, backup);
   await cleanupOldSafetySnapshots();
 
   return {
@@ -39,19 +45,21 @@ export async function listSafetySnapshots(): Promise<readonly SafetySnapshotSumm
   const summaries: SafetySnapshotSummary[] = [];
 
   for (const fileUri of fileUris) {
-    if (!fileUri.endsWith('.json')) {
+    const fileName = fileUri.slice(fileUri.lastIndexOf('/') + 1);
+    if (!isLegacyJsonBackupFileName(fileName) && !isBackupArchiveFileName(fileName)) {
       continue;
     }
 
     try {
-      const text = await readTextFile(fileUri);
-      const validation = validateBackupJson(text);
+      const validation = isBackupArchiveFileName(fileName)
+        ? validateSafetyArchive(fileUri)
+        : validateBackupJson(await readTextFile(fileUri));
       if (!validation.ok) {
         continue;
       }
 
       summaries.push({
-        fileName: fileUri.slice(fileUri.lastIndexOf('/') + 1),
+        fileName,
         fileUri,
         createdAt: validation.backup.createdAt,
         mareCount: validation.backup.tables.mares.length,
@@ -63,6 +71,22 @@ export async function listSafetySnapshots(): Promise<readonly SafetySnapshotSumm
   }
 
   return summaries.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+}
+
+function validateSafetyArchive(fileUri: string): ReturnType<typeof validateBackup> {
+  const archive = readBackupArchive(fileUri);
+  const archiveValidation = validateBackupArchiveEntries(archive);
+  if (!archiveValidation.ok) {
+    return {
+      ok: false,
+      error: {
+        code: 'invalid_shape',
+        message: archiveValidation.message,
+      },
+    };
+  }
+
+  return validateBackup(archive.backup);
 }
 
 async function cleanupOldSafetySnapshots(): Promise<void> {

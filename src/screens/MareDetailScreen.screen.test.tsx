@@ -26,6 +26,8 @@ jest.mock('@/storage/repositories', () => ({
   listFoalsByMare: jest.fn(),
   listStallions: jest.fn(),
   listMedicationLogsByMare: jest.fn(),
+  getProfilePhoto: jest.fn(),
+  listAttachmentPhotos: jest.fn(),
 }));
 
 jest.mock('@/hooks/useHorseExport', () => ({
@@ -65,6 +67,8 @@ beforeEach(() => {
   repositories.listFoalsByMare.mockResolvedValue([]);
   repositories.listStallions.mockResolvedValue([]);
   repositories.listMedicationLogsByMare.mockResolvedValue([]);
+  repositories.getProfilePhoto.mockResolvedValue(null);
+  repositories.listAttachmentPhotos.mockResolvedValue([]);
 });
 
 afterEach(() => {
@@ -139,6 +143,30 @@ it('shows recipient and pregnant badges together in the header when both apply',
 
   await waitFor(() => expect(screen.getByText('Recipient')).toBeTruthy());
   expect(screen.getByText('Pregnant')).toBeTruthy();
+});
+
+it('opens the profile photo selector from the mare header photo area', async () => {
+  const navigation = { navigate: jest.fn(), setOptions: jest.fn() };
+  const screen = render(
+    <MareDetailScreen
+      navigation={navigation as never}
+      route={{ key: 'MareDetail', name: 'MareDetail', params: { mareId: 'mare-1' } } as never}
+    />,
+  );
+
+  await waitFor(() => expect(screen.getByLabelText('Change Nova profile photo')).toBeTruthy());
+  fireEvent.press(screen.getByLabelText('Change Nova profile photo'));
+
+  expect(Alert.alert).toHaveBeenCalledWith(
+    'Profile Photo',
+    undefined,
+    expect.arrayContaining([
+      expect.objectContaining({ text: 'Camera' }),
+      expect.objectContaining({ text: 'Library' }),
+      expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
+    ]),
+  );
+  expect(navigation.navigate).not.toHaveBeenCalledWith('PhotoViewer', expect.anything());
 });
 
 it('does not show an extra success alert after sharing a mare package', async () => {

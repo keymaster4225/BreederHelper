@@ -13,6 +13,9 @@
   MEDICATION_ROUTE_VALUES,
   OVARY_CONSISTENCY_VALUES,
   OVARY_STRUCTURE_VALUES,
+  PHOTO_ATTACHMENT_ROLE_VALUES,
+  PHOTO_OWNER_TYPE_VALUES,
+  PHOTO_SOURCE_KIND_VALUES,
   PREGNANCY_RESULT_VALUES,
   STRAW_COLOR_VALUES,
   UTERINE_TONE_CATEGORY_VALUES,
@@ -35,6 +38,38 @@ export type FoalingOutcome = (typeof FOALING_OUTCOME_VALUES)[number];
 export type FoalSex = (typeof FOAL_SEX_VALUES)[number];
 
 export type MedicationRoute = (typeof MEDICATION_ROUTE_VALUES)[number];
+
+export type PhotoOwnerType = (typeof PHOTO_OWNER_TYPE_VALUES)[number];
+
+export type PhotoAttachmentRole = (typeof PHOTO_ATTACHMENT_ROLE_VALUES)[number];
+
+export type PhotoSourceKind = (typeof PHOTO_SOURCE_KIND_VALUES)[number];
+
+export interface PhotoAsset {
+  id: UUID;
+  masterRelativePath: string;
+  thumbnailRelativePath: string;
+  masterMimeType: 'image/jpeg';
+  thumbnailMimeType: 'image/jpeg';
+  width: number;
+  height: number;
+  fileSizeBytes: number;
+  sourceKind: PhotoSourceKind;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
+
+export interface PhotoAttachment {
+  id: UUID;
+  photoAssetId: UUID;
+  ownerType: PhotoOwnerType;
+  ownerId: UUID;
+  role: PhotoAttachmentRole;
+  sortOrder: number;
+  caption: string | null;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+}
 
 export interface MedicationLog {
   id: UUID;

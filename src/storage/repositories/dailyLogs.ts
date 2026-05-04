@@ -15,6 +15,7 @@ import type {
   OvaryStructure,
   UterineFlush,
   UterineToneCategory,
+  PhotoAsset,
 } from '@/models/types';
 import { emitDataInvalidation } from '@/storage/dataInvalidation';
 import { normalizeDailyLogTime } from '@/utils/dailyLogTime';
@@ -36,6 +37,11 @@ import {
   deleteMedicationLogsBySourceDailyLogId,
   insertMedicationLogWithoutInvalidation,
 } from './medications';
+import {
+  deleteAttachmentPhotosForOwnersInTransaction,
+  replaceDailyLogAttachmentPhotosInTransaction,
+  type ReplaceAttachmentPhotoInput,
+} from './photos';
 import type { RepoDb } from './internal/dbTypes';
 import { resolveDb } from './internal/resolveDb';
 
@@ -108,6 +114,8 @@ export type DailyLogCreateInput = DailyLogFieldsInput & {
 export type DailyLogUpdateInput = Omit<DailyLogFieldsInput, 'id' | 'mareId'> & {
   time?: string | null;
 };
+
+export type DailyLogPhotoSaveInput = readonly ReplaceAttachmentPhotoInput[];
 
 const FOLLICLE_STATE_SET = new Set<string>(FOLLICLE_STATE_VALUES);
 const OVARY_CONSISTENCY_SET = new Set<string>(OVARY_CONSISTENCY_VALUES);
@@ -586,6 +594,111 @@ export async function createDailyLog(input: DailyLogCreateInput, db?: RepoDb): P
   emitDataInvalidation('medicationLogs');
 }
 
+export async function createDailyLogWithPhotos(
+  input: DailyLogCreateInput,
+  photos: DailyLogPhotoSaveInput,
+  db?: RepoDb,
+): Promise<PhotoAsset[]> {
+  const handle = await resolveDb(db);
+  const now = new Date().toISOString();
+  const ovulation = resolveOvulationValues(input, null);
+  const time = requireCreateTime(input.time);
+  let deletedPhotoAssets: PhotoAsset[] = [];
+
+  await handle.withTransactionAsync(async () => {
+    await handle.runAsync(
+      `
+      INSERT INTO daily_logs (
+        id,
+        mare_id,
+        date,
+        time,
+        teasing_score,
+        right_ovary,
+        left_ovary,
+        ovulation_detected,
+        edema,
+        uterine_tone,
+        uterine_cysts,
+        right_ovary_ovulation,
+        right_ovary_follicle_state,
+        right_ovary_follicle_measurements_mm,
+        right_ovary_consistency,
+        right_ovary_structures,
+        left_ovary_ovulation,
+        left_ovary_follicle_state,
+        left_ovary_follicle_measurements_mm,
+        left_ovary_consistency,
+        left_ovary_structures,
+        uterine_tone_category,
+        cervical_firmness,
+        discharge_observed,
+        discharge_notes,
+        notes,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+      `,
+      [
+        input.id,
+        input.mareId,
+        input.date,
+        time,
+        input.teasingScore ?? null,
+        input.rightOvary ?? null,
+        input.leftOvary ?? null,
+        toSqlNullableBoolean(ovulation.ovulationDetected),
+        input.edema ?? null,
+        input.uterineTone ?? null,
+        input.uterineCysts ?? null,
+        toSqlNullableBoolean(ovulation.rightOvaryOvulation),
+        input.rightOvaryFollicleState ?? null,
+        serializeFollicleMeasurements(
+          input.rightOvaryFollicleMeasurementsMm,
+          input.rightOvaryFollicleState,
+        ),
+        input.rightOvaryConsistency ?? null,
+        serializeOvaryStructures(input.rightOvaryStructures),
+        toSqlNullableBoolean(ovulation.leftOvaryOvulation),
+        input.leftOvaryFollicleState ?? null,
+        serializeFollicleMeasurements(
+          input.leftOvaryFollicleMeasurementsMm,
+          input.leftOvaryFollicleState,
+        ),
+        input.leftOvaryConsistency ?? null,
+        serializeOvaryStructures(input.leftOvaryStructures),
+        input.uterineToneCategory ?? null,
+        input.cervicalFirmness ?? null,
+        toSqlNullableBoolean(input.dischargeObserved),
+        normalizeDischargeNotes(input.dischargeObserved, input.dischargeNotes),
+        input.notes ?? null,
+        now,
+        now,
+      ],
+    );
+
+    if (input.uterineFluidPockets && input.uterineFluidPockets.length > 0) {
+      await replaceUterineFluidByDailyLogId(handle, input.id, input.uterineFluidPockets, now);
+    }
+
+    if (input.uterineFlush) {
+      const flush = await replaceUterineFlushByDailyLogId(
+        handle,
+        input.id,
+        input.uterineFlush,
+        now,
+      );
+      await syncLinkedFlushMedicationLogs(handle, input.id, input.mareId, input.date, flush, now);
+    }
+
+    deletedPhotoAssets = await replaceDailyLogAttachmentPhotosInTransaction(input.id, photos, handle);
+  });
+
+  emitDataInvalidation('dailyLogs');
+  emitDataInvalidation('medicationLogs');
+  return deletedPhotoAssets;
+}
+
 export async function updateDailyLog(
   id: string,
   input: DailyLogUpdateInput,
@@ -709,6 +822,134 @@ export async function updateDailyLog(
   emitDataInvalidation('medicationLogs');
 }
 
+export async function updateDailyLogWithPhotos(
+  id: string,
+  input: DailyLogUpdateInput,
+  photos: DailyLogPhotoSaveInput,
+  db?: RepoDb,
+): Promise<PhotoAsset[]> {
+  const handle = await resolveDb(db);
+  const existing = await handle.getFirstAsync<DailyLogRow>(
+    `
+    SELECT ${DAILY_LOG_SELECT_COLUMNS}
+    FROM daily_logs
+    WHERE id = ?;
+    `,
+    [id],
+  );
+  if (!existing) {
+    throw new Error('Daily log not found.');
+  }
+
+  const ovulation = resolveOvulationValues(input, existing);
+  const now = new Date().toISOString();
+  const time = resolveUpdateTime(input, existing);
+
+  const rightOvary = input.rightOvary === undefined ? existing?.right_ovary ?? null : input.rightOvary ?? null;
+  const leftOvary = input.leftOvary === undefined ? existing?.left_ovary ?? null : input.leftOvary ?? null;
+  const uterineTone =
+    input.uterineTone === undefined ? existing?.uterine_tone ?? null : input.uterineTone ?? null;
+  let deletedPhotoAssets: PhotoAsset[] = [];
+
+  await handle.withTransactionAsync(async () => {
+    await handle.runAsync(
+      `
+      UPDATE daily_logs
+      SET
+        date = ?,
+        time = ?,
+        teasing_score = ?,
+        right_ovary = ?,
+        left_ovary = ?,
+        ovulation_detected = ?,
+        edema = ?,
+        uterine_tone = ?,
+        uterine_cysts = ?,
+        right_ovary_ovulation = ?,
+        right_ovary_follicle_state = ?,
+        right_ovary_follicle_measurements_mm = ?,
+        right_ovary_consistency = ?,
+        right_ovary_structures = ?,
+        left_ovary_ovulation = ?,
+        left_ovary_follicle_state = ?,
+        left_ovary_follicle_measurements_mm = ?,
+        left_ovary_consistency = ?,
+        left_ovary_structures = ?,
+        uterine_tone_category = ?,
+        cervical_firmness = ?,
+        discharge_observed = ?,
+        discharge_notes = ?,
+        notes = ?,
+        updated_at = ?
+      WHERE id = ?;
+      `,
+      [
+        input.date,
+        time,
+        input.teasingScore ?? null,
+        rightOvary,
+        leftOvary,
+        toSqlNullableBoolean(ovulation.ovulationDetected),
+        input.edema ?? null,
+        uterineTone,
+        input.uterineCysts ?? null,
+        toSqlNullableBoolean(ovulation.rightOvaryOvulation),
+        input.rightOvaryFollicleState ?? null,
+        serializeFollicleMeasurements(
+          input.rightOvaryFollicleMeasurementsMm,
+          input.rightOvaryFollicleState,
+        ),
+        input.rightOvaryConsistency ?? null,
+        serializeOvaryStructures(input.rightOvaryStructures),
+        toSqlNullableBoolean(ovulation.leftOvaryOvulation),
+        input.leftOvaryFollicleState ?? null,
+        serializeFollicleMeasurements(
+          input.leftOvaryFollicleMeasurementsMm,
+          input.leftOvaryFollicleState,
+        ),
+        input.leftOvaryConsistency ?? null,
+        serializeOvaryStructures(input.leftOvaryStructures),
+        input.uterineToneCategory ?? null,
+        input.cervicalFirmness ?? null,
+        toSqlNullableBoolean(input.dischargeObserved),
+        normalizeDischargeNotes(input.dischargeObserved, input.dischargeNotes),
+        input.notes ?? null,
+        now,
+        id,
+      ],
+    );
+
+    if (input.uterineFluidPockets !== undefined) {
+      await replaceUterineFluidByDailyLogId(handle, id, input.uterineFluidPockets, now);
+    }
+
+    let flush: UterineFlush | null;
+    if (input.uterineFlush === undefined) {
+      flush = await getUterineFlushByDailyLogId(handle, id);
+    } else if (input.uterineFlush === null) {
+      await deleteUterineFlushByDailyLogId(handle, id);
+      flush = null;
+    } else {
+      flush = await replaceUterineFlushByDailyLogId(handle, id, input.uterineFlush, now);
+    }
+
+    await syncLinkedFlushMedicationLogs(
+      handle,
+      id,
+      existing.mare_id,
+      input.date,
+      flush,
+      now,
+    );
+
+    deletedPhotoAssets = await replaceDailyLogAttachmentPhotosInTransaction(id, photos, handle);
+  });
+
+  emitDataInvalidation('dailyLogs');
+  emitDataInvalidation('medicationLogs');
+  return deletedPhotoAssets;
+}
+
 export async function getDailyLogById(id: string, db?: RepoDb): Promise<DailyLogDetail | null> {
   const handle = await resolveDb(db);
   const row = await handle.getFirstAsync<DailyLogRow>(
@@ -733,16 +974,19 @@ export async function getDailyLogById(id: string, db?: RepoDb): Promise<DailyLog
   };
 }
 
-export async function deleteDailyLog(id: string, db?: RepoDb): Promise<void> {
+export async function deleteDailyLog(id: string, db?: RepoDb): Promise<PhotoAsset[]> {
   const handle = await resolveDb(db);
+  let deletedPhotoAssets: PhotoAsset[] = [];
   await handle.withTransactionAsync(async () => {
     await deleteMedicationLogsBySourceDailyLogId(handle, id);
     await deleteUterineFlushByDailyLogId(handle, id);
     await deleteUterineFluidByDailyLogId(handle, id);
+    deletedPhotoAssets = await deleteAttachmentPhotosForOwnersInTransaction('dailyLog', [id], handle);
     await handle.runAsync('DELETE FROM daily_logs WHERE id = ?;', [id]);
   });
   emitDataInvalidation('dailyLogs');
   emitDataInvalidation('medicationLogs');
+  return deletedPhotoAssets;
 }
 
 export async function listAllDailyLogs(db?: RepoDb): Promise<DailyLog[]> {

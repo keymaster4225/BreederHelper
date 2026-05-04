@@ -10,6 +10,7 @@ import {
   FormTextInput,
   formStyles,
 } from '@/components/FormControls';
+import { ProfilePhotoPicker } from '@/components/ProfilePhoto';
 import { useEditMareForm } from '@/hooks/useEditMareForm';
 import {
   DEFAULT_GESTATION_LENGTH_DAYS,
@@ -45,6 +46,7 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
     setNotes,
     onSave,
     requestDelete,
+    profilePhoto,
   } = useEditMareForm({
     mareId: route.params?.mareId,
     onGoBack: () => navigation.goBack(),
@@ -64,6 +66,20 @@ export function EditMareScreen({ navigation, route }: Props): JSX.Element {
     <Screen>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={formStyles.form} keyboardShouldPersistTaps="handled">
+        {profilePhoto.enabled ? (
+          <FormField label="Profile Photo">
+            <ProfilePhotoPicker
+              name={name || 'Mare'}
+              uri={profilePhoto.photoUri}
+              isProcessing={profilePhoto.isProcessing}
+              error={profilePhoto.error}
+              onTakePhoto={() => { void profilePhoto.takePhoto(); }}
+              onChoosePhoto={() => { void profilePhoto.choosePhoto(); }}
+              onRemovePhoto={profilePhoto.removePhoto}
+            />
+          </FormField>
+        ) : null}
+
         <FormField label="Name" required error={errors.name}>
           <FormTextInput value={name} onChangeText={setName} placeholder="Mare name" />
         </FormField>

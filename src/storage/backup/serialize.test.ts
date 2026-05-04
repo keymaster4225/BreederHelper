@@ -323,6 +323,40 @@ describe('serializeBackup', () => {
           ];
         }
 
+        if (sql.includes('FROM photo_assets')) {
+          return [
+            {
+              id: 'photo-asset-1',
+              master_relative_path: 'photo-assets/photo-asset-1/master.jpg',
+              thumbnail_relative_path: 'photo-assets/photo-asset-1/thumbnail.jpg',
+              master_mime_type: 'image/jpeg',
+              thumbnail_mime_type: 'image/jpeg',
+              width: 1600,
+              height: 1200,
+              file_size_bytes: 500000,
+              source_kind: 'camera',
+              created_at: '2026-04-04T00:00:00.000Z',
+              updated_at: '2026-04-04T00:00:00.000Z',
+            },
+          ];
+        }
+
+        if (sql.includes('FROM photo_attachments')) {
+          return [
+            {
+              id: 'photo-attachment-1',
+              photo_asset_id: 'photo-asset-1',
+              owner_type: 'mare',
+              owner_id: 'mare-1',
+              role: 'profile',
+              sort_order: 0,
+              caption: null,
+              created_at: '2026-04-04T00:00:00.000Z',
+              updated_at: '2026-04-04T00:00:00.000Z',
+            },
+          ];
+        }
+
         throw new Error(`Unexpected query: ${sql}`);
       }),
     };
@@ -334,7 +368,7 @@ describe('serializeBackup', () => {
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(11);
+    expect(backup.schemaVersion).toBe(12);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
     expect(backup.settings.clockPreference).toBe('24h');
@@ -367,6 +401,10 @@ describe('serializeBackup', () => {
     ).toBe(500);
     expect(backup.tables.frozen_semen_batches[0]?.id).toBe('frozen-1');
     expect(backup.tables.frozen_semen_batches[0]?.extender).toBe('BotuCrio');
-    expect(db.getAllAsync).toHaveBeenCalledTimes(15);
+    expect(backup.tables.photo_assets[0]?.master_relative_path).toBe(
+      'photo-assets/photo-asset-1/master.jpg',
+    );
+    expect(backup.tables.photo_attachments[0]?.photo_asset_id).toBe('photo-asset-1');
+    expect(db.getAllAsync).toHaveBeenCalledTimes(17);
   });
 });

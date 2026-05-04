@@ -1,17 +1,30 @@
 import {
   BACKUP_SCHEMA_VERSION_CURRENT,
   type BackupAppMetadata,
+  type BackupBreedingRecordRowV10,
+  type BackupCollectionDoseEventRowV3,
+  type BackupDailyLogRowV7,
+  type BackupFoalingRecordRow,
+  type BackupFoalRow,
+  type BackupFrozenSemenBatchRow,
   type BackupIsoDateTime,
   type BackupLocalDate,
-  type BackupTableName,
-  type BackupTablesV11,
+  type BackupMareRowV6,
+  type BackupMedicationLogRow,
+  type BackupPregnancyCheckRow,
+  type BackupSemenCollectionRowV3,
+  type BackupStallionRow,
+  type BackupTaskRow,
+  type BackupUterineFluidRow,
+  type BackupUterineFlushProductRow,
+  type BackupUterineFlushRow,
 } from '@/storage/backup/types';
 
 export const HORSE_TRANSFER_ARTIFACT_TYPE = 'breedwise.horseTransfer' as const;
 export const HORSE_TRANSFER_VERSION = 1 as const;
 
 export const HORSE_TRANSFER_RESTORE_ERROR_MESSAGE =
-  'This file is a horse package. Use Settings > Backup & Restore > Import Horse.';
+  'This file is a horse package. Use Settings > Backup, Restore & Horse Import > Import Horse.';
 
 export const HORSE_TRANSFER_NEWER_SCHEMA_MESSAGE =
   'This horse package was created by a newer version of BreedWise. Update BreedWise and try again.';
@@ -32,7 +45,25 @@ export type HorseTransferPrivacy = {
   readonly redactedDoseRecipientAndShipping: boolean;
 };
 
-export type HorseTransferTablesV1 = BackupTablesV11;
+export type HorseTransferTablesV1 = {
+  readonly mares: readonly BackupMareRowV6[];
+  readonly tasks: readonly BackupTaskRow[];
+  readonly stallions: readonly BackupStallionRow[];
+  readonly semen_collections: readonly BackupSemenCollectionRowV3[];
+  readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
+  readonly breeding_records: readonly BackupBreedingRecordRowV10[];
+  readonly daily_logs: readonly BackupDailyLogRowV7[];
+  readonly uterine_fluid: readonly BackupUterineFluidRow[];
+  readonly uterine_flushes: readonly BackupUterineFlushRow[];
+  readonly uterine_flush_products: readonly BackupUterineFlushProductRow[];
+  readonly medication_logs: readonly BackupMedicationLogRow[];
+  readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
+  readonly foaling_records: readonly BackupFoalingRecordRow[];
+  readonly foals: readonly BackupFoalRow[];
+  readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
+};
+
+export type HorseTransferTableName = keyof HorseTransferTablesV1 & string;
 
 export type HorseTransferEnvelopeV1 = {
   readonly artifactType: typeof HORSE_TRANSFER_ARTIFACT_TYPE;
@@ -45,7 +76,7 @@ export type HorseTransferEnvelopeV1 = {
   readonly tables: HorseTransferTablesV1;
 };
 
-export type HorseTransferTableCounts = Record<BackupTableName, number>;
+export type HorseTransferTableCounts = Record<HorseTransferTableName, number>;
 
 export type HorseTransferPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;
@@ -96,7 +127,7 @@ export type HorseTransferFoalConflictDetail = {
 export type HorseTransferRowResultDetail = HorseTransferFoalConflictDetail;
 
 export type HorseTransferRowResult = {
-  readonly table: BackupTableName;
+  readonly table: HorseTransferTableName;
   readonly sourceId: string;
   readonly destinationId?: string;
   readonly outcome: HorseTransferRowOutcome;
@@ -108,7 +139,7 @@ export type HorseTransferRowResult = {
 export type HorseTransferOutcomeCounts = Record<HorseTransferRowOutcome, number>;
 
 export type HorseTransferImportTableCounts = Record<
-  BackupTableName,
+  HorseTransferTableName,
   HorseTransferOutcomeCounts
 >;
 
@@ -154,7 +185,7 @@ export type ValidateHorseTransferError = {
     | 'invalid_row'
     | 'constraint_violation';
   readonly message: string;
-  readonly table?: BackupTableName;
+  readonly table?: HorseTransferTableName;
   readonly rowIndex?: number;
   readonly field?: string;
 };

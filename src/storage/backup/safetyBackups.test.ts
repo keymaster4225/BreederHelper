@@ -9,13 +9,21 @@ vi.mock('./fileIO', () => ({
   deleteFile: vi.fn(),
   ensureDirectoryExists: vi.fn(),
   getSafetySnapshotDirectoryUri: vi.fn(),
+  isBackupArchiveFileName: (fileName: string) => fileName.endsWith('.breedwisebackup'),
+  isLegacyJsonBackupFileName: (fileName: string) => fileName.endsWith('.json'),
   joinFileUri: vi.fn(),
   listDirectoryFiles: vi.fn(),
   readTextFile: vi.fn(),
-  writeJsonFile: vi.fn(),
+}));
+
+vi.mock('./archiveIO', () => ({
+  readBackupArchive: vi.fn(),
+  validateBackupArchiveEntries: vi.fn(() => ({ ok: true })),
+  writeBackupArchive: vi.fn(),
 }));
 
 import { serializeBackup } from './serialize';
+import { writeBackupArchive } from './archiveIO';
 import {
   createSafetySnapshotFileName,
   deleteFile,
@@ -24,7 +32,6 @@ import {
   joinFileUri,
   listDirectoryFiles,
   readTextFile,
-  writeJsonFile,
 } from './fileIO';
 import { cloneBackupFixture } from './testFixtures';
 import { createSafetySnapshot, listSafetySnapshots } from './safetyBackups';
@@ -33,7 +40,7 @@ describe('safetyBackups', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getSafetySnapshotDirectoryUri).mockReturnValue('file:///mock-documents/safety-snapshots/');
-    vi.mocked(createSafetySnapshotFileName).mockImplementation((createdAt) => `snapshot-${createdAt}.json`);
+    vi.mocked(createSafetySnapshotFileName).mockImplementation((createdAt) => `snapshot-${createdAt}.breedwisebackup`);
     vi.mocked(joinFileUri).mockImplementation((dir, file) => `${dir}${file}`);
   });
 
@@ -54,11 +61,11 @@ describe('safetyBackups', () => {
 
     const summary = await createSafetySnapshot();
 
-    expect(summary.fileName).toBe(`snapshot-${backup.createdAt}.json`);
+    expect(summary.fileName).toBe(`snapshot-${backup.createdAt}.breedwisebackup`);
     expect(ensureDirectoryExists).toHaveBeenCalledWith('file:///mock-documents/safety-snapshots/');
-    expect(writeJsonFile).toHaveBeenCalledWith(
-      `file:///mock-documents/safety-snapshots/snapshot-${backup.createdAt}.json`,
-      expect.stringContaining('"schemaVersion": 11'),
+    expect(writeBackupArchive).toHaveBeenCalledWith(
+      `file:///mock-documents/safety-snapshots/snapshot-${backup.createdAt}.breedwisebackup`,
+      backup,
     );
     expect(deleteFile).toHaveBeenCalledWith('file:///mock-documents/safety-snapshots/snapshot-d.json');
   });
@@ -88,7 +95,7 @@ describe('safetyBackups', () => {
     vi.mocked(listDirectoryFiles).mockRejectedValue(new Error('directory unavailable'));
 
     await expect(createSafetySnapshot()).resolves.toMatchObject({
-      schemaVersion: 11,
+      schemaVersion: 12,
       mareCount: 1,
     });
   });

@@ -156,9 +156,9 @@ it('smoke-renders real navigator destinations with repository fixtures', async (
 
   const settingsTabs = screen.getAllByText('Settings');
   fireEvent.press(settingsTabs[settingsTabs.length - 1]!);
-  await waitFor(() => expect(screen.getByLabelText('Data Backup & Restore')).toBeTruthy());
+  await waitFor(() => expect(screen.getByLabelText('Backup, Restore & Horse Import')).toBeTruthy());
 
-  fireEvent.press(screen.getByLabelText('Data Backup & Restore'));
+  fireEvent.press(screen.getByLabelText('Backup, Restore & Horse Import'));
   await waitFor(() => expect(screen.getByText('Create Backup')).toBeTruthy());
   expect(backup.listSafetySnapshots).toHaveBeenCalled();
 });

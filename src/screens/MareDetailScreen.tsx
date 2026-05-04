@@ -7,6 +7,7 @@ import type { PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 
 import { useMareDetailData } from '@/hooks/useMareDetailData';
 import { useHorseExport } from '@/hooks/useHorseExport';
+import { useImmediateProfilePhotoPicker } from '@/hooks/useImmediateProfilePhotoPicker';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getMareDetailTabIndex } from '@/screens/detailTabRoutes';
@@ -42,7 +43,10 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   }, [navigation]);
   const {
     mare,
+    profilePhotosEnabled,
+    profilePhoto,
     dailyLogs,
+    attachmentPhotosByDailyLogId,
     breedingRecords,
     pregnancyChecks,
     foalingRecords,
@@ -58,6 +62,11 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
   } = useMareDetailData({
     mareId,
     setTitle: handleSetTitle,
+  });
+  const profilePhotoPicker = useImmediateProfilePhotoPicker({
+    ownerType: 'mare',
+    ownerId: mareId,
+    onSaved: loadData,
   });
 
   useFocusEffect(
@@ -107,6 +116,12 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             onCalendarPress={() => navigation.navigate('MareCalendar', { mareId })}
             onExportPress={handleExportMare}
             isExporting={isExporting}
+            profilePhotoUri={profilePhotosEnabled ? profilePhoto?.thumbnailUri ?? null : undefined}
+            onProfilePhotoPress={
+              profilePhotosEnabled
+                ? () => profilePhotoPicker.openPicker({ hasPhoto: profilePhoto !== null })
+                : undefined
+            }
           />
 
           <MareDetailTabStrip tabs={TAB_OPTIONS} activeTabIndex={activeTabIndex} onTabPress={handleTabPress} />
@@ -118,7 +133,13 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             initialPage={initialTabIndex}
             onPageSelected={handlePageSelected}
           >
-            <DailyLogsTab key="0" mareId={mareId} dailyLogs={dailyLogs} navigation={navigation} />
+            <DailyLogsTab
+              key="0"
+              mareId={mareId}
+              dailyLogs={dailyLogs}
+              attachmentPhotosByDailyLogId={attachmentPhotosByDailyLogId}
+              navigation={navigation}
+            />
             <BreedingTab key="1" mareId={mareId} breedingRecords={breedingRecords} stallionNameById={stallionNameById} navigation={navigation} />
             <PregnancyTab
               key="2"

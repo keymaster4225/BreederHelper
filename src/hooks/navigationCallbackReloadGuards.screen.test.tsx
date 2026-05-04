@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react-native';
 
 jest.mock('@/storage/repositories', () => ({
   createDailyLog: jest.fn(),
+  createDailyLogWithPhotos: jest.fn(),
   createFoal: jest.fn(),
   createMedicationLog: jest.fn(),
   createStallion: jest.fn(),
@@ -15,10 +16,13 @@ jest.mock('@/storage/repositories', () => ({
   getFoalingRecordById: jest.fn(),
   getFrozenSemenBatch: jest.fn(),
   getMedicationLogById: jest.fn(),
+  getProfilePhoto: jest.fn(),
   getSemenCollectionById: jest.fn(),
+  listAttachmentPhotos: jest.fn(),
   getStallionById: jest.fn(),
   softDeleteStallion: jest.fn(),
   updateDailyLog: jest.fn(),
+  updateDailyLogWithPhotos: jest.fn(),
   updateFoal: jest.fn(),
   updateFrozenSemenBatch: jest.fn(),
   updateMedicationLog: jest.fn(),
@@ -124,6 +128,10 @@ type GoBackOnly = {
 describe('navigation callback reload guards', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    repositories.createDailyLogWithPhotos.mockResolvedValue([]);
+    repositories.getProfilePhoto.mockResolvedValue(null);
+    repositories.listAttachmentPhotos.mockResolvedValue([]);
+    repositories.updateDailyLogWithPhotos.mockResolvedValue([]);
   });
 
   it('does not reload the stallion form when callback props change identity', async () => {

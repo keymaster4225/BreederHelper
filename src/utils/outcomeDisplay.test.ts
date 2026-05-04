@@ -11,6 +11,7 @@ import {
   formatOvaryConsistency,
   formatOvaryStructure,
   formatOutcome,
+  formatPhotoOwnerType,
   formatUterineToneCategory,
 } from './outcomeDisplay';
 
@@ -27,6 +28,8 @@ describe('outcomeDisplay', () => {
     expect(formatUterineToneCategory('tight')).toBe('Tight');
     expect(formatCervicalFirmness('closed')).toBe('Closed');
     expect(formatFluidLocation('leftHorn')).toBe('Left Horn');
+    expect(formatPhotoOwnerType('dailyLog')).toBe('Daily Log');
+    expect(formatPhotoOwnerType('pregnancyCheck')).toBe('Pregnancy Check');
   });
 
   it('preserves fallback behavior for unexpected strings', () => {

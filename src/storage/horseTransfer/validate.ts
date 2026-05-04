@@ -14,6 +14,7 @@ import {
   HORSE_TRANSFER_VERSION,
   type HorseTransferEnvelopeV1,
   type HorseTransferSourceHorse,
+  type HorseTransferTableName,
   type HorseTransferTablesV1,
   type ValidateHorseTransferError,
   type ValidateHorseTransferResult,
@@ -43,6 +44,7 @@ const PRIVACY_KEYS = [
   'redactedContextStallions',
   'redactedDoseRecipientAndShipping',
 ] as const;
+const UNSUPPORTED_EMPTY_PHOTO_TABLE_KEYS = ['photo_assets', 'photo_attachments'] as const;
 
 const STALLION_PACKAGE_EMPTY_TABLES: readonly BackupTableName[] = [
   'mares',
@@ -140,7 +142,9 @@ export function validateHorseTransfer(input: unknown): ValidateHorseTransferResu
   const tablesResult = validateTables(input.tables);
   if (!tablesResult.ok) return tablesResult;
 
-  const backupTablesError = validateCurrentBackupTables(tablesResult.tables);
+  const backupTablesError = validateCurrentBackupTables(tablesResult.tables, {
+    includePhotoTables: false,
+  });
   if (backupTablesError) {
     return { ok: false, error: mapBackupValidationError(backupTablesError) };
   }
@@ -274,13 +278,36 @@ function validateTables(
     };
   }
 
-  const tableKeyError = validateExactKeys(input, BACKUP_TABLE_NAMES, 'Horse package tables');
+  const tableInput = { ...input };
+  for (const tableName of UNSUPPORTED_EMPTY_PHOTO_TABLE_KEYS) {
+    if (!(tableName in tableInput)) {
+      continue;
+    }
+
+    const rows = tableInput[tableName];
+    if (!Array.isArray(rows) || rows.length > 0) {
+      return {
+        ok: false,
+        error: createError(
+          'invalid_shape',
+          `Horse package tables.${tableName} is not supported by horse packages.`,
+          {
+            field: tableName,
+          },
+        ),
+      };
+    }
+
+    delete tableInput[tableName];
+  }
+
+  const tableKeyError = validateExactKeys(tableInput, BACKUP_TABLE_NAMES, 'Horse package tables');
   if (tableKeyError) {
     return { ok: false, error: tableKeyError };
   }
 
   for (const tableName of BACKUP_TABLE_NAMES) {
-    const rows = input[tableName];
+    const rows = tableInput[tableName];
     if (!Array.isArray(rows)) {
       return {
         ok: false,
@@ -324,7 +351,7 @@ function validateTables(
 
   return {
     ok: true,
-    tables: input as unknown as HorseTransferTablesV1,
+    tables: tableInput as unknown as HorseTransferTablesV1,
   };
 }
 
@@ -818,10 +845,14 @@ function mapBackupValidationError(error: ValidateBackupError): ValidateHorseTran
   return {
     code: error.code,
     message: error.message,
-    table: error.table,
+    table: isHorseTransferTableName(error.table) ? error.table : undefined,
     rowIndex: error.rowIndex,
     field: error.field,
   };
+}
+
+function isHorseTransferTableName(table: ValidateBackupError['table']): table is HorseTransferTableName {
+  return table != null && (BACKUP_TABLE_NAMES as readonly string[]).includes(table);
 }
 
 function validationFailure(

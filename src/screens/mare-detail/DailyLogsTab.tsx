@@ -4,8 +4,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { PrimaryButton } from '../../components/Buttons';
+import { DailyLogThumbnailStrip } from '../../components/DailyLogPhotos';
 import { StatusBadge } from '../../components/StatusBadge';
-import { CardRow, EditIconButton, ScoreBadge, cardStyles } from '../../components/RecordCardParts';
+import { EditIconButton, ScoreBadge, cardStyles } from '../../components/RecordCardParts';
 import type { DailyLog } from '../../models/types';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { colors, spacing, typography } from '../../theme';
@@ -16,6 +17,7 @@ import { useClockDisplayMode } from '@/hooks/useClockPreference';
 type Props = {
   mareId: string;
   dailyLogs: readonly DailyLog[];
+  attachmentPhotosByDailyLogId?: Record<string, { id: string; thumbnailUri: string; masterUri: string }[]>;
   navigation: NativeStackNavigationProp<RootStackParamList, 'MareDetail'>;
 };
 
@@ -92,7 +94,21 @@ function OvaryDisclosure({
   );
 }
 
-export function DailyLogsTab({ mareId, dailyLogs, navigation }: Props): JSX.Element {
+function UterusSummaryRow({ value }: { value: string }): JSX.Element {
+  return (
+    <View style={styles.uterusSummaryRow}>
+      <Text style={styles.uterusSummaryLabel}>Uterus</Text>
+      <Text style={styles.uterusSummaryValue}>{value}</Text>
+    </View>
+  );
+}
+
+export function DailyLogsTab({
+  mareId,
+  dailyLogs,
+  attachmentPhotosByDailyLogId = {},
+  navigation,
+}: Props): JSX.Element {
   const groupedLogs = groupDailyLogsByDate(dailyLogs);
   const clockDisplayMode = useClockDisplayMode();
 
@@ -112,6 +128,7 @@ export function DailyLogsTab({ mareId, dailyLogs, navigation }: Props): JSX.Elem
               const rightOvaryDetails = buildOvaryDetailLines(log, 'right');
               const leftOvaryDetails = buildOvaryDetailLines(log, 'left');
               const uterusSummary = buildUterusSummary(log);
+              const photos = attachmentPhotosByDailyLogId[log.id] ?? [];
 
               return (
                 <View key={log.id} style={cardStyles.card}>
@@ -135,7 +152,19 @@ export function DailyLogsTab({ mareId, dailyLogs, navigation }: Props): JSX.Elem
                   ) : null}
                   <OvaryDisclosure title="Right ovary" details={rightOvaryDetails} />
                   <OvaryDisclosure title="Left ovary" details={leftOvaryDetails} />
-                  {uterusSummary ? <CardRow label="Uterus" value={uterusSummary} /> : null}
+                  {uterusSummary ? <UterusSummaryRow value={uterusSummary} /> : null}
+                  <DailyLogThumbnailStrip
+                    photos={photos}
+                    onPressPhoto={(index) => {
+                      navigation.navigate('PhotoViewer', {
+                        photos: photos.map((photo) => ({
+                          uri: photo.masterUri,
+                          title: `${log.date} photo`,
+                        })),
+                        initialIndex: index,
+                      });
+                    }}
+                  />
                 </View>
               );
             })}
@@ -207,6 +236,26 @@ const styles = StyleSheet.create({
   ovaryDetailValue: {
     color: colors.onSurface,
     flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  uterusSummaryRow: {
+    alignItems: 'flex-start',
+    columnGap: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  uterusSummaryLabel: {
+    color: colors.onSurfaceVariant,
+    ...typography.bodySmall,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  uterusSummaryValue: {
+    color: colors.onSurfaceVariant,
+    flex: 1,
+    textAlign: 'right',
+    ...typography.bodyMedium,
     fontSize: 13,
     lineHeight: 18,
   },

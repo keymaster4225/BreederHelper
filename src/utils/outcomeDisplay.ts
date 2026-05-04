@@ -9,6 +9,7 @@ import {
   FOALING_OUTCOME_LABELS,
   OVARY_CONSISTENCY_LABELS,
   OVARY_STRUCTURE_LABELS,
+  PHOTO_OWNER_TYPE_LABELS,
   UTERINE_TONE_CATEGORY_LABELS,
 } from '@/models/enums';
 import type {
@@ -18,6 +19,7 @@ import type {
   FollicleState,
   OvaryConsistency,
   OvaryStructure,
+  PhotoOwnerType,
   UterineToneCategory,
 } from '@/models/types';
 import { colors } from '@/theme';
@@ -72,6 +74,10 @@ export function formatCervicalFirmness(value: CervicalFirmness): string {
 
 export function formatFluidLocation(value: FluidLocation): string {
   return FLUID_LOCATION_LABELS[value];
+}
+
+export function formatPhotoOwnerType(value: PhotoOwnerType): string {
+  return PHOTO_OWNER_TYPE_LABELS[value];
 }
 
 export function getFoalSexColor(sex: string): string | null {

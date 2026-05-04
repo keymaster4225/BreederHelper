@@ -390,3 +390,24 @@ export const COLLECTION_TARGET_MODE_OPTIONS = buildOptions(
   COLLECTION_TARGET_MODE_VALUES,
   COLLECTION_TARGET_MODE_LABELS,
 );
+
+export const PHOTO_OWNER_TYPE_VALUES = [
+  'mare',
+  'stallion',
+  'dailyLog',
+  'pregnancyCheck',
+  'foalingRecord',
+] as const;
+type PhotoOwnerTypeValue = (typeof PHOTO_OWNER_TYPE_VALUES)[number];
+
+export const PHOTO_OWNER_TYPE_LABELS: Readonly<Record<PhotoOwnerTypeValue, string>> = {
+  mare: 'Mare',
+  stallion: 'Stallion',
+  dailyLog: 'Daily Log',
+  pregnancyCheck: 'Pregnancy Check',
+  foalingRecord: 'Foaling Record',
+};
+
+export const PHOTO_ATTACHMENT_ROLE_VALUES = ['profile', 'attachment'] as const;
+
+export const PHOTO_SOURCE_KIND_VALUES = ['camera', 'library', 'imported'] as const;

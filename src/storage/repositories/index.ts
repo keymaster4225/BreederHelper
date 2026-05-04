@@ -8,6 +8,7 @@ export * from './foalingRecords';
 export * from './foals';
 export * from './medications';
 export * from './tasks';
+export * from './photos';
 export * from './semenCollections';
 export * from './collectionDoseEvents';
 export * from './collectionWizard';

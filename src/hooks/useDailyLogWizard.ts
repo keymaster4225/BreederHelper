@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
-import type { DailyLogDetail } from '@/models/types';
-import { createDailyLog, deleteDailyLog, getDailyLogById, updateDailyLog } from '@/storage/repositories';
+import type { DailyLogDetail, PhotoAsset } from '@/models/types';
+import { deletePhotoAssetDirectoryByRelativePath } from '@/storage/photoFiles/assets';
+import {
+  createDailyLog,
+  createDailyLogWithPhotos,
+  deleteDailyLog,
+  getDailyLogById,
+  listAttachmentPhotos,
+  updateDailyLog,
+  updateDailyLogWithPhotos,
+} from '@/storage/repositories';
 import { confirmDelete } from '@/utils/confirmDelete';
 import { newId } from '@/utils/id';
 
@@ -37,6 +46,7 @@ import { useDailyLogOvaryState } from './dailyLogWizard/useDailyLogOvaryState';
 import { useDailyLogReviewState } from './dailyLogWizard/useDailyLogReviewState';
 import { useDailyLogUterusState } from './dailyLogWizard/useDailyLogUterusState';
 import { useRecordForm } from './useRecordForm';
+import { usePhotoDrafts } from './usePhotoDrafts';
 
 import type {
   DailyLogWizardErrors,
@@ -92,6 +102,16 @@ type UseDailyLogWizardArgs = {
 const REQUIRED_TIME_ERROR = 'Time is required.';
 const INVALID_TIME_ERROR = 'Time must be a valid HH:MM value.';
 const DUPLICATE_TIME_ERROR = 'A daily log already exists for this mare at that date and time.';
+
+async function deletePhotoAssetFilesBestEffort(assets: readonly PhotoAsset[]): Promise<void> {
+  for (const asset of assets) {
+    try {
+      await deletePhotoAssetDirectoryByRelativePath(asset.masterRelativePath);
+    } catch {
+      // Metadata has committed; the boot consistency sweep can remove leftovers.
+    }
+  }
+}
 
 function getBasicsTimeErrorForSaveFailure(message: string): string | null {
   const normalized = message.toLowerCase();
@@ -233,6 +253,10 @@ export function useDailyLogWizard({
     runSave,
     runDelete,
   } = useRecordForm({ initialLoading: isEdit });
+  const dailyLogPhotos = usePhotoDrafts();
+  const photosEnabled = dailyLogPhotos.enabled;
+  const hydrateExistingPhotos = dailyLogPhotos.hydrateExisting;
+  const preparePhotosForSave = dailyLogPhotos.prepareForSave;
 
   useEffect(() => {
     onGoBackRef.current = onGoBack;
@@ -276,6 +300,7 @@ export function useDailyLogWizard({
       resetCreateTimeDefaults();
       resetCreateFlushDecision();
       resetFlushDraft();
+      hydrateExistingPhotos([]);
       hadPersistedFlushRef.current = false;
       return;
     }
@@ -289,7 +314,11 @@ export function useDailyLogWizard({
           return;
         }
 
+        const existingPhotos = photosEnabled
+          ? await listAttachmentPhotos('dailyLog', logId)
+          : [];
         hydrateFromRecord(record);
+        hydrateExistingPhotos(existingPhotos);
         setCurrentStepIndex(
           buildDailyLogWizardSteps(record.uterineFlush != null && record.uterineFluidPockets.length > 0)
             .length - 1,
@@ -311,6 +340,8 @@ export function useDailyLogWizard({
     resetFlushDraft,
     runLoad,
     setIsLoading,
+    photosEnabled,
+    hydrateExistingPhotos,
   ]);
 
   const applyBasicsValidation = useCallback((): boolean => {
@@ -452,22 +483,35 @@ export function useDailyLogWizard({
         });
 
         const savedLogId = logId ?? newId();
+        const photoInputs = photosEnabled ? await preparePhotosForSave() : [];
+        let deletedPhotoAssets: PhotoAsset[] = [];
 
         if (logId) {
-          await updateDailyLog(logId, payload);
+          if (photosEnabled) {
+            deletedPhotoAssets = await updateDailyLogWithPhotos(logId, payload, photoInputs);
+          } else {
+            await updateDailyLog(logId, payload);
+          }
         } else {
           if (payload.time == null) {
             throw new Error('Daily log time is required.');
           }
 
-          await createDailyLog({
+          const createInput = {
             id: savedLogId,
             mareId,
             ...payload,
             time: payload.time,
-          });
+          };
+
+          if (photosEnabled) {
+            deletedPhotoAssets = await createDailyLogWithPhotos(createInput, photoInputs);
+          } else {
+            await createDailyLog(createInput);
+          }
         }
 
+        await deletePhotoAssetFilesBestEffort(deletedPhotoAssets);
         await completeLinkedTaskAfterSave({
           taskId,
           completedRecordType: 'dailyLog',
@@ -512,6 +556,8 @@ export function useDailyLogWizard({
     mareId,
     notes,
     ovulationSource,
+    photosEnabled,
+    preparePhotosForSave,
     rightOvary,
     runSave,
     taskId,
@@ -552,7 +598,8 @@ export function useDailyLogWizard({
       onConfirm: async () => {
         await runDelete(
           async () => {
-            await deleteDailyLog(logId);
+            const deletedPhotoAssets = await deleteDailyLog(logId);
+            await deletePhotoAssetFilesBestEffort(deletedPhotoAssets);
             onGoBack();
           },
           {
@@ -590,6 +637,7 @@ export function useDailyLogWizard({
     isLoading,
     isSaving,
     isDeleting,
+    photos: dailyLogPhotos,
     setDate,
     setTime,
     setTeasingScore,
