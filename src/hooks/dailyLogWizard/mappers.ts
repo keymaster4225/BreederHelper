@@ -1,8 +1,14 @@
 import type { DailyLogDetail, DailyLogOvulationSource } from '@/models/types';
 import { normalizeDailyLogTime } from '@/utils/dailyLogTime';
+import { sortMeasurementsDesc } from '@/utils/follicleMeasurements';
 import { newId } from '@/utils/id';
 
-import { collectValidMeasurements, fromScoreOption, toScoreOption } from './measurementUtils';
+import {
+  collectValidMeasurements,
+  fromScoreOption,
+  removePrimaryFindingStructures,
+  toScoreOption,
+} from './measurementUtils';
 import type {
   DailyLogWizardErrors,
   DailyLogWizardFlushDraft,
@@ -201,8 +207,20 @@ export function buildDailyLogPayload({
   legacyOvulationDetected,
   ovulationSource,
 }: BuildDailyLogPayloadArgs) {
-  const rightMeasurements = collectValidMeasurements(rightOvary.follicleMeasurements).values;
-  const leftMeasurements = collectValidMeasurements(leftOvary.follicleMeasurements).values;
+  const rightMeasurements = sortMeasurementsDesc(
+    collectValidMeasurements(rightOvary.follicleMeasurements).values,
+  );
+  const leftMeasurements = sortMeasurementsDesc(
+    collectValidMeasurements(leftOvary.follicleMeasurements).values,
+  );
+  const rightOvaryStructures =
+    rightOvary.follicleState === 'measured'
+      ? removePrimaryFindingStructures(rightOvary.structures)
+      : rightOvary.structures;
+  const leftOvaryStructures =
+    leftOvary.follicleState === 'measured'
+      ? removePrimaryFindingStructures(leftOvary.structures)
+      : leftOvary.structures;
 
   const shouldPreserveLegacyOvulation =
     isEdit &&
@@ -249,13 +267,13 @@ export function buildDailyLogPayload({
     rightOvaryFollicleMeasurementsMm:
       rightOvary.follicleState === 'measured' ? rightMeasurements : [],
     rightOvaryConsistency: rightOvary.consistency,
-    rightOvaryStructures: rightOvary.structures,
+    rightOvaryStructures,
     leftOvaryOvulation: leftOvary.ovulation,
     leftOvaryFollicleState: leftOvary.follicleState,
     leftOvaryFollicleMeasurementsMm:
       leftOvary.follicleState === 'measured' ? leftMeasurements : [],
     leftOvaryConsistency: leftOvary.consistency,
-    leftOvaryStructures: leftOvary.structures,
+    leftOvaryStructures,
     ovulationSource: resolvedOvulationSource,
     ovulationDetected: resolvedOvulationSource === 'legacy' ? legacyOvulationDetected : undefined,
     edema: fromScoreOption(uterus.edema),

@@ -1,10 +1,15 @@
 import { useCallback, useState } from 'react';
 
-import type { FollicleState, OvaryConsistency, OvaryStructure } from '@/models/types';
+import type { OvaryConsistency, OvaryStructure } from '@/models/types';
 import { newId } from '@/utils/id';
 
 import { createEmptyOvaryDraft } from './mappers';
+import {
+  getPrimaryFindingStructure,
+  removePrimaryFindingStructures,
+} from './measurementUtils';
 import type {
+  DailyLogWizardFollicleFinding,
   DailyLogWizardOvaryDraft,
   DailyLogWizardOvarySide,
   DailyLogWizardSetErrors,
@@ -63,47 +68,8 @@ export function useDailyLogOvaryState({
     [leftOvary.ovulation, onStructuredOvulationChange, rightOvary.ovulation, setOvaryForSide],
   );
 
-  const setOvaryFollicleState = useCallback(
-    (side: DailyLogWizardOvarySide, value: FollicleState | null): void => {
-      setOvaryForSide(side, (current) => {
-        const needsSeedRow = value === 'measured' && current.follicleMeasurements.length === 0;
-        return {
-          ...current,
-          follicleState: value,
-          follicleMeasurements: needsSeedRow
-            ? [{ clientId: newId(), value: '' }]
-            : current.follicleMeasurements,
-        };
-      });
-
-      setErrors((current) => ({
-        ...current,
-        [side === 'right' ? 'rightOvary' : 'leftOvary']: {},
-      }));
-    },
-    [setErrors, setOvaryForSide],
-  );
-
-  const setOvaryFollicleSize = useCallback(
-    (side: DailyLogWizardOvarySide, value: string): void => {
-      setOvaryForSide(side, (current) => {
-        const trimmed = value.trim();
-        if (!trimmed) {
-          return {
-            ...current,
-            follicleState: null,
-            follicleMeasurements: [],
-          };
-        }
-
-        const existingClientId = current.follicleMeasurements[0]?.clientId ?? newId();
-        return {
-          ...current,
-          follicleState: 'measured',
-          follicleMeasurements: [{ clientId: existingClientId, value }],
-        };
-      });
-
+  const clearOvaryMeasurementError = useCallback(
+    (side: DailyLogWizardOvarySide): void => {
       setErrors((current) => ({
         ...current,
         [side === 'right' ? 'rightOvary' : 'leftOvary']: {
@@ -112,7 +78,39 @@ export function useDailyLogOvaryState({
         },
       }));
     },
-    [setErrors, setOvaryForSide],
+    [setErrors],
+  );
+
+  const setOvaryFollicleFinding = useCallback(
+    (side: DailyLogWizardOvarySide, finding: DailyLogWizardFollicleFinding): void => {
+      setOvaryForSide(side, (current) => {
+        if (finding === 'measured') {
+          const needsSeedRow = current.follicleMeasurements.length === 0;
+          return {
+            ...current,
+            follicleState: 'measured',
+            follicleMeasurements: needsSeedRow
+              ? [{ clientId: newId(), value: '' }]
+              : current.follicleMeasurements,
+            structures: removePrimaryFindingStructures(current.structures),
+          };
+        }
+
+        const primaryStructure = getPrimaryFindingStructure(finding);
+        const additionalStructures = removePrimaryFindingStructures(current.structures);
+        return {
+          ...current,
+          follicleState: null,
+          follicleMeasurements: [],
+          structures: primaryStructure
+            ? [...additionalStructures, primaryStructure]
+            : additionalStructures,
+        };
+      });
+
+      clearOvaryMeasurementError(side);
+    },
+    [clearOvaryMeasurementError, setOvaryForSide],
   );
 
   const setOvaryConsistency = useCallback(
@@ -146,8 +144,9 @@ export function useDailyLogOvaryState({
         ...current,
         follicleMeasurements: [...current.follicleMeasurements, { clientId: newId(), value: '' }],
       }));
+      clearOvaryMeasurementError(side);
     },
-    [setOvaryForSide],
+    [clearOvaryMeasurementError, setOvaryForSide],
   );
 
   const updateOvaryMeasurement = useCallback(
@@ -158,8 +157,9 @@ export function useDailyLogOvaryState({
           measurement.clientId === clientId ? { ...measurement, value } : measurement,
         ),
       }));
+      clearOvaryMeasurementError(side);
     },
-    [setOvaryForSide],
+    [clearOvaryMeasurementError, setOvaryForSide],
   );
 
   const removeOvaryMeasurement = useCallback(
@@ -170,8 +170,9 @@ export function useDailyLogOvaryState({
           (measurement) => measurement.clientId !== clientId,
         ),
       }));
+      clearOvaryMeasurementError(side);
     },
-    [setOvaryForSide],
+    [clearOvaryMeasurementError, setOvaryForSide],
   );
 
   return {
@@ -179,8 +180,7 @@ export function useDailyLogOvaryState({
     leftOvary,
     hydrateOvaries,
     setOvaryOvulation,
-    setOvaryFollicleState,
-    setOvaryFollicleSize,
+    setOvaryFollicleFinding,
     setOvaryConsistency,
     toggleOvaryStructure,
     addOvaryMeasurement,

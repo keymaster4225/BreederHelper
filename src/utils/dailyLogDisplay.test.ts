@@ -41,7 +41,7 @@ describe('dailyLogDisplay', () => {
         ...BASE_LOG,
         rightOvaryOvulation: true,
         rightOvaryFollicleState: 'measured',
-        rightOvaryFollicleMeasurementsMm: [34, 36],
+        rightOvaryFollicleMeasurementsMm: [34, 36, 36],
         rightOvaryConsistency: 'firm',
         rightOvaryStructures: ['corpusLuteum'],
       },
@@ -50,7 +50,7 @@ describe('dailyLogDisplay', () => {
 
     expect(summary).toContain('Ovulation Yes');
     expect(summary).toContain('Follicle Measured');
-    expect(summary).toContain('Measurements 34, 36 mm');
+    expect(summary).toContain('Follicles 36, 36, 34 mm');
     expect(summary).toContain('Consistency Firm');
     expect(summary).toContain('Structures Corpus Luteum');
   });
@@ -62,7 +62,7 @@ describe('dailyLogDisplay', () => {
           ...BASE_LOG,
           rightOvaryOvulation: false,
           rightOvaryFollicleState: 'measured',
-          rightOvaryFollicleMeasurementsMm: [34, 36],
+          rightOvaryFollicleMeasurementsMm: [34, 36, 36],
           rightOvaryConsistency: 'firm',
           rightOvaryStructures: ['corpusLuteum', 'hemorrhagicAnovulatoryFollicle'],
         },
@@ -70,7 +70,7 @@ describe('dailyLogDisplay', () => {
       ),
     ).toEqual([
       { label: 'Ovulation', value: 'No' },
-      { label: 'Follicles', value: '34 mm, 36 mm' },
+      { label: 'Follicles', value: '36 mm, 36 mm, 34 mm' },
       { label: 'Consistency', value: 'Firm' },
       { label: 'Structures', value: 'Corpus Luteum, Hemorrhagic Anovulatory Follicle' },
     ]);

@@ -41,6 +41,16 @@ describe('daily log wizard validation helpers', () => {
         structures: [],
       }).measurements,
     ).toBe('Follicle size must be between 0 and 100 mm with at most 1 decimal place.');
+
+    expect(
+      validateOvary({
+        ovulation: null,
+        follicleState: null,
+        follicleMeasurements: [{ clientId: 'row-1', value: 'bad' }],
+        consistency: null,
+        structures: [],
+      }).measurements,
+    ).toBeUndefined();
   });
 
   it('requires discharge notes and valid uterine fluid pockets when applicable', () => {

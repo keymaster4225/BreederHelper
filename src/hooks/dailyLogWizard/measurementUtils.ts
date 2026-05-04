@@ -1,4 +1,12 @@
-import type { ScoreOption, TriStateOption, DailyLogWizardMeasurementDraft } from './types';
+import type { OvaryStructure } from '@/models/types';
+
+import type {
+  DailyLogWizardFollicleFinding,
+  ScoreOption,
+  TriStateOption,
+  DailyLogWizardMeasurementDraft,
+  DailyLogWizardOvaryDraft,
+} from './types';
 
 export type ParsedMeasurements = {
   values: number[];
@@ -6,6 +14,21 @@ export type ParsedMeasurements = {
 };
 
 const FOLLICLE_MEASUREMENT_INPUT_PATTERN = /^\d*\.?\d*$/;
+const PRIMARY_FINDING_STRUCTURE_BY_FINDING: Readonly<
+  Partial<Record<DailyLogWizardFollicleFinding, OvaryStructure>>
+> = {
+  msf: 'multipleSmallFollicles',
+  ahf: 'hemorrhagicAnovulatoryFollicle',
+  cl: 'corpusLuteum',
+};
+
+const FINDING_BY_PRIMARY_STRUCTURE: Readonly<
+  Partial<Record<OvaryStructure, DailyLogWizardFollicleFinding>>
+> = {
+  multipleSmallFollicles: 'msf',
+  hemorrhagicAnovulatoryFollicle: 'ahf',
+  corpusLuteum: 'cl',
+};
 
 function hasAtMostOneDecimalPlace(value: number): boolean {
   const scaled = value * 10;
@@ -50,6 +73,37 @@ export function fromScoreOption(value: ScoreOption): number | null {
   }
 
   return Number(value);
+}
+
+export function isPrimaryFindingStructure(value: OvaryStructure): boolean {
+  return FINDING_BY_PRIMARY_STRUCTURE[value] != null;
+}
+
+export function removePrimaryFindingStructures(
+  values: readonly OvaryStructure[],
+): OvaryStructure[] {
+  return values.filter((value) => !isPrimaryFindingStructure(value));
+}
+
+export function getPrimaryFindingStructure(
+  finding: DailyLogWizardFollicleFinding,
+): OvaryStructure | null {
+  return PRIMARY_FINDING_STRUCTURE_BY_FINDING[finding] ?? null;
+}
+
+export function getOvaryFollicleFinding(
+  draft: DailyLogWizardOvaryDraft,
+): DailyLogWizardFollicleFinding {
+  if (draft.follicleState === 'measured') {
+    return 'measured';
+  }
+
+  const primaryStructures = draft.structures.filter(isPrimaryFindingStructure);
+  if (primaryStructures.length !== 1) {
+    return '';
+  }
+
+  return FINDING_BY_PRIMARY_STRUCTURE[primaryStructures[0]] ?? '';
 }
 
 export function parseMeasurementTextValue(value: string): number | null {
