@@ -21,7 +21,9 @@ import {
 } from '@/hooks/useDailyLogWizard';
 import { borderRadius, colors, spacing, typography } from '@/theme';
 import { formatDailyLogTime } from '@/utils/dailyLogTime';
+import { sortMeasurementsDesc } from '@/utils/follicleMeasurements';
 import { useClockDisplayMode } from '@/hooks/useClockPreference';
+import { parseMeasurementTextValue } from '@/hooks/dailyLogWizard/measurementUtils';
 
 type Props = {
   date: string;
@@ -56,14 +58,13 @@ function formatTriStateValue(value: boolean | null): string {
 
 type FormatOvarySummaryOptions = {
   showFollicleState?: boolean;
-  singleFollicleSize?: boolean;
 };
 
 function formatOvarySummary(
   ovary: DailyLogWizardOvaryDraft,
   options: FormatOvarySummaryOptions = {},
 ): string {
-  const { showFollicleState = true, singleFollicleSize = false } = options;
+  const { showFollicleState = true } = options;
   const rows: string[] = [];
 
   rows.push(`Ovulation: ${formatTriStateValue(ovary.ovulation)}`);
@@ -73,19 +74,17 @@ function formatOvarySummary(
   }
 
   if (ovary.follicleState === 'measured') {
-    const values = ovary.follicleMeasurements
-      .map((measurement) => measurement.value.trim())
-      .filter(Boolean);
+    const values = sortMeasurementsDesc(
+      ovary.follicleMeasurements
+        .map((measurement) => parseMeasurementTextValue(measurement.value))
+        .filter((value): value is number => value != null),
+    );
 
-    if (singleFollicleSize) {
-      rows.push(values.length > 0 ? `Follicle size: ${values[0]} mm` : 'Follicle size: not entered');
-    } else {
-      rows.push(
-        values.length > 0
-          ? `Measurements: ${values.join(', ')} mm`
-          : 'Measurements: none entered',
-      );
-    }
+    rows.push(
+      values.length > 0
+        ? `Follicles: ${values.join(', ')} mm`
+        : 'Follicles: none entered',
+    );
   }
 
   if (ovary.consistency) {
@@ -222,14 +221,14 @@ export function ReviewStep({
 
       <ReviewSection
         title="Right Ovary"
-        summary={formatOvarySummary(rightOvary, { showFollicleState: false, singleFollicleSize: true })}
+        summary={formatOvarySummary(rightOvary, { showFollicleState: false })}
         editLabel="Edit Right Ovary"
         onEdit={() => onJumpToStep(1)}
       />
 
       <ReviewSection
         title="Left Ovary"
-        summary={formatOvarySummary(leftOvary, { showFollicleState: false, singleFollicleSize: true })}
+        summary={formatOvarySummary(leftOvary, { showFollicleState: false })}
         editLabel="Edit Left Ovary"
         onEdit={() => onJumpToStep(2)}
       />

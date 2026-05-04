@@ -118,13 +118,13 @@ it('renders structured ovary details in an expandable ovary row', () => {
   );
 
   expect(screen.getByText('Right ovary')).toBeTruthy();
-  expect(screen.queryByText('34 mm, 36 mm')).toBeNull();
+  expect(screen.queryByText('36 mm, 34 mm')).toBeNull();
   expect(screen.queryByText('Follicles')).toBeNull();
 
   fireEvent.press(screen.getByLabelText('Show Right ovary details'));
 
   expect(screen.getByText('Follicles')).toBeTruthy();
-  expect(screen.getByText('34 mm, 36 mm')).toBeTruthy();
+  expect(screen.getByText('36 mm, 34 mm')).toBeTruthy();
   expect(screen.getByText('Consistency')).toBeTruthy();
   expect(screen.getByText('Firm')).toBeTruthy();
   expect(screen.getByText('Structures')).toBeTruthy();
