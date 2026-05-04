@@ -178,6 +178,23 @@ describe('daily log repository structured storage', () => {
     expect(params.right_ovary_follicle_measurements_mm).toBe('[]');
   });
 
+  it('round-trips multiple sorted measured follicles through JSON serialization', async () => {
+    await createDailyLog({
+      id: 'log-1',
+      mareId: 'mare-1',
+      date: '2026-04-01',
+      time: '08:00',
+      rightOvaryFollicleState: 'measured',
+      rightOvaryFollicleMeasurementsMm: [36, 35, 35],
+    }, db);
+
+    const { params } = expectInsertForTable(db, 'daily_logs');
+    expect(params.right_ovary_follicle_measurements_mm).toBe('[36,35,35]');
+    expect(
+      parseFollicleMeasurementsJson(params.right_ovary_follicle_measurements_mm as string),
+    ).toEqual([36, 35, 35]);
+  });
+
   it('normalizes discharge notes dependency on dischargeObserved', async () => {
     db.getFirstAsync.mockResolvedValue(createExistingDailyLogRow());
 

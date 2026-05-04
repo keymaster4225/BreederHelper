@@ -135,8 +135,7 @@ function createWizardMock(overrides: Record<string, unknown> = {}) {
     setTeasingScore: jest.fn(),
     setNotes: jest.fn(),
     setOvaryOvulation: jest.fn(),
-    setOvaryFollicleState: jest.fn(),
-    setOvaryFollicleSize: jest.fn(),
+    setOvaryFollicleFinding: jest.fn(),
     setOvaryConsistency: jest.fn(),
     toggleOvaryStructure: jest.fn(),
     addOvaryMeasurement: jest.fn(),
@@ -259,6 +258,57 @@ it('shows an inline time error from the hook on the basics step', () => {
   expect(
     screen.getByText('A daily log already exists for this mare at that date and time.'),
   ).toBeTruthy();
+});
+
+it('renders measured follicle rows and wires ovary measurement actions', () => {
+  const { screen, wizard } = renderScreen({
+    currentStepIndex: 1,
+    currentStepTitle: 'Right Ovary',
+    rightOvary: {
+      ovulation: null,
+      follicleState: 'measured',
+      follicleMeasurements: [
+        { clientId: 'row-1', value: '35' },
+        { clientId: 'row-2', value: '32.5' },
+      ],
+      consistency: null,
+      structures: [],
+    },
+  });
+
+  expect(screen.getByText('Follicle Finding')).toBeTruthy();
+  expect(screen.getByText('Follicle A')).toBeTruthy();
+  expect(screen.getByText('Follicle B')).toBeTruthy();
+
+  fireEvent.changeText(screen.getByLabelText('Follicle B size'), '33');
+  fireEvent.press(screen.getByLabelText('Remove Follicle A'));
+  fireEvent.press(screen.getByLabelText('Add Follicle'));
+  fireEvent.press(screen.getByText('MSF'));
+
+  expect(wizard.updateOvaryMeasurement).toHaveBeenCalledWith('right', 'row-2', '33');
+  expect(wizard.removeOvaryMeasurement).toHaveBeenCalledWith('right', 'row-1');
+  expect(wizard.addOvaryMeasurement).toHaveBeenCalledWith('right');
+  expect(wizard.setOvaryFollicleFinding).toHaveBeenCalledWith('right', 'msf');
+});
+
+it('surfaces legacy multi-primary ovary findings before normalization', () => {
+  const { screen } = renderScreen({
+    currentStepIndex: 1,
+    currentStepTitle: 'Right Ovary',
+    rightOvary: {
+      ovulation: null,
+      follicleState: null,
+      follicleMeasurements: [],
+      consistency: null,
+      structures: ['multipleSmallFollicles', 'corpusLuteum', 'follicularCyst'],
+    },
+  });
+
+  expect(
+    screen.getByText('Existing findings: Multiple Small Follicles, Corpus Luteum'),
+  ).toBeTruthy();
+  expect(screen.getByText('Additional Structures')).toBeTruthy();
+  expect(screen.getByText('Follicular Cyst')).toBeTruthy();
 });
 
 it('passes mareId and logId through the hook args', () => {
