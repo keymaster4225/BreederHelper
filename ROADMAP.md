@@ -1,6 +1,6 @@
 # BreedWise Roadmap
 
-> Last updated: 2026-05-01
+> Last updated: 2026-05-04
 >
 > This document is the prioritized plan for BreedWise. The flat `TODO` file is now a raw inbox — new ideas get dumped there, then triaged into this roadmap during a periodic sweep. See [Intake & triage process](#intake--triage-process).
 
@@ -21,13 +21,9 @@
 
 ## Currently building
 
-**Photos V1 Phase 0** is in flight on `photos-v1-phase-0`.
+No feature branch is actively in flight.
 
-Current status: the spike harness, feature flag, image-picker prerequisites, and Android archive/memory hard-gate evidence are in place. The remaining hard gate is running the archive spike in a real iOS Expo runtime and recording binary round-trip, append-write, streamed byte count, peak JS heap, and pass/fail evidence before Phase 1 starts.
-
-This branch also contains a locally committed foaling record summary page (`7631eab`) that should go through PR/merge before being marked shipped.
-
-Latest shipped work on `origin/main` is individual horse import/export with follow-up restore/file-picker fixes and collection motility preservation (`43054b9`, `5ee25d3`, `d34e3d2`).
+Latest shipped work on `origin/main` is Photos V1 (`992ed8e`) and daily-log multiple measured follicles (`bd21b79`). The next P0 remains cyst mapping unless deliberately reprioritized.
 
 ---
 
@@ -39,8 +35,6 @@ Features that deepen mare reproductive recordkeeping beyond what the current dai
 
 - **P0 — Cyst mapping** (`TODO:23`)
   Recurring user ask. Needs a design pass: how cysts are located on the uterus, how they're tracked over time, and whether they live on the daily log or as a separate longitudinal record.
-- **P1 — Foaling record summary page** (`TODO:25`, locally implemented pending PR)
-  Add a non-edit summary view for established foaling records that preserves quick edit actions while exposing linked foal context and milestone progression. Locally implemented in `7631eab`; keep this item open until it is merged to `main`.
 - **P2 — Mare ovulation trends** (`TODO:15`)
   Analytics view. Blocked on data volume — needs enough historical ovulation logs per mare to be useful.
 
@@ -74,8 +68,8 @@ Features that make the app tell the user what to do next, rather than only recor
 
 ### Theme: Media & attachments
 
-- **P1 — Photos V1** (`TODO:17`, Phase 0 in progress)
-  Implement the scoped offline-first photo system in [`docs/plans/2026-04-30-photos-v1-amended-implementation-plan.md`](./docs/plans/2026-04-30-photos-v1-amended-implementation-plan.md): mare and stallion profile photos, daily-log attachments, camera/library import, app-owned JPEG masters and thumbnails, and archive backup/restore. Android binary/archive memory evidence has passed; do not start Phase 1 until the iOS runtime spike also passes and is recorded.
+- **P2 — Photos V2 expansion** (`TODO:17` remainder)
+  Build on shipped Photos V1 for surfaces that were intentionally out of scope: foal photos, ultrasound/screen-specific images, and broader record attachments beyond mare/stallion profile photos and daily-log attachments. Needs a design pass before implementation so the attachment model, backup/export expectations, and per-surface UI stay coherent.
 
 ### Theme: Scheduling & visibility
 
@@ -155,6 +149,10 @@ When a roadmap item is completed and merged to `main`:
 
 ## Recently shipped
 
+- 2026-05-03 — Photos V1 offline photo system: mare/stallion profile photos, daily-log attachments, photo viewer, app-owned photo files, `.breedwisebackup` archive backup/restore, larger photo controls, and mare/stallion detail-page photo pickers — closed the scoped Photos V1 work from `TODO:17` (`992ed8e`)
+- 2026-05-03 — Daily log multiple measured follicles per ovary (`bd21b79`, `34aa50c`)
+- 2026-05-03 — Final QA polish: pregnancy-check form actions now scroll with the form, and daily-log uterus summaries are less noisy (`65019b1`, `091b651`)
+- 2026-05-01 — Foaling record summary page with linked foal context and edit actions (`7631eab`, merged via `e310ac6`)
 - 2026-05-01 — Collection motility field preservation across collection, breeding, backup, and restore paths (`d34e3d2`)
 - 2026-04-30 — Individual horse import/export file-picker and restore hardening (`43054b9`, `5ee25d3`)
 - 2026-04-30 — Individual horse import/export — closed `TODO:39` (`0a6400f` through `a2619d1`)
@@ -162,14 +160,13 @@ When a roadmap item is completed and merged to `main`:
 - 2026-04-27 — Sticky follow-up action bar and daily-log follow-up navigation fix (`0770001`)
 - 2026-04-27 — Breeding record timestamps (`9fc5071`)
 - 2026-04-27 — Daily log fluid tracking and flush follow-up — closed `TODO:19` (`74d360b`)
-- 2026-04-27 — Collection entry wizard / scrollability rework — closed `TODO:7` (`5224d66`)
-- 2026-04-25 — Breeding event detail view — closed `TODO:5` (`3875543`)
-- 2026-04-24 — Remove optional form placeholders — closed `TODO:11` (`50bdd74`)
 
 ---
 
 ## Change log for this document
 
+- 2026-05-04 — Marked *Photos V1*, final QA polish, and *Daily log multiple measured follicles per ovary* as shipped, and replaced the active Photos V1 item with a Photos V2 expansion placeholder for the remaining media surfaces.
+- 2026-05-04 — Marked *Foaling record summary page* as shipped and cleared stale current-building status.
 - 2026-05-01 — Marked Photos V1 Phase 0 as in flight, recorded Android spike evidence status, and linked the amended implementation plan.
 - 2026-05-01 — Marked *Foaling record summary page* as locally implemented pending PR/merge.
 - 2026-05-01 — Recorded *Individual horse import/export* and related hardening as shipped, and removed it from active Cloud backup & collaboration.
