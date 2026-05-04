@@ -6,7 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PrimaryButton } from '../../components/Buttons';
 import { DailyLogThumbnailStrip } from '../../components/DailyLogPhotos';
 import { StatusBadge } from '../../components/StatusBadge';
-import { CardRow, EditIconButton, ScoreBadge, cardStyles } from '../../components/RecordCardParts';
+import { EditIconButton, ScoreBadge, cardStyles } from '../../components/RecordCardParts';
 import type { DailyLog } from '../../models/types';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { colors, spacing, typography } from '../../theme';
@@ -94,6 +94,15 @@ function OvaryDisclosure({
   );
 }
 
+function UterusSummaryRow({ value }: { value: string }): JSX.Element {
+  return (
+    <View style={styles.uterusSummaryRow}>
+      <Text style={styles.uterusSummaryLabel}>Uterus</Text>
+      <Text style={styles.uterusSummaryValue}>{value}</Text>
+    </View>
+  );
+}
+
 export function DailyLogsTab({
   mareId,
   dailyLogs,
@@ -143,7 +152,7 @@ export function DailyLogsTab({
                   ) : null}
                   <OvaryDisclosure title="Right ovary" details={rightOvaryDetails} />
                   <OvaryDisclosure title="Left ovary" details={leftOvaryDetails} />
-                  {uterusSummary ? <CardRow label="Uterus" value={uterusSummary} /> : null}
+                  {uterusSummary ? <UterusSummaryRow value={uterusSummary} /> : null}
                   <DailyLogThumbnailStrip
                     photos={photos}
                     onPressPhoto={(index) => {
@@ -227,6 +236,26 @@ const styles = StyleSheet.create({
   ovaryDetailValue: {
     color: colors.onSurface,
     flex: 1,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  uterusSummaryRow: {
+    alignItems: 'flex-start',
+    columnGap: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  uterusSummaryLabel: {
+    color: colors.onSurfaceVariant,
+    ...typography.bodySmall,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  uterusSummaryValue: {
+    color: colors.onSurfaceVariant,
+    flex: 1,
+    textAlign: 'right',
+    ...typography.bodyMedium,
     fontSize: 13,
     lineHeight: 18,
   },

@@ -1,6 +1,8 @@
 import { fireEvent, render } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 
 import type { DailyLog } from '@/models/types';
+import { colors } from '@/theme';
 
 import { DailyLogsTab } from './DailyLogsTab';
 
@@ -129,6 +131,31 @@ it('renders structured ovary details in an expandable ovary row', () => {
   expect(screen.getByText('Firm')).toBeTruthy();
   expect(screen.getByText('Structures')).toBeTruthy();
   expect(screen.getByText('Corpus Luteum, Hemorrhagic Anovulatory Follicle')).toBeTruthy();
+});
+
+it('renders the uterus summary with adjusted label and descriptor sizing', () => {
+  const screen = render(
+    <DailyLogsTab
+      mareId="mare-1"
+      dailyLogs={[
+        makeDailyLog({
+          id: 'log-uterus',
+          date: '2026-04-23',
+          uterineToneCategory: 'tight',
+          cervicalFirmness: 'firm',
+        }),
+      ]}
+      navigation={createNavigation() as never}
+    />,
+  );
+
+  const labelStyle = StyleSheet.flatten(screen.getByText('Uterus').props.style);
+  const valueStyle = StyleSheet.flatten(screen.getByText(/Tone Tight.*Cervix Firm/).props.style);
+
+  expect(labelStyle.fontSize).toBe(13);
+  expect(valueStyle.fontSize).toBe(13);
+  expect(labelStyle.color).toBe(colors.onSurfaceVariant);
+  expect(valueStyle.color).toBe(colors.onSurfaceVariant);
 });
 
 it('renders daily log thumbnails from hook-provided photo data and opens the viewer', () => {
