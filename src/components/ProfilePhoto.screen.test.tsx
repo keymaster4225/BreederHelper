@@ -27,19 +27,21 @@ describe('ProfilePhotoAvatar', () => {
     expect(onPress).toHaveBeenCalled();
   });
 
-  it('falls back to initials when the thumbnail cannot render', () => {
+  it('falls back to tappable initials when an interactive thumbnail cannot render', () => {
+    const onPress = jest.fn();
     const screen = render(
       <ProfilePhotoAvatar
         name="Missing Photo"
         uri="file:///photo-assets/missing/thumbnail.jpg"
         size={72}
-        onPress={jest.fn()}
+        onPress={onPress}
       />,
     );
 
     fireEvent(screen.UNSAFE_getByType(Image), 'error');
+    fireEvent.press(screen.getByLabelText('Missing Photo profile photo'));
 
     expect(screen.getByText('MP')).toBeTruthy();
-    expect(screen.queryByRole('button')).toBeNull();
+    expect(onPress).toHaveBeenCalled();
   });
 });

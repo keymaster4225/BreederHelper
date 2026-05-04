@@ -183,6 +183,24 @@ it('shows AV preferences when values exist', async () => {
   expect(screen.getByText('500 mL')).toBeTruthy();
 });
 
+it('opens the profile photo selector from the stallion header photo area', async () => {
+  const screen = renderScreen();
+
+  await waitFor(() => expect(screen.getByLabelText('Change Thunder profile photo')).toBeTruthy());
+  fireEvent.press(screen.getByLabelText('Change Thunder profile photo'));
+
+  expect(Alert.alert).toHaveBeenCalledWith(
+    'Profile Photo',
+    undefined,
+    expect.arrayContaining([
+      expect.objectContaining({ text: 'Camera' }),
+      expect.objectContaining({ text: 'Library' }),
+      expect.objectContaining({ text: 'Cancel', style: 'cancel' }),
+    ]),
+  );
+  expect(screen.navigation.navigate).not.toHaveBeenCalledWith('PhotoViewer', expect.anything());
+});
+
 it('shows empty state when no collections', async () => {
   const screen = renderScreen();
   await waitFor(() => expect(screen.getByText('No collections recorded.')).toBeTruthy());

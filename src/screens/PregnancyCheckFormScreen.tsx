@@ -2,7 +2,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleShe
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
-import { FormActionBar, STICKY_ACTION_BAR_SCROLL_PADDING } from '@/components/FormActionBar';
+import { FormActionBar } from '@/components/FormActionBar';
 import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { useClockDisplayMode } from '@/hooks/useClockPreference';
 import { usePregnancyCheckForm } from '@/hooks/usePregnancyCheckForm';
@@ -71,7 +71,7 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView
           style={localStyles.scrollView}
-          contentContainerStyle={[formStyles.form, localStyles.formWithActionBar]}
+          contentContainerStyle={formStyles.form}
           keyboardShouldPersistTaps="handled"
         >
           <FormField label="Breeding Record" required error={errors.breedingRecordId}>
@@ -113,18 +113,19 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
           <FormField label="Notes">
             <FormTextInput value={notes} onChangeText={setNotes} multiline />
           </FormField>
+
+          <FormActionBar
+            primaryLabel={isSaving ? 'Saving...' : 'Save'}
+            onPrimaryPress={onSave}
+            primaryDisabled={isSaving || isDeleting || breedingRecords.length === 0}
+            secondaryLabel="Save & Add Follow-up"
+            onSecondaryPress={onSaveAndAddFollowUp}
+            secondaryDisabled={isSaving || isDeleting || breedingRecords.length === 0}
+            destructiveLabel={isEdit ? (isDeleting ? 'Deleting...' : 'Delete') : undefined}
+            onDestructivePress={isEdit ? requestDelete : undefined}
+            destructiveDisabled={isSaving || isDeleting}
+          />
         </ScrollView>
-        <FormActionBar
-          primaryLabel={isSaving ? 'Saving...' : 'Save'}
-          onPrimaryPress={onSave}
-          primaryDisabled={isSaving || isDeleting || breedingRecords.length === 0}
-          secondaryLabel="Save & Add Follow-up"
-          onSecondaryPress={onSaveAndAddFollowUp}
-          secondaryDisabled={isSaving || isDeleting || breedingRecords.length === 0}
-          destructiveLabel={isEdit ? (isDeleting ? 'Deleting...' : 'Delete') : undefined}
-          onDestructivePress={isEdit ? requestDelete : undefined}
-          destructiveDisabled={isSaving || isDeleting}
-        />
       </KeyboardAvoidingView>
     </Screen>
   );
@@ -133,9 +134,6 @@ export function PregnancyCheckFormScreen({ navigation, route }: Props): JSX.Elem
 const localStyles = StyleSheet.create({
   scrollView: {
     flex: 1,
-  },
-  formWithActionBar: {
-    paddingBottom: STICKY_ACTION_BAR_SCROLL_PADDING,
   },
   infoRow: {
     backgroundColor: colors.surfaceVariant,

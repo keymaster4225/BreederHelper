@@ -26,7 +26,8 @@ export function StallionDetailHeader({
               name={stallion.name}
               uri={profilePhotoUri}
               size={72}
-              onPress={profilePhotoUri ? onProfilePhotoPress : undefined}
+              onPress={onProfilePhotoPress}
+              accessibilityLabel={`Change ${stallion.name} profile photo`}
             />
           ) : null}
           <Text style={styles.headerName}>{stallion.name}</Text>

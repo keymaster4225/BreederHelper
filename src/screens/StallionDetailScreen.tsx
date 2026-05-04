@@ -8,6 +8,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { useStallionDetailData } from '@/hooks/useStallionDetailData';
 import { useHorseExport } from '@/hooks/useHorseExport';
+import { useImmediateProfilePhotoPicker } from '@/hooks/useImmediateProfilePhotoPicker';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getStallionDetailTabIndex } from '@/screens/detailTabRoutes';
@@ -58,6 +59,11 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
     deleteDoseEventRecord,
     deleteFrozenBatchRecord,
   } = useStallionDetailData({ stallionId, setTitle: handleSetTitle });
+  const profilePhotoPicker = useImmediateProfilePhotoPicker({
+    ownerType: 'stallion',
+    ownerId: stallionId,
+    onSaved: loadData,
+  });
 
   const handleExportStallion = useCallback(() => {
     void (async () => {
@@ -135,11 +141,8 @@ export function StallionDetailScreen({ navigation, route }: Props): JSX.Element 
             age={age}
             profilePhotoUri={profilePhotosEnabled ? profilePhoto?.thumbnailUri ?? null : undefined}
             onProfilePhotoPress={
-              profilePhoto
-                ? () => navigation.navigate('PhotoViewer', {
-                    uri: profilePhoto.masterUri,
-                    title: stallion.name,
-                  })
+              profilePhotosEnabled
+                ? () => profilePhotoPicker.openPicker({ hasPhoto: profilePhoto !== null })
                 : undefined
             }
           />

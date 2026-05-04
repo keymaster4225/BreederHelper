@@ -37,7 +37,8 @@ export function MareDetailHeader({
               name={mare.name}
               uri={profilePhotoUri}
               size={72}
-              onPress={profilePhotoUri ? onProfilePhotoPress : undefined}
+              onPress={onProfilePhotoPress}
+              accessibilityLabel={`Change ${mare.name} profile photo`}
             />
           ) : null}
           <View style={styles.titleBlock}>

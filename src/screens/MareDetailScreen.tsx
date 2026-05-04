@@ -7,6 +7,7 @@ import type { PagerViewOnPageSelectedEvent } from 'react-native-pager-view';
 
 import { useMareDetailData } from '@/hooks/useMareDetailData';
 import { useHorseExport } from '@/hooks/useHorseExport';
+import { useImmediateProfilePhotoPicker } from '@/hooks/useImmediateProfilePhotoPicker';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { getMareDetailTabIndex } from '@/screens/detailTabRoutes';
@@ -62,6 +63,11 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
     mareId,
     setTitle: handleSetTitle,
   });
+  const profilePhotoPicker = useImmediateProfilePhotoPicker({
+    ownerType: 'mare',
+    ownerId: mareId,
+    onSaved: loadData,
+  });
 
   useFocusEffect(
     useCallback(() => {
@@ -112,11 +118,8 @@ export function MareDetailScreen({ navigation, route }: Props): JSX.Element {
             isExporting={isExporting}
             profilePhotoUri={profilePhotosEnabled ? profilePhoto?.thumbnailUri ?? null : undefined}
             onProfilePhotoPress={
-              profilePhoto
-                ? () => navigation.navigate('PhotoViewer', {
-                    uri: profilePhoto.masterUri,
-                    title: mare.name,
-                  })
+              profilePhotosEnabled
+                ? () => profilePhotoPicker.openPicker({ hasPhoto: profilePhoto !== null })
                 : undefined
             }
           />

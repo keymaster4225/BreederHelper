@@ -73,12 +73,12 @@ export function ProfilePhotoAvatar({
     </Text>
   );
 
-  if (showImage && onPress) {
+  if (onPress) {
     return (
       <Pressable
         style={({ pressed }) => [avatarStyle, pressed && styles.avatarPressed]}
         onPress={onPress}
-        accessibilityRole="imagebutton"
+        accessibilityRole="button"
         accessibilityLabel={accessibilityLabel ?? `${name} profile photo`}
       >
         {content}
