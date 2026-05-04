@@ -12,6 +12,8 @@ export type ScoreOption = '' | '0' | '1' | '2' | '3' | '4' | '5';
 
 export type TriStateOption = 'unknown' | 'no' | 'yes';
 
+export type DailyLogWizardFollicleFinding = '' | 'measured' | 'msf' | 'ahf' | 'cl';
+
 export type DailyLogWizardStepId =
   | 'basics'
   | 'rightOvary'

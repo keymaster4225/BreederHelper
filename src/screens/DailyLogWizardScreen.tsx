@@ -132,7 +132,12 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
               ovary={wizard.rightOvary}
               errors={wizard.errors.rightOvary}
               onOvulationChange={(value) => wizard.setOvaryOvulation('right', value)}
-              onFollicleSizeChange={(value) => wizard.setOvaryFollicleSize('right', value)}
+              onFollicleFindingChange={(value) => wizard.setOvaryFollicleFinding('right', value)}
+              onAddMeasurement={() => wizard.addOvaryMeasurement('right')}
+              onUpdateMeasurement={(clientId, value) =>
+                wizard.updateOvaryMeasurement('right', clientId, value)
+              }
+              onRemoveMeasurement={(clientId) => wizard.removeOvaryMeasurement('right', clientId)}
               onConsistencyChange={(value) => wizard.setOvaryConsistency('right', value)}
               onToggleStructure={(value) => wizard.toggleOvaryStructure('right', value)}
             />
@@ -144,7 +149,12 @@ export function DailyLogWizardScreen({ navigation, route }: Props): JSX.Element 
               ovary={wizard.leftOvary}
               errors={wizard.errors.leftOvary}
               onOvulationChange={(value) => wizard.setOvaryOvulation('left', value)}
-              onFollicleSizeChange={(value) => wizard.setOvaryFollicleSize('left', value)}
+              onFollicleFindingChange={(value) => wizard.setOvaryFollicleFinding('left', value)}
+              onAddMeasurement={() => wizard.addOvaryMeasurement('left')}
+              onUpdateMeasurement={(clientId, value) =>
+                wizard.updateOvaryMeasurement('left', clientId, value)
+              }
+              onRemoveMeasurement={(clientId) => wizard.removeOvaryMeasurement('left', clientId)}
               onConsistencyChange={(value) => wizard.setOvaryConsistency('left', value)}
               onToggleStructure={(value) => wizard.toggleOvaryStructure('left', value)}
             />

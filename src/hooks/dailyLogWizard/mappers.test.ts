@@ -6,6 +6,7 @@ import {
   buildDailyLogPayload,
   hydrateDailyLogWizardRecord,
 } from './mappers';
+import { getOvaryFollicleFinding } from './measurementUtils';
 
 describe('daily log wizard mappers', () => {
   it('hydrates a legacy daily log into wizard state without dropping legacy notes', () => {
@@ -146,7 +147,7 @@ describe('daily log wizard mappers', () => {
     ]);
   });
 
-  it('builds a structured payload with only valid measured follicle sizes', () => {
+  it('builds a structured payload with sorted valid measured follicle sizes', () => {
     const payload = buildDailyLogPayload({
       isEdit: false,
       date: '2026-04-03',
@@ -159,6 +160,7 @@ describe('daily log wizard mappers', () => {
           { clientId: 'row-1', value: '35' },
           { clientId: 'row-2', value: 'bad' },
           { clientId: 'row-3', value: '35.5' },
+          { clientId: 'row-5', value: '35.5' },
         ],
         consistency: 'soft',
         structures: ['multipleSmallFollicles'],
@@ -195,9 +197,96 @@ describe('daily log wizard mappers', () => {
     expect(payload.ovulationSource).toBe('structured');
     expect(payload.time).toBe('16:00');
     expect(payload.ovulationDetected).toBeUndefined();
-    expect(payload.rightOvaryFollicleMeasurementsMm).toEqual([35, 35.5]);
+    expect(payload.rightOvaryFollicleMeasurementsMm).toEqual([35.5, 35.5, 35]);
     expect(payload.leftOvaryFollicleMeasurementsMm).toEqual([]);
     expect(payload.edema).toBe(2);
     expect(payload.dischargeNotes).toBe('ignored');
+  });
+
+  it('preserves stored ovary structures and derives a single primary finding during edit hydration', () => {
+    const record: DailyLogDetail = {
+      id: 'log-1',
+      mareId: 'mare-1',
+      date: '2026-04-01',
+      time: '08:30',
+      teasingScore: null,
+      rightOvary: null,
+      leftOvary: null,
+      rightOvaryOvulation: null,
+      rightOvaryFollicleState: null,
+      rightOvaryFollicleMeasurementsMm: [],
+      rightOvaryConsistency: null,
+      rightOvaryStructures: ['multipleSmallFollicles'],
+      leftOvaryOvulation: null,
+      leftOvaryFollicleState: null,
+      leftOvaryFollicleMeasurementsMm: [],
+      leftOvaryConsistency: null,
+      leftOvaryStructures: ['follicularCyst', 'multipleSmallFollicles'],
+      ovulationDetected: null,
+      edema: null,
+      uterineTone: null,
+      uterineToneCategory: null,
+      cervicalFirmness: null,
+      dischargeObserved: null,
+      dischargeNotes: null,
+      uterineCysts: null,
+      notes: null,
+      createdAt: '2026-04-01T00:00:00.000Z',
+      updatedAt: '2026-04-01T00:00:00.000Z',
+      uterineFluidPockets: [],
+      uterineFlush: null,
+    };
+
+    const hydrated = hydrateDailyLogWizardRecord(record);
+
+    expect(hydrated.rightOvary.structures).toEqual(['multipleSmallFollicles']);
+    expect(getOvaryFollicleFinding(hydrated.rightOvary)).toBe('msf');
+    expect(hydrated.leftOvary.structures).toEqual(['follicularCyst', 'multipleSmallFollicles']);
+    expect(getOvaryFollicleFinding(hydrated.leftOvary)).toBe('msf');
+  });
+
+  it('preserves legacy multi-primary structures and derives an unset selector', () => {
+    const record: DailyLogDetail = {
+      id: 'log-1',
+      mareId: 'mare-1',
+      date: '2026-04-01',
+      time: '08:30',
+      teasingScore: null,
+      rightOvary: null,
+      leftOvary: null,
+      rightOvaryOvulation: null,
+      rightOvaryFollicleState: null,
+      rightOvaryFollicleMeasurementsMm: [],
+      rightOvaryConsistency: null,
+      rightOvaryStructures: ['multipleSmallFollicles', 'corpusLuteum'],
+      leftOvaryOvulation: null,
+      leftOvaryFollicleState: 'measured',
+      leftOvaryFollicleMeasurementsMm: [34],
+      leftOvaryConsistency: null,
+      leftOvaryStructures: ['corpusLuteum'],
+      ovulationDetected: null,
+      edema: null,
+      uterineTone: null,
+      uterineToneCategory: null,
+      cervicalFirmness: null,
+      dischargeObserved: null,
+      dischargeNotes: null,
+      uterineCysts: null,
+      notes: null,
+      createdAt: '2026-04-01T00:00:00.000Z',
+      updatedAt: '2026-04-01T00:00:00.000Z',
+      uterineFluidPockets: [],
+      uterineFlush: null,
+    };
+
+    const hydrated = hydrateDailyLogWizardRecord(record);
+
+    expect(hydrated.rightOvary.structures).toEqual([
+      'multipleSmallFollicles',
+      'corpusLuteum',
+    ]);
+    expect(getOvaryFollicleFinding(hydrated.rightOvary)).toBe('');
+    expect(hydrated.leftOvary.structures).toEqual(['corpusLuteum']);
+    expect(getOvaryFollicleFinding(hydrated.leftOvary)).toBe('measured');
   });
 });

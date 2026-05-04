@@ -6,6 +6,7 @@ import {
   formatOvaryStructure,
   formatUterineToneCategory,
 } from './outcomeDisplay';
+import { sortMeasurementsDesc } from './follicleMeasurements';
 
 type OvarySide = 'right' | 'left';
 
@@ -37,6 +38,7 @@ function buildStructuredOvarySummary(log: DailyLog, side: OvarySide): string {
     side === 'right'
       ? log.rightOvaryFollicleMeasurementsMm ?? []
       : log.leftOvaryFollicleMeasurementsMm ?? [];
+  const sortedMeasurements = sortMeasurementsDesc(measurements);
   const consistency =
     side === 'right' ? log.rightOvaryConsistency ?? null : log.leftOvaryConsistency ?? null;
   const structures =
@@ -45,7 +47,7 @@ function buildStructuredOvarySummary(log: DailyLog, side: OvarySide): string {
   const hasStructuredData =
     ovulation != null ||
     follicleState != null ||
-    measurements.length > 0 ||
+    sortedMeasurements.length > 0 ||
     consistency != null ||
     structures.length > 0;
 
@@ -60,8 +62,8 @@ function buildStructuredOvarySummary(log: DailyLog, side: OvarySide): string {
   if (follicleState) {
     parts.push(`Follicle ${formatFollicleState(follicleState)}`);
   }
-  if (measurements.length > 0) {
-    parts.push(`Measurements ${measurements.join(', ')} mm`);
+  if (sortedMeasurements.length > 0) {
+    parts.push(`Follicles ${sortedMeasurements.join(', ')} mm`);
   }
   if (consistency) {
     parts.push(`Consistency ${formatOvaryConsistency(consistency)}`);
@@ -85,6 +87,7 @@ function buildStructuredOvaryDetails(log: DailyLog, side: OvarySide): DailyLogDe
     side === 'right'
       ? log.rightOvaryFollicleMeasurementsMm ?? []
       : log.leftOvaryFollicleMeasurementsMm ?? [];
+  const sortedMeasurements = sortMeasurementsDesc(measurements);
   const consistency =
     side === 'right' ? log.rightOvaryConsistency ?? null : log.leftOvaryConsistency ?? null;
   const structures =
@@ -94,8 +97,11 @@ function buildStructuredOvaryDetails(log: DailyLog, side: OvarySide): DailyLogDe
   if (ovulation != null) {
     rows.push({ label: 'Ovulation', value: ovulation ? 'Yes' : 'No' });
   }
-  if (measurements.length > 0) {
-    rows.push({ label: 'Follicles', value: measurements.map((value) => `${value} mm`).join(', ') });
+  if (sortedMeasurements.length > 0) {
+    rows.push({
+      label: 'Follicles',
+      value: sortedMeasurements.map((value) => `${value} mm`).join(', '),
+    });
   } else if (follicleState) {
     rows.push({ label: 'Follicle', value: formatFollicleState(follicleState) });
   }

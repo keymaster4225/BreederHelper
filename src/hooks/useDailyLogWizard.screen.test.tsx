@@ -342,7 +342,7 @@ describe('useDailyLogWizard', () => {
     expect(result.current.errors.flush.baseSolution).toBe('Base solution is required.');
   });
 
-  it('seeds a follicle measurement row when follicle state is measured', () => {
+  it('seeds a follicle measurement row when follicle finding is measured', () => {
     const { result } = renderHook(() =>
       useDailyLogWizard({
         mareId: 'mare-1',
@@ -352,7 +352,7 @@ describe('useDailyLogWizard', () => {
     );
 
     act(() => {
-      result.current.setOvaryFollicleState('right', 'measured');
+      result.current.setOvaryFollicleFinding('right', 'measured');
     });
 
     expect(result.current.rightOvary.follicleState).toBe('measured');
@@ -361,7 +361,9 @@ describe('useDailyLogWizard', () => {
     ]);
   });
 
-  it('stores and clears a single follicle size through the public ovary setter', () => {
+  it('appends, updates, and removes measured follicle rows in edit order', () => {
+    let nextId = 0;
+    idUtils.newId.mockImplementation(() => `row-${nextId++}`);
     const { result } = renderHook(() =>
       useDailyLogWizard({
         mareId: 'mare-1',
@@ -371,20 +373,94 @@ describe('useDailyLogWizard', () => {
     );
 
     act(() => {
-      result.current.setOvaryFollicleSize('left', '34.5');
+      result.current.setOvaryFollicleFinding('left', 'measured');
     });
 
     expect(result.current.leftOvary.follicleState).toBe('measured');
+    const firstMeasurementId = result.current.leftOvary.follicleMeasurements[0]?.clientId;
+    expect(firstMeasurementId).toBeTruthy();
     expect(result.current.leftOvary.follicleMeasurements).toEqual([
-      { clientId: 'new-log-id', value: '34.5' },
+      { clientId: firstMeasurementId, value: '' },
     ]);
 
     act(() => {
-      result.current.setOvaryFollicleSize('left', '');
+      result.current.updateOvaryMeasurement('left', firstMeasurementId as string, '34.5');
+      result.current.addOvaryMeasurement('left');
     });
 
-    expect(result.current.leftOvary.follicleState).toBeNull();
-    expect(result.current.leftOvary.follicleMeasurements).toEqual([]);
+    const secondMeasurementId = result.current.leftOvary.follicleMeasurements[1]?.clientId;
+    expect(secondMeasurementId).toBeTruthy();
+
+    act(() => {
+      result.current.updateOvaryMeasurement('left', secondMeasurementId as string, '32');
+      result.current.removeOvaryMeasurement('left', firstMeasurementId as string);
+    });
+
+    expect(result.current.leftOvary.follicleMeasurements).toEqual([
+      { clientId: secondMeasurementId, value: '32' },
+    ]);
+  });
+
+  it('switching away from measured clears measurement rows immediately', () => {
+    let nextId = 0;
+    idUtils.newId.mockImplementation(() => `row-${nextId++}`);
+    const { result } = renderHook(() =>
+      useDailyLogWizard({
+        mareId: 'mare-1',
+        onGoBack: jest.fn(),
+        setTitle: jest.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setOvaryFollicleFinding('right', 'measured');
+    });
+
+    const measurementId = result.current.rightOvary.follicleMeasurements[0]?.clientId;
+    expect(measurementId).toBeTruthy();
+
+    act(() => {
+      result.current.updateOvaryMeasurement('right', measurementId as string, '34.5');
+      result.current.setOvaryFollicleFinding('right', 'msf');
+    });
+
+    expect(result.current.rightOvary.follicleState).toBeNull();
+    expect(result.current.rightOvary.follicleMeasurements).toEqual([]);
+    expect(result.current.rightOvary.structures).toEqual(['multipleSmallFollicles']);
+  });
+
+  it('selecting a primary follicle finding preserves additional structures and replaces old primary structures', async () => {
+    repositories.getDailyLogById.mockResolvedValue(
+      createDailyLogDetail({
+        rightOvaryStructures: ['follicularCyst', 'multipleSmallFollicles'],
+      }),
+    );
+
+    const { result } = renderHook(() =>
+      useDailyLogWizard({
+        mareId: 'mare-1',
+        logId: 'log-1',
+        onGoBack: jest.fn(),
+        setTitle: jest.fn(),
+      }),
+    );
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    act(() => {
+      result.current.setOvaryFollicleFinding('right', 'ahf');
+    });
+
+    expect(result.current.rightOvary.structures).toEqual([
+      'follicularCyst',
+      'hemorrhagicAnovulatoryFollicle',
+    ]);
+
+    act(() => {
+      result.current.setOvaryFollicleFinding('right', '');
+    });
+
+    expect(result.current.rightOvary.structures).toEqual(['follicularCyst']);
   });
 
   it('marks legacy ovulation as structured when an ovary ovulation value changes', async () => {
@@ -425,7 +501,7 @@ describe('useDailyLogWizard', () => {
     );
 
     act(() => {
-      result.current.setOvaryFollicleState('right', 'measured');
+      result.current.setOvaryFollicleFinding('right', 'measured');
     });
 
     await act(async () => {

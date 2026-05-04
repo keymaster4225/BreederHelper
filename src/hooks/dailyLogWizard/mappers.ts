@@ -1,5 +1,6 @@
 import type { DailyLogDetail, DailyLogOvulationSource } from '@/models/types';
 import { normalizeDailyLogTime } from '@/utils/dailyLogTime';
+import { sortMeasurementsDesc } from '@/utils/follicleMeasurements';
 import { newId } from '@/utils/id';
 
 import { collectValidMeasurements, fromScoreOption, toScoreOption } from './measurementUtils';
@@ -201,8 +202,12 @@ export function buildDailyLogPayload({
   legacyOvulationDetected,
   ovulationSource,
 }: BuildDailyLogPayloadArgs) {
-  const rightMeasurements = collectValidMeasurements(rightOvary.follicleMeasurements).values;
-  const leftMeasurements = collectValidMeasurements(leftOvary.follicleMeasurements).values;
+  const rightMeasurements = sortMeasurementsDesc(
+    collectValidMeasurements(rightOvary.follicleMeasurements).values,
+  );
+  const leftMeasurements = sortMeasurementsDesc(
+    collectValidMeasurements(leftOvary.follicleMeasurements).values,
+  );
 
   const shouldPreserveLegacyOvulation =
     isEdit &&
