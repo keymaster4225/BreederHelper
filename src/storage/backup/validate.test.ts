@@ -23,7 +23,7 @@ describe('validateBackup', () => {
     expect(result.preview.mareCount).toBe(1);
     expect(result.preview.dailyLogCount).toBe(1);
     expect(result.preview.onboardingComplete).toBe(true);
-    expect(result.preview.schemaVersion).toBe(12);
+    expect(result.preview.schemaVersion).toBe(13);
   });
 
   it('requires tasks in v11 backups', () => {
@@ -158,6 +158,29 @@ describe('validateBackup', () => {
     }
 
     expect(result.error.table).toBe('breeding_records');
+    expect(result.error.field).toBe('time');
+    expect(result.error.code).toBe('invalid_row');
+  });
+
+  it('rejects malformed medication log times in current backups', () => {
+    const backup = cloneBackupFixture();
+    const result = validateBackup({
+      ...backup,
+      tables: {
+        ...backup.tables,
+        medication_logs: backup.tables.medication_logs.map((row) => ({
+          ...row,
+          time: '09:30:00',
+        })),
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      throw new Error('Expected validation failure');
+    }
+
+    expect(result.error.table).toBe('medication_logs');
     expect(result.error.field).toBe('time');
     expect(result.error.code).toBe('invalid_row');
   });
@@ -801,7 +824,7 @@ describe('validateBackup', () => {
     const backup = cloneBackupFixture();
     const jsonText = JSON.stringify({
       ...backup,
-      schemaVersion: 13,
+      schemaVersion: 14,
     });
 
     const result = validateBackupJson(jsonText);

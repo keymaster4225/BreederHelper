@@ -7,7 +7,7 @@ import {
   type BackupBreedingRecordRow,
   type BackupCollectionDoseEventRowV3,
   type BackupDailyLogRow,
-  type BackupEnvelopeV12,
+  type BackupEnvelopeV13,
   type BackupFoalingRecordRow,
   type BackupFoalRow,
   type BackupFrozenSemenBatchRow,
@@ -36,7 +36,7 @@ function getAppVersion(): string {
   return appJson.expo?.version ?? 'unknown';
 }
 
-export async function serializeBackup(): Promise<BackupEnvelopeV12> {
+export async function serializeBackup(): Promise<BackupEnvelopeV13> {
   const db = await getDb();
 
   const [
@@ -265,6 +265,7 @@ export async function serializeBackup(): Promise<BackupEnvelopeV12> {
         id,
         mare_id,
         date,
+        time,
         medication_name,
         dose,
         route,
@@ -273,7 +274,12 @@ export async function serializeBackup(): Promise<BackupEnvelopeV12> {
         created_at,
         updated_at
       FROM medication_logs
-      ORDER BY date DESC, id ASC;
+      ORDER BY
+        date DESC,
+        time IS NULL ASC,
+        time DESC,
+        created_at DESC,
+        id DESC;
       `,
     ),
     db.getAllAsync<BackupTaskRow>(

@@ -225,6 +225,7 @@ describe('buildTimelineEvents', () => {
     function makeMedLog(overrides: Partial<MedicationLog> & { id: string; date: string; mareId: string }): MedicationLog {
       return {
         medicationName: 'Regumate',
+        time: '08:30',
         dose: null,
         route: null,
         notes: null,

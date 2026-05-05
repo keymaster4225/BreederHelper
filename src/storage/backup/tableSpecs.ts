@@ -142,6 +142,7 @@ export const BACKUP_CURRENT_TABLE_FIELD_NAMES = {
     'id',
     'mare_id',
     'date',
+    'time',
     'medication_name',
     'dose',
     'route',

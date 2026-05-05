@@ -25,11 +25,16 @@ import { useMedicationForm } from './useMedicationForm';
 describe('useMedicationForm', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers().setSystemTime(new Date(2026, 4, 5, 9, 45, 0, 0));
     repositories.completeTaskFromRecord.mockResolvedValue(undefined);
     repositories.createMedicationLog.mockResolvedValue(undefined);
     repositories.deleteMedicationLog.mockResolvedValue(undefined);
     repositories.getMedicationLogById.mockResolvedValue(null);
     repositories.updateMedicationLog.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('uses a task-provided default date in create mode', () => {
@@ -44,6 +49,7 @@ describe('useMedicationForm', () => {
     );
 
     expect(result.current.date).toBe('1970-01-01');
+    expect(result.current.time).toBe('09:45');
   });
 
   it('completes a linked task after a successful create save', async () => {
@@ -73,7 +79,7 @@ describe('useMedicationForm', () => {
     });
 
     expect(repositories.createMedicationLog).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'new-med-log-id', mareId: 'mare-1' }),
+      expect.objectContaining({ id: 'new-med-log-id', mareId: 'mare-1', time: '09:45' }),
     );
     expect(repositories.completeTaskFromRecord).toHaveBeenCalledWith(
       'task-1',
@@ -121,5 +127,29 @@ describe('useMedicationForm', () => {
       sourceReason: 'manualFollowUp',
     });
     expect(onGoBack).not.toHaveBeenCalled();
+  });
+
+  it('rejects blank time for new medication logs', async () => {
+    const { result } = renderHook(() =>
+      useMedicationForm({
+        mareId: 'mare-1',
+        defaultDate: '1970-01-01',
+        onGoBack: jest.fn(),
+        setTitle: jest.fn(),
+      }),
+    );
+
+    act(() => {
+      result.current.setSelectedMed('custom');
+      result.current.setCustomMedName('Regu-Mate');
+      result.current.setTime('');
+    });
+
+    await act(async () => {
+      await result.current.onSave();
+    });
+
+    expect(repositories.createMedicationLog).not.toHaveBeenCalled();
+    expect(result.current.errors.time).toBe('Time is required.');
   });
 });

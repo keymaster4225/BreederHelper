@@ -75,6 +75,7 @@ export interface MedicationLog {
   id: UUID;
   mareId: UUID;
   date: LocalDate;
+  time: string | null;
   medicationName: string;
   dose: string | null;
   route: MedicationRoute | null;

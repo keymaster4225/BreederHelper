@@ -18,6 +18,7 @@ import { formatBreedingRecordDateTime } from '@/utils/breedingRecordTime';
 import { formatDailyLogTime } from '@/utils/dailyLogTime';
 import { formatLocalDate } from '@/utils/dates';
 import { useClockDisplayMode } from '@/hooks/useClockPreference';
+import { formatMedicationLogDateTime } from '@/utils/medicationLogTime';
 import { formatRoute } from '@/utils/medications';
 import { formatBreedingMethod, formatFoalSex, formatOutcome, getFoalSexColor, getOutcomeColor } from '@/utils/outcomeDisplay';
 import { buildTimelineEvents, TimelineEvent } from '@/utils/timelineEvents';
@@ -247,10 +248,11 @@ function FoalingCard({
   );
 }
 
-function MedicationCard({ event, navigation, mareId }: {
+function MedicationCard({ event, navigation, mareId, clockDisplayMode }: {
   event: TimelineEvent;
   navigation: Props['navigation'];
   mareId: string;
+  clockDisplayMode: '12h' | '24h';
 }): JSX.Element {
   const log = event.data as MedicationLog;
   const handleEdit = (): void => {
@@ -265,7 +267,9 @@ function MedicationCard({ event, navigation, mareId }: {
   return (
     <View style={cardStyles.card}>
       <View style={cardStyles.cardHeader}>
-        <Text style={cardStyles.cardTitle}>{event.date}</Text>
+        <Text style={cardStyles.cardTitle}>
+          {formatMedicationLogDateTime(log, clockDisplayMode)}
+        </Text>
         <EditIconButton onPress={handleEdit} />
       </View>
       <View style={cardStyles.cardRow}>
@@ -326,7 +330,14 @@ function TimelineCard({
     case 'foaling':
       return <FoalingCard event={event} navigation={navigation} mareId={mareId} foalByFoalingRecordId={foalByFoalingRecordId} />;
     case 'medication':
-      return <MedicationCard event={event} navigation={navigation} mareId={mareId} />;
+      return (
+        <MedicationCard
+          event={event}
+          navigation={navigation}
+          mareId={mareId}
+          clockDisplayMode={clockDisplayMode}
+        />
+      );
   }
 }
 

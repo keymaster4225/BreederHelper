@@ -28,6 +28,7 @@ import {
   BACKUP_SCHEMA_VERSION_V10,
   BACKUP_SCHEMA_VERSION_V11,
   BACKUP_SCHEMA_VERSION_V12,
+  BACKUP_SCHEMA_VERSION_V13,
 } from './types';
 import type {
   BackupBreedingRecordRowLegacy,
@@ -45,6 +46,7 @@ import type {
   BackupEnvelopeV10,
   BackupEnvelopeV11,
   BackupEnvelopeV12,
+  BackupEnvelopeV13,
   BackupFoalingRecordRow,
   BackupFoalRow,
   BackupFrozenSemenBatchRow,
@@ -52,6 +54,7 @@ import type {
   BackupMareRowV2,
   BackupMareRowV6,
   BackupMedicationLogRow,
+  BackupMedicationLogRowV8,
   BackupMedicationLogRowV7,
   BackupPhotoAssetRow,
   BackupPhotoAttachmentRow,
@@ -716,6 +719,7 @@ async function insertMedicationLog(
       id,
       mare_id,
       date,
+      time,
       medication_name,
       dose,
       route,
@@ -723,12 +727,13 @@ async function insertMedicationLog(
       source_daily_log_id,
       created_at,
       updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     `,
     [
       row.id,
       row.mare_id,
       row.date,
+      row.time,
       row.medication_name,
       row.dose,
       row.route,
@@ -1012,18 +1017,23 @@ function normalizeBackupForRestore(backup: BackupEnvelope): NormalizedBackupForR
     backup.schemaVersion === BACKUP_SCHEMA_VERSION_V9 ||
     backup.schemaVersion === BACKUP_SCHEMA_VERSION_V10 ||
     backup.schemaVersion === BACKUP_SCHEMA_VERSION_V11 ||
-    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V12
+    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V12 ||
+    backup.schemaVersion === BACKUP_SCHEMA_VERSION_V13
   ) {
     const currentBackup = backup as
       | BackupEnvelopeV8
       | BackupEnvelopeV9
       | BackupEnvelopeV10
       | BackupEnvelopeV11
-      | BackupEnvelopeV12;
+      | BackupEnvelopeV12
+      | BackupEnvelopeV13;
     return {
       settings: normalizeBackupSettings(currentBackup.settings),
       tables: {
         ...currentBackup.tables,
+        medication_logs: currentBackup.tables.medication_logs.map((row) =>
+          normalizeMedicationLogRow(row as BackupMedicationLogRow | BackupMedicationLogRowV8),
+        ),
         tasks:
           backup.schemaVersion >= BACKUP_SCHEMA_VERSION_V11
             ? (currentBackup.tables as BackupEnvelopeV11['tables']).tasks
@@ -1119,11 +1129,12 @@ function normalizePreV10BreedingRecordRow(
 }
 
 function normalizeMedicationLogRow(
-  row: BackupMedicationLogRow | BackupMedicationLogRowV7,
+  row: BackupMedicationLogRow | BackupMedicationLogRowV8 | BackupMedicationLogRowV7,
 ): BackupMedicationLogRow {
   return {
     ...row,
     source_daily_log_id: 'source_daily_log_id' in row ? row.source_daily_log_id : null,
+    time: 'time' in row ? row.time : null,
   };
 }
 

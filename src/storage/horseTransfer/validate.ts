@@ -1,5 +1,6 @@
 import {
   BACKUP_SCHEMA_VERSION_CURRENT,
+  BACKUP_SCHEMA_VERSION_V12,
   BACKUP_TABLE_NAMES,
   type BackupTableName,
   type ValidateBackupError,
@@ -122,7 +123,10 @@ export function validateHorseTransfer(input: unknown): ValidateHorseTransferResu
   if (input.dataSchemaVersion > BACKUP_SCHEMA_VERSION_CURRENT) {
     return validationFailure('unsupported_schema_version', HORSE_TRANSFER_NEWER_SCHEMA_MESSAGE);
   }
-  if (input.dataSchemaVersion < BACKUP_SCHEMA_VERSION_CURRENT) {
+  if (
+    input.dataSchemaVersion < BACKUP_SCHEMA_VERSION_CURRENT &&
+    input.dataSchemaVersion !== BACKUP_SCHEMA_VERSION_V12
+  ) {
     return validationFailure('unsupported_schema_version', HORSE_TRANSFER_OLDER_SCHEMA_MESSAGE);
   }
 
@@ -139,11 +143,15 @@ export function validateHorseTransfer(input: unknown): ValidateHorseTransferResu
   const privacyResult = validatePrivacy(input.privacy);
   if (privacyResult) return { ok: false, error: privacyResult };
 
-  const tablesResult = validateTables(input.tables);
+  const sourceDataSchemaVersion = input.dataSchemaVersion as
+    | typeof BACKUP_SCHEMA_VERSION_CURRENT
+    | typeof BACKUP_SCHEMA_VERSION_V12;
+  const tablesResult = validateTables(input.tables, sourceDataSchemaVersion);
   if (!tablesResult.ok) return tablesResult;
 
   const backupTablesError = validateCurrentBackupTables(tablesResult.tables, {
     includePhotoTables: false,
+    schemaVersion: sourceDataSchemaVersion,
   });
   if (backupTablesError) {
     return { ok: false, error: mapBackupValidationError(backupTablesError) };
@@ -158,7 +166,7 @@ export function validateHorseTransfer(input: unknown): ValidateHorseTransferResu
   const envelope: HorseTransferEnvelopeV1 = {
     artifactType: HORSE_TRANSFER_ARTIFACT_TYPE,
     transferVersion: HORSE_TRANSFER_VERSION,
-    dataSchemaVersion: BACKUP_SCHEMA_VERSION_CURRENT,
+    dataSchemaVersion: sourceDataSchemaVersion,
     createdAt: input.createdAt,
     app: {
       name: 'BreedWise',
@@ -270,6 +278,7 @@ function validatePrivacy(input: unknown): ValidateHorseTransferError | null {
 
 function validateTables(
   input: unknown,
+  dataSchemaVersion: number,
 ): TableValidationResult {
   if (!isRecord(input)) {
     return {
@@ -318,7 +327,10 @@ function validateTables(
       };
     }
 
-    const rowKeys = BACKUP_CURRENT_TABLE_FIELD_NAMES[tableName];
+    const rowKeys =
+      dataSchemaVersion === BACKUP_SCHEMA_VERSION_V12 && tableName === 'medication_logs'
+        ? BACKUP_CURRENT_TABLE_FIELD_NAMES[tableName].filter((key) => key !== 'time')
+        : BACKUP_CURRENT_TABLE_FIELD_NAMES[tableName];
     for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
       const row = rows[rowIndex];
       if (!isRecord(row)) {
@@ -346,6 +358,12 @@ function validateTables(
       if (rowKeyError) {
         return { ok: false, error: rowKeyError };
       }
+    }
+
+    if (dataSchemaVersion === BACKUP_SCHEMA_VERSION_V12 && tableName === 'medication_logs') {
+      tableInput[tableName] = rows.map((row) =>
+        isRecord(row) && !('time' in row) ? { ...row, time: null } : row,
+      );
     }
   }
 

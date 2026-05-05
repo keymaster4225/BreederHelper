@@ -1,6 +1,7 @@
 import type { BreedingRecord, DailyLog, FoalingRecord, LocalDate, MedicationLog, PregnancyCheck } from '@/models/types';
 import { compareBreedingRecordsDesc } from '@/utils/breedingRecordTime';
 import { compareDailyLogsDesc } from '@/utils/dailyLogTime';
+import { compareMedicationLogsDesc } from '@/utils/medicationLogTime';
 
 export type TimelineEventType = 'foaling' | 'pregnancyCheck' | 'breeding' | 'ovulation' | 'heat' | 'medication';
 
@@ -88,6 +89,16 @@ export function buildTimelineEvents(
       const breedingCompare = compareBreedingRecordsDesc(a.data as BreedingRecord, b.data as BreedingRecord);
       if (breedingCompare !== 0) {
         return breedingCompare;
+      }
+    }
+
+    if (a.type === 'medication' && b.type === 'medication') {
+      const medicationCompare = compareMedicationLogsDesc(
+        a.data as MedicationLog,
+        b.data as MedicationLog,
+      );
+      if (medicationCompare !== 0) {
+        return medicationCompare;
       }
     }
 

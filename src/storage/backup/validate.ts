@@ -33,6 +33,7 @@ import {
   BACKUP_SCHEMA_VERSION_V10,
   BACKUP_SCHEMA_VERSION_V11,
   BACKUP_SCHEMA_VERSION_V12,
+  BACKUP_SCHEMA_VERSION_V13,
   type BackupBreedingRecordRow,
   type BackupBreedingRecordRowLegacy,
   type BackupCollectionDoseEventRowV3,
@@ -55,11 +56,13 @@ import {
   type BackupTablesV10,
   type BackupTablesV11,
   type BackupTablesV12,
+  type BackupTablesV13,
   type ValidateBackupError,
   type ValidateBackupResult,
 } from './types';
 import { normalizeDailyLogTime } from '@/utils/dailyLogTime';
 import { normalizeBreedingRecordTime } from '@/utils/breedingRecordTime';
+import { normalizeMedicationLogTime } from '@/utils/medicationLogTime';
 import { normalizeClockPreference } from '@/utils/clockPreferences';
 
 const BREEDING_METHODS = new Set(BREEDING_METHOD_VALUES);
@@ -110,7 +113,8 @@ type BackupTables =
   | BackupTablesV9
   | BackupTablesV10
   | BackupTablesV11
-  | BackupTablesV12;
+  | BackupTablesV12
+  | BackupTablesV13;
 
 type ValidationIndexes = {
   readonly mareIds: ReadonlySet<string>;
@@ -164,7 +168,8 @@ export function validateBackup(input: unknown): ValidateBackupResult {
     schemaVersion !== BACKUP_SCHEMA_VERSION_V9 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V10 &&
     schemaVersion !== BACKUP_SCHEMA_VERSION_V11 &&
-    schemaVersion !== BACKUP_SCHEMA_VERSION_V12
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V12 &&
+    schemaVersion !== BACKUP_SCHEMA_VERSION_V13
   ) {
     return validationFailure(
       'unsupported_schema_version',
@@ -275,11 +280,17 @@ export function validateBackup(input: unknown): ValidateBackupResult {
                           ...baseEnvelopeFields,
                           tables: tableArrays.tables as BackupTablesV11,
                         }
-                      : {
-                          schemaVersion: BACKUP_SCHEMA_VERSION_V12,
-                          ...baseEnvelopeFields,
-                          tables: tableArrays.tables as BackupTablesV12,
-                        };
+                      : schemaVersion === BACKUP_SCHEMA_VERSION_V12
+                        ? {
+                            schemaVersion: BACKUP_SCHEMA_VERSION_V12,
+                            ...baseEnvelopeFields,
+                            tables: tableArrays.tables as BackupTablesV12,
+                          }
+                        : {
+                            schemaVersion: BACKUP_SCHEMA_VERSION_V13,
+                            ...baseEnvelopeFields,
+                            tables: tableArrays.tables as BackupTablesV13,
+                          };
 
   const rowError = validateRows(backup.tables, schemaVersion);
   if (rowError) {
@@ -312,7 +323,7 @@ export function buildBackupPreview(backup: BackupEnvelope): BackupPreviewSummary
 
 export function validateCurrentBackupTables(
   input: unknown,
-  options: { readonly includePhotoTables?: boolean } = {},
+  options: { readonly includePhotoTables?: boolean; readonly schemaVersion?: number } = {},
 ): ValidateBackupError | null {
   if (!isRecord(input)) {
     return {
@@ -321,16 +332,20 @@ export function validateCurrentBackupTables(
     };
   }
 
-  const schemaVersion =
-    options.includePhotoTables === false
+  const schemaVersion = options.schemaVersion ??
+    (options.includePhotoTables === false
       ? BACKUP_SCHEMA_VERSION_V11
-      : BACKUP_SCHEMA_VERSION_CURRENT;
-  const tableArrays = getTableArrays(input, schemaVersion);
+      : BACKUP_SCHEMA_VERSION_CURRENT);
+  const inputWithOptionalPhotoTables =
+    options.includePhotoTables === false && schemaVersion >= BACKUP_SCHEMA_VERSION_V12
+      ? { ...input, photo_assets: [], photo_attachments: [] }
+      : input;
+  const tableArrays = getTableArrays(inputWithOptionalPhotoTables, schemaVersion);
   if (!tableArrays.ok) {
     return getValidationError(tableArrays.error);
   }
 
-  const tables = tableArrays.tables as BackupTablesV11 | BackupTablesV12;
+  const tables = tableArrays.tables as BackupTablesV11 | BackupTablesV12 | BackupTablesV13;
   const rowError = validateRows(tables, schemaVersion);
   if (rowError) {
     return getValidationError(rowError);
@@ -1103,6 +1118,12 @@ function validateMedicationLogRow(
       'source_daily_log_id',
       'must be a string or null',
     );
+  }
+  if (
+    schemaVersion >= BACKUP_SCHEMA_VERSION_V13 &&
+    !isNullableMedicationLogTime(row.time)
+  ) {
+    return rowFailure('medication_logs', rowIndex, 'time', 'must be a valid HH:MM time or null');
   }
   if (!isNonEmptyString(row.created_at) || !isNonEmptyString(row.updated_at)) {
     return rowFailure('medication_logs', rowIndex, 'timestamps', 'created_at and updated_at are required');
@@ -2260,6 +2281,10 @@ function photoStorageId(value: unknown): string | null {
 
 function isNullableDailyLogTime(value: unknown): value is string | null {
   return value == null || (typeof value === 'string' && normalizeDailyLogTime(value) === value);
+}
+
+function isNullableMedicationLogTime(value: unknown): value is string | null {
+  return value == null || (typeof value === 'string' && normalizeMedicationLogTime(value) === value);
 }
 
 function isNullableTaskTime(value: unknown): value is string | null {

@@ -4,6 +4,7 @@ import { cloneBackupFixture } from '@/storage/backup/testFixtures';
 import { BACKUP_CURRENT_TABLE_FIELD_NAMES } from '@/storage/backup/tableSpecs';
 import {
   BACKUP_SCHEMA_VERSION_CURRENT,
+  BACKUP_SCHEMA_VERSION_V12,
   BACKUP_TABLE_NAMES,
   type BackupTableName,
 } from '@/storage/backup/types';
@@ -140,14 +141,14 @@ describe('validateHorseTransfer', () => {
     expect(result.error.message).toContain('transferVersion 2');
   });
 
-  it('uses exact schema mismatch copy for newer and older packages', () => {
+  it('uses exact schema mismatch copy for newer and unsupported older packages', () => {
     const newer = validateHorseTransfer({
       ...createMareEnvelope(),
       dataSchemaVersion: BACKUP_SCHEMA_VERSION_CURRENT + 1,
     });
     const older = validateHorseTransfer({
       ...createMareEnvelope(),
-      dataSchemaVersion: BACKUP_SCHEMA_VERSION_CURRENT - 1,
+      dataSchemaVersion: BACKUP_SCHEMA_VERSION_V12 - 1,
     });
 
     expect(newer.ok).toBe(false);
@@ -161,6 +162,25 @@ describe('validateHorseTransfer', () => {
       throw new Error('Expected validation failure');
     }
     expect(older.error.message).toBe(HORSE_TRANSFER_OLDER_SCHEMA_MESSAGE);
+  });
+
+  it('accepts v12 mare packages and normalizes missing medication times', () => {
+    const envelope = createMareEnvelope();
+    const result = validateHorseTransfer({
+      ...envelope,
+      dataSchemaVersion: BACKUP_SCHEMA_VERSION_V12,
+      tables: {
+        ...envelope.tables,
+        medication_logs: envelope.tables.medication_logs.map(({ time: _time, ...row }) => row),
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      throw new Error('Expected validation success');
+    }
+    expect(result.envelope.dataSchemaVersion).toBe(BACKUP_SCHEMA_VERSION_V12);
+    expect(result.envelope.tables.medication_logs[0]?.time).toBeNull();
   });
 
   it('rejects unknown top-level envelope keys', () => {

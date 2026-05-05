@@ -119,6 +119,7 @@ describe('daily log repository structured storage', () => {
     const { params: medicationParams } = expectInsertForTable(db, 'medication_logs');
     expect(medicationParams.mare_id).toBe('mare-1');
     expect(medicationParams.date).toBe('2026-04-01');
+    expect(medicationParams.time).toBe('08:00');
     expect(medicationParams.medication_name).toBe('Saline');
     expect(medicationParams.dose).toBe('1000 mL');
     expect(medicationParams.route).toBe('intrauterine');

@@ -3,7 +3,7 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { useMedicationForm } from '@/hooks/useMedicationForm';
 import { FormActionBar, STICKY_ACTION_BAR_SCROLL_PADDING } from '@/components/FormActionBar';
-import { FormDateInput, FormField, FormTextInput, OptionSelector, formStyles } from '@/components/FormControls';
+import { FormDateInput, FormField, FormTextInput, FormTimeInput, OptionSelector, formStyles } from '@/components/FormControls';
 import { Screen } from '@/components/Screen';
 import { RootStackParamList } from '@/navigation/AppNavigator';
 import { colors } from '@/theme';
@@ -27,6 +27,7 @@ export function MedicationFormScreen({ navigation, route }: Props): JSX.Element 
     selectedMed,
     customMedName,
     date,
+    time,
     dose,
     selectedRoute,
     notes,
@@ -37,6 +38,7 @@ export function MedicationFormScreen({ navigation, route }: Props): JSX.Element 
     setSelectedMed,
     setCustomMedName,
     setDate,
+    setTime,
     setDose,
     setSelectedRoute,
     setNotes,
@@ -84,6 +86,15 @@ export function MedicationFormScreen({ navigation, route }: Props): JSX.Element 
 
           <FormField label="Date" required error={errors.date}>
             <FormDateInput value={date} onChange={setDate} placeholder="Select date" displayFormat="MM-DD-YYYY" maximumDate={today} />
+          </FormField>
+
+          <FormField label="Time" required error={errors.time}>
+            <FormTimeInput
+              value={time}
+              onChange={setTime}
+              placeholder="Select administration time"
+              accessibilityLabel="Medication administration time"
+            />
           </FormField>
 
           <FormField label="Dose">

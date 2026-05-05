@@ -95,7 +95,7 @@ describe('safetyBackups', () => {
     vi.mocked(listDirectoryFiles).mockRejectedValue(new Error('directory unavailable'));
 
     await expect(createSafetySnapshot()).resolves.toMatchObject({
-      schemaVersion: 12,
+      schemaVersion: 13,
       mareCount: 1,
     });
   });

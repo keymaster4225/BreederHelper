@@ -99,6 +99,7 @@ function makeMedLog(overrides: Partial<MedicationLog> = {}): MedicationLog {
     id: 'med-1',
     mareId: 'mare-1',
     date: '2026-03-20',
+    time: '08:30',
     medicationName: 'Regumate',
     dose: null,
     route: null,

@@ -86,7 +86,7 @@ import {
 } from './testFixtures';
 import { restoreBackup } from './restore';
 import { validateBackup, validateBackupJson } from './validate';
-import type { BackupEnvelope, BackupEnvelopeV12 } from './types';
+import type { BackupEnvelope, BackupEnvelopeV13 } from './types';
 import type { BackupArchive } from './archiveIO';
 
 const MANAGED_TABLE_DELETE_ORDER = [
@@ -188,6 +188,7 @@ describe('restoreBackup', () => {
 
     const medicationInsertParams = expectInsertForTable(db, 'medication_logs').params;
     expect(medicationInsertParams.source_daily_log_id).toBeNull();
+    expect(medicationInsertParams.time).toBe('08:30');
     const taskInsertParams = expectInsertForTable(db, 'tasks').params;
     expect(taskInsertParams.mare_id).toBe('mare-1');
     expect(taskInsertParams.status).toBe('open');
@@ -209,7 +210,7 @@ describe('restoreBackup', () => {
 
   it('restores photo files from archives and inserts rewritten photo metadata', async () => {
     const baseBackup = cloneBackupFixture();
-    const backup: BackupEnvelopeV12 = {
+    const backup: BackupEnvelopeV13 = {
       ...baseBackup,
       tables: {
         ...baseBackup.tables,

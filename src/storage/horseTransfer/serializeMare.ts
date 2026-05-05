@@ -239,6 +239,7 @@ export async function exportMareTransfer(mareId: string): Promise<HorseTransferE
           id,
           mare_id,
           date,
+          time,
           medication_name,
           dose,
           route,
@@ -248,7 +249,12 @@ export async function exportMareTransfer(mareId: string): Promise<HorseTransferE
           updated_at
         FROM medication_logs
         WHERE mare_id = ?
-        ORDER BY date DESC, id ASC;
+        ORDER BY
+          date DESC,
+          time IS NULL ASC,
+          time DESC,
+          created_at DESC,
+          id DESC;
         `,
         [mareId],
       ),

@@ -18,7 +18,7 @@ import {
   storageIdFromPhotoAssetRelativePath,
 } from '@/storage/photoFiles/paths';
 
-import type { BackupEnvelope, BackupEnvelopeV12, BackupPhotoAssetRow } from './types';
+import type { BackupEnvelope, BackupPhotoAssetRow } from './types';
 
 export const BACKUP_JSON_ENTRY_NAME = 'backup.json';
 
@@ -33,6 +33,12 @@ export type BackupArchive = {
 export type BackupArchiveValidationResult =
   | { readonly ok: true }
   | { readonly ok: false; readonly message: string };
+
+function getBackupPhotoAssets(backup: BackupEnvelope): readonly BackupPhotoAssetRow[] {
+  return backup.schemaVersion >= 12 && 'photo_assets' in backup.tables
+    ? backup.tables.photo_assets
+    : [];
+}
 
 type ArchiveChunkWriter = {
   readonly bytesWritten: number;
@@ -63,7 +69,7 @@ function createFile(uri: string): FileLike {
 
 export async function writeBackupArchive(
   fileUri: string,
-  backup: BackupEnvelopeV12,
+  backup: BackupEnvelope,
 ): Promise<void> {
   const archiveFile = createFile(fileUri);
   archiveFile.create({ overwrite: true });
@@ -81,7 +87,7 @@ export async function writeBackupArchive(
   try {
     pushSingleChunkEntry(zip, BACKUP_JSON_ENTRY_NAME, strToU8(JSON.stringify(backup, null, 2)));
 
-    for (const asset of backup.tables.photo_assets) {
+    for (const asset of getBackupPhotoAssets(backup)) {
       pushFileEntry(zip, asset.master_relative_path, resolvePhotoAssetFile(asset.master_relative_path));
       pushFileEntry(zip, asset.thumbnail_relative_path, resolvePhotoAssetFile(asset.thumbnail_relative_path));
     }
@@ -177,10 +183,9 @@ export function validateBackupArchiveEntries(
     return { ok: true };
   }
 
-  const photoBackup = backup as BackupEnvelopeV12;
   const expectedEntries = new Set<string>([BACKUP_JSON_ENTRY_NAME]);
 
-  for (const asset of photoBackup.tables.photo_assets) {
+  for (const asset of getBackupPhotoAssets(backup)) {
     const assetValidation = validatePhotoAssetArchivePaths(asset);
     if (!assetValidation.ok) {
       return assetValidation;
@@ -216,10 +221,9 @@ export function restorePhotoFilesFromArchive(archive: BackupArchive): readonly B
     return [];
   }
 
-  const photoBackup = archive.backup as BackupEnvelopeV12;
   ensurePhotoRootDirectories();
 
-  return photoBackup.tables.photo_assets.map((asset) => {
+  return getBackupPhotoAssets(archive.backup).map((asset) => {
     const masterBytes = archive.entries.get(asset.master_relative_path);
     const thumbnailBytes = archive.entries.get(asset.thumbnail_relative_path);
     if (masterBytes == null || thumbnailBytes == null) {

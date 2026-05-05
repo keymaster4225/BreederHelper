@@ -470,6 +470,7 @@ async function syncLinkedFlushMedicationLogs(
   dailyLogId: string,
   mareId: string,
   date: string,
+  time: string | null,
   flush: UterineFlush | null,
   now: string,
 ): Promise<void> {
@@ -486,6 +487,7 @@ async function syncLinkedFlushMedicationLogs(
         id: newId(),
         mareId,
         date,
+        time,
         medicationName: product.productName,
         dose: product.dose,
         route: 'intrauterine',
@@ -493,6 +495,7 @@ async function syncLinkedFlushMedicationLogs(
         sourceDailyLogId: dailyLogId,
       },
       now,
+      { allowUntimed: true },
     );
   }
 }
@@ -586,7 +589,7 @@ export async function createDailyLog(input: DailyLogCreateInput, db?: RepoDb): P
         input.uterineFlush,
         now,
       );
-      await syncLinkedFlushMedicationLogs(handle, input.id, input.mareId, input.date, flush, now);
+      await syncLinkedFlushMedicationLogs(handle, input.id, input.mareId, input.date, time, flush, now);
     }
   });
 
@@ -688,7 +691,7 @@ export async function createDailyLogWithPhotos(
         input.uterineFlush,
         now,
       );
-      await syncLinkedFlushMedicationLogs(handle, input.id, input.mareId, input.date, flush, now);
+      await syncLinkedFlushMedicationLogs(handle, input.id, input.mareId, input.date, time, flush, now);
     }
 
     deletedPhotoAssets = await replaceDailyLogAttachmentPhotosInTransaction(input.id, photos, handle);
@@ -813,6 +816,7 @@ export async function updateDailyLog(
       id,
       existing.mare_id,
       input.date,
+      time,
       flush,
       now,
     );
@@ -938,6 +942,7 @@ export async function updateDailyLogWithPhotos(
       id,
       existing.mare_id,
       input.date,
+      time,
       flush,
       now,
     );

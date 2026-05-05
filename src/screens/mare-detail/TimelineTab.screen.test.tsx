@@ -1,6 +1,6 @@
 import { fireEvent, render } from '@testing-library/react-native';
 
-import type { DailyLog } from '@/models/types';
+import type { DailyLog, MedicationLog } from '@/models/types';
 
 import { TimelineTab } from './TimelineTab';
 
@@ -54,6 +54,26 @@ function makeDailyLog(overrides: Partial<DailyLog> & { id: string; date: string 
     notes: null,
     createdAt: '2026-04-23T00:00:00Z',
     updatedAt: '2026-04-23T00:00:00Z',
+    ...rest,
+  };
+}
+
+function makeMedicationLog(
+  overrides: Partial<MedicationLog> & { id: string; date: string },
+): MedicationLog {
+  const { id, date, ...rest } = overrides;
+  return {
+    id,
+    mareId: 'mare-1',
+    date,
+    time: '08:30',
+    medicationName: 'Regumate',
+    dose: null,
+    route: null,
+    notes: null,
+    sourceDailyLogId: null,
+    createdAt: '2026-04-23T08:30:00Z',
+    updatedAt: '2026-04-23T08:30:00Z',
     ...rest,
   };
 }
@@ -172,6 +192,39 @@ it('shows daily log event times in 24-hour format when selected', () => {
 
   expect(screen.getByText('2026-04-23 at 16:00')).toBeTruthy();
   expect(screen.getByText('2026-04-23 at 08:00')).toBeTruthy();
+});
+
+it('shows medication times in the selected clock format and orders same-day doses by time', () => {
+  useClockDisplayMode.mockReturnValue('24h');
+  const navigation = createNavigation();
+
+  const screen = render(
+    <TimelineTab
+      mareId="mare-1"
+      gestationLengthDays={340}
+      dailyLogs={[]}
+      breedingRecords={[]}
+      pregnancyChecks={[]}
+      foalingRecords={[]}
+      medicationLogs={[
+        makeMedicationLog({ id: 'med-morning', date: '2026-04-23', time: '08:00' }),
+        makeMedicationLog({ id: 'med-evening', date: '2026-04-23', time: '18:00' }),
+        makeMedicationLog({ id: 'med-legacy', date: '2026-04-23', time: null }),
+      ]}
+      foalByFoalingRecordId={{}}
+      stallionNameById={{}}
+      breedingById={{}}
+      navigation={navigation as never}
+    />,
+  );
+
+  expect(screen.getByText('2026-04-23 at 18:00')).toBeTruthy();
+  expect(screen.getByText('2026-04-23 at 08:00')).toBeTruthy();
+  expect(screen.getByText('2026-04-23')).toBeTruthy();
+
+  const tree = JSON.stringify(screen.toJSON());
+  expect(tree.indexOf('2026-04-23 at 18:00')).toBeLessThan(tree.indexOf('2026-04-23 at 08:00'));
+  expect(tree.indexOf('2026-04-23 at 08:00')).toBeLessThan(tree.lastIndexOf('2026-04-23'));
 });
 
 it('opens breeding detail from the card body and edit form from the pencil', () => {

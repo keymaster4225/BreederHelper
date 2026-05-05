@@ -4,7 +4,7 @@ import type {
   BackupEnvelopeV4,
   BackupEnvelopeV5,
   BackupEnvelopeV6,
-  BackupEnvelopeV12,
+  BackupEnvelopeV13,
   BackupBreedingRecordRow,
   BackupBreedingRecordRowLegacy,
 } from './types';
@@ -19,9 +19,9 @@ function stripBreedingRecordTime(
 
 export const TINY_JPEG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xdb, 0xff, 0xd9]);
 
-export function createBackupFixture(): BackupEnvelopeV12 {
+export function createBackupFixture(): BackupEnvelopeV13 {
   return {
-    schemaVersion: 12,
+    schemaVersion: 13,
     createdAt: BASE_TIMESTAMP,
     app: {
       name: 'BreedWise',
@@ -210,6 +210,7 @@ export function createBackupFixture(): BackupEnvelopeV12 {
           id: 'med-1',
           mare_id: 'mare-1',
           date: '2026-04-12',
+          time: '08:30',
           medication_name: 'Regumate',
           dose: '10mL',
           route: 'oral',
@@ -337,8 +338,8 @@ export function createBackupFixture(): BackupEnvelopeV12 {
   };
 }
 
-export function cloneBackupFixture(): BackupEnvelopeV12 {
-  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV12;
+export function cloneBackupFixture(): BackupEnvelopeV13 {
+  return JSON.parse(JSON.stringify(createBackupFixture())) as BackupEnvelopeV13;
 }
 
 export function createBackupFixtureV6(): BackupEnvelopeV6 {
@@ -359,7 +360,7 @@ export function createBackupFixtureV6(): BackupEnvelopeV6 {
       foaling_records: backupV7.tables.foaling_records,
       foals: backupV7.tables.foals,
       medication_logs: backupV7.tables.medication_logs.map(
-        ({ source_daily_log_id: _sourceDailyLogId, ...row }) => row,
+        ({ source_daily_log_id: _sourceDailyLogId, time: _time, ...row }) => row,
       ),
       semen_collections: backupV7.tables.semen_collections,
       collection_dose_events: backupV7.tables.collection_dose_events,

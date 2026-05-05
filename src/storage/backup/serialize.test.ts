@@ -207,6 +207,7 @@ describe('serializeBackup', () => {
               id: 'med-1',
               mare_id: 'mare-1',
               date: '2026-04-10',
+              time: '08:30',
               medication_name: 'Saline',
               dose: '1000 mL',
               route: 'intrauterine',
@@ -368,7 +369,7 @@ describe('serializeBackup', () => {
     const backup = await serializeBackup();
 
     expect(backup.createdAt).toBe('2026-04-16T15:30:45.000Z');
-    expect(backup.schemaVersion).toBe(12);
+    expect(backup.schemaVersion).toBe(13);
     expect(backup.app.name).toBe('BreedWise');
     expect(backup.settings.onboardingComplete).toBe(false);
     expect(backup.settings.clockPreference).toBe('24h');
@@ -389,6 +390,7 @@ describe('serializeBackup', () => {
     expect(backup.tables.uterine_flushes[0]?.base_solution).toBe('LRS');
     expect(backup.tables.uterine_flush_products[0]?.product_name).toBe('Saline');
     expect(backup.tables.medication_logs[0]?.source_daily_log_id).toBe('log-1');
+    expect(backup.tables.medication_logs[0]?.time).toBe('08:30');
     expect(backup.tables.tasks[0]?.completed_record_type).toBe('pregnancyCheck');
     expect(backup.tables.tasks[0]?.source_reason).toBe('breedingPregnancyCheck');
     expect(backup.tables.collection_dose_events[0]?.recipient_phone).toBe('555-0101');

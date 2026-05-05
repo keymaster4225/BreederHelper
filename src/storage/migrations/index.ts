@@ -1385,6 +1385,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_photo_attachments_profile_unique
   WHERE role = 'profile';
 `;
 
+const migration030 = `
+CREATE INDEX IF NOT EXISTS idx_medication_logs_mare_date_time
+  ON medication_logs (
+    mare_id,
+    date DESC,
+    (time IS NULL) ASC,
+    time DESC,
+    created_at DESC,
+    id DESC
+  );
+`;
+
 const migrations: Migration[] = [
   {
     id: 1,
@@ -1629,6 +1641,15 @@ const migrations: Migration[] = [
       (await indexExists(db, 'idx_photo_attachments_asset_id')) &&
       (await indexExists(db, 'idx_photo_attachments_profile_unique')),
   },
+  {
+    id: 30,
+    name: '030_medication_log_time',
+    statements: splitStatements(migration030),
+    beforeApply: async (db) => ensureMedicationLogTimeColumn(db),
+    shouldSkip: async (db) =>
+      (await hasColumn(db, 'medication_logs', 'time')) &&
+      (await indexExists(db, 'idx_medication_logs_mare_date_time')),
+  },
 ];
 
 export async function applyMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -1768,6 +1789,27 @@ async function ensureBreedingRecordTimeColumn(
 
   await db.execAsync(`
     ALTER TABLE breeding_records
+      ADD COLUMN time TEXT
+        CHECK (
+          time IS NULL OR (
+            length(time) = 5
+            AND substr(time, 3, 1) = ':'
+            AND substr(time, 1, 2) BETWEEN '00' AND '23'
+            AND substr(time, 4, 2) BETWEEN '00' AND '59'
+          )
+        );
+  `);
+}
+
+async function ensureMedicationLogTimeColumn(
+  db: SQLite.SQLiteDatabase,
+): Promise<void> {
+  if (await hasColumn(db, 'medication_logs', 'time')) {
+    return;
+  }
+
+  await db.execAsync(`
+    ALTER TABLE medication_logs
       ADD COLUMN time TEXT
         CHECK (
           time IS NULL OR (

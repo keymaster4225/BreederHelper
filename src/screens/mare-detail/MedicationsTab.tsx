@@ -5,6 +5,8 @@ import { PrimaryButton } from '@/components/Buttons';
 import { CardRow, EditIconButton, cardStyles } from '@/components/RecordCardParts';
 import { MedicationLog } from '@/models/types';
 import { RootStackParamList } from '@/navigation/AppNavigator';
+import { useClockDisplayMode } from '@/hooks/useClockPreference';
+import { formatMedicationLogDateTime } from '@/utils/medicationLogTime';
 import { formatRoute } from '@/utils/medications';
 import { spacing } from '@/theme';
 
@@ -15,6 +17,7 @@ type Props = {
 };
 
 export function MedicationsTab({ mareId, medicationLogs, navigation }: Props): JSX.Element {
+  const clockDisplayMode = useClockDisplayMode();
   const openMedicationSource = (log: MedicationLog): void => {
     if (log.sourceDailyLogId) {
       navigation.navigate('DailyLogForm', { mareId, logId: log.sourceDailyLogId });
@@ -39,7 +42,9 @@ export function MedicationsTab({ mareId, medicationLogs, navigation }: Props): J
         {medicationLogs.map((log) => (
           <View key={log.id} style={cardStyles.card}>
             <View style={cardStyles.cardHeader}>
-              <Text style={cardStyles.cardTitle}>{log.date}</Text>
+              <Text style={cardStyles.cardTitle}>
+                {formatMedicationLogDateTime(log, clockDisplayMode)}
+              </Text>
               <EditIconButton
                 onPress={() => openMedicationSource(log)}
               />

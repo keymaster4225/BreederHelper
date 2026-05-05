@@ -3,8 +3,10 @@ import { Alert } from 'react-native';
 
 import type { LocalDate, MedicationRoute } from '@/models/types';
 import { createMedicationLog, deleteMedicationLog, getMedicationLogById, updateMedicationLog } from '@/storage/repositories';
+import { getCurrentTimeHHMM } from '@/utils/dailyLogTime';
 import { toLocalDate } from '@/utils/dates';
 import { newId } from '@/utils/id';
+import { normalizeMedicationLogTime } from '@/utils/medicationLogTime';
 import { PREDEFINED_MEDICATIONS } from '@/utils/medications';
 import { validateLocalDate, validateLocalDateNotInFuture, validateRequired } from '@/utils/validation';
 import {
@@ -17,6 +19,7 @@ type MedSelection = typeof PREDEFINED_MEDICATIONS[number] | 'custom';
 type FormErrors = {
   readonly medicationName?: string;
   readonly date?: string;
+  readonly time?: string;
 };
 
 type UseMedicationFormArgs = {
@@ -35,6 +38,7 @@ type UseMedicationFormResult = {
   readonly selectedMed: MedSelection | null;
   readonly customMedName: string;
   readonly date: string;
+  readonly time: string;
   readonly dose: string;
   readonly selectedRoute: MedicationRoute | null;
   readonly notes: string;
@@ -45,6 +49,7 @@ type UseMedicationFormResult = {
   readonly setSelectedMed: (value: MedSelection | null) => void;
   readonly setCustomMedName: (value: string) => void;
   readonly setDate: (value: string) => void;
+  readonly setTime: (value: string) => void;
   readonly setDose: (value: string) => void;
   readonly setSelectedRoute: (value: MedicationRoute | null) => void;
   readonly setNotes: (value: string) => void;
@@ -72,12 +77,14 @@ export function useMedicationForm({
   const [selectedMed, setSelectedMed] = useState<MedSelection | null>(null);
   const [customMedName, setCustomMedName] = useState('');
   const [date, setDate] = useState(defaultDate ?? toLocalDate(new Date()));
+  const [time, setTime] = useState(() => getCurrentTimeHHMM());
   const [dose, setDose] = useState('');
   const [selectedRoute, setSelectedRoute] = useState<MedicationRoute | null>(null);
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(isEdit);
   const [isSaving, setIsSaving] = useState(false);
+  const [loadedRecordHadTime, setLoadedRecordHadTime] = useState(false);
   const today = new Date();
 
   useEffect(() => {
@@ -119,6 +126,8 @@ export function useMedicationForm({
         }
 
         setDate(record.date);
+        setTime(record.time ?? '');
+        setLoadedRecordHadTime(record.time !== null);
         setDose(record.dose ?? '');
         setSelectedRoute(record.route);
         setNotes(record.notes ?? '');
@@ -145,14 +154,25 @@ export function useMedicationForm({
   }, [customMedName, selectedMed]);
 
   const validate = useCallback((): boolean => {
+    const normalizedTime = normalizeMedicationLogTime(time);
+    const timeHasText = time.trim().length > 0;
+    const timeError =
+      !isEdit || loadedRecordHadTime
+        ? normalizedTime === null
+          ? 'Time is required.'
+          : undefined
+        : timeHasText && normalizedTime === null
+          ? 'Time must be a valid HH:MM value.'
+          : undefined;
     const nextErrors: FormErrors = {
       medicationName: validateRequired(getMedicationName(), 'Medication') ?? undefined,
       date: (validateLocalDate(date, 'Date', true) ?? validateLocalDateNotInFuture(date)) ?? undefined,
+      time: timeError,
     };
 
     setErrors(nextErrors);
-    return !nextErrors.medicationName && !nextErrors.date;
-  }, [date, getMedicationName]);
+    return !nextErrors.medicationName && !nextErrors.date && !nextErrors.time;
+  }, [date, getMedicationName, isEdit, loadedRecordHadTime, time]);
 
   const saveWithCompletion = useCallback(async (onCompletedOrSkipped: (savedMedicationLogId: string) => void) => {
     if (!validate()) return;
@@ -161,6 +181,7 @@ export function useMedicationForm({
     try {
       const payload = {
         date: date.trim(),
+        time: normalizeMedicationLogTime(time),
         medicationName: getMedicationName(),
         dose: dose.trim() || null,
         route: selectedRoute,
@@ -187,7 +208,7 @@ export function useMedicationForm({
     } finally {
       setIsSaving(false);
     }
-  }, [date, dose, getMedicationName, mareId, medicationLogId, notes, selectedRoute, taskId, validate]);
+  }, [date, dose, getMedicationName, mareId, medicationLogId, notes, selectedRoute, taskId, time, validate]);
 
   const onSave = useCallback(async () => {
     await saveWithCompletion(() => onGoBackRef.current());
@@ -239,6 +260,7 @@ export function useMedicationForm({
     selectedMed,
     customMedName,
     date,
+    time,
     dose,
     selectedRoute,
     notes,
@@ -249,6 +271,7 @@ export function useMedicationForm({
     setSelectedMed,
     setCustomMedName,
     setDate,
+    setTime,
     setDose,
     setSelectedRoute,
     setNotes,

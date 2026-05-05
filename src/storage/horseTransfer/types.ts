@@ -1,5 +1,6 @@
 import {
   BACKUP_SCHEMA_VERSION_CURRENT,
+  BACKUP_SCHEMA_VERSION_V12,
   type BackupAppMetadata,
   type BackupBreedingRecordRowV10,
   type BackupCollectionDoseEventRowV3,
@@ -68,7 +69,7 @@ export type HorseTransferTableName = keyof HorseTransferTablesV1 & string;
 export type HorseTransferEnvelopeV1 = {
   readonly artifactType: typeof HORSE_TRANSFER_ARTIFACT_TYPE;
   readonly transferVersion: typeof HORSE_TRANSFER_VERSION;
-  readonly dataSchemaVersion: typeof BACKUP_SCHEMA_VERSION_CURRENT;
+  readonly dataSchemaVersion: typeof BACKUP_SCHEMA_VERSION_CURRENT | typeof BACKUP_SCHEMA_VERSION_V12;
   readonly createdAt: BackupIsoDateTime;
   readonly app: BackupAppMetadata;
   readonly sourceHorse: HorseTransferSourceHorse;
@@ -81,7 +82,7 @@ export type HorseTransferTableCounts = Record<HorseTransferTableName, number>;
 export type HorseTransferPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;
   readonly appVersion: string;
-  readonly dataSchemaVersion: typeof BACKUP_SCHEMA_VERSION_CURRENT;
+  readonly dataSchemaVersion: typeof BACKUP_SCHEMA_VERSION_CURRENT | typeof BACKUP_SCHEMA_VERSION_V12;
   readonly sourceHorse: HorseTransferSourceHorse;
   readonly privacy: HorseTransferPrivacy;
   readonly tableCounts: HorseTransferTableCounts;

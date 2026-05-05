@@ -36,7 +36,8 @@ export const BACKUP_SCHEMA_VERSION_V9 = 9 as const;
 export const BACKUP_SCHEMA_VERSION_V10 = 10 as const;
 export const BACKUP_SCHEMA_VERSION_V11 = 11 as const;
 export const BACKUP_SCHEMA_VERSION_V12 = 12 as const;
-export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V12;
+export const BACKUP_SCHEMA_VERSION_V13 = 13 as const;
+export const BACKUP_SCHEMA_VERSION_CURRENT = BACKUP_SCHEMA_VERSION_V13;
 
 export const BACKUP_TABLE_NAMES = [
   'mares',
@@ -300,8 +301,12 @@ export type BackupMedicationLogRowV7 = {
   readonly updated_at: BackupIsoDateTime;
 };
 
-export type BackupMedicationLogRow = BackupMedicationLogRowV7 & {
+export type BackupMedicationLogRowV8 = BackupMedicationLogRowV7 & {
   readonly source_daily_log_id: string | null;
+};
+
+export type BackupMedicationLogRow = BackupMedicationLogRowV8 & {
+  readonly time: string | null;
 };
 
 export type BackupTaskRow = {
@@ -577,7 +582,7 @@ export type BackupTablesV8 = {
   readonly pregnancy_checks: readonly BackupPregnancyCheckRow[];
   readonly foaling_records: readonly BackupFoalingRecordRow[];
   readonly foals: readonly BackupFoalRow[];
-  readonly medication_logs: readonly BackupMedicationLogRow[];
+  readonly medication_logs: readonly BackupMedicationLogRowV8[];
   readonly semen_collections: readonly BackupSemenCollectionRowV3[];
   readonly collection_dose_events: readonly BackupCollectionDoseEventRowV3[];
   readonly frozen_semen_batches: readonly BackupFrozenSemenBatchRow[];
@@ -596,6 +601,10 @@ export type BackupTablesV11 = BackupTablesV10 & {
 export type BackupTablesV12 = BackupTablesV11 & {
   readonly photo_assets: readonly BackupPhotoAssetRow[];
   readonly photo_attachments: readonly BackupPhotoAttachmentRow[];
+};
+
+export type BackupTablesV13 = Omit<BackupTablesV12, 'medication_logs'> & {
+  readonly medication_logs: readonly BackupMedicationLogRow[];
 };
 
 export type BackupEnvelopeV1 = {
@@ -694,6 +703,14 @@ export type BackupEnvelopeV12 = {
   readonly tables: BackupTablesV12;
 };
 
+export type BackupEnvelopeV13 = {
+  readonly schemaVersion: typeof BACKUP_SCHEMA_VERSION_V13;
+  readonly createdAt: BackupIsoDateTime;
+  readonly app: BackupAppMetadata;
+  readonly settings: BackupSettings;
+  readonly tables: BackupTablesV13;
+};
+
 export type BackupEnvelope =
   | BackupEnvelopeV1
   | BackupEnvelopeV2
@@ -706,7 +723,8 @@ export type BackupEnvelope =
   | BackupEnvelopeV9
   | BackupEnvelopeV10
   | BackupEnvelopeV11
-  | BackupEnvelopeV12;
+  | BackupEnvelopeV12
+  | BackupEnvelopeV13;
 
 export type BackupPreviewSummary = {
   readonly createdAt: BackupIsoDateTime;
