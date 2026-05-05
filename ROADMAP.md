@@ -35,6 +35,8 @@ Features that deepen mare reproductive recordkeeping beyond what the current dai
 
 - **P0 — Cyst mapping** (`TODO:23`)
   Recurring user ask. Needs a design pass: how cysts are located on the uterus, how they're tracked over time, and whether they live on the daily log or as a separate longitudinal record.
+- **P1 — Explicit "No fluid" control in uterus fluid section**
+  Add a positive "No fluid" check option in the daily-log fluid UI so a normal finding can be recorded explicitly instead of being inferred from an empty selection. Design question: whether checking it should clear and lock the existing fluid severity/detail fields or simply act as a mutually exclusive state.
 - **P2 — Mare ovulation trends** (`TODO:15`)
   Analytics view. Blocked on data volume — needs enough historical ovulation logs per mare to be useful.
 
@@ -92,6 +94,8 @@ Cross-cutting UX and structural features that aren't a single user-visible featu
   Continuation of the bottom-tab migration (Phases 1-2 shipped 2026-04-05).
 - **P1 — Archive / soft-delete UX for mares and stallions**
   Users want to hide retired animals without losing the historical record. Some soft-delete plumbing already exists (`isDeleted` gating in tests) — this is the UX surface.
+- **P1 — Medication log timestamps**
+  Add optional time-of-day capture for meds so administration records can distinguish morning vs evening doses on the same date. Scope needs a pass across form, detail/list display, sorting, validation, and backup/export so med timing behaves consistently with the existing date-based medication history.
 
 ---
 
@@ -165,6 +169,8 @@ When a roadmap item is completed and merged to `main`:
 
 ## Change log for this document
 
+- 2026-05-04 — Added *Explicit "No fluid" control in uterus fluid section* under Mare care depth (P1).
+- 2026-05-04 — Added *Medication log timestamps* under Foundational polish (P1).
 - 2026-05-04 — Marked *Photos V1*, final QA polish, and *Daily log multiple measured follicles per ovary* as shipped, and replaced the active Photos V1 item with a Photos V2 expansion placeholder for the remaining media surfaces.
 - 2026-05-04 — Marked *Foaling record summary page* as shipped and cleared stale current-building status.
 - 2026-05-01 — Marked Photos V1 Phase 0 as in flight, recorded Android spike evidence status, and linked the amended implementation plan.
